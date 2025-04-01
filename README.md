@@ -1,1 +1,3 @@
 # FictionArt
+
+- Self relevance?
