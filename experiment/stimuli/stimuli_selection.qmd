@@ -1,5 +1,5 @@
 ---
-title: "VAPS Dataset"
+title: "Stimuli Selection"
 format: 
   html:
     self-contained: true
