@@ -1,0 +1,184 @@
+---
+title: "Stimuli Selection"
+format: 
+  html:
+    self-contained: true
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(tidyverse)
+library(ggside)
+```
+
+```{r}
+
+df <- haven::read_sav("VAPS_ValidationData.sav") |> # File provided in the database
+  full_join(readxl::read_xlsx("VAPS_Information.xlsx"), by = "Picture_Number") |> 
+  mutate(
+    Picture_Number = as.numeric(Picture_Number),
+    Folder = case_when(
+      Category == 1 ~ "1 Scenes",
+      Category == 2 ~ "2 Portraits",
+      Category == 3 ~ "3 Landscapes",
+      Category == 4 ~ "4 Still Lifes",
+      .default = "5 Toward Abstraction"),
+    Category = case_when(
+      Category == 1 ~ "Scene",
+      Category == 2 ~ "Portrait",
+      Category == 3 ~ "Landscape",
+      Category == 4 ~ "Still Life",
+      .default = "Abstract"),
+    File = paste0(Folder, "/", Picture_Number, ".jpg"),
+    Date = sub("-.*", "", Date),
+    Date = sub("/.*", "", Date),
+    Date = sub("ca. ", "", Date),
+    Date = sub("about ", "", Date),
+    Date = sub("around ", "", Date),
+    Date = sub("before ", "", Date),
+    Date = sub("after ", "", Date),
+    Date = sub("er", "", Date),
+    Date = sub("s", "", Date),
+    Date = sub("um ", "", Date),
+    Date = ifelse(Date %in% c("unknown", "unkown","undated", "Unknown"), NA, Date),
+    Date = as.numeric(Date))
+
+df |> 
+  summarize(n = n(), .by = c("Category", "Style")) |> 
+  pivot_wider(names_from = Category, values_from = n, values_fill = 0) |> 
+  full_join(summarize(df, Date = paste0(min(Date, na.rm = TRUE), "-", max(Date, na.rm = TRUE)), .by = "Style"), by = "Style") |>
+  gt::gt()
+
+
+
+```
+
+## Style Reclassification
+
+
+```{r}
+df$Style <- case_when(
+  df$Style %in% c("Surrealistic tendencies", "Cubistic tendencies") | df$Category == "Abstract" ~ "Abstract and Avant-garde",
+  df$Style %in% c("Impressionistic tendencies", "Postimpressionistic tendencies",
+                  "Expressionistic tendencies") ~ "Impressionist and Expressionist",
+  df$Style %in% c("Renaissance and Mannerism", "Baroque and Rococo") ~ "Classical",
+  df$Style %in% c("Idealistic tendencies", "Realistic tendencies I. (19th century)",
+                  "Realistic tendencies II. (20th century)") ~ "Romantic and Realism",
+  .default = df$Style
+)
+
+df |> 
+  summarize(n = n(), .by = c("Category", "Style")) |> 
+  pivot_wider(names_from = Category, values_from = n, values_fill = 0) |> 
+  full_join(summarize(df, N = n(), Date = paste0(min(Date, na.rm = TRUE), "-", max(Date, na.rm = TRUE)), .by = "Style"), by = "Style") |>
+  gt::gt()
+```
+
+
+## Familiarity
+
+
+```{r}
+df |> 
+  ggplot(aes(x = Familarity_Mean_All)) +
+  geom_histogram(bins = 50) +
+  geom_vline(aes(xintercept = 2), linetype = "dashed", color = "red") +
+  theme_minimal()
+
+df$Familiar <- ifelse(df$Familarity_Mean_All > median(df$Familarity_Mean_All), TRUE, FALSE)
+```
+
+## Appraisals
+
+```{r}
+df |> 
+  select(Picture_Number, Category, Style, Familiar,
+         Liking_Mean_All, Valence_Mean_All, Arousal_Mean_All,
+         Liking_Mean_Female, Valence_Mean_Female, Arousal_Mean_Female,
+         Liking_Mean_Male, Valence_Mean_Male, Arousal_Mean_Male) |> 
+  pivot_longer(-c(Picture_Number, Category, Style, Familiar)) |> 
+  separate(name, c("Dimension", "Index", "Sex")) |> 
+  pivot_wider(names_from = Dimension, values_from = value) |>
+  filter(Sex == "All") |> 
+  ggplot(aes(x=Valence, y=Arousal)) +
+  geom_point(aes(shape = Familiar, color = Style, size = Liking), alpha = 0.8) +
+  # facet_wrap(~Sex) +
+  scale_shape_manual(values = c(16, 4)) +
+  ggside::geom_ysidedensity(aes(linetype = Familiar)) +
+  ggside::geom_xsidedensity(aes(linetype = Familiar)) +
+  theme_minimal() 
+```
+
+
+
+## Filtering
+
+```{r}
+q <- 0.74  # Quantile (adjust so to meet target N of stimuli)
+
+dffiltered <- df |> 
+  filter(Familiar == FALSE) |> 
+  mutate(Liking_Up = quantile(Liking_Mean_All, q, na.rm = TRUE),
+         Liking_Down = quantile(Liking_Mean_All, 1 - q, na.rm = TRUE), 
+         Arousal_Up = quantile(Arousal_Mean_All, q, na.rm = TRUE),
+         Arousal_Down = quantile(Arousal_Mean_All, 1 - q, na.rm = TRUE),
+         Valence_Up = quantile(Valence_Mean_All, q, na.rm = TRUE),
+         Valence_Down = quantile(Valence_Mean_All, 1 - q, na.rm = TRUE),
+         .by = "Style") |> 
+  mutate(Liking_Extreme = ifelse(Liking_Mean_All >= Liking_Up |Liking_Mean_All <= Liking_Down, TRUE, FALSE),
+         Arousal_Extreme = ifelse(Arousal_Mean_All >= Arousal_Up | Arousal_Mean_All <= Arousal_Down, TRUE, FALSE),
+         Valence_Extreme = ifelse(Valence_Mean_All >= Valence_Up | Valence_Mean_All <= Valence_Down, TRUE, FALSE),
+         Total_Extreme = ifelse(Liking_Extreme & Arousal_Extreme & Valence_Extreme, TRUE, FALSE))
+
+dffiltered |>
+  select(Picture_Number, Category, Style, Total_Extreme,
+         Liking_Mean_All, Valence_Mean_All, Arousal_Mean_All,
+         Liking_Mean_Female, Valence_Mean_Female, Arousal_Mean_Female,
+         Liking_Mean_Male, Valence_Mean_Male, Arousal_Mean_Male) |>
+  pivot_longer(-c(Picture_Number, Category, Style, Total_Extreme)) |>
+  separate(name, c("Dimension", "Index", "Sex")) |>
+  pivot_wider(names_from = Dimension, values_from = value) |>
+  filter(Sex == "All") |>
+  ggplot(aes(x=Valence, y=Arousal)) +
+  geom_point(aes(shape = Total_Extreme, color = Style, size = Liking), alpha = 0.8) +
+  # facet_wrap(~Sex) +
+  scale_shape_manual(values = c(4, 16)) +
+  ggside::geom_ysidedensity(aes(linetype = Total_Extreme)) +
+  ggside::geom_xsidedensity(aes(linetype = Total_Extreme)) +
+  theme_minimal()
+
+dffinal <- filter(dffiltered, Total_Extreme == TRUE)
+
+dffinal |>  
+  summarize(n = n(), .by = c("Style")) |> 
+  rbind(data.frame(Style = "Total", n = nrow(dffinal))) |>  
+  gt::gt() 
+```
+
+```{r}
+dffinal |> 
+  select(Picture_Number, Style,
+         Liking_Mean_All, Valence_Mean_All, Arousal_Mean_All,
+         Liking_Mean_Female, Valence_Mean_Female, Arousal_Mean_Female,
+         Liking_Mean_Male, Valence_Mean_Male, Arousal_Mean_Male) |> 
+  pivot_longer(-c(Picture_Number, Style)) |> 
+  separate(name, c("Dimension", "Index", "Sex")) |> 
+  pivot_wider(names_from = Dimension, values_from = value) |>
+  filter(Sex == "All") |> 
+  ggplot(aes(x=Valence, y=Arousal)) +
+  geom_point(aes(color = Style, size = Liking), alpha = 1) +
+  # facet_wrap(~Sex) +
+  scale_shape_manual(values = c(16, 4)) +
+  ggside::geom_ysidedensity(aes(color = Style)) +
+  ggside::geom_xsidedensity(aes(color = Style)) +
+  theme_minimal() 
+```
+
+### Save
+
+
+```{r}
+# TODO
+```
+
