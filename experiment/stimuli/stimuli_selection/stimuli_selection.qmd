@@ -2,17 +2,23 @@
 title: "Stimuli Selection"
 format: 
   html:
-    self-contained: true
+    self-contained: false
 editor_options: 
   chunk_output_type: console
+execute:
+  cache: true
 ---
 
 ```{r}
 library(tidyverse)
 library(ggside)
+library(ggimage)
 ```
 
 ```{r}
+# Local path
+filepaths <- list.files(path="C:/Users/domma/Dropbox/RECHERCHE/materials/Stimuli/VAPS/VAPS/", 
+                        pattern=".jpg$", full.names = TRUE, recursive = TRUE, ignore.case = TRUE) 
 
 df <- haven::read_sav("VAPS_ValidationData.sav") |> # File provided in the database
   full_join(readxl::read_xlsx("VAPS_Information.xlsx"), by = "Picture_Number") |> 
@@ -30,7 +36,7 @@ df <- haven::read_sav("VAPS_ValidationData.sav") |> # File provided in the datab
       Category == 3 ~ "Landscape",
       Category == 4 ~ "Still Life",
       .default = "Abstract"),
-    File = paste0(Folder, "/", Picture_Number, ".jpg"),
+    File = paste0(Picture_Number, ".jpg"),
     Date = sub("-.*", "", Date),
     Date = sub("/.*", "", Date),
     Date = sub("ca. ", "", Date),
@@ -44,14 +50,13 @@ df <- haven::read_sav("VAPS_ValidationData.sav") |> # File provided in the datab
     Date = ifelse(Date %in% c("unknown", "unkown","undated", "Unknown"), NA, Date),
     Date = as.numeric(Date))
 
+df$File <- unlist(sapply(df$File, function(f) filepaths[grepl(f, filepaths, ignore.case = T)], USE.NAMES = F))
+
 df |> 
   summarize(n = n(), .by = c("Category", "Style")) |> 
   pivot_wider(names_from = Category, values_from = n, values_fill = 0) |> 
   full_join(summarize(df, Date = paste0(min(Date, na.rm = TRUE), "-", max(Date, na.rm = TRUE)), .by = "Style"), by = "Style") |>
   gt::gt()
-
-
-
 ```
 
 ## Style Reclassification
@@ -115,7 +120,7 @@ df |>
 ## Filtering
 
 ```{r}
-q <- 0.74  # Quantile (adjust so to meet target N of stimuli)
+q <- 0.73  # Quantile (adjust so to meet target N of stimuli)
 
 dffiltered <- df |> 
   filter(Familiar == FALSE) |> 
@@ -157,28 +162,116 @@ dffinal |>
 ```
 
 ```{r}
-dffinal |> 
-  select(Picture_Number, Style,
+#| output: false
+
+dat <- dffinal |> 
+  select(Picture_Number, Style, File,
+         Arousal_Up, Arousal_Down, Valence_Up, Valence_Down,
          Liking_Mean_All, Valence_Mean_All, Arousal_Mean_All,
          Liking_Mean_Female, Valence_Mean_Female, Arousal_Mean_Female,
          Liking_Mean_Male, Valence_Mean_Male, Arousal_Mean_Male) |> 
-  pivot_longer(-c(Picture_Number, Style)) |> 
+  pivot_longer(-c(Picture_Number, Style, File, 
+                  Arousal_Up, Arousal_Down, Valence_Up, Valence_Down)) |> 
   separate(name, c("Dimension", "Index", "Sex")) |> 
   pivot_wider(names_from = Dimension, values_from = value) |>
   filter(Sex == "All") |> 
-  ggplot(aes(x=Valence, y=Arousal)) +
-  geom_point(aes(color = Style, size = Liking), alpha = 1) +
-  # facet_wrap(~Sex) +
-  scale_shape_manual(values = c(16, 4)) +
-  ggside::geom_ysidedensity(aes(color = Style)) +
-  ggside::geom_xsidedensity(aes(color = Style)) +
-  theme_minimal() 
+  mutate(
+    x_repelled = case_when(
+      Valence <= Valence_Down & Arousal <= Arousal_Down ~ 0.75, 
+      Valence <= Valence_Down & Arousal >= Arousal_Up ~ Valence,
+      Valence >= Valence_Up & Arousal >= Arousal_Up ~ 6.5,
+      Valence >= Valence_Up & Arousal <= Arousal_Down ~ Valence,
+      .default = Valence),
+    y_repelled = case_when(
+      Valence <= Valence_Down & Arousal <= Arousal_Down ~ Arousal, 
+      Valence <= Valence_Down & Arousal >= Arousal_Up ~ 7,
+      Valence >= Valence_Up & Arousal >= Arousal_Up ~ Arousal,
+      Valence >= Valence_Up & Arousal <= Arousal_Down ~ 0.5,
+      .default = Arousal)) |> 
+  arrange(Style)
+
+# dat[!dat$x_repelled %in% c(0, 6) & !dat$y_repelled %in% c(0, 6), ]
+# dat[c("x_repelled", "y_repelled")]
+
+# Jitter positions
+idx <- dat$x_repelled == 0.75
+dat$y_repelled[idx] <- seq(1.5, 6, length.out = sum(idx))
+dat$x_repelled[idx] <- dat$x_repelled[idx] + rep_len(c(0, 0.5), length = sum(idx))
+
+idx <- dat$y_repelled == 7
+dat$x_repelled[idx] <- seq(0.75, 6.5, length.out = sum(idx))
+dat$y_repelled[idx] <- dat$y_repelled[idx] + rep_len(c(0, -0.5), length = sum(idx))
+
+idx <- dat$x_repelled == 6.5
+dat$y_repelled[idx] <- seq(1.5, 6, length.out = sum(idx))
+dat$x_repelled[idx] <- dat$x_repelled[idx] + rep_len(c(0, -0.5), length = sum(idx))
+
+idx <- dat$y_repelled == 0.5
+dat$x_repelled[idx] <- seq(0.75, 6.5, length.out = sum(idx))
+dat$y_repelled[idx] <- dat$y_repelled[idx] + rep_len(c(0, 0.5), length = sum(idx))
+
+gc()
 ```
-
-### Save
-
 
 ```{r}
-# TODO
+#| fig-width: 14
+#| fig-height: 12
+
+p <- dat |> 
+  ggplot(aes(x=Valence, y=Arousal)) +
+  geom_segment(aes(xend = x_repelled, yend = y_repelled, color = Style), alpha = 0.5) +
+  geom_image(aes(x=x_repelled, y = y_repelled, image=File), size=0.08) +
+  geom_point(aes(color = Style, size = Liking), alpha = 0.8) +
+  ggside::geom_ysidedensity(aes(color = Style), linewidth = 1) +
+  ggside::geom_xsidedensity(aes(color = Style), linewidth = 1) +
+  theme_minimal() +
+  ggside::theme_ggside_void() +
+  scale_color_manual(values = c("#E41A1C", "#377EB8", "#4DAF4A", "#FF7F00")) +
+  scale_size(range = c(0.5, 5), guide = "none") +
+  theme(axis.title = element_text(face = "bold", size = rel(1.2)),
+        legend.title = element_text(face = "bold", size = rel(1.2)))
+p
 ```
+
+
+
+## Save
+
+<!-- ```{r} -->
+<!-- #| code-fold: true -->
+
+<!-- selection <- df |>  -->
+<!--   filter(ID %in% selected) -->
+
+<!-- write.csv(selection, "stimuli_data.csv", row.names=FALSE) -->
+<!-- knitr::kable(selection) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| code-fold: true -->
+<!-- json <- selection |>  -->
+<!--   select(stimulus=ID, Category, Orientation) |>  -->
+<!--   jsonlite::toJSON() -->
+
+<!-- write(paste("var stimuli_list = ", json), "stimuli_list.js") -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| code-fold: true -->
+<!-- path_ero <- "C:/Dropbox/RECHERCHE/docs/Stimuli/NAPS/NAPS_ERO/" -->
+<!-- path_naps <- "C:/Dropbox/RECHERCHE/docs/Stimuli/NAPS/NAPS/" -->
+
+<!-- # Remove all current files -->
+<!-- unlink("../stimuli/*") -->
+
+<!-- # Copy each file -->
+<!-- for(file in selected) { -->
+<!--   if(str_detect(file, "Male|Female")) { -->
+<!--     file.copy(paste0(path_ero, file), "../stimuli/") -->
+<!--   } else { -->
+<!--     file.copy(paste0(path_naps, file), "../stimuli/") -->
+<!--   } -->
+<!-- } -->
+<!-- ``` -->
+
 
