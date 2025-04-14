@@ -63,6 +63,8 @@ df |>
 
 
 ```{r}
+df$Subcategory <- df$Style
+
 df$Style <- case_when(
   df$Style %in% c("Surrealistic tendencies", "Cubistic tendencies") | df$Category == "Abstract" ~ "Abstract and Avant-garde",
   df$Style %in% c("Impressionistic tendencies", "Postimpressionistic tendencies",
@@ -233,45 +235,58 @@ p <- dat |>
 p
 ```
 
+## Final Selection
+
+
+```{r}
+files <- str_split(dffinal$File, "/", simplify = TRUE)[,12]  # Change index to take last element
+
+selection <- dffinal |> 
+  mutate(Item = files) |> 
+  select(Item, Category, Subcategory, Style, Artist, Title, 
+         Date, Width=Width_unified, Height=Height_unified, ends_with("_All"),
+         File) |> 
+  arrange(Style, Item)
+
+selection |> 
+  select(-File) |> 
+  gt::gt() |> 
+  gt::opt_interactive() |> 
+  gt::data_color(
+    columns = c("Style"))|> 
+  gt::data_color(
+    columns = c("Liking_Mean_All", "Valence_Mean_All", "Arousal_Mean_All",
+                "Complexity_Mean_All", "Familarity_Mean_All"),
+    palette = c("#E41A1C", "#FF7F00", "#4DAF4A"))
+```
 
 
 ## Save
 
-<!-- ```{r} -->
-<!-- #| code-fold: true -->
 
-<!-- selection <- df |>  -->
-<!--   filter(ID %in% selected) -->
+```{r}
+#| code-fold: true
 
-<!-- write.csv(selection, "stimuli_data.csv", row.names=FALSE) -->
-<!-- knitr::kable(selection) -->
-<!-- ``` -->
+write.csv(select(selection, -File), "../stimuli_data.csv", row.names = FALSE)
 
-<!-- ```{r} -->
-<!-- #| code-fold: true -->
-<!-- json <- selection |>  -->
-<!--   select(stimulus=ID, Category, Orientation) |>  -->
-<!--   jsonlite::toJSON() -->
+json <- selection |>
+  mutate(Orientation = ifelse(Width > Height, "h", "v")) |>
+  select(Item, Style, Orientation) |>
+  jsonlite::toJSON()
 
-<!-- write(paste("var stimuli_list = ", json), "stimuli_list.js") -->
-<!-- ``` -->
+write(paste("var stimuli_list = ", json), "../stimuli_list.js")
+```
 
-<!-- ```{r} -->
-<!-- #| code-fold: true -->
-<!-- path_ero <- "C:/Dropbox/RECHERCHE/docs/Stimuli/NAPS/NAPS_ERO/" -->
-<!-- path_naps <- "C:/Dropbox/RECHERCHE/docs/Stimuli/NAPS/NAPS/" -->
+```{r}
+#| code-fold: true
 
-<!-- # Remove all current files -->
-<!-- unlink("../stimuli/*") -->
+# Remove all current files
+unlink("../stimuli/*")
 
-<!-- # Copy each file -->
-<!-- for(file in selected) { -->
-<!--   if(str_detect(file, "Male|Female")) { -->
-<!--     file.copy(paste0(path_ero, file), "../stimuli/") -->
-<!--   } else { -->
-<!--     file.copy(paste0(path_naps, file), "../stimuli/") -->
-<!--   } -->
-<!-- } -->
-<!-- ``` -->
+# Copy each file
+for(file in selection$File) {
+  file.copy(file, "../stimuli/")
+}
+```
 
 
