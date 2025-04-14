@@ -6,7 +6,7 @@ format:
 editor_options: 
   chunk_output_type: console
 execute:
-  cache: true
+  cache: false
 ---
 
 ```{r}
@@ -88,7 +88,7 @@ df |>
 df |> 
   ggplot(aes(x = Familarity_Mean_All)) +
   geom_histogram(bins = 50) +
-  geom_vline(aes(xintercept = 2), linetype = "dashed", color = "red") +
+  geom_vline(xintercept = median(df$Familarity_Mean_All), linetype = "dashed", color = "red") +
   theme_minimal()
 
 df$Familiar <- ifelse(df$Familarity_Mean_All > median(df$Familarity_Mean_All), TRUE, FALSE)
@@ -120,7 +120,7 @@ df |>
 ## Filtering
 
 ```{r}
-q <- 0.73  # Quantile (adjust so to meet target N of stimuli)
+q <- 0.75  # Quantile (adjust so to meet target N of stimuli)
 
 dffiltered <- df |> 
   filter(Familiar == FALSE) |> 
@@ -194,19 +194,19 @@ dat <- dffinal |>
 # dat[c("x_repelled", "y_repelled")]
 
 # Jitter positions
-idx <- dat$x_repelled == 0.75
+idx <- dat$x_repelled == 0.75  # Left
 dat$y_repelled[idx] <- seq(1.5, 6, length.out = sum(idx))
 dat$x_repelled[idx] <- dat$x_repelled[idx] + rep_len(c(0, 0.5), length = sum(idx))
 
-idx <- dat$y_repelled == 7
-dat$x_repelled[idx] <- seq(0.75, 6.5, length.out = sum(idx))
+idx <- dat$y_repelled == 7  # Top
+dat$x_repelled[idx] <- seq(6.5, 0.75, length.out = sum(idx))
 dat$y_repelled[idx] <- dat$y_repelled[idx] + rep_len(c(0, -0.5), length = sum(idx))
 
-idx <- dat$x_repelled == 6.5
-dat$y_repelled[idx] <- seq(1.5, 6, length.out = sum(idx))
+idx <- dat$x_repelled == 6.5  # Right
+dat$y_repelled[idx] <- seq(6, 1.5, length.out = sum(idx))
 dat$x_repelled[idx] <- dat$x_repelled[idx] + rep_len(c(0, -0.5), length = sum(idx))
 
-idx <- dat$y_repelled == 0.5
+idx <- dat$y_repelled == 0.5  # Bottom
 dat$x_repelled[idx] <- seq(0.75, 6.5, length.out = sum(idx))
 dat$y_repelled[idx] <- dat$y_repelled[idx] + rep_len(c(0, 0.5), length = sum(idx))
 
