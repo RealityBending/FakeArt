@@ -71,7 +71,7 @@ var demographics_consent = {
             "This study is being conducted by Ana Neves and Dr Dominique Makowski from the <b>University of Sussex</b>, who are happy to be contacted if you have any questions (see contact information below).</p>" +
             // Description
             "<p align='left'><b>Why have I been invited and what will I do?</b><br>" +
-            "The goal is to study how new technology can impact <b>human perception</b>. In this study, you will be shown facial images and asked to complete a few questionnaires and perform some tasks. " +
+            "The goal is to study how new technology can impact <b>human perception</b>. In this study, you will be shown images of paintings and asked to complete a few questionnaires and perform some tasks. " +
             "The whole experiment will take you <b style='color:green;'>~35 min</b> to complete. Please make you sure that you are <b>attentive and in a quiet environment</b>, and that you have time to complete it in one go.</p>" +
             // Results and personal information
             "<p align='left'><b>What will happen to the results and my personal information?</b><br>" +
@@ -99,7 +99,7 @@ var demographics_consent = {
 var demographics_questions = {
     type: jsPsychSurvey,
     survey_json: {
-        title: "About yourself",
+        title: "Part 1/4 About yourself",
         completeText: "Continue",
         pageNextText: "Next",
         pagePrevText: "Previous",
