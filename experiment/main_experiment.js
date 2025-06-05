@@ -80,6 +80,7 @@ var fiction_instructions1 = {
         '<li><b style="color: purple">Emotional Valence</b>: Refers to how positive or negative the emotions are that you feel when looking at the image.</li>' +
         '<li><b style="color: purple">Emotional Arousal</b>: Refers to the level of emotional intensity you feel, from very calm and soothing to very exciting or stimulating, when looking at the image.</li>' +
         '<li><b style="color: purple">Liking</b>: To what extent do you like or dislike the image based on personal preference.</li>' +
+        '<li><b style="color: purple">Beauty</b>: To what extent do you find this image to be objectively beautiful or aesthetically pleasing.</li>' +
         '<li><b style="color: purple">Familiarity</b>: To what extent does the image appear similar to something you have seen before.</li>' +
         "<p>Note that we are interested in your <b>first impression</b>, so please respond according to your gut feelings.</p>" +
         "<p style='text-align: center';>Press start once you are ready.</p>",
@@ -264,6 +265,17 @@ var fiction_ratings1 = {
                         rateMax: 6,
                         minRateDescription: "Not at all",
                         maxRateDescription: "Very much",
+                        displayMode: "buttons",
+                    },
+                    {
+                        type: "rating",
+                        name: "Beauty",
+                        title: "I think this artwork is:",
+                        isRequired: true,
+                        rateMin: 0,
+                        rateMax: 6,
+                        minRateDescription: "Not at all beautiful",
+                        maxRateDescription: "Very beautiful",
                         displayMode: "buttons",
                     },
                     {
