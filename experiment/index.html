@@ -36,7 +36,7 @@
         <!-- Custom scripts -->
         <script src="stimuli/stimuli_list.js"></script>
         <script src="demographics.js"></script>
-        <script src="main_experiment.js"></script>
+        <script src="fictiontask.js"></script>
         <script src="questionnaires.js"></script>
         <script src="eyetracking.js"></script>
 
@@ -104,36 +104,36 @@
         // Demographics ===========================================================
         // timeline.push(fullscreen_on) // Enter fullscreen mode
         timeline.push(demographics_browser_info)
-        timeline.push(demographics_consent)
-        timeline.push(fiction_preloadstims)
-        timeline.push(demographics_questions)
-
-        // Questionnaires ===========================================================
-        timeline.push(questionnaires_instructions0)
-        timeline.push(questionnaire_phq4)
-        timeline.push(questionnaire_mint)
-        timeline.push(questionnaire_bait)
-        timeline.push(feedback_bait)
+        // timeline.push(demographics_consent)
+        // timeline.push(fiction_preloadstims)
+        // timeline.push(demographics_questions)
 
         // Eye-tracking ==============================================================
-        timeline.push(eyetracking_consent)
-        timeline.push(eyetracking_calibration)
+        // timeline.push(eyetracking_consent)
+        // timeline.push(eyetracking_calibration)
 
         // Fiction stage 1 ===========================================================
         timeline.push(fiction_instructions1)
-        timeline.push(fiction_phase1a)
-        timeline.push(fiction_phase1_break)
-        timeline.push(eyetracking_recalibration)
-        timeline.push(fiction_phase1b)
-        //timeline.push(fiction_feedback1)
+        // timeline.push(fiction_phase1a)
+        // timeline.push(fiction_phase1_break)
+        // timeline.push(eyetracking_recalibration)
+        // timeline.push(fiction_phase1b)
+        // //timeline.push(fiction_feedback1)
 
-        // Fiction stage 2 ===========================================================
-        timeline.push(fiction_instructions2)
-        timeline.push(fiction_phase2)
-        timeline.push(experiment_feedback)
+        // // Questionnaires ===========================================================
+        // timeline.push(questionnaires_instructions0)
+        // timeline.push(questionnaire_phq4)
+        // timeline.push(questionnaire_mint)
+        // timeline.push(questionnaire_bait)
+        // timeline.push(feedback_bait)
 
-        // End =======================================================================
-        timeline.push(demographics_debriefing) // need to modify
+        // // Fiction stage 2 ===========================================================
+        // timeline.push(fiction_instructions2)
+        // timeline.push(fiction_phase2)
+        // timeline.push(experiment_feedback)
+
+        // // End =======================================================================
+        // timeline.push(demographics_debriefing) // need to modify
 
         // // Save data via DataPipe
         // timeline.push({
@@ -145,8 +145,8 @@
         // })
 
         // Exit fullscreen mode
-        timeline.push(fullscreen_off)
-        timeline.push(demographics_endscreen)
+        // timeline.push(fullscreen_off)
+        // timeline.push(demographics_endscreen)
 
         // Run the timeline -------------------------------------------------------
         jsPsych.run(timeline)
