@@ -128,9 +128,9 @@ const fiction_instructions1 = {
     <li><b style="color: #880E4F">Familiarity</b>: Does this image remind you of something you've seen before? Refers to how much the image feels like something you have already seen before - whether it's the artwork, its style or subject.</ul>
   Potential?
   <ul>
-    <li><b style="color: #880E4F">Liking</b>: To what extent do you like or dislike the image based on personal preference.</li>
+    <li><b style="color: #880E4F">Liking</b>: To what extent do you like or dislike the image based on personal preference. "How much do you like this image?" (Ciabbai 2024)</li>
     <li><b style="color: #880E4F">Emotions</b>: How positive or negative the emotions are that you feel when looking at the image.</li>
-    
+    <li><b style="color: #880E4F">Being moved</b>: "How much are you moved by this image?" (Ciabbai 2024)</li>
   </ul>
   <p>We want you to <b>pay attention to what each image evokes in you</b>, as if you saw it exposed in an art gallery, without context or information about the artist. We are interested in your feelings about the artwork in itself.</p>
 `,

@@ -10,6 +10,8 @@ execute:
 ---
 
 ```{r}
+#| message: false
+
 library(tidyverse)
 library(ggside)
 library(ggimage)
@@ -59,8 +61,11 @@ df |>
   gt::gt()
 ```
 
-## Style Reclassification
+## Summary
 
+To ensure a diverse and balanced set of emotional stimuli across artistic styles, we first reclassified the original painting styles into four broader and more evenly distributed categories - "Abstract and Avant-garde", "Impressionist and Expressionist", "Classical", and "Romantic and Realism" - based on shared historical and aesthetic characteristics. We then restricted selection to unfamiliar items (i.e., those rated below the median familiarity score of 1.65/7). To maximize orthogonal variability across arousal and valence, we stratified the paintings within each style into four quadrants defined by tertiles of arousal and valence, and selected the four paintings most distant from the median point (using Manhattan distance) within each quadrant. This resulted in a final set of 64 paintings (16 per style).
+
+## Style Reclassification
 
 ```{r}
 df$Subcategory <- df$Style
@@ -121,94 +126,162 @@ df |>
 
 ## Filtering
 
+### Selection
+
+
 ```{r}
-q <- 0.78  # Quantile (adjust so to meet target N of stimuli)
+N_per_quadrant <- 4
 
-dffiltered <- df |> 
-  filter(Familiar == FALSE) |> 
-  mutate(Liking_Up = quantile(Liking_Mean_All, q, na.rm = TRUE),
-         Liking_Down = quantile(Liking_Mean_All, 1 - q, na.rm = TRUE), 
-         Arousal_Up = quantile(Arousal_Mean_All, q, na.rm = TRUE),
-         Arousal_Down = quantile(Arousal_Mean_All, 1 - q, na.rm = TRUE),
-         Valence_Up = quantile(Valence_Mean_All, q, na.rm = TRUE),
-         Valence_Down = quantile(Valence_Mean_All, 1 - q, na.rm = TRUE),
-         .by = "Style") |> 
-  mutate(Liking_Extreme = ifelse(Liking_Mean_All >= Liking_Up |Liking_Mean_All <= Liking_Down, TRUE, FALSE),
-         Arousal_Extreme = ifelse(Arousal_Mean_All >= Arousal_Up | Arousal_Mean_All <= Arousal_Down, TRUE, FALSE),
-         Valence_Extreme = ifelse(Valence_Mean_All >= Valence_Up | Valence_Mean_All <= Valence_Down, TRUE, FALSE),
-         Total_Extreme = ifelse(Liking_Extreme & Arousal_Extreme & Valence_Extreme, TRUE, FALSE))
+dffinal <- data.frame()  # Initialize selected items
+dffiltered <- filter(df, Familiar == FALSE)
+for(s in unique(dffiltered$Style)) {
+  dat <- filter(dffiltered, Style == s)
+  
+  # Compute medians for quadrant splitting
+  med_arousal <- median(dat$Arousal_Mean_All, na.rm = TRUE)
+  med_valence <- median(dat$Valence_Mean_All, na.rm = TRUE)
 
+  # Assign quadrant
+  dat <- dat |> 
+    mutate(
+      Quadrant = case_when(
+        Arousal_Mean_All >= quantile(Arousal_Mean_All, 2/3) & Valence_Mean_All >= quantile(Valence_Mean_All, 2/3) ~ "HA_HV",
+        Arousal_Mean_All >= quantile(Arousal_Mean_All, 2/3) & Valence_Mean_All <=  quantile(Valence_Mean_All, 1/3) ~ "HA_LV",
+        Arousal_Mean_All <=  quantile(Arousal_Mean_All, 1/3) & Valence_Mean_All >= quantile(Valence_Mean_All, 2/3) ~ "LA_HV",
+        Arousal_Mean_All <=  quantile(Arousal_Mean_All, 1/3) & Valence_Mean_All <=  quantile(Valence_Mean_All, 1/3) ~ "LA_LV",
+        .default = "Middle"
+      )
+    )
+  
+  # For each quadrant, select N items farthest from the median point
+  dffinal <- dat |> 
+    filter(Quadrant != "Middle") |>
+    group_by(Quadrant) |> 
+    mutate(
+      # Euclidean distance
+      # distance = sqrt((Arousal_Mean_All - med_arousal)^2 + (Valence_Mean_All - med_valence)^2)
+      # Manhattan distance
+      distance = abs(Arousal_Mean_All - med_arousal) + abs(Valence_Mean_All - med_valence)
+    )  |> 
+    slice_max(order_by = distance, n = N_per_quadrant, with_ties = FALSE)  |> 
+    ungroup() |> 
+    rbind(dffinal) 
+}
+```
+
+
+```{r}
+#| code-fold: true
+
+# q <- 0.78  # Quantile (adjust so to meet target N of stimuli)
+# 
+# dffiltered <- df |>
+#   filter(Familiar == FALSE) |>
+#   mutate(Liking_Up = quantile(Liking_Mean_All, q, na.rm = TRUE),
+#          Liking_Down = quantile(Liking_Mean_All, 1 - q, na.rm = TRUE),
+#          Arousal_Up = quantile(Arousal_Mean_All, q, na.rm = TRUE),
+#          Arousal_Down = quantile(Arousal_Mean_All, 1 - q, na.rm = TRUE),
+#          Valence_Up = quantile(Valence_Mean_All, q, na.rm = TRUE),
+#          Valence_Down = quantile(Valence_Mean_All, 1 - q, na.rm = TRUE),
+#          .by = "Style") |>
+#   mutate(Liking_Extreme = ifelse(Liking_Mean_All >= Liking_Up |Liking_Mean_All <= Liking_Down, TRUE, FALSE),
+#          Arousal_Extreme = ifelse(Arousal_Mean_All >= Arousal_Up | Arousal_Mean_All <= Arousal_Down, TRUE, FALSE),
+#          Valence_Extreme = ifelse(Valence_Mean_All >= Valence_Up | Valence_Mean_All <= Valence_Down, TRUE, FALSE),
+#          Total_Extreme = ifelse(Liking_Extreme & Arousal_Extreme & Valence_Extreme, TRUE, FALSE))
+# 
+# dffinal <- filter(dffiltered, Total_Extreme == TRUE)
+```
+
+### Results
+
+
+```{r}
 dffiltered |>
-  select(Picture_Number, Category, Style, Total_Extreme,
+  select(Picture_Number, Category, Style,
          Liking_Mean_All, Valence_Mean_All, Arousal_Mean_All,
          Liking_Mean_Female, Valence_Mean_Female, Arousal_Mean_Female,
          Liking_Mean_Male, Valence_Mean_Male, Arousal_Mean_Male) |>
-  pivot_longer(-c(Picture_Number, Category, Style, Total_Extreme)) |>
+  pivot_longer(-c(Picture_Number, Category, Style)) |>
   separate(name, c("Dimension", "Index", "Sex")) |>
   pivot_wider(names_from = Dimension, values_from = value) |>
   filter(Sex == "All") |>
+  mutate(Selected = as.factor(Picture_Number %in% dffinal$Picture_Number)) |> 
   ggplot(aes(x=Valence, y=Arousal)) +
-  geom_point(aes(shape = Total_Extreme, color = Style, size = Liking), alpha = 0.8) +
+  geom_point(aes(shape = Selected, color = Style, size = Liking), alpha = 0.8) +
   # facet_wrap(~Sex) +
   scale_shape_manual(values = c(4, 16)) +
-  ggside::geom_ysidedensity(aes(linetype = Total_Extreme)) +
-  ggside::geom_xsidedensity(aes(linetype = Total_Extreme)) +
+  ggside::geom_ysidedensity(aes(linetype = Selected)) +
+  ggside::geom_xsidedensity(aes(linetype = Selected)) +
   theme_minimal()
 
-dffinal <- filter(dffiltered, Total_Extreme == TRUE)
-
-dffinal |>  
+dffinal |>
   summarize(n = n(), .by = c("Style")) |> 
   rbind(data.frame(Style = "Total", n = nrow(dffinal))) |>  
   gt::gt() 
 ```
 
+
+
 ```{r}
 #| output: false
 
 dat <- dffinal |> 
-  select(Picture_Number, Style, File,
-         Arousal_Up, Arousal_Down, Valence_Up, Valence_Down,
+  select(Picture_Number, Style, File,  
+         Quadrant,
+         # Arousal_Up, Arousal_Down, Valence_Up, Valence_Down,
          Liking_Mean_All, Valence_Mean_All, Arousal_Mean_All,
          Liking_Mean_Female, Valence_Mean_Female, Arousal_Mean_Female,
          Liking_Mean_Male, Valence_Mean_Male, Arousal_Mean_Male) |> 
-  pivot_longer(-c(Picture_Number, Style, File, 
-                  Arousal_Up, Arousal_Down, Valence_Up, Valence_Down)) |> 
+  pivot_longer(-c(Picture_Number, Style, File,
+                  Quadrant)) |> 
+                  # Arousal_Up, Arousal_Down, Valence_Up, Valence_Down)) |> 
   separate(name, c("Dimension", "Index", "Sex")) |> 
   pivot_wider(names_from = Dimension, values_from = value) |>
   filter(Sex == "All") |> 
   mutate(
     x_repelled = case_when(
-      Valence <= Valence_Down & Arousal <= Arousal_Down ~ 0.75, 
-      Valence <= Valence_Down & Arousal >= Arousal_Up ~ Valence,
-      Valence >= Valence_Up & Arousal >= Arousal_Up ~ 6.5,
-      Valence >= Valence_Up & Arousal <= Arousal_Down ~ Valence,
+      Quadrant == "LA_LV" ~ 0.75, 
+      Quadrant == "LA_HV" ~ Valence,
+      Quadrant == "HA_HV" ~ 6.5,
+      Quadrant == "HA_LV"~ Valence,
       .default = Valence),
     y_repelled = case_when(
-      Valence <= Valence_Down & Arousal <= Arousal_Down ~ Arousal, 
-      Valence <= Valence_Down & Arousal >= Arousal_Up ~ 7,
-      Valence >= Valence_Up & Arousal >= Arousal_Up ~ Arousal,
-      Valence >= Valence_Up & Arousal <= Arousal_Down ~ 0.5,
+      Quadrant == "LA_LV" ~ Arousal, 
+      Quadrant == "LA_HV" ~ 0.5,
+      Quadrant == "HA_HV" ~ Arousal,
+      Quadrant == "HA_LV" ~ 7.5,
       .default = Arousal)) |> 
+  # mutate(
+  #   x_repelled = case_when(
+  #     Valence <= Valence_Down & Arousal <= Arousal_Down ~ 0.75, 
+  #     Valence <= Valence_Down & Arousal >= Arousal_Up ~ Valence,
+  #     Valence >= Valence_Up & Arousal >= Arousal_Up ~ 6.5,
+  #     Valence >= Valence_Up & Arousal <= Arousal_Down ~ Valence,
+  #     .default = Valence),
+  #   y_repelled = case_when(
+  #     Valence <= Valence_Down & Arousal <= Arousal_Down ~ Arousal, 
+  #     Valence <= Valence_Down & Arousal >= Arousal_Up ~ 7,
+  #     Valence >= Valence_Up & Arousal >= Arousal_Up ~ Arousal,
+  #     Valence >= Valence_Up & Arousal <= Arousal_Down ~ 0.5,
+  #     .default = Arousal)) |> 
   arrange(Style)
 
-# dat[!dat$x_repelled %in% c(0, 6) & !dat$y_repelled %in% c(0, 6), ]
-# dat[c("x_repelled", "y_repelled")]
+
 
 # Jitter positions
-idx <- dat$x_repelled == 0.75  # Left
+idx <- dat$Quadrant == "LA_LV"  # Left
 dat$y_repelled[idx] <- seq(1.5, 6, length.out = sum(idx))
 dat$x_repelled[idx] <- dat$x_repelled[idx] + rep_len(c(0, 0.5), length = sum(idx))
 
-idx <- dat$y_repelled == 7  # Top
+idx <- dat$Quadrant == "HA_LV"  # Top
 dat$x_repelled[idx] <- seq(6.5, 0.75, length.out = sum(idx))
 dat$y_repelled[idx] <- dat$y_repelled[idx] + rep_len(c(0, -0.5), length = sum(idx))
 
-idx <- dat$x_repelled == 6.5  # Right
+idx <- dat$Quadrant == "HA_HV"  # Right
 dat$y_repelled[idx] <- seq(6, 1.5, length.out = sum(idx))
 dat$x_repelled[idx] <- dat$x_repelled[idx] + rep_len(c(0, -0.5), length = sum(idx))
 
-idx <- dat$y_repelled == 0.5  # Bottom
+idx <- dat$Quadrant == "LA_HV"  # Bottom
 dat$x_repelled[idx] <- seq(0.75, 6.5, length.out = sum(idx))
 dat$y_repelled[idx] <- dat$y_repelled[idx] + rep_len(c(0, 0.5), length = sum(idx))
 
