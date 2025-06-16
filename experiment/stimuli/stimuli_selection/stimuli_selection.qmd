@@ -17,7 +17,7 @@ library(ggimage)
 
 ```{r}
 # Local path
-filepaths <- list.files(path="C:/Users/domma/Dropbox/RECHERCHE/materials/Stimuli/VAPS/VAPS/", 
+filepaths <- list.files("C:/Users/domma/Box/Databases/VAPS/VAPS/", 
                         pattern=".jpg$", full.names = TRUE, recursive = TRUE, ignore.case = TRUE) 
 
 df <- haven::read_sav("VAPS_ValidationData.sav") |> # File provided in the database
@@ -122,7 +122,7 @@ df |>
 ## Filtering
 
 ```{r}
-q <- 0.75  # Quantile (adjust so to meet target N of stimuli)
+q <- 0.78  # Quantile (adjust so to meet target N of stimuli)
 
 dffiltered <- df |> 
   filter(Familiar == FALSE) |> 
@@ -239,7 +239,7 @@ p
 
 
 ```{r}
-files <- str_split(dffinal$File, "/", simplify = TRUE)[,12]  # Change index to take last element
+files <- str_split(dffinal$File, "/", simplify = TRUE)[,10]  # Change index to take last element
 
 selection <- dffinal |> 
   mutate(Item = files) |> 
@@ -270,8 +270,7 @@ selection |>
 write.csv(select(selection, -File), "../stimuli_data.csv", row.names = FALSE)
 
 json <- selection |>
-  mutate(Orientation = ifelse(Width > Height, "h", "v")) |>
-  select(Item, Style, Orientation) |>
+  select(Item, Style, Width, Height) |>
   jsonlite::toJSON()
 
 write(paste("var stimuli_list = ", json), "../stimuli_list.js")
