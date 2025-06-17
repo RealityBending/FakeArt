@@ -644,3 +644,29 @@ var questionnaire_vviq = {
         screen: "questionnaire_vviq",
     },
 }
+
+//---------------------------------------------------------------------------------------------------------------------
+// Art expertise
+var art_expertise = {
+    type: jsPsychSurvey,
+    survey_json: {
+        title: "Art Expertise",
+        description: "Please rate how knowledgeable you percieve yourself to be about art, such as how familiar you are with styles, artists or movements.",
+        showQuestionNumbers: false,
+        pages: [
+            {
+                elements: [
+                    {
+                        name: art_expertise,
+                        title: "I consider myself to be knowledgeable in art",
+                        type: "rating",
+                        isRequired: true,
+                        minRateDescription: "Not at all",
+                        maxRateDescription: "Very much so",
+                        rateValues: [0, 1, 2, 3, 4, 5, 6],
+                    }
+                ]
+            }
+        ]
+    }
+}
