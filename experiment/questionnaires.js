@@ -525,3 +525,124 @@ var questionnaire_numbness = {
         screen: "questionnaire_numbness",
     },
 }
+
+//----------------------------------------------------------------------------------------------------------------
+// VVIQ - Vividness of Visual Imagery Questionnaire (Marks, 1973)
+// Measures the vividness of someones voluntary visual imagery
+
+const vviq_items = [
+    "The exact contours of face, head, shoulders and body",
+    "Characteristic poses of head, attitudes of body etc",
+    "The precise carriage, length of step etc., in walking.",
+    "The different colors worn in some familiar clothes.",
+
+    "The sun rising above the horizon into a hazy sky",
+    "The sky clears and surrounds the sun with blueness",
+    "Clouds. A storm blows up with flashes of lightning",
+    "A rainbow appears",
+
+    "The overall appearance of the shop from the opposite side of the road",
+    "A window display including colours, shapes and details of individual items for sale",
+    "You are near the entrance. The colour, shape and details of the door",
+    "You enter the shop and go to the counter. The counter Assistant serves you. Money changes hands.",
+
+    "The contours of the landscape",
+    "The colour and shape of the lake",
+    "The colour and shape of the trees.",
+    "A strong wind blows on the trees and on the lake causing reflections in the water"
+]
+
+const vviq_dimensions = [
+    "relative_or_friend_1",
+    "relative_or_friend_2",
+    "relative_or_friend_3",
+    "relative_or_friend_4",
+
+    "rising_sun_5",
+    "rising_sun_6",
+    "rising_sun_7",
+    "rising_sun_8",
+
+    "familiar_shop_9",
+    "familiar_shop_10",
+    "familiar_shop_11",
+    "familiar_shop_12",
+    
+    "country_scene_13",
+    "country_scene_14",
+    "country_scene_15",
+    "country_scene_16"
+]
+
+function vviq_questions(
+    required = true,
+    items = vviq_items,
+    dimensions = vviq_dimensions
+){
+    var questions1_4 = []
+    var questions5_8 = []
+    var questions9_12 = []
+    var questions13_16 = []
+
+    for(const [index, element] of items.entries()){
+        q = {
+            title: element,
+            name: dimensions[index],
+            type: "radiogroup",
+            isRequired: required,
+            choices: [
+                "No image at all, you only 'know' that you are thinking of the object",
+                "Dim and vague image",
+                "Moderately realistic and vivid",
+                "Realistic and reasonably vivid",
+                "Perfectly realistic, as vivid as real seeing"
+            ]
+        }
+
+        if (index < 4){
+            questions1_4.push(q)
+        } else if (index < 8){
+            questions5_8.push(q)
+        } else if (index < 12){
+            questions9_12.push(q)
+        } else {
+            questions13_16.push(q)
+        }
+    }
+    return [
+  {
+    title: "Think of some relative or friend whom you frequently see (but who is not with you at present) and consider carefully the picture that comes before your mind's eye.",
+    elements: questions1_4
+  },
+  {
+    title: "Visualise a rising sun. Consider carefully the picture that comes before your mind's eye.",
+    elements: questions5_8
+  },
+  {
+    title: "Think of the front of a shop which you often go to. Consider the picture that comes before your mind's eye.",
+    elements: questions9_12
+  },
+  {
+    title: "Finally think of a country scene which involves trees, mountains and a lake. Consider the picture that comes before your mind's eye.",
+    elements: questions13_16
+  }
+    ]
+}
+
+var questionnaire_vviq = {
+    type: jsPsychSurvey,
+    survey_json: {
+        title: "Visualisation Task",
+        description:
+            "For each scenario try to form a mental picture of the people, objects, or setting. If you do not have a visual image, rate vividness as '1'. Only use '5' for images that are as lively and vivid as real seeing.",
+        showQuestionNumbers: false,
+        goNextPageAutomatic: true,
+        pageNextText: "Next",
+        pagePrevText: "Previous",
+        showProgressBar: "aboveHeader",
+        pages: vviq_questions(),
+    },
+    data: {
+        screen: "questionnaire_vviq",
+    },
+}
