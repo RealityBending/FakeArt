@@ -438,3 +438,90 @@ var feedback_bait = {
     choices: ["Continue"],
     data: { screen: "feedback_bait" },
 }
+
+
+// Emotional Reactivity and Numbing Scale (Orsillo et al., 2007)
+// General subscale - Measure of general emotional numbness/hyperactivity
+// High score, greater emotional reactivity
+// Low score, indicates emotional numbing
+
+const numbness_items = [
+    "I am able to feel a wide range of emotions (e.g., happiness, sadness, anger, and fear)",
+    "I feel cut off from my emotions", // r
+    "In situations when other people have strong emotional responses, I don't feel anything at all", // r
+    "There are certain emotions that I cannot feel", // r
+    "I think of myself as a very emotional person",
+    "I feel like I am emotionally numb", // r
+    "I have a hard time feeling close to people, even my friends or family", // r
+    "I feel like I am emotionally numb", // r
+    "There are some negative emotions that I rarely feel even when there is reason to feel them" // r
+]
+
+const numbness_labels = [
+    "numbness_1",
+    "numbness_2_r",
+    "numbness_3_r",
+    "numbness_4_r",
+    "numbness_5",
+    "numbness_6_r",
+    "numbness_7_r",
+    "numbness_8_r",
+    "numbness_9_r"
+] 
+
+function numbness_questions(
+    items = numbness_items,
+    labels = numbness_labels
+) {
+    // Build survey items
+    var questions = []
+    for (const [index, element] of items.entries()) {
+        q = {
+            title: element,
+            name: labels[index],
+            type: "radiogroup",
+            colCount: 5,
+            isRequired: true,
+            choices: [
+                "Not at all typical of me",
+                "A little typical of me",
+                "Somewhat typical of me",
+                "Very typical of me",
+                "Entirely typical of me"
+            ]
+            // displayMode: "buttons",
+            // isRequired: required,
+            // minRateDescription: "Not at all typical of me",
+            // maxRateDescription: "Entirely typical of me",
+            // rateValues: [1, 2, 3, 4, 5],
+        }
+        questions.push(q)
+    }
+
+    // Randomize order
+    for (let i = questions.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [questions[i], questions[j]] = [questions[j], questions[i]]
+    }
+
+    return [
+        {
+            elements: questions,
+            description:
+                "Rate how much each of the statements describes your tendency to experience these feelings. Please note, we are NOT asking about how likely you would be to show these feelings to other people. Instead, we are asking how you would feel inside. Please keep this in mind as you read each item.",
+        },
+    ]
+}
+
+var questionnaire_numbness = {
+    type: jsPsychSurvey,
+    survey_json: {
+        title: "Emotional Sensitivity",
+        showQuestionNumbers: false,
+        goNextPageAutomatic: true,
+        pages: numbness_questions(),
+    },
+    data: {
+        screen: "questionnaire_numbness",
+    },
+}
