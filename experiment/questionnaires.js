@@ -33,7 +33,6 @@ const phq4_dimensions = [
 
 function phq4_questions(
     required = true,
-    ticks = ["Not at all", "Nearly every day"], 
     items = phq4_items,
     dimensions = phq4_dimensions
 ) {
@@ -242,7 +241,7 @@ function mint_questions(
 var questionnaire_mint = {
     type: jsPsychSurvey,
     survey_json: {
-        title: "Interoception",
+        title: "Body Awareness",
         showQuestionNumbers: false,
         goNextPageAutomatic: true,
         pages: mint_questions(),
@@ -419,10 +418,8 @@ var questionnaire_bait = {
     type: jsPsychSurvey,
     survey_json: {
         title: "Artificial Intelligence",
-        // description: "",
         showQuestionNumbers: false,
         goNextPageAutomatic: true,
-        // showProgressBar: "aboveHeader",
         pages: bait_questions(),
     },
     data: {
@@ -440,6 +437,7 @@ var feedback_bait = {
 }
 
 
+//----------------------------------------------------------------------------------------------------------------
 // Emotional Reactivity and Numbing Scale (Orsillo et al., 2007)
 // General subscale - Measure of general emotional numbness/hyperactivity
 // High score, greater emotional reactivity
