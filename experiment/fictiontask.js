@@ -77,8 +77,8 @@ const fiction_instructions1 = {
   <h1>Instructions</h1>
   <h3>What you will see</h3>
   <div style="text-align: left;">
-    <p>This study stems from a multi-disciplinary collaboration involving neuroscientists, artists, and computer scientists from the University of Sussex. 
-    Our aim is to understand whether computer-generated works of art evoke similar responses to works created by human artists.</p>
+    <p>This study stems from a multi-disciplinary collaboration involving neuroscientists and artists from the University of Sussex. 
+    Our aim is to understand how we visually explore and evaluate artworks.</p>
 
     <p>In the next part, you will be presented with <u>3 types of images</u>:</p>
 
@@ -122,16 +122,12 @@ const fiction_instructions1 = {
   <h3>What you need to do</h3>
   <p>Each image will be briefly presented on the screen. After each image, you will be asked to <b>rate your aesthetic experience</b> on the following dimensions:</p>
   <ul>
-    <li><b style="color: #880E4F">Beauty</b>: How beautiful do you find this image? This question is about the aesthetic quality of the artwork.</li>
-    <li><b style="color: #880E4F">Meaning</b>: Does this artwork seem to express something meaningful, symbolic, or thought-provoking to you? Do you feel like it conveys a deeper message?</li>
-    <li><b style="color: #880E4F">Value</b>: How much would you be willing to pay to own this artwork and display it in your home?</li>
-    <li><b style="color: #880E4F">Familiarity</b>: Does this image remind you of something you've seen before? Refers to how much the image feels like something you have already seen before - whether it's the artwork, its style or subject.</ul>
+    <li><b style="color: #9C27B0">Beauty</b>: How artistically beautiful the image is? This question is about the <i>aesthetic quality</i> of the artwork in terms of composition, colors, and execution.</li>
+    <li><b style="color: #FF5722">Emotions</b>: To what extent the artwork evoke a positive or negative emotions? This question is about the feelings inside you.</li>
+    <li><b style="color: #283593">Thought-Provoking</b>: Does this artwork seem to express something meaningful, profound, symbolic, or thought-provoking to you?</li>
+    <li><b style="color: #FF9800">Worth</b>: How much would you be willing to pay to own this artwork and display it in your home?</li>
+    <li><b style="color: #607D8B">Familiarity</b>: Does this image remind you of something you've seen before? Refers to how much the image feels like something you have already seen before - whether it's the artwork, its style or subject.</ul>
   Potential?
-  <ul>
-    <li><b style="color: #880E4F">Liking</b>: To what extent do you like or dislike the image based on personal preference. "How much do you like this image?" (Ciabbai 2024)</li>
-    <li><b style="color: #880E4F">Emotions</b>: How positive or negative the emotions are that you feel when looking at the image.</li>
-    <li><b style="color: #880E4F">Being moved</b>: "How much are you moved by this image?" (Ciabbai 2024)</li>
-  </ul>
   <p>We want you to <b>pay attention to what each image evokes in you</b>, as if you saw it exposed in an art gallery, without context or information about the artist. We are interested in your feelings about the artwork in itself.</p>
 `,
                     },
@@ -168,7 +164,7 @@ const fiction_instructions2 = {
         <p>In this final phase, we want you to tell us <b>what <i>you</i> think is the correct category</b> of each image. We will briefly present all the images once more, followed by two questions:</p>
         <ul>
             <li><b style="color: #880E4F">Human or AI-generated?</b> Do you think the image corresponds to a real painting (painted by a Human) or is AI-generated.</li>
-            <li><b style="color: #880E4F">Original or Copy?</b> Do you think the artwork is an 'original' (an original Human creation, or AI-generated with prompts <i>"to be original"</i> and <i>"make something new"</i>) or a copy (a Human forgery, or AI-generated with the prompt to mimic a certain style or artist)</li>
+            <li><b style="color: #880E4F">Original or Copy?</b> Do you think the artwork is an 'original' (an original Human creation, or AI-generated with prompts <i>"to be original"</i> and <i>"make something new"</i>) or a copy (a Human forgery, or AI-generated with the prompt to mimic a certain style, artist or artwork)</li>
         </ul>
         <p>Sometimes, it is hard to tell, but don't overthink it and <b>go with your fut feeling</b>. At the end, we will tell you if you were correct or wrong!</p>
     </div>
@@ -494,7 +490,7 @@ var fiction_feedback1 = {
             {
                 type: "checkbox",
                 name: "FeedbackFiction1",
-                title: "Quality of AI-Generated images",
+                title: "Quality AI-Generated images",
                 description: "Please select all that apply (if any)",
                 choices: [
                     "I found AI-generated paintings more beautiful than real ones",
@@ -510,6 +506,19 @@ var fiction_feedback1 = {
             {
                 type: "checkbox",
                 name: "FeedbackFiction2",
+                title: "Quality of forged artworks",
+                description: "Please select all that apply (if any)",
+                choices: [
+                    "I found most forgeries to be less well executed than original paintings",
+                    "I found most forgeries very convincing and hard to distinguish from original paintings",
+                ],
+                showOtherItem: true,
+                showSelectAllItem: false,
+                showNoneItem: false,
+            },
+            {
+                type: "checkbox",
+                name: "FeedbackFiction3",
                 title: "Labels and types of images",
                 description: "Please select all that apply (if any)",
                 choices: [
@@ -525,7 +534,7 @@ var fiction_feedback1 = {
                 showNoneItem: false,
             },
             {
-                visibleIf: "{FeedbackFiction2} anyof ['I feel like all the images were real paintings']",
+                visibleIf: "{FeedbackFiction3} anyof ['I feel like all the images were real paintings']",
                 title: "How certain are you that all images were real paintings?",
                 name: "FeedbackFiction_ConfidenceReal",
                 type: "rating",
@@ -535,7 +544,7 @@ var fiction_feedback1 = {
                 maxRateDescription: "Completely certain",
             },
             {
-                visibleIf: "{FeedbackFiction2} anyof ['I feel like all the images were AI-generated']",
+                visibleIf: "{FeedbackFiction3} anyof ['I feel like all the images were AI-generated']",
                 title: "How certain are you that all images were AI-generated?",
                 name: "FeedbackFiction_ConfidenceFake",
                 type: "rating",
