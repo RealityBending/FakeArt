@@ -322,14 +322,18 @@ var fiction_ratings1 = {
                     {
                         type: "rating",
                         name: "Worth",
-                        title: "I think this artwork is:",
+                        title: "I think this artwork is worth:",
                         isRequired: true,
-                        rateMin: -3,
-                        rateMax: 3,
-                        minRateDescription: "Worth nothing",
-                        maxRateDescription: "Very valuable",
                         displayMode: "buttons",
-                        //cssClass: "colored-scale",
+                        rateValues: [
+                            { value: -3, text: "\u00A30"},
+                            { value: -2, text: "\u00A310"},
+                            { value: -1, text: "\u00A3100"},
+                            { value: 0, text: "\u00A31,000"},
+                            { value: 1, text: "\u00A310,000"},
+                            { value: 2, text: "\u00A3100,000"},
+                            { value: 3, text: "\u00A31,000,000"},
+                        ]
                     },
                     {
                         type: "rating",
