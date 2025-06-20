@@ -284,40 +284,45 @@ const bait_items = [
     "AI is exciting",
     "Much of society will benefit from a future full of AI",
 
-
+    // Art related items
+    "AI-generated content often feels impersonal compared to human-generated media",
+    "AI-generated media can sometimes surpass human creativity in terms of innovation"
     
     // Potential additional items that could be added that are more relevant to attitudes towards AI art, taken from the FictionEro study
     // Discrimination
-    "I can easily distinguish between real and AI-generated images",
-    "I am bad at telling if images are real or AI-generated",
+    //"I can easily distinguish between real and AI-generated images",
+    //"I am bad at telling if images are real or AI-generated",
     // BAIT_TextDifferentiation: "I often find it challenging to differentiate between AI-generated and human-written text",
-    "I can accurately detect subtle differences between AI from human-created content",
+    //"I can accurately detect subtle differences between AI from human-created content",
 
     // Bias
-    "Human creators bring a unique perspective that AI cannot replicate",
+    /*"Human creators bring a unique perspective that AI cannot replicate",
     "AI-generated media can sometimes surpass human creativity in terms of innovation",
     "AI-generated content often feels impersonal compared to human-generated media",
     "AI-generated content tends to be more interesting and engaging than human-generated content",
     "Human-generated art evokes stronger emotional responses than AI-generated art",
     "I am more likely to appreciate content when I know it is created by humans rather than AI",
-    "I am more likely to trust content when I know it is created by a human rather than AI",
+    "I am more likely to trust content when I know it is created by a human rather than AI",*/
 ]
 
 const bait_dimensions = [
     "BAIT_1_ImagesRealistic",
     "BAIT_2_ImagesIssues",
-    "BAIT_3_VideosRealistic",
-    "BAIT_4_VideosIssues",
+    "BAIT_3_VideosIssues",
+    "BAIT_4_VideosRealistic",
     "BAIT_5_ImitatingReality",
     "BAIT_6_EnvironmentReal",
     "BAIT_7_TextRealistic",
     "BAIT_8_TextIssues",
-    "BAIT_9_NegativeAttitutes", // GAAIS_Negative_10
-    "BAIT_10_NegativeAttitutes", // GAAIS_Negative_15
-    "BAIT_11_PositiveAttitutes", // GAAIS_Positive_12
-    "BAIT_12_PositiveAttitutes", // GAAIS_Positive_17
+    "BAIT_9_Dangerous", // GAAIS_Negative_10
+    "BAIT_10_Worry", // GAAIS_Negative_15
+    "BAIT_11_Exciting", // GAAIS_Positive_12
+    "BAIT_12_Benefit", // GAAIS_Positive_17
 
-    "BAIT_13_ImageDistinctionEasy",
+    "BAIT_13_ArtIssues",
+    "BAIT_14_ArtRealistic",
+
+    /*"BAIT_13_ImageDistinctionEasy",
     "BAIT_14_ImageDistinctionBad",
     "BAIT_15_ContentDetection",
     "BAIT_16_UniqueHuman",
@@ -326,7 +331,7 @@ const bait_dimensions = [
     "BAIT_19_InterestingAI",
     "BAIT_20_EmotionalHuman",
     "BAIT_21_PreferenceHuman",
-    "BAIT_22_TrustHuman"    
+    "BAIT_22_TrustHuman",  */  
 ]
 
 function bait_questions(
