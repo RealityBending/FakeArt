@@ -393,7 +393,7 @@ function bait_feedback(screen = "questionnaire_bait") {
     let dat = jsPsych.data.get().filter({ screen: screen })
     dat = dat["trials"][0]["response"]
 
-    let score = (dat["BAIT_11_PositiveAttitutes"] + dat["BAIT_12_PositiveAttitutes"]) / 2
+    let score = (dat["BAIT_11_Exciting"] + dat["BAIT_12_Benefit"]) / 2
     let score_pop = 3.89 // Computed in FictionEro
     let text = "XX"
     if (score < score_pop) {
