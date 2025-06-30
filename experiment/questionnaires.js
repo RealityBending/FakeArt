@@ -675,3 +675,26 @@ var art_expertise = {
         ]
     }
 }
+
+//-Randomize order of questionnaires-------------------------------------------------------------------
+// Group bait questionnaire with bait feedback
+const bait_grouped = [
+  questionnaire_bait,
+  feedback_bait
+]
+
+let questionnaires = [
+  questionnaire_vviq,
+  questionnaire_phq4,
+  questionnaire_mint,
+  questionnaire_numbness,
+  bait_grouped
+]
+
+// Shuffle order of questionnaires 
+questionnaires = shuffleArray(questionnaires);
+
+// Flatten nested array  
+questionnaires = questionnaires.flat()
+
+
