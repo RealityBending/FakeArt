@@ -123,11 +123,11 @@ const fiction_instructions1 = {
   <p>Each image will be briefly presented on the screen. After each image, you will be asked to <b>rate your aesthetic experience</b> on the following dimensions:</p>
   <ul>
     <li><b style="color: #9C27B0">Beauty</b>: How artistically beautiful the image is? This question is about the <i>aesthetic quality</i> of the artwork in terms of composition, colors, and execution.</li>
-    <li><b style="color: #FF5722">Emotions</b>: To what extent the artwork evoke a positive or negative emotions? This question is about the feelings inside you.</li>
+    <li><b style="color: #FF5722">Emotions</b>: To what extent the artwork evokes positive or negative emotions? This question is about the feelings inside you.</li>
     <li><b style="color: #283593">Thought-Provoking</b>: Does this artwork seem to express something meaningful, profound, symbolic, or thought-provoking to you?</li>
     <li><b style="color: #FF9800">Worth</b>: How much would you be willing to pay to own this artwork and display it in your home?</li>
     <li><b style="color: #607D8B">Familiarity</b>: Does this image remind you of something you've seen before? Refers to how much the image feels like something you have already seen before - whether it's the artwork, its style or subject.</ul>
-  Potential?
+ 
   <p>We want you to <b>pay attention to what each image evokes in you</b>, as if you saw it exposed in an art gallery, without context or information about the artist. We are interested in your feelings about the artwork in itself.</p>
 `,
                     },
@@ -166,7 +166,7 @@ const fiction_instructions2 = {
             <li><b style="color: #880E4F">Human or AI-generated?</b> Do you think the image corresponds to a real painting (painted by a Human) or is AI-generated.</li>
             <li><b style="color: #880E4F">Original or Copy?</b> Do you think the artwork is an 'original' (an original Human creation, or AI-generated with prompts <i>"to be original"</i> and <i>"make something new"</i>) or a copy (a Human forgery, or AI-generated with the prompt to mimic a certain style, artist or artwork)</li>
         </ul>
-        <p>Sometimes, it is hard to tell, but don't overthink it and <b>go with your fut feeling</b>. At the end, we will tell you if you were correct or wrong!</p>
+        <p>Sometimes, it is hard to tell, but don't overthink it and <b>go with your gut feeling</b>. At the end, we will tell you if you were correct or wrong!</p>
     </div>
 </div>
 `,
@@ -480,7 +480,7 @@ var fiction_ratings2 = {
 }
 
 var fiction_phase2 = {
-    timeline_variables: shuffleArray(stimuli), // .slice(0, 3) TODO: remove this
+    timeline_variables: shuffleArray(stimuli).slice(0, 3), // <------------------------------------------------------------------------ TODO: remove this
     timeline: [fiction_fixation2, fiction_showimage2, fiction_ratings2],
 }
 

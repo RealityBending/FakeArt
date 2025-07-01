@@ -2,7 +2,7 @@
 var questionnaires_instructions0 = {
     type: jsPsychHtmlButtonResponse,
     stimulus:
-        "<h1>Part 2/4</h1>" +
+        "<h1>Part 3/4</h1>" +
         "<p>Great! We will continue with a series of questionnaires.<br>Again, it is important that you answer truthfully. Please read the statements carefully and answer according to what describe you the best.</p>",
     choices: ["Continue"],
     data: { screen: "part2_instructions" }, // why is this label needed?
@@ -32,7 +32,7 @@ const phq4_dimensions = [
 ]
 
 function phq4_questions(
-    required = true,
+    required = false,
     items = phq4_items,
     dimensions = phq4_dimensions
 ) {
@@ -187,7 +187,7 @@ const mint_dimensions = [
 ]
 
 function mint_questions(
-    required = true,
+    required = false,
     ticks = ["Disagree", "Agree"],
     items = mint_items,
     dimensions = mint_dimensions
@@ -278,7 +278,7 @@ const bait_items = [
     "AI assistants can write texts that are indistinguishable from those written by humans",
     "Documents and paragraphs written by AI usually read differently compared to Human productions",
 
-    // Attitutes (adapted from GAAIS; Schepman et al., 2023)
+    // Attitudes (adapted from GAAIS; Schepman et al., 2023)
     "AI is dangerous",
     "I am worried about future uses of AI",
     "AI is exciting",
@@ -286,7 +286,8 @@ const bait_items = [
 
     // Art related items
     "AI-generated content often feels impersonal compared to human-generated media",
-    "AI-generated media can sometimes surpass human creativity in terms of innovation"
+    "Human-made art evokes stronger emotional responses than AI-generated art",
+    "AI-generated art can sometimes surpass human creativity and artistic value"
     
     // Potential additional items that could be added that are more relevant to attitudes towards AI art, taken from the FictionEro study
     // Discrimination
@@ -335,13 +336,13 @@ const bait_dimensions = [
 ]
 
 function bait_questions(
-    required = true,
+    required = false,
     ticks = ["Disagree", "Agree"], // In Schepman et al. (2022) they removed 'Strongly'
     items = bait_items,
     dimensions = bait_dimensions
 ) {
     // AI Expertise
-    aiexpertise = [
+    var aiexpertise = [
         {
             title: "How knowledgeable do you consider yourself about Artificial Intelligence (AI) technology?",
             name: "BAIT_AI_Knowledge",
@@ -456,7 +457,6 @@ const numbness_items = [
     "I think of myself as a very emotional person",
     "I feel like I am emotionally numb", // r
     "I have a hard time feeling close to people, even my friends or family", // r
-    "I feel like I am emotionally numb", // r
     "There are some negative emotions that I rarely feel even when there is reason to feel them" // r
 ]
 
@@ -468,8 +468,7 @@ const numbness_labels = [
     "numbness_5",
     "numbness_6_r",
     "numbness_7_r",
-    "numbness_8_r",
-    "numbness_9_r"
+    "numbness_8_r"
 ] 
 
 function numbness_questions(
@@ -484,7 +483,7 @@ function numbness_questions(
             name: labels[index],
             type: "radiogroup",
             colCount: 5,
-            isRequired: true,
+            isRequired: false,
             choices: [
                 "Not at all typical of me",
                 "A little typical of me",
@@ -578,7 +577,7 @@ const vviq_dimensions = [
 ]
 
 function vviq_questions(
-    required = true,
+    required = false,
     items = vviq_items,
     dimensions = vviq_dimensions
 ){

@@ -77,7 +77,7 @@ const demographics_consent = {
             // Description
             "<p align='left'><b>Why have I been invited and what will I do?</b><br>" +
             "The goal is to study how <b>new technology impacts human appreciation of art</b>. In this study, you will be shown images of paintings and asked to complete a few questionnaires. " +
-            "The whole experiment will take you <b style='color:#FF5722;'>~30 min</b> to complete. Please make you sure that you are <b>attentive and in a quiet environment</b>, and that you have time to complete it in one go.</p>" +
+            "The whole experiment will take you <b style='color:#FF5722;'>~30 min</b> to complete. Please make sure that you are <b>attentive and in a quiet environment</b>, and that you have time to complete it in one go.</p>" +
             // Results and personal information
             "<p align='left'><b>What will happen to the results and my personal information?</b><br>" +
             "The results of this research may be written into a scientific publication. Your anonymity will be ensured in the way described in the consent information below. <b>Please read this information carefully</b> and then, if you wish to take part, please acknowledge that you have fully understood this sheet, and that you consent to take part in the study as it is described here.</p>" +
@@ -123,7 +123,7 @@ const demographics_consent = {
 var demographics_questions = {
     type: jsPsychSurvey,
     survey_json: {
-        title: "Part 1/4 About yourself",
+        title: "About yourself",
         completeText: "Continue",
         pageNextText: "Next",
         pagePrevText: "Previous",
@@ -132,6 +132,10 @@ var demographics_questions = {
         pages: [
             {
                 elements: [
+                          {
+                        type: "html",
+                         html: `<div style="text-align: center;">Experiment: Part 1/4</div>`
+                    },
                     {
                         title: "What is your gender?",
                         name: "Gender",
