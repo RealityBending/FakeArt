@@ -125,11 +125,12 @@ const fiction_instructions1 = {
     <li><b style="color: #9C27B0">Beauty</b>: How artistically beautiful the image is? This question is about the <i>aesthetic quality</i> of the artwork in terms of composition, colors, and execution.</li>
     <li><b style="color: #FF5722">Emotions</b>: To what extent the artwork evokes positive or negative emotions? This question is about the feelings inside you.</li>
     <li><b style="color: #283593">Thought-Provoking</b>: Does this artwork seem to express something meaningful, profound, symbolic, or thought-provoking to you?</li>
-    <li><b style="color: #FF9800">Worth</b>: How much would you be willing to pay to own this artwork and display it in your home?</li>
-    <li><b style="color: #607D8B">Familiarity</b>: Does this image remind you of something you've seen before? Refers to how much the image feels like something you have already seen before - whether it's the artwork, its style or subject.</ul>
+    <li><b style="color: #FF9800">Worth</b>: How much would you be willing to pay to own this artwork and display it in your home?</ul>
  
   <p>We want you to <b>pay attention to what each image evokes in you</b>, as if you saw it exposed in an art gallery, without context or information about the artist. We are interested in your feelings about the artwork in itself.</p>
 `,
+// Removed familiarity
+// <li><b style="color: #607D8B">Familiarity</b>: Does this image remind you of something you've seen before? Refers to how much the image feels like something you have already seen before - whether it's the artwork, its style or subject.</ul>
                     },
                 ],
             },
@@ -346,13 +347,14 @@ var fiction_ratings1 = {
                         maxRateDescription: "Very beautiful",
                         displayMode: "buttons",
                     },
-                    {
-                        type: "radiogroup",
-                        name: "Familiarity",
-                        title: "This artwork is:",
-                        isRequired: true,
-                        choices: ["Unfamiliar", "Familiar with the style", "Familiar with the artist", "I recognize this specific artwork"],
-                    },
+                    // Removed familiarity
+                    // {
+                    //     type: "radiogroup",
+                    //     name: "Familiarity",
+                    //     title: "This artwork is:",
+                    //     isRequired: true,
+                    //     choices: ["Unfamiliar", "Familiar with the style", "Familiar with the artist", "I recognize this specific artwork"],
+                    // },
                 ],
             },
         ],

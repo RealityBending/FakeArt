@@ -3,7 +3,7 @@ var questionnaires_instructions0 = {
     type: jsPsychHtmlButtonResponse,
     stimulus:
         "<h1>Part 3/4</h1>" +
-        "<p>Great! We will continue with a series of questionnaires.<br>Again, it is important that you answer truthfully. Please read the statements carefully and answer according to what describe you the best.</p>",
+        "<p>Great! We will continue with a series of questionnaires and a visualization task.<br>Again, it is important that you answer truthfully. Please read the statements carefully and answer according to what describe you the best.</p>",
     choices: ["Continue"],
     data: { screen: "part2_instructions" }, // why is this label needed?
 }
@@ -47,6 +47,7 @@ function phq4_questions(
             isRequired: required,
             choices: [
                 "Not at all",
+                "Once or twice",
                 "Several days",
                 "More than half the days",
                 "Nearly every day"
@@ -262,7 +263,6 @@ const bait_items = [
     "Much of society will benefit from a future full of AI",
 
     // Art related items
-    "AI-generated content often feels impersonal compared to human-generated media",
     "Human-made art evokes stronger emotional responses than AI-generated art",
     "AI-generated art can sometimes surpass human creativity and artistic value"
     
@@ -612,14 +612,28 @@ var questionnaire_vviq = {
     type: jsPsychSurvey,
     survey_json: {
         title: "Visualisation Task",
-        description:
-            "For each scenario try to form a mental picture of the people, objects, or setting. If you do not have a visual image, rate vividness as '1'. Only use '5' for images that are as lively and vivid as real seeing.",
+        //description:
+        //    "For each scenario try to form a mental picture of the people, objects, or setting. If you do not have a visual image, rate vividness as '1'. Only use '5' for images that are as lively and vivid as real seeing.",
         showQuestionNumbers: false,
         goNextPageAutomatic: true,
         pageNextText: "Next",
         pagePrevText: "Previous",
         showProgressBar: "aboveHeader",
-        pages: vviq_questions(),
+        pages: [
+            {
+                elements: [
+                    {
+                    type: "html",
+                    html: 
+                    `<div style="font-size: 1.1em; margin-bottom: 10px;">
+                        For this task you will be presented with <strong>four scenarios</strong>. For each one, try to <strong>form a mental picture</strong> of the people, objects, or setting. 
+                        If you do not have a visual image, rate vividness as <strong>'1'</strong>. Only use <strong>'5'</strong>, for images that are as lively and vivid as real seeing.
+                    </div>`
+                    }
+                ]
+            },
+            ...vviq_questions(),
+        ]
     },
     data: {
         screen: "questionnaire_vviq",
@@ -632,11 +646,15 @@ var art_expertise = {
     type: jsPsychSurvey,
     survey_json: {
         title: "Art Expertise",
-        description: "Please rate how knowledgeable you percieve yourself to be about art, such as how familiar you are with styles, artists or movements.",
+        //description: "Please rate how knowledgeable you percieve yourself to be about art, such as how familiar you are with styles, artists or movements.",
         showQuestionNumbers: false,
         pages: [
             {
                 elements: [
+                    {
+                        type: "html",
+                        html: `Please rate how knowledgeable you percieve yourself to be about art, such as how familiar you are with styles, artists or movements.`
+                    },
                     {
                         name: art_expertise,
                         title: "I consider myself to be knowledgeable in art",

@@ -134,7 +134,7 @@ var demographics_questions = {
                 elements: [
                           {
                         type: "html",
-                         html: `<div style="text-align: center;">Experiment: Part 1/4</div>`
+                         html: `<div style="text-align: center;">Part 1/4</div>`
                     },
                     {
                         title: "What is your gender?",
