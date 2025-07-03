@@ -1,4 +1,4 @@
-// Questionnaire instructions
+// Questionnaire instructions ================================================================================================
 var questionnaires_instructions0 = {
     type: jsPsychHtmlButtonResponse,
     stimulus:
@@ -9,75 +9,106 @@ var questionnaires_instructions0 = {
 }
 
 
-// PHQ-4: The 4 item patient health questionnaire for anxiety and depression (Kroenke et al., 2009)
+// Generation code ==========================================================================================================
+// Convenience function to shuffle an object (used internally)
+function shuffleObject(obj) {
+    const entries = Object.entries(obj)
+    for (let i = entries.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[entries[i], entries[j]] = [entries[j], entries[i]]
+    }
+    return Object.fromEntries(entries)
+}
+
+
+// PHQ-4 ====================================================================================================================
+// The 4 item patient health questionnaire for anxiety and depression (Kroenke et al., 2009)
 // total score, sum of all items
 // scores are rated as normal (0-2), mild (3-5), moderate (6-8), severe (9-12)
-// total score >= 3 for first two items suggests anxiety
-// total score >= 3 for last two items suggests depression
+// total score >= 3 for first two items suggests anxiety, total score >= 3 for last two items suggests depression
 
-const phq4_items = [
-    // Anxiety items
-    "Feeling nervous, anxious or on edge",
-    "Not being able to stop or control worrying",
-    // Depression items
-    "Feeling down, depressed or hopeless",
-    "Little interest or pleasure in doing things",
-    ]
+const items_phq4 = {
+    PHQ4_Anxiety_1: "Feeling nervous, anxious or on edge",
+    PHQ4_Anxiety_2: "Not being able to stop or control worrying",
+    PHQ4_Depression_3: "Feeling down, depressed, or hopeless",
+    PHQ4_Depression_4: "Little interest or pleasure in doing things",
+}
 
-const phq4_dimensions = [
-    "phq4_1_Anxiety",
-    "phq4_2_Anxiety",
-    "phq4_3_Depression",
-    "phq4_4_Depression",
-]
+const instructions_phq4 = {
+    type: "html",
+    name: "instructions_phq4",
+    html: "<p>Over the <b>last 2 weeks</b>, how often have you been bothered by the following problems?</p>",
+}
 
-function phq4_questions(
-    required = false,
-    items = phq4_items,
-    dimensions = phq4_dimensions
-) {
+function make_phq4(items, required = false) {
+    items = shuffleObject(items)
+    questions = [instructions_phq4]
 
-    // Build survey items
-    var questions = []
-    for (const [index, element] of items.entries()) {
+    // Make questions
+    for (const key of Object.keys(items)) {
         q = {
-            title: element,
-            name: dimensions[index],
-            type: "radiogroup",
+            title: items[key],
+            name: key,
+            type: "rating",
+            displayMode: "buttons",
             isRequired: required,
-            choices: [
-                "Not at all",
-                "Once or twice",
-                "Several days",
-                "More than half the days",
-                "Nearly every day"
-            ]
+            rateValues: [
+                {
+                    value: 0,
+                    text: "Not at all",
+                },
+                {
+                    value: 0.5,
+                    text: "Once or twice",
+                },
+                {
+                    value: 1,
+                    text: "Several days",
+                },
+                {
+                    value: 2,
+                    text: "More than half the days",
+                },
+                {
+                    value: 3,
+                    text: "Nearly every day",
+                },
+            ],
         }
         questions.push(q)
     }
 
-    // Randomize order
-    for (let i = questions.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1))
-        ;[questions[i], questions[j]] = [questions[j], questions[i]]
-    }
-
-    return [
-        {
-            elements: questions,
-            description:
-                "Over the last two weeks, how often have you been bothered by the following problems.",
-        },
-    ]
+    return { elements: questions }
 }
 
-var questionnaire_phq4 = {
+
+const questionnaire_phq4 = {
     type: jsPsychSurvey,
-    survey_json: {
-        title: "General Wellbeing",
-        showQuestionNumbers: false,
-        goNextPageAutomatic: true,
-        pages: phq4_questions(),
+    survey_json: function () {
+        return {
+            title: "About your mood",
+            showQuestionNumbers: false,
+            goNextPageAutomatic: true,
+            pages: [
+                {
+                    elements: [
+                        {
+                            title: "All things considered, how satisfied are you with your life as a whole?",
+                            name: "LifeSatisfaction",
+                            type: "rating",
+                            displayMode: "buttons",
+                            rateCount: 11,
+                            rateMin: 0,
+                            rateMax: 10,
+                            minRateDescription: "No satisfaction at all",
+                            maxRateDescription: "Completely satisfied",
+                            isRequired: true,
+                        },
+                    ],
+                },
+                make_phq4(items_phq4),
+            ],
+        }
     },
     data: {
         screen: "questionnaire_phq4",
@@ -86,98 +117,94 @@ var questionnaire_phq4 = {
 
 
 
-//----------------------------------------------------------------------------------------------------------------
-// MINT - Multimodal Interoceptive Inventory
-// In process of validation
+
+// MINT ====================================================================================================================
+// Multimodal Interoceptive Inventory
 // Sum all items belonging to the same dimension to calculate score
-// 44 items reduced to 33
 
-const mint_items = [
+const mint_items = {
+    MINT_ExAc_1:
     "I can always accurately feel when I am about to fart",
+    MINT_ExAc_2:
     "I can always accurately feel when I am about to sneeze",
+    MINT_ExAc_3:
     "I can always accurately feel when I am about to burp",
+    MINT_ReIA_4:
     "I always feel in my body if I am relaxed",
+    MINT_ReIA_5:
     "I always know when I am relaxed",
+    MINT_ReIA_6:
     "My body is always in the same specific state when I am relaxed",
+    MINT_SexS_7:
     "During sex or masturbation, I often feel very strong sensations coming from my genital areas",
+    MINT_SexS_8:
     "My genital organs are very sensitive to pleasant stimulations",
+    MINT_SexS_9:
     "When I am sexually aroused, I often notice specific sensations in my genital area (e.g., tingling, warmth, wetness, stiffness, pulsations)",
+    MINT_CaCo_10:
     "Sometimes my breathing becomes erratic or shallow and I often don't know why",
+    MINT_CaCo_11:
     "I often feel like I can't get enough oxygen by breathing normally",
+    MINT_CaCo_12:
     "Sometimes my heart starts racing and I often don't know why",
+    MINT_Urin_13:
     "I sometimes feel like I need to urinate or defecate but when I go to the bathroom I produce less than I expected",
+    MINT_Urin_14:
     "I often feel the need to urinate even when my bladder is not full",
+    MINT_Urin_15:
     "Sometimes I am not sure whether I need to go to the toilet or not (to urinate or defecate)",
+    MINT_Derm_16:
     "In general, my skin is very sensitive",
+    MINT_Derm_17:
     "My skin is susceptible to itchy fabrics and materials",
+    MINT_Derm_18:
     "I can notice even very subtle stimulations to my skin (e.g., very light touches)",
+    MINT_Sati_19:
     "I don't always feel the need to eat until I am really hungry",
+    MINT_Sati_20:
     "Sometimes I don't realise I was hungry until I ate something ",
+    MINT_Sati_21:
     "I don't always feel the need to drink until I am really thirsty",
+    MINT_Olfa_22:
     "I often check the smell of my armpits",
+    MINT_Olfa_23:
     "I often check the smell of my own breath",
+    MINT_Olfa_24:
     "I often check the smell of my farts",
+    MINT_Resp_25:
     "In general, I am very sensitive to changes in my breathing",
+    MINT_Resp_26:
     "I can notice even very subtle changes in my breathing",
+    MINT_Resp_27:
     "I am always very aware of how I am breathing, even when I am calm",
+    MINT_Card_28:
     "In general, I am very sensitive to changes in my heart rate",
+    MINT_Card_29:
     "I often notice changes in my heart rate",
+    MINT_Card_30:
     "I can notice even very subtle changes in the way my heart beats",
+    MINT_Gast_31:
     "I can notice even very subtle changes in what my stomach is doing",
+    MINT_Gast_32:
     "In general, I am very sensitive to what my stomach is doing",
-    "I am always very aware of what my stomach is doing, even when I am calm",
-]
+    MINT_Gast_33:
+    "I am always very aware of what my stomach is doing, even when I am calm"
+}
 
-const mint_dimensions = [
-    "MINT_ExAc_1",
-    "MINT_ExAc_2",
-    "MINT_ExAc_3",
-    "MINT_ReIA_4",
-    "MINT_ReIA_5",
-    "MINT_ReIA_6",
-    "MINT_SexS_7",
-    "MINT_SexS_8",
-    "MINT_SexS_9",
-    "MINT_CaCo_10",
-    "MINT_CaCo_11",
-    "MINT_CaCo_12",
-    "MINT_Urin_13",
-    "MINT_Urin_14",
-    "MINT_Urin_15",
-    "MINT_Derm_16",
-    "MINT_Derm_17",
-    "MINT_Derm_18",
-    "MINT_Sati_19",
-    "MINT_Sati_20",
-    "MINT_Sati_21",
-    "MINT_Olfa_22",
-    "MINT_Olfa_23",
-    "MINT_Olfa_24",
-    "MINT_Resp_25",
-    "MINT_Resp_26",
-    "MINT_Resp_27",
-    "MINT_Card_28",
-    "MINT_Card_29",
-    "MINT_Card_30",
-    "MINT_Gast_31",
-    "MINT_Gast_32",
-    "MINT_Gast_33",
-]
 
-function mint_questions(
-    required = false,
-    ticks = ["Disagree", "Agree"],
-    items = mint_items,
-    dimensions = mint_dimensions
-) {
-    // Build survey items
-    var questions = []
-    for (const [index, element] of items.entries()) {
+function make_mint(items, required = false, ticks = ["Disagree", "Agree"]) {
+    items = shuffleObject(items)
+
+    questions = []
+
+    // Make questions
+    for (const key of Object.keys(items)) {
         q = {
-            title: element,
-            name: dimensions[index],
+            title: items[key],
+            name: key,
             type: "rating",
             displayMode: "buttons",
+            // scaleColorMode: "colored",
             isRequired: required,
             minRateDescription: ticks[0],
             maxRateDescription: ticks[1],
@@ -186,43 +213,36 @@ function mint_questions(
         questions.push(q)
     }
 
-    // Randomize order
-    for (let i = questions.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1))
-        ;[questions[i], questions[j]] = [questions[j], questions[i]]
-    }
-
-    // Define attention check
-    const attentionCheck = {
-        title: "I can always accurately answer to the extreme left on this question to show that I am reading it",
-        name: "mint_attention_check",
-        type: "rating",
-        displayMode: "buttons",
-        isRequired: required,
-        minRateDescription: ticks[0],
-        maxRateDescription: ticks[1],
-        rateValues: [0, 1, 2, 3, 4, 5, 6],
-    };
+        // Define attention check
+        const attentionCheck = {
+            title: "I can always accurately answer to the extreme left on this question to show that I am reading it",
+            name: "mint_attention_check",
+            type: "rating",
+            displayMode: "buttons",
+            isRequired: required,
+            minRateDescription: ticks[0],
+            maxRateDescription: ticks[1],
+            rateValues: [0, 1, 2, 3, 4, 5, 6],
+        };
 
     // Add attention check at end
     questions.push(attentionCheck)
 
-    return [
-        {
-            elements: questions,
-            description:
-                "Please answer the following questions based on how accurately each statement describes you in general.",
-        },
-    ]
+    return { elements: questions }
 }
 
-var questionnaire_mint = {
+
+const questionnaire_mint = {
     type: jsPsychSurvey,
-    survey_json: {
-        title: "Body Awareness",
-        showQuestionNumbers: false,
-        goNextPageAutomatic: true,
-        pages: mint_questions(),
+    survey_json: function () {
+        return {
+            title: "About you and your body",
+            description:
+                "Please answer the following questions based on how accurately each statement describes you in general.",
+            showQuestionNumbers: false,
+            goNextPageAutomatic: true,
+            pages: make_mint(mint_items),
+        }
     },
     data: {
         screen: "questionnaire_mint",
@@ -420,47 +440,45 @@ var feedback_bait = {
 }
 
 
-//----------------------------------------------------------------------------------------------------------------
+// ERNS ===================================================================================================================
 // Emotional Reactivity and Numbing Scale (Orsillo et al., 2007)
 // General subscale - Measure of general emotional numbness/hyperactivity
 // High score, greater emotional reactivity
 // Low score, indicates emotional numbing
 
-const numbness_items = [
+const ERNS_items = {
+    ERNS_1:
     "I am able to feel a wide range of emotions (e.g., happiness, sadness, anger, and fear)",
+    ERNS_2_r:
     "I feel cut off from my emotions", // r
+    ERNS_3_r:
     "In situations when other people have strong emotional responses, I don't feel anything at all", // r
+    ERNS_4_r:
     "There are certain emotions that I cannot feel", // r
+    ERNS_5:
     "I think of myself as a very emotional person",
+    ERNS_6_r:
     "I feel like I am emotionally numb", // r
+    ERNS_7_r:
     "I have a hard time feeling close to people, even my friends or family", // r
+    ERNS_8_r:
     "There are some negative emotions that I rarely feel even when there is reason to feel them" // r
-]
+}
 
-const numbness_labels = [
-    "numbness_1",
-    "numbness_2_r",
-    "numbness_3_r",
-    "numbness_4_r",
-    "numbness_5",
-    "numbness_6_r",
-    "numbness_7_r",
-    "numbness_8_r"
-] 
 
-function numbness_questions(
-    items = numbness_items,
-    labels = numbness_labels
-) {
-    // Build survey items
-    var questions = []
-    for (const [index, element] of items.entries()) {
+function make_ERNS(items, required = false, ticks = ["Disagree", "Agree"]) {
+    items = shuffleObject(items)
+
+    questions = []
+
+    // Make questions
+    for (const key of Object.keys(items)) {
         q = {
-            title: element,
-            name: labels[index],
+            title: items[key],
+            name: key,
             type: "radiogroup",
             colCount: 5,
-            isRequired: false,
+            isRequired: required,
             choices: [
                 "Not at all typical of me",
                 "A little typical of me",
@@ -468,21 +486,9 @@ function numbness_questions(
                 "Very typical of me",
                 "Entirely typical of me"
             ]
-            // displayMode: "buttons",
-            // isRequired: required,
-            // minRateDescription: "Not at all typical of me",
-            // maxRateDescription: "Entirely typical of me",
-            // rateValues: [1, 2, 3, 4, 5],
         }
         questions.push(q)
     }
-
-    // Randomize order
-    for (let i = questions.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [questions[i], questions[j]] = [questions[j], questions[i]]
-    }
-
     return [
         {
             elements: questions,
@@ -492,21 +498,25 @@ function numbness_questions(
     ]
 }
 
-var questionnaire_numbness = {
+
+const questionnaire_ERNS = {
     type: jsPsychSurvey,
-    survey_json: {
-        title: "Emotional Sensitivity",
-        showQuestionNumbers: false,
-        goNextPageAutomatic: true,
-        pages: numbness_questions(),
+    survey_json: function () {
+        return {
+            title: "Emotional Sensitivity",
+            showQuestionNumbers: false,
+            goNextPageAutomatic: true,
+            pages: make_ERNS(ERNS_items),
+        }
     },
     data: {
-        screen: "questionnaire_numbness",
+        screen: "questionnaire_ERNS",
     },
 }
 
-//----------------------------------------------------------------------------------------------------------------
-// VVIQ - Vividness of Visual Imagery Questionnaire (Marks, 1973)
+
+// VVIQ ==================================================================================================================
+// Vividness of Visual Imagery Questionnaire (Marks, 1973)
 // Measures the vividness of someones voluntary visual imagery
 
 const vviq_items = [
@@ -670,7 +680,7 @@ var art_expertise = {
     }
 }
 
-//-Randomize order of questionnaires-------------------------------------------------------------------
+// Randomize order of questionnaires=========================================================================================
 // Group bait questionnaire with bait feedback
 const bait_grouped = [
   questionnaire_bait,
@@ -678,10 +688,10 @@ const bait_grouped = [
 ]
 
 let questionnaires = [
+  questionnaire_mint,
   questionnaire_vviq,
   questionnaire_phq4,
-  questionnaire_mint,
-  questionnaire_numbness,
+  questionnaire_ERNS,
   bait_grouped
 ]
 
