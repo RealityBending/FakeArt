@@ -76,7 +76,7 @@ const demographics_consent = {
             "Thank you for considering to take part in this study conducted by Dr Dominique Makowski from the University of Sussex and his team (see contact information below).</p>" +
             // Description
             "<p align='left'><b>Why have I been invited and what will I do?</b><br>" +
-            "The goal is to study how <b>new technology impacts human appreciation of art</b>. In this study, you will be shown images of paintings and asked to complete a few questionnaires. " +
+            "The goal is to study how <b>new technology impacts human appreciation of art</b>.  In this study, you will complete a visual task where you will view and rate artworks. Then you will complete some questionnaires, including a short one about mood." +
             "The whole experiment will take you <b style='color:#FF5722;'>~30 min</b> to complete. Please make sure that you are <b>attentive and in a quiet environment</b>, and that you have time to complete it in one go.</p>" +
             // Results and personal information
             "<p align='left'><b>What will happen to the results and my personal information?</b><br>" +
