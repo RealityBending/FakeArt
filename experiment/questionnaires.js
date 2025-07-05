@@ -496,64 +496,59 @@ const questionnaire_ERNS = {
 // Vividness of Visual Imagery Questionnaire (Marks, 1973)
 // Measures the vividness of someones voluntary visual imagery
 
-const vviq_items = [
+const vviq_items = {
+    relative_or_friend_1:
     "The exact contours of face, head, shoulders and body",
+    relative_or_friend_2:
     "Characteristic poses of head, attitudes of body etc",
+    relative_or_friend_3:
     "The precise carriage, length of step etc., in walking.",
+    relative_or_friend_4:
     "The different colors worn in some familiar clothes.",
 
+    rising_sun_5:
     "The sun rising above the horizon into a hazy sky",
+    rising_sun_6:
     "The sky clears and surrounds the sun with blueness",
+    rising_sun_7:
     "Clouds. A storm blows up with flashes of lightning",
+    rising_sun_8:
     "A rainbow appears",
 
+    familiar_shop_9:
     "The overall appearance of the shop from the opposite side of the road",
+    familiar_shop_10:
     "A window display including colours, shapes and details of individual items for sale",
+    familiar_shop_11:
     "You are near the entrance. The colour, shape and details of the door",
+    familiar_shop_12:
     "You enter the shop and go to the counter. The counter Assistant serves you. Money changes hands.",
 
+    country_scene_13:
     "The contours of the landscape",
+    country_scene_14:
     "The colour and shape of the lake",
+    country_scene_15:
     "The colour and shape of the trees.",
+    country_scene_16:
     "A strong wind blows on the trees and on the lake causing reflections in the water"
-]
+}
 
-const vviq_dimensions = [
-    "relative_or_friend_1",
-    "relative_or_friend_2",
-    "relative_or_friend_3",
-    "relative_or_friend_4",
 
-    "rising_sun_5",
-    "rising_sun_6",
-    "rising_sun_7",
-    "rising_sun_8",
+function make_vviq(items, required = false, ticks = ["Disagree", "Agree"]) {
+    items = shuffleObject(items)
 
-    "familiar_shop_9",
-    "familiar_shop_10",
-    "familiar_shop_11",
-    "familiar_shop_12",
-    
-    "country_scene_13",
-    "country_scene_14",
-    "country_scene_15",
-    "country_scene_16"
-]
+    questions1_4 = []
+    questions5_8 = []
+    questions9_12 = []
+    questions13_16 = []
 
-function vviq_questions(
-    required = false,
-    items = vviq_items,
-    dimensions = vviq_dimensions
-){
-    var questions1_4 = []
-    var questions5_8 = []
-    var questions9_12 = []
-    var questions13_16 = []
+    // Make questions
+    for (const [index, key] of Object.entries(Object.keys(items))) {
 
-    for(const [index, element] of items.entries()){
         q = {
-            title: element,
-            name: dimensions[index],
+            title: items[key],
+            name: key,
             type: "radiogroup",
             isRequired: required,
             choices: [
@@ -595,18 +590,15 @@ function vviq_questions(
     ]
 }
 
-var questionnaire_vviq = {
+const questionnaire_vviq = {
     type: jsPsychSurvey,
-    survey_json: {
-        title: "Visualisation Task",
-        //description:
-        //    "For each scenario try to form a mental picture of the people, objects, or setting. If you do not have a visual image, rate vividness as '1'. Only use '5' for images that are as lively and vivid as real seeing.",
-        showQuestionNumbers: false,
-        goNextPageAutomatic: true,
-        pageNextText: "Next",
-        pagePrevText: "Previous",
-        showProgressBar: "aboveHeader",
-        pages: [
+    survey_json: function () {
+        return {
+            title: "Visualisation Task",
+            showQuestionNumbers: false,
+            goNextPageAutomatic: true,
+            showProgressBar: "aboveHeader",
+                    pages: [
             {
                 elements: [
                     {
@@ -619,13 +611,15 @@ var questionnaire_vviq = {
                     }
                 ]
             },
-            ...vviq_questions(),
+            ...make_vviq(vviq_items),
         ]
+        }
     },
     data: {
         screen: "questionnaire_vviq",
     },
 }
+
 
 //---------------------------------------------------------------------------------------------------------------------
 // Art expertise
