@@ -125,12 +125,12 @@ const fiction_instructions1 = {
     <li><b style="color: #9C27B0">Beauty</b>: How artistically beautiful the image is? This question is about the <i>aesthetic quality</i> of the artwork in terms of composition, colors, and execution.</li>
     <li><b style="color: #FF5722">Emotions</b>: To what extent the artwork evokes positive or negative emotions? This question is about the feelings inside you.</li>
     <li><b style="color: #283593">Thought-Provoking</b>: Does this artwork seem to express something meaningful, profound, symbolic, or thought-provoking to you?</li>
-    <li><b style="color: #FF9800">Worth</b>: We're interested in how much you value the artwork, <b>regardless of your current finances</b>. If money were of no concern to you, how much would you be willing to pay to own this artwork and display it in your home?</ul>
+    <li><b style="color: #FF9800">Worth</b>: What is the maximum amount you'd be willing to pay to own this artwork (for AI-generated ones, a framed print of it) and display it in your home?</li>
  
   <p>We want you to <b>pay attention to what each image evokes in you</b>, as if you saw it exposed in an art gallery, without context or information about the artist. We are interested in your feelings about the artwork in itself.</p>
 `,
-// Removed familiarity
-// <li><b style="color: #607D8B">Familiarity</b>: Does this image remind you of something you've seen before? Refers to how much the image feels like something you have already seen before - whether it's the artwork, its style or subject.</ul>
+                        // Removed familiarity
+                        // <li><b style="color: #607D8B">Familiarity</b>: Does this image remind you of something you've seen before? Refers to how much the image feels like something you have already seen before - whether it's the artwork, its style or subject.</ul>
                     },
                 ],
             },
@@ -299,54 +299,55 @@ var fiction_ratings1 = {
                 elements: [
                     {
                         type: "rating",
-                        name: "Emotional Valence",
-                        title: "Looking at this artwork makes me feel:",
+                        name: "Beauty",
+                        title: "This artwork is...",
                         isRequired: true,
                         rateMin: -3,
                         rateMax: 3,
-                        minRateDescription: "Very negative",
-                        maxRateDescription: "Very positive",
+                        minRateDescription: "Ugly",
+                        maxRateDescription: "Beautiful",
+                        displayMode: "buttons",
+                    },
+                    {
+                        type: "rating",
+                        name: "Valence",
+                        title: "This artwork made me feel...",
+                        isRequired: true,
+                        rateMin: -3,
+                        rateMax: 3,
+                        minRateDescription: "Negative",
+                        maxRateDescription: "Positive",
                         displayMode: "buttons",
                         rateType: "smileys",
                     },
                     {
                         type: "rating",
                         name: "Meaning",
-                        title: "I find this artwork:",
+                        title: "I find this artwork thought-provoking:",
                         isRequired: true,
-                        rateMin: -3,
-                        rateMax: 3,
-                        minRateDescription: "Not at all meaningful",
-                        maxRateDescription: "Very meaningful",
+                        rateMin: 0,
+                        rateMax: 7,
+                        minRateDescription: "Not at all",
+                        maxRateDescription: "Very much",
                         displayMode: "buttons",
                     },
                     {
                         type: "rating",
                         name: "Worth",
-                        title: "I think this artwork is worth:",
+                        title: "To own this artwork, I'd be willing to pay...",
                         isRequired: true,
                         displayMode: "buttons",
                         rateValues: [
-                            { value: -3, text: "\u00A30"},
-                            { value: -2, text: "\u00A310"},
-                            { value: -1, text: "\u00A3100"},
-                            { value: 0, text: "\u00A31,000"},
-                            { value: 1, text: "\u00A310,000"},
-                            { value: 2, text: "\u00A3100,000"},
-                            { value: 3, text: "\u00A31,000,000"},
-                        ]
+                            { value: 0, text: "\u00A30" },
+                            { value: 1, text: "\u00A310" },
+                            { value: 2, text: "\u00A3100" },
+                            { value: 3, text: "\u00A31,000" },
+                            { value: 4, text: "\u00A310,000" },
+                            { value: 5, text: "\u00A3100,000" },
+                            { value: 6, text: "\u00A31,000,000" },
+                        ],
                     },
-                    {
-                        type: "rating",
-                        name: "Beauty",
-                        title: "I think this artwork is:",
-                        isRequired: true,
-                        rateMin: -3,
-                        rateMax: 3,
-                        minRateDescription: "Not at all beautiful",
-                        maxRateDescription: "Very beautiful",
-                        displayMode: "buttons",
-                    },
+
                     // Removed familiarity
                     // {
                     //     type: "radiogroup",
