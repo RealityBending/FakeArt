@@ -132,9 +132,9 @@ var demographics_questions = {
         pages: [
             {
                 elements: [
-                          {
+                    {
                         type: "html",
-                         html: `<div style="text-align: center;">Part 1/4</div>`
+                        html: `<div style="text-align: center;">Part 1/4</div>`,
                     },
                     {
                         title: "What is your gender?",
@@ -200,6 +200,7 @@ var demographics_questions = {
                         type: "radiogroup",
                         choices: [
                             "Arts and Humanities",
+                            "Media, Communication",
                             "Literature, Languages",
                             "History, Archaeology",
                             "Sociology, Anthropology",
@@ -257,6 +258,20 @@ var demographics_questions = {
                         },
                         placeholder: "e.g., France",
                         isRequired: false,
+                    },
+                ],
+            },
+            {
+                elements: [
+                    {
+                        title: "How knowledgeable would you say you are about art (e.g., how familiar with artistic styles, artists or movements)?",
+                        name: "Art_Expertise",
+                        type: "rating",
+                        displayMode: "buttons",
+                        isRequired: true,
+                        minRateDescription: "Not at all",
+                        maxRateDescription: "Very much so",
+                        rateValues: [0, 1, 2, 3, 4, 5, 6],
                     },
                 ],
             },

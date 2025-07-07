@@ -28,15 +28,10 @@
         <script src="https://unpkg.com/@jspsych/plugin-webgazer-calibrate@1.0.3"></script>
         <script src="https://unpkg.com/@jspsych/plugin-webgazer-validate@1.0.3"></script>
 
-        <!-- Plots -->
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <script src="https://realitybending.github.io/JSmisc/misc/plots.js"></script>
-        <script src="https://unpkg.com/@jspsych/plugin-canvas-button-response"></script>
-
         <!-- Custom scripts -->
         <script src="stimuli/stimuli_list.js"></script>
         <script src="demographics.js"></script>
-        <script src="fictiontask.js"></script>
+        <script src="fiction.js"></script>
         <script src="questionnaires.js"></script>
         <script src="eyetracking.js"></script>
 
@@ -107,7 +102,6 @@
         timeline.push(demographics_consent)
         timeline.push(fiction_preloadstims)
         timeline.push(demographics_questions)
-        timeline.push(art_expertise)
 
         // Eye-tracking ==============================================================
         timeline.push(eyetracking_consent)
@@ -122,6 +116,9 @@
         timeline.push(fiction_feedback1)
 
         // Questionnaires ===========================================================
+        questionnaires = [questionnaire_mint, questionnaire_vviq, questionnaire_phq4, questionnaire_erns, bait]
+        questionnaires = jsPsych.randomization.shuffle(questionnaires) // Shuffle order of questionnaires
+
         timeline.push(questionnaires_instructions0)
         timeline.push(...questionnaires)
 
