@@ -195,18 +195,20 @@ const questionnaire_mint = {
 }
 
 // Attitudes towards AI ====================================================================================================
-// Beliefs about Artificial Images Technology (BAIT)
+// Beliefs about Artificial Images Technology (BAIT) v2.2
 // History:
-// - BAIT-Original: Items specifically about CGI and artificial media originally in Makowski et al. (FakeFace study)
-// - BAIT-14: Validated in FictionEro (with new items + removal of "I think"), where it was mixed with the 6 most
+// - 1.0: BAIT-Original: Items specifically about CGI and artificial media originally in Makowski 2025 (FakeFace)
+// - 2.0: BAIT-14: Validated in FictionEro (with new items + removal of "I think"), where it was mixed with the 6 most
 //   loading items of the positive and negative attitutes dimensions from the General Attitudes towards
 //   Artificial Intelligence Scale (GAAIS; Schepman et al., 2020, 2022)
 // - BAIT-14: Used in FakeNewsValidation
-// - BAIT-12 (Current version): Used in FakeFace2.
+// - 2.1: BAIT-12: Used in FakeFace2.
 //   - Removed 2 GAAIS items (GAAIS_Negative_9, GAAIS_Positive_7)
-//   - Replaced "Artificial Intelligence" with "AI"
+//   - Replaced "Artificial Intelligence" with "AI
 //   - Change display (Analog scale -> Likert scale)
-// Added 2 more items related to art
+// - 2.1: BAIT-12: Used in FictionEro 2
+// - 2.2: BAIT-14: Used in FictionArt and FictionFilm
+//   - Added 2 new items about art
 
 const bait_items = {
     // BAIT-12 items used in FakeFace2 study
