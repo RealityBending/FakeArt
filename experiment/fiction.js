@@ -164,8 +164,8 @@ const fiction_instructions2 = {
         <p>There is <b>something important</b> we need to reveal... In the previous phase, some images were <b style='color: #E91E63'>intentionally mislabelled</b> (we told you it was AI-generated when it was actually a human original, or a forgery, or vice versa)...</p>
         <p>In this final phase, we want you to tell us <b>what <i>you</i> think is the correct category</b> of each image. We will briefly present all the images once more, followed by two questions:</p>
         <ul>
-            <li><b style="color: #880E4F">Human or AI-generated?</b> Do you think the image corresponds to a real painting (painted by a Human) or is AI-generated.</li>
-            <li><b style="color: #880E4F">Original or Copy?</b> Do you think the artwork is an 'original' (an original Human creation, or AI-generated with prompts <i>"to be original"</i> and <i>"make something new"</i>) or a copy (a Human forgery, or AI-generated with the prompt to mimic a certain style, artist or artwork)</li>
+            <li><b style="color: #880E4F">AI-generated or Human-created?</b> Do you think the image corresponds to a real painting (painted by a Human) or is AI-generated.</li>
+            <li><b style="color:rgb(32, 14, 136)">Original or Copy?</b> Do you think the artwork is an 'original' (an original Human creation, or AI-generated with prompts <i>"to be original"</i> and <i>"make something new"</i>) or a copy (a Human forgery, or AI-generated with the prompt to mimic a certain style, artist or artwork)</li>
         </ul>
         <p>Sometimes, it is hard to tell, but don't overthink it and <b>go with your gut feeling</b>. At the end, we will tell you if you were correct or wrong!</p>
     </div>
@@ -451,25 +451,25 @@ var fiction_ratings2 = {
                 elements: [
                     {
                         type: "rating",
-                        name: "Human_vs_AI",
-                        title: "I think this image is...",
-                        description: "Indicate your confidence that the image is a human or AI creation",
+                        name: "Reality",
+                        title: "AI-Generated or Human creation?",
+                        // description: "Indicate your confidence that the image is a human or AI creation",
                         isRequired: true,
                         rateMin: -3,
                         rateMax: 3,
                         minRateDescription: "AI-Generated",
-                        maxRateDescription: "Human-Creation",
+                        maxRateDescription: "Human creation",
                         displayMode: "buttons",
                     },
                     {
                         type: "rating",
-                        name: "Original_vs_Forgery",
-                        title: "I think this image is...",
-                        description: "Indicate your confidence that the image is a forgery or an original piece",
+                        name: "Authenticity",
+                        title: "Original or Copy/Forgery?",
+                        // description: "Indicate your confidence that the image is a forgery/copy or an original piece",
                         isRequired: true,
                         rateMin: -3,
                         rateMax: 3,
-                        minRateDescription: "Forgery",
+                        minRateDescription: "Copy",
                         maxRateDescription: "Original",
                         displayMode: "buttons",
                     },
