@@ -364,16 +364,44 @@ function make_erns(items, required = false, ticks = ["Disagree", "Agree"]) {
         q = {
             title: items[key],
             name: key,
-            type: "radiogroup",
-            colCount: 5,
-            isRequired: required,
-            choices: [
-                "Not at all typical of me",
-                "A little typical of me",
-                "Somewhat typical of me",
-                "Very typical of me",
-                "Entirely typical of me",
+            type: "slider",
+            min: -100,
+            max: 100,
+            step: 1,
+            customLabels: [
+                {
+                    value: -100,
+                    text: "Not at all typical",
+                },
+                // {
+                //     value: -50,
+                //     text: "A little typical",
+                // },
+                // {
+                //     value: 0,
+                //     text: "Somewhat typical",
+                // },
+                // {
+                //     value: 50,
+                //     text: "Very typical",
+                // },
+                {
+                    value: 100,
+                    text: "Entirely typical",
+                },
             ],
+            defaultValue: 0,
+
+            // // alternative style
+            // colCount: 5,
+            // isRequired: required,
+            // choices: [
+            //     "Not at all typical of me",
+            //     "A little typical of me",
+            //     "Somewhat typical of me",
+            //     "Very typical of me",
+            //     "Entirely typical of me",
+            // ],
         }
         questions.push(q)
     }
