@@ -291,20 +291,29 @@ var fiction_ratings1 = {
         title: function () {
             return "Rating - " + Math.round(((fiction_trialnumber - 1) / stimuli.length) * 100) + "%"
         },
-        description: "Rate the following on your personal feelings.",
+        description: "What did you think and feel about the artwork?",
         pages: [
             {
                 elements: [
                     {
-                        type: "rating",
+                        type: "slider",
                         name: "Beauty",
                         title: "This artwork is...",
                         isRequired: true,
-                        rateMin: -3,
-                        rateMax: 3,
-                        minRateDescription: "Ugly",
-                        maxRateDescription: "Beautiful",
-                        displayMode: "buttons",
+                        min: -3,
+                        max: 3,
+                        step: 0.01,
+                        customLabels: [
+                            {
+                                value: -3,
+                                text: "Ugly",
+                            },
+                            {
+                                value: 3,
+                                text: "Beautiful",
+                            },
+                        ],
+                        defaultValue: 0,
                     },
                     {
                         type: "rating",
@@ -324,7 +333,7 @@ var fiction_ratings1 = {
                         title: "I find this artwork thought-provoking:",
                         isRequired: true,
                         rateMin: 0,
-                        rateMax: 7,
+                        rateMax: 6,
                         minRateDescription: "Not at all",
                         maxRateDescription: "Very much",
                         displayMode: "buttons",
@@ -334,6 +343,7 @@ var fiction_ratings1 = {
                         name: "Worth",
                         title: "To own this artwork, I'd be willing to pay...",
                         isRequired: true,
+                        css_classes: ["colored-scale"],
                         displayMode: "buttons",
                         rateValues: [
                             { value: 0, text: "\u00A30" },
@@ -364,7 +374,7 @@ var fiction_ratings1 = {
 }
 
 var fiction_phase1a = {
-    timeline_variables: stimuli.slice(0, Math.ceil(stimuli.length / 2)).slice(0, 3), // <---------------------------- TODO: remove the extra slicing added for testing
+    timeline_variables: stimuli.slice(0, Math.ceil(stimuli.length / 2)).slice(0, 2), // <---------------------------- TODO: remove the extra slicing added for testing
     timeline: [fiction_fixation1a, fiction_cue, fiction_fixation1b, fiction_showimage1, fiction_ratings1],
 }
 
@@ -393,7 +403,7 @@ const fiction_phase1_break = {
 }
 
 var fiction_phase1b = {
-    timeline_variables: stimuli.slice(Math.ceil(stimuli.length / 2), stimuli.length).slice(0, 3), // <---------------------------- TODO: remove the extra slicing added for testing
+    timeline_variables: stimuli.slice(Math.ceil(stimuli.length / 2), stimuli.length).slice(0, 2), // <---------------------------- TODO: remove the extra slicing added for testing
     timeline: [fiction_fixation1a, fiction_cue, fiction_fixation1b, fiction_showimage1, fiction_ratings1],
 }
 
@@ -442,11 +452,10 @@ var fiction_showimage2 = {
 
 var fiction_ratings2 = {
     type: jsPsychSurvey,
-    css_classes: ["colored-scale"],
     survey_json: {
-        goNextPageAutomatic: true,
+        goNextPageAutomatic: false,
         showQuestionNumbers: false,
-        showNavigationButtons: false,
+        showNavigationButtons: true,
         title: function () {
             return "Rating - " + Math.round(((fiction_trialnumber - 1) / stimuli.length) * 100) + "%"
         },
@@ -454,28 +463,48 @@ var fiction_ratings2 = {
             {
                 elements: [
                     {
-                        type: "rating",
+                        type: "slider",
                         name: "Reality",
-                        title: "AI-Generated or Human creation?",
-                        // description: "Indicate your confidence that the image is a human or AI creation",
+                        title: "I think this artwork is...", // "Indicate your confidence that the image is a human or AI creation"
                         isRequired: true,
-                        rateMin: -3,
-                        rateMax: 3,
-                        minRateDescription: "AI-Generated",
-                        maxRateDescription: "Human creation",
-                        displayMode: "buttons",
+                        // minWidth: "200%",
+                        // maxWidth: "200%",
+                        min: -100,
+                        max: 100,
+                        step: 1,
+                        customLabels: [
+                            {
+                                value: -100,
+                                text: "AI-Generated",
+                            },
+                            {
+                                value: 100,
+                                text: "Human creation",
+                            },
+                        ],
+                        defaultValue: 0,
                     },
                     {
-                        type: "rating",
+                        type: "slider",
                         name: "Authenticity",
-                        title: "Original or Copy/Forgery?",
-                        // description: "Indicate your confidence that the image is a forgery/copy or an original piece",
+                        title: "I think it was...", // "Indicate your confidence that the image is a human or AI creation"
                         isRequired: true,
-                        rateMin: -3,
-                        rateMax: 3,
-                        minRateDescription: "Copy",
-                        maxRateDescription: "Original",
-                        displayMode: "buttons",
+                        // minWidth: "200%",
+                        // maxWidth: "200%",
+                        min: -100,
+                        max: 100,
+                        step: 1,
+                        customLabels: [
+                            {
+                                value: -100,
+                                text: "A Copy/Forgery",
+                            },
+                            {
+                                value: 100,
+                                text: "An Original Creation",
+                            },
+                        ],
+                        defaultValue: 0,
                     },
                 ],
             },
@@ -487,7 +516,7 @@ var fiction_ratings2 = {
 }
 
 var fiction_phase2 = {
-    timeline_variables: shuffleArray(stimuli).slice(0, 3), // <------------------------------------------------------------------------ TODO: remove this
+    timeline_variables: shuffleArray(stimuli).slice(0, 2), // <------------------------------------------------------------------------ TODO: remove this
     timeline: [fiction_fixation2, fiction_showimage2, fiction_ratings2],
 }
 

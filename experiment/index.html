@@ -15,8 +15,8 @@
         <script src="https://unpkg.com/@jspsych/plugin-image-keyboard-response@2.1.0"></script>
         <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.1.0"></script>
         <script src="https://unpkg.com/@jspsych/plugin-fullscreen@2.1.0"></script>
-        <script src="https://unpkg.com/@jspsych/plugin-survey@1.0.1"></script>
-        <link rel="stylesheet" href="https://unpkg.com/@jspsych/plugin-survey@1.0.1/css/survey.css" />
+        <script src="https://unpkg.com/@jspsych/plugin-survey@3.0.0"></script>
+        <link rel="stylesheet" href="https://unpkg.com/@jspsych/plugin-survey@3.0.0/css/survey.css" />
 
         <!-- To save data via DataPipe (for online experiments) -->
         <script src="https://unpkg.com/@jspsych-contrib/plugin-pipe@0.5.0"></script>
@@ -38,10 +38,6 @@
         <!-- CSS -->
 
         <style>
-            .narrow-text {
-                max-width: 50%;
-            }
-
             .colored-scale .sd-rating__item:nth-child(3) {
                 background-color: #b0bec5;
             }
@@ -79,16 +75,16 @@
         var jsPsych = initJsPsych({
             show_progress_bar: true,
             message_progress_bar: "Progress",
-            // on_finish: function () {
-            //     jsPsych.data.displayData("json") // Display data in browser
-            //     // if (jsPsych.data.urlVariables()["exp"] == "SONA") {
-            //     //     window.location =
-            //     //         "https://sussexpsychology.sona-systems.com/webstudy_credit.aspx?experiment_id=1902&credit_token=49767141c9614189b846796fac1dde07&survey_code=" +
-            //     //         jsPsych.data.urlVariables()["sona_id"]
-            //     // } else {
-            //     //     window.location = "https://realitybending.github.io/" // Redirect to lab website
-            //     // }
-            // },
+            on_finish: function () {
+                jsPsych.data.displayData("json") // Display data in browser
+                // if (jsPsych.data.urlVariables()["exp"] == "SONA") {
+                //     window.location =
+                //         "https://sussexpsychology.sona-systems.com/webstudy_credit.aspx?experiment_id=1902&credit_token=49767141c9614189b846796fac1dde07&survey_code=" +
+                //         jsPsych.data.urlVariables()["sona_id"]
+                // } else {
+                //     window.location = "https://realitybending.github.io/" // Redirect to lab website
+                // }
+            },
             extensions: [{ type: jsPsychExtensionWebgazer }],
         })
 
@@ -107,7 +103,7 @@
         timeline.push(eyetracking_consent)
         timeline.push(eyetracking_calibration)
 
-        // // Fiction stage 1 ===========================================================
+        // Fiction stage 1 ===========================================================
         timeline.push(fiction_instructions1)
         timeline.push(fiction_phase1a)
         timeline.push(fiction_phase1_break)
@@ -131,13 +127,13 @@
         timeline.push(demographics_debriefing)
 
         // Save data via DataPipe ====================================================
-        timeline.push({
-            type: jsPsychPipe,
-            action: "save",
-            experiment_id: "DoOfdX2FFR4H", // This is generated in the DataPipe interface
-            filename: `${participant_ID}.csv`,
-            data_string: () => jsPsych.data.get().csv(),
-        })
+        // timeline.push({
+        //     type: jsPsychPipe,
+        //     action: "save",
+        //     experiment_id: "DoOfdX2FFR4H", // This is generated in the DataPipe interface
+        //     filename: `${participant_ID}.csv`,
+        //     data_string: () => jsPsych.data.get().csv(),
+        // })
 
         // Exit fullscreen mode
         timeline.push(fullscreen_off)

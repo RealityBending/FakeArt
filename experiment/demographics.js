@@ -374,32 +374,32 @@ var demographics_endscreen = {
             "<h1>Thank you for participating</h1>" +
             "<p>It means a lot to us. Don't hesitate to share the study by sending this link <i>(but please don't reveal the details of the experiment)</i>:</p>" +
             "<p><a href='" +
-            "https://realitybending.github.io/FakeFace2/experiment/index?exp=snow" + // Modify this link to the actual experiment
+            "https://realitybending.github.io/FictionArt/experiment/index?exp=snow" + // Modify this link to the actual experiment
             "'>" +
-            "https://realitybending.github.io/FakeFace2/experiment/index?exp=snow" + // Modify this link to the actual experiment
+            "https://realitybending.github.io/FictionArt/experiment/index?exp=snow" + // Modify this link to the actual experiment
             "<a/></p>"
 
         // Deal with Prolific/SurveyCircle/SurveySwap/SONA
-        if (jsPsych.data.urlVariables()["exp"] == "surveycircle") {
-            text +=
-                "<p style='color:red;'><b>Click " +
-                "<a href='https://www.surveycircle.com/HZPT-7R9E-GVNM-PQ45/'>here<a/>" +
-                " to redeem your SurveyCircle participation</b><br>(in case the link doesn't work, the code is: HZPT-7R9E-GVNM-PQ45)</p>"
-        }
-        if (jsPsych.data.urlVariables()["exp"] == "surveyswap") {
-            text +=
-                "<p style='color:red;'><b>Click " +
-                "<a href='https://surveyswap.io/sr/E9XP-DWMS-BHA3'>here<a/>" +
-                " to redeem your SurveySwap participation</b><br>(in case the link doesn't work, the code is: E9XP-DWMS-BHA3)</p>"
-        }
-        if (jsPsych.data.urlVariables()["exp"] == "SONA") {
-            text +=
-                "<p style='color:red;'><b>Click " +
-                "<a href='https://sussexpsychology.sona-systems.com/webstudy_credit.aspx?experiment_id=1902&credit_token=49767141c9614189b846796fac1dde07&survey_code=" +
-                jsPsych.data.urlVariables()["sona_id"] +
-                "'>here<a/>" +
-                " to redeem your SONA credits</b><br></p>"
-        }
+        // if (jsPsych.data.urlVariables()["exp"] == "surveycircle") {
+        //     text +=
+        //         "<p style='color:red;'><b>Click " +
+        //         "<a href='https://www.surveycircle.com/HZPT-7R9E-GVNM-PQ45/'>here<a/>" +
+        //         " to redeem your SurveyCircle participation</b><br>(in case the link doesn't work, the code is: HZPT-7R9E-GVNM-PQ45)</p>"
+        // }
+        // if (jsPsych.data.urlVariables()["exp"] == "surveyswap") {
+        //     text +=
+        //         "<p style='color:red;'><b>Click " +
+        //         "<a href='https://surveyswap.io/sr/E9XP-DWMS-BHA3'>here<a/>" +
+        //         " to redeem your SurveySwap participation</b><br>(in case the link doesn't work, the code is: E9XP-DWMS-BHA3)</p>"
+        // }
+        // if (jsPsych.data.urlVariables()["exp"] == "SONA") {
+        //     text +=
+        //         "<p style='color:red;'><b>Click " +
+        //         "<a href='https://sussexpsychology.sona-systems.com/webstudy_credit.aspx?experiment_id=1902&credit_token=49767141c9614189b846796fac1dde07&survey_code=" +
+        //         jsPsych.data.urlVariables()["sona_id"] +
+        //         "'>here<a/>" +
+        //         " to redeem your SONA credits</b><br></p>"
+        // }
 
         return text + "<p><b>You can safely close the tab now.</b></p>"
     },

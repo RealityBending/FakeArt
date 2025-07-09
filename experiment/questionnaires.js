@@ -86,7 +86,7 @@ const questionnaire_phq4 = {
         return {
             title: "About your mood",
             showQuestionNumbers: false,
-            goNextPageAutomatic: true,
+            goNextPageAutomatic: false,
             pages: [
                 {
                     elements: [
@@ -155,7 +155,7 @@ const mint_items = {
     MINT_AttentionCheck: "I can always accurately answer to the extreme left on this question to show that I am reading it",
 }
 
-function make_mint(items, required = false, ticks = ["Disagree", "Agree"]) {
+function make_mint(items, required = true, ticks = ["Disagree", "Agree"]) {
     items = shuffleObject(items)
 
     questions = []
@@ -185,7 +185,7 @@ const questionnaire_mint = {
             title: "About you and your body",
             description: "Please answer the following questions based on how accurately each statement describes you in general.",
             showQuestionNumbers: false,
-            goNextPageAutomatic: true,
+            goNextPageAutomatic: false,
             pages: make_mint(mint_items),
         }
     },
@@ -285,7 +285,7 @@ const questionnaire_bait = {
         return {
             title: "Artificial Intelligence",
             showQuestionNumbers: false,
-            goNextPageAutomatic: true,
+            goNextPageAutomatic: false,
             pages: make_bait(bait_items),
         }
     },
@@ -392,7 +392,7 @@ const questionnaire_erns = {
         return {
             title: "Emotional Sensitivity",
             showQuestionNumbers: false,
-            goNextPageAutomatic: true,
+            goNextPageAutomatic: false,
             pages: make_erns(erns_items),
         }
     },
@@ -487,7 +487,7 @@ const questionnaire_vviq = {
         return {
             title: "Visualisation Task",
             showQuestionNumbers: false,
-            goNextPageAutomatic: true,
+            goNextPageAutomatic: false,
             showProgressBar: "aboveHeader",
             pages: [
                 {
