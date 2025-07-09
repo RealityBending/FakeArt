@@ -461,7 +461,13 @@ var fiction_ratings2 = {
         },
         pages: [
             {
-                elements: [
+                elements: [ 
+                    {
+                        type: "html",
+                        html: `<div style="font-size: 1.1em; margin-bottom: 10px;">
+                        Please use the slider to indicate your level of confidence in your judgement, where the ends indicate complete confidence and 0 means you are unsure either way.
+                        </div>`,
+                    },
                     {
                         type: "slider",
                         name: "Reality",
