@@ -193,18 +193,15 @@ var fiction_fixation1a = {
     choices: ["s"],
     trial_duration: 500,
     save_trial_parameters: { trial_duration: true },
-    data: function () {
-        return {
-            screen: "fiction_fixation1a",
-            item: jsPsych.timelineVariable("stimulus"),
-        }
+    data: {
+        screen: "fiction_fixation1a",
     },
 }
 
 var fiction_cue = {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: function () {
-        var cond = jsPsych.timelineVariable("Condition")
+        var cond = jsPsych.evaluateTimelineVariable("Condition")
         return (
             "<div style='font-size:450%; position:fixed; text-align: center; top:50%; bottom:50%; right:20%; left:20%; color: " +
             color_cues[cond] +
@@ -214,12 +211,12 @@ var fiction_cue = {
         )
     },
     data: function () {
-        var cond = jsPsych.timelineVariable("Condition")
+        var cond = jsPsych.evaluateTimelineVariable("Condition")
         return {
             screen: "fiction_cue",
             color: color_cues[cond],
             condition: cond,
-            item: jsPsych.timelineVariable("stimulus"),
+            item: jsPsych.evaluateTimelineVariable("Item"),
         }
     },
     choices: ["s"],
@@ -236,7 +233,7 @@ var fiction_fixation1b = {
     data: function () {
         return {
             screen: "fiction_fixation1b",
-            item: jsPsych.timelineVariable("stimulus"),
+            item: jsPsych.evaluateTimelineVariable("Item"),
         }
     },
     extensions: [
@@ -250,15 +247,15 @@ var fiction_fixation1b = {
 var fiction_showimage1 = {
     type: jsPsychImageKeyboardResponse,
     stimulus: function () {
-        return "stimuli/stimuli/" + jsPsych.timelineVariable("Item")
+        return "stimuli/stimuli/" + jsPsych.evaluateTimelineVariable("Item")
     },
     stimulus_width: function () {
-        let ratio = jsPsych.timelineVariable("Width") / jsPsych.timelineVariable("Height")
+        let ratio = jsPsych.evaluateTimelineVariable("Width") / jsPsych.evaluateTimelineVariable("Height")
         return Math.round(Math.min(0.9 * window.innerHeight * ratio, 0.9 * window.innerWidth))
     },
 
     stimulus_height: function () {
-        let ratio = jsPsych.timelineVariable("Width") / jsPsych.timelineVariable("Height")
+        let ratio = jsPsych.evaluateTimelineVariable("Width") / jsPsych.evaluateTimelineVariable("Height")
         return Math.round(Math.min((0.9 * window.innerWidth) / ratio, 0.9 * window.innerHeight))
     },
     trial_duration: 5000,
@@ -267,6 +264,7 @@ var fiction_showimage1 = {
     data: function () {
         return {
             screen: "fiction_image1",
+            item: jsPsych.evaluateTimelineVariable("Item"),
             window_width: window.innerWidth,
             window_height: window.innerHeight,
             trial_number: fiction_trialnumber,
@@ -416,21 +414,27 @@ var fiction_fixation2 = {
 var fiction_showimage2 = {
     type: jsPsychImageKeyboardResponse,
     stimulus: function () {
-        return "stimuli/stimuli/" + jsPsych.timelineVariable("Item")
+        return "stimuli/stimuli/" + jsPsych.evaluateTimelineVariable("Item")
     },
     stimulus_width: function () {
-        let ratio = jsPsych.timelineVariable("Width") / jsPsych.timelineVariable("Height")
+        let ratio = jsPsych.evaluateTimelineVariable("Width") / jsPsych.evaluateTimelineVariable("Height")
         return Math.round(Math.min(0.9 * window.innerHeight * ratio, 0.9 * window.innerWidth))
     },
 
     stimulus_height: function () {
-        let ratio = jsPsych.timelineVariable("Width") / jsPsych.timelineVariable("Height")
+        let ratio = jsPsych.evaluateTimelineVariable("Width") / jsPsych.evaluateTimelineVariable("Height")
         return Math.round(Math.min((0.9 * window.innerWidth) / ratio, 0.9 * window.innerHeight))
     },
     trial_duration: 1500,
     choices: ["s"],
     save_trial_parameters: { trial_duration: true },
-    data: { screen: "fiction_image2", trial_number: fiction_trialnumber },
+    data: function () {
+        return {
+            screen: "fiction_image2",
+            trial_number: fiction_trialnumber,
+            item: jsPsych.evaluateTimelineVariable("Item"),
+        }
+    },
     on_finish: function () {
         fiction_trialnumber += 1
     },
