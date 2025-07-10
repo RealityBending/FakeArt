@@ -438,7 +438,6 @@ const vviq_items = {
 }
 
 function make_vviq(items, required = false, ticks = ["Disagree", "Agree"]) {
-    items = shuffleObject(items)
 
     questions1_4 = []
     questions5_8 = []
