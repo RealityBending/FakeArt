@@ -354,47 +354,31 @@ const erns_items = {
     ERNS_8_r: "There are some negative emotions that I rarely feel even when there is reason to feel them", // r
 }
 
-function make_erns(items, required = false, ticks = ["Disagree", "Agree"]) {
+function make_erns(items, required = false) {
     items = shuffleObject(items)
 
-    questions = []
+    questions = [
+        {
+            type: "html",
+            name: "instructions_erns",
+            html: "<p>Rate how much each of the statements describes your tendency to experience these feelings.<br>Please note, we are NOT asking about how likely you would be to show these feelings to other people. Instead, we are asking how you would feel inside.</p>",
+        },
+    ]
 
     // Make questions
     for (const key of Object.keys(items)) {
         q = {
             title: items[key],
             name: key,
-            type: "slider",
-            min: -100,
-            max: 100,
-            step: 1,
-            customLabels: [
-                {
-                    value: -100,
-                    text: "Not at all typical",
-                },
-                // {
-                //     value: -50,
-                //     text: "A little typical",
-                // },
-                // {
-                //     value: 0,
-                //     text: "Somewhat typical",
-                // },
-                // {
-                //     value: 50,
-                //     text: "Very typical",
-                // },
-                {
-                    value: 100,
-                    text: "Entirely typical",
-                },
-            ],
-            defaultValue: 0,
+            type: "rating",
+            isRequired: required,
+            rateMin: 0,
+            rateMax: 4,
+            minRateDescription: "Not at all typical of me",
+            maxRateDescription: "Entirely typical of me",
+            displayMode: "buttons",
 
             // // alternative style
-            // colCount: 5,
-            // isRequired: required,
             // choices: [
             //     "Not at all typical of me",
             //     "A little typical of me",
@@ -408,8 +392,6 @@ function make_erns(items, required = false, ticks = ["Disagree", "Agree"]) {
     return [
         {
             elements: questions,
-            description:
-                "Rate how much each of the statements describes your tendency to experience these feelings. Please note, we are NOT asking about how likely you would be to show these feelings to other people. Instead, we are asking how you would feel inside. Please keep this in mind as you read each item.",
         },
     ]
 }
