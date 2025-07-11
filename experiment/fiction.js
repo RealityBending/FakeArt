@@ -234,6 +234,8 @@ var fiction_fixation1b = {
         return {
             screen: "fiction_fixation1b",
             item: jsPsych.evaluateTimelineVariable("Item"),
+            window_width: window.innerWidth,
+            window_height: window.innerHeight,
         }
     },
     extensions: [
@@ -273,7 +275,6 @@ var fiction_showimage1 = {
     on_finish: function () {
         fiction_trialnumber += 1
     },
-    // Enable webgazer
     extensions: [
         {
             type: jsPsychExtensionWebgazer,
