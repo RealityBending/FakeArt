@@ -418,8 +418,8 @@ const questionnaire_erns = {
 const vviq_items = {
     VVIQ_Friend_1: "The exact contours of face, head, shoulders and body",
     VVIQ_Friend_2: "Characteristic poses of head, attitudes of body etc",
-    VVIQ_Friend_3: "The precise carriage, length of step etc., in walking.",
-    VVIQ_Friend_4: "The different colors worn in some familiar clothes.",
+    VVIQ_Friend_3: "The precise carriage, length of step etc., in walking",
+    VVIQ_Friend_4: "The different colors worn in some familiar clothes",
 
     VVIQ_Sun_5: "The sun rising above the horizon into a hazy sky",
     VVIQ_Sun_6: "The sky clears and surrounds the sun with blueness",
@@ -429,11 +429,11 @@ const vviq_items = {
     VVIQ_Shop_9: "The overall appearance of the shop from the opposite side of the road",
     VVIQ_Shop_10: "A window display including colours, shapes and details of individual items for sale",
     VVIQ_Shop_11: "You are near the entrance. The colour, shape and details of the door",
-    VVIQ_Shop_12: "You enter the shop and go to the counter. The counter Assistant serves you. Money changes hands.",
+    VVIQ_Shop_12: "You enter the shop and go to the counter. The counter Assistant serves you. Money changes hands",
 
     VVIQ_Country_13: "The contours of the landscape",
     VVIQ_Country_14: "The colour and shape of the lake",
-    VVIQ_Country_15: "The colour and shape of the trees.",
+    VVIQ_Country_15: "The colour and shape of the trees",
     VVIQ_Country_16: "A strong wind blows on the trees and on the lake causing reflections in the water",
 }
 
