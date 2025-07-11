@@ -374,7 +374,7 @@ var fiction_ratings1 = {
 }
 
 var fiction_phase1a = {
-    timeline_variables: stimuli.slice(0, Math.ceil(stimuli.length / 2)).slice(0, 2), // <---------------------------- TODO: remove the extra slicing added for testing
+    timeline_variables: stimuli.slice(0, Math.ceil(stimuli.length / 2)), // .slice(0, 2), // <---------------------------- TODO: remove the extra slicing added for testing
     timeline: [fiction_fixation1a, fiction_cue, fiction_fixation1b, fiction_showimage1, fiction_ratings1],
 }
 
@@ -403,7 +403,7 @@ const fiction_phase1_break = {
 }
 
 var fiction_phase1b = {
-    timeline_variables: stimuli.slice(Math.ceil(stimuli.length / 2), stimuli.length).slice(0, 2), // <---------------------------- TODO: remove the extra slicing added for testing
+    timeline_variables: stimuli.slice(Math.ceil(stimuli.length / 2), stimuli.length), // .slice(0, 2), // <---------------------------- TODO: remove the extra slicing added for testing
     timeline: [fiction_fixation1a, fiction_cue, fiction_fixation1b, fiction_showimage1, fiction_ratings1],
 }
 
@@ -522,7 +522,7 @@ var fiction_ratings2 = {
 }
 
 var fiction_phase2 = {
-    timeline_variables: shuffleArray(stimuli).slice(0, 2), // <------------------------------------------------------------------------ TODO: remove this
+    timeline_variables: shuffleArray(stimuli), //.slice(0, 2), // <------------------------------------------------------------------------ TODO: remove this
     timeline: [fiction_fixation2, fiction_showimage2, fiction_ratings2],
 }
 
