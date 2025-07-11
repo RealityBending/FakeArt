@@ -93,47 +93,47 @@
         participant_ID = jsPsych.randomization.randomID(10)
 
         // Demographics ===========================================================
-        timeline.push(fullscreen_on) // Enter fullscreen mode
-        timeline.push(demographics_browser_info)
-        timeline.push(demographics_consent)
-        timeline.push(fiction_preloadstims)
-        timeline.push(demographics_questions)
+        // timeline.push(fullscreen_on) // Enter fullscreen mode
+        // timeline.push(demographics_browser_info)
+        // timeline.push(demographics_consent)
+        // timeline.push(fiction_preloadstims)
+        // timeline.push(demographics_questions)
 
-        // Eye-tracking ==============================================================
-        timeline.push(eyetracking_consent)
-        timeline.push(eyetracking_calibration)
+        // // Eye-tracking ==============================================================
+        // timeline.push(eyetracking_consent)
+        // timeline.push(eyetracking_calibration)
 
-        // Fiction stage 1 ===========================================================
-        timeline.push(fiction_instructions1)
-        timeline.push(fiction_phase1a)
-        timeline.push(fiction_phase1_break)
-        timeline.push(eyetracking_recalibration)
-        timeline.push(fiction_phase1b)
-        timeline.push(fiction_feedback1)
+        // // Fiction stage 1 ===========================================================
+        // timeline.push(fiction_instructions1)
+        // timeline.push(fiction_phase1a)
+        // timeline.push(fiction_phase1_break)
+        // timeline.push(eyetracking_recalibration)
+        // timeline.push(fiction_phase1b)
+        // timeline.push(fiction_feedback1)
 
-        // Questionnaires ===========================================================
-        questionnaires = [questionnaire_mint, questionnaire_vviq, questionnaire_phq4, questionnaire_erns, bait]
-        questionnaires = jsPsych.randomization.shuffle(questionnaires) // Shuffle order of questionnaires
+        // // Questionnaires ===========================================================
+        // questionnaires = [questionnaire_mint, questionnaire_vviq, questionnaire_phq4, questionnaire_erns, bait]
+        // questionnaires = jsPsych.randomization.shuffle(questionnaires) // Shuffle order of questionnaires
 
-        timeline.push(questionnaires_instructions0)
-        timeline.push(...questionnaires)
+        // timeline.push(questionnaires_instructions0)
+        // timeline.push(...questionnaires)
 
-        // Fiction stage 2 ===========================================================
-        timeline.push(fiction_instructions2)
-        timeline.push(fiction_phase2)
-        timeline.push(experiment_feedback)
+        // // Fiction stage 2 ===========================================================
+        // timeline.push(fiction_instructions2)
+        // timeline.push(fiction_phase2)
+        // timeline.push(experiment_feedback)
 
         // End =======================================================================
         timeline.push(demographics_debriefing)
 
         // Save data via DataPipe ====================================================
-        timeline.push({
-            type: jsPsychPipe,
-            action: "save",
-            experiment_id: "DoOfdX2FFR4H", // This is generated in the DataPipe interface
-            filename: `${participant_ID}.csv`,
-            data_string: () => jsPsych.data.get().csv(),
-        })
+        // timeline.push({
+        //     type: jsPsychPipe,
+        //     action: "save",
+        //     experiment_id: "DoOfdX2FFR4H", // This is generated in the DataPipe interface
+        //     filename: `${participant_ID}.csv`,
+        //     data_string: () => jsPsych.data.get().csv(),
+        // })
 
         // Exit fullscreen mode
         timeline.push(fullscreen_off)
