@@ -39,7 +39,7 @@ const instructions_phq4 = {
     html: "<p>Over the <b>last 2 weeks</b>, how often have you been bothered by the following problems?</p>",
 }
 
-function make_phq4(items, required = false) {
+function make_phq4(items, required = true) {
     items = shuffleObject(items)
     questions = [instructions_phq4]
 
@@ -234,7 +234,7 @@ const bait_items = {
     BAIT_AttentionCheck: "I can show that I am Human and not an AI by answering all the way to the right",
 }
 
-function make_bait(items, required = false, ticks = ["Disagree", "Agree"]) {
+function make_bait(items, required = true, ticks = ["Disagree", "Agree"]) {
     items = shuffleObject(items)
 
     // AI Expertise
@@ -354,7 +354,7 @@ const erns_items = {
     ERNS_8_r: "There are some negative emotions that I rarely feel even when there is reason to feel them", // r
 }
 
-function make_erns(items, required = false) {
+function make_erns(items, required = true) {
     items = shuffleObject(items)
 
     questions = [
@@ -437,7 +437,7 @@ const vviq_items = {
     VVIQ_Country_16: "A strong wind blows on the trees and on the lake causing reflections in the water",
 }
 
-function make_vviq(items, required = false, ticks = ["Disagree", "Agree"]) {
+function make_vviq(items, required = true, ticks = ["Disagree", "Agree"]) {
 
     questions1_4 = []
     questions5_8 = []
