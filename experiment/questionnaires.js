@@ -185,7 +185,7 @@ const questionnaire_mint = {
             title: "About you and your body",
             description: "Please answer the following questions based on how accurately each statement describes you in general.",
             showQuestionNumbers: false,
-            goNextPageAutomatic: false,
+            goNextPageAutomatic: true,
             pages: make_mint(mint_items),
         }
     },
@@ -285,7 +285,7 @@ const questionnaire_bait = {
         return {
             title: "Artificial Intelligence",
             showQuestionNumbers: false,
-            goNextPageAutomatic: false,
+            goNextPageAutomatic: true,
             pages: make_bait(bait_items),
         }
     },
@@ -402,7 +402,7 @@ const questionnaire_erns = {
         return {
             title: "Emotional Sensitivity",
             showQuestionNumbers: false,
-            goNextPageAutomatic: false,
+            goNextPageAutomatic: true,
             pages: make_erns(erns_items),
         }
     },
@@ -438,7 +438,6 @@ const vviq_items = {
 }
 
 function make_vviq(items, required = true, ticks = ["Disagree", "Agree"]) {
-
     questions1_4 = []
     questions5_8 = []
     questions9_12 = []

@@ -22,8 +22,8 @@ var demographics_browser_info = {
     type: jsPsychBrowserCheck,
     data: {
         screen: "browser_info",
-        date: new Date().toLocaleDateString("fr-FR"),
-        time: new Date().toLocaleTimeString("fr-FR"),
+        date: new Date().toLocaleDateString("fr-FR"), // French format (=european) means dd/mm/yyyy
+        time: new Date().toLocaleTimeString("fr-FR"), // French format (=european) means hh:mm:ss
     },
     on_finish: function (data) {
         dat = jsPsych.data.get().filter({ screen: "browser_info" }).values()[0]
@@ -364,45 +364,83 @@ We apologize for the necessary deception used in the instructions (as they were 
     data: {
         screen: "demographics_debrief",
     },
+    on_finish: function (data) {
+        // Compute attention check score
+        let check1 = jsPsych.data.get().filter({ screen: "questionnaire_mint" }).values()[0].response["MINT_AttentionCheck"]
+        check1 = 1 - check1 / 6
+
+        let check2 = jsPsych.data.get().filter({ screen: "questionnaire_bait" }).values()[0].response["BAIT_AttentionCheck"]
+        check2 = check2 / 6
+
+        let score = (check1 + check2) / 2
+
+        // Save score and decision
+        if (score >= 0.75) {
+            data["Reward"] = "Automatic"
+            data["AttentionScore"] = score
+        } else {
+            data["Reward"] = "Return"
+            data["AttentionScore"] = score
+        }
+    },
 }
 
 var demographics_endscreen = {
-    type: jsPsychHtmlButtonResponse,
-    css_classes: ["narrow-text"],
-    stimulus: function () {
-        let text =
-            "<h1>Thank you for participating</h1>" +
-            "<p>It means a lot to us. Don't hesitate to share the study by sending this link <i>(but please don't reveal the details of the experiment)</i>:</p>" +
-            "<p><a href='" +
-            "https://realitybending.github.io/FictionArt/experiment/index?exp=snow" + // Modify this link to the actual experiment
-            "'>" +
-            "https://realitybending.github.io/FictionArt/experiment/index?exp=snow" + // Modify this link to the actual experiment
-            "<a/></p>"
+    type: jsPsychSurvey,
+    survey_json: function () {
+        text = "<h2 style='color:green;'>Data saved successfully!</h2>" + "<p>Thank you for participating, it means a lot to us.</p>"
+
+        // Snowball (uncomment if the study is really fun)
+        // text +=
+        //     "<p>Don't hesitate to share the study by sending this link <i>(but please don't reveal the details of the experiment)</i>:</p>" +
+        //     "<p><a href='" +
+        //     "https://realitybending.github.io/InteroceptionScale/study1/experiment/index.html" +
+        //     "'>" +
+        //     "https://realitybending.github.io/InteroceptionScale/study1/experiment/index.html" +
+        //     "<a/></p>"
 
         // Deal with Prolific/SurveyCircle/SurveySwap/SONA
-        // if (jsPsych.data.urlVariables()["exp"] == "surveycircle") {
-        //     text +=
-        //         "<p style='color:red;'><b>Click " +
-        //         "<a href='https://www.surveycircle.com/HZPT-7R9E-GVNM-PQ45/'>here<a/>" +
-        //         " to redeem your SurveyCircle participation</b><br>(in case the link doesn't work, the code is: HZPT-7R9E-GVNM-PQ45)</p>"
-        // }
-        // if (jsPsych.data.urlVariables()["exp"] == "surveyswap") {
-        //     text +=
-        //         "<p style='color:red;'><b>Click " +
-        //         "<a href='https://surveyswap.io/sr/E9XP-DWMS-BHA3'>here<a/>" +
-        //         " to redeem your SurveySwap participation</b><br>(in case the link doesn't work, the code is: E9XP-DWMS-BHA3)</p>"
-        // }
-        // if (jsPsych.data.urlVariables()["exp"] == "SONA") {
-        //     text +=
-        //         "<p style='color:red;'><b>Click " +
-        //         "<a href='https://sussexpsychology.sona-systems.com/webstudy_credit.aspx?experiment_id=1902&credit_token=49767141c9614189b846796fac1dde07&survey_code=" +
-        //         jsPsych.data.urlVariables()["sona_id"] +
-        //         "'>here<a/>" +
-        //         " to redeem your SONA credits</b><br></p>"
-        // }
+        if (jsPsych.data.urlVariables()["exp"] == "prolific") {
+            d = jsPsych.data.get().filter({ screen: "demographics_debrief" })["trials"][0]
+            if (d["Reward"] == "Automatic") {
+                text +=
+                    "<p><b style='color:red;'>After clicking 'End', you will be redirected to the Prolific reimbursement page</b> (You can alternatively click " +
+                    "<a href='TODO'>here<a/>" +
+                    " to directly access the link).</p>"
+            } else {
+                text +=
+                    "<p><b style='color:red;'>Unfortunately, your participation data did not pass our quality check algorithm (this is typically caused by random patterns of answers and failed attention check questions)." +
+                    " In order to avoid any penalties, we suggest that you return your participation by clicking " +
+                    "<a href='TODO'>here<a/>" +
+                    ". We apologize for this outcome. Please don't hesitate to contact us on Prolific if you believe that there was a mistake.</p>"
+            }
+        }
+        if (jsPsych.data.urlVariables()["exp"] == "surveyswap") {
+            text +=
+                "<p style='color:red;'><b>Click " +
+                "<a href='TODO'>here<a/>" +
+                " to redeem your SurveySwap participation</b><br>(in case the link doesn't work, the code is: TODO)</p>"
+        }
+        text += "<p><b>You can safely close the tab now.</b></p>"
 
-        return text + "<p><b>You can safely close the tab now.</b></p>"
+        // Return survey
+        return {
+            showQuestionNumbers: false,
+            completeText: "End",
+            pages: [
+                {
+                    elements: [
+                        {
+                            type: "html",
+                            name: "Endscreen",
+                            html: text,
+                        },
+                    ],
+                },
+            ],
+        }
     },
-    choices: ["End"],
-    data: { screen: "endscreen" },
+    data: {
+        screen: "demographics_endscreen",
+    },
 }
