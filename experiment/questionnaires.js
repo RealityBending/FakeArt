@@ -502,6 +502,7 @@ const questionnaire_vviq = {
                     elements: [
                         {
                             type: "html",
+                            name: "instructions_vviq",
                             html: `<div style="font-size: 1.1em; margin-bottom: 10px;">
                         We are interested in the way you can imagine and visualize scenes in your mind. For this task you will be presented with <strong>four scenarios</strong>. For each one, try to <strong>form a mental picture</strong> of the people, objects, or setting. 
                         If you do not have a visual image, rate vividness as <strong>'1'</strong>. Only use <strong>'5'</strong>, for images that are as lively and vivid as real seeing.
