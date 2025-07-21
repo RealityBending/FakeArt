@@ -127,7 +127,7 @@ const fiction_instructions1 = {
     <li><b style="color: #283593">Thought-Provoking</b>: Does this artwork seem to express something meaningful, profound, symbolic, or thought-provoking to you?</li>
     <li><b style="color: #FF9800">Worth</b>: What is the maximum amount you'd be willing to pay to own this artwork (for AI-generated ones, a framed print of it) and display it in your home?</li>
  
-  <p>We want you to <b>pay attention to what each image evokes in you</b>, as if you saw it exposed in an art gallery, without context or information about the artist. We are interested in your feelings about the artwork in itself.</p>
+  <p>We want you to <b>pay attention to what each image evokes in you</b>, as if you saw it exposed in an art gallery, without information about the artist. We are interested in your feelings about the artwork in itself.</p>
 `,
                         // Removed familiarity
                         // <li><b style="color: #607D8B">Familiarity</b>: Does this image remind you of something you've seen before? Refers to how much the image feels like something you have already seen before - whether it's the artwork, its style or subject.</ul>
@@ -347,13 +347,12 @@ var fiction_ratings1 = {
                         css_classes: ["colored-scale"],
                         displayMode: "buttons",
                         rateValues: [
-                            { value: 0, text: "\u00A30" },
-                            { value: 1, text: "\u00A310" },
-                            { value: 2, text: "\u00A3100" },
-                            { value: 3, text: "\u00A31,000" },
-                            { value: 4, text: "\u00A310,000" },
-                            { value: 5, text: "\u00A3100,000" },
-                            { value: 6, text: "\u00A31,000,000" },
+                            { value: 0, text: "$ 0" },
+                            { value: 1, text: "$ 10" },
+                            { value: 2, text: "$ 100" },
+                            { value: 3, text: "$ 1,000" },
+                            { value: 4, text: "$ 10,000" },
+                            { value: 5, text: "$ 100,000" },
                         ],
                     },
 
