@@ -73,7 +73,7 @@ var eyetracking_validation_run = {
     type: jsPsychWebgazerValidate,
     validation_points: calibration_points,
     roi_radius: function () {
-        return Math.round(0.03 * window.innerWidth)
+        return Math.round(0.05 * window.innerWidth)
     },
     time_to_saccade: 1000,
     validation_duration: 2000,
