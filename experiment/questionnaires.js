@@ -3,7 +3,7 @@ var questionnaires_instructions0 = {
     type: jsPsychHtmlButtonResponse,
     stimulus:
         "<h1>Part 3/4</h1>" +
-        "<p>Great! We will continue with a series of questionnaires and a visualization task.<br>Again, it is important that you answer truthfully. Please read the statements carefully and answer according to what describe you the best.</p>",
+        "<p>Great! We will continue with a series of questionnaires and a visualization task.<br>Again, it is important that you answer truthfully. Please read the statements carefully and answer according to what describes you best.</p>",
     choices: ["Continue"],
     data: { screen: "questionnaires_instructions" },
 }

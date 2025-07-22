@@ -394,7 +394,7 @@ const fiction_phase1_break = {
                         <h1 style='text-align: center'>Break Time</h1>
                         <div style='text-align: center'><img src='media/break.gif' alt='Break time' style='width: 100%; max-width: 500px;'></div>
                         <div style='text-align: left'>
-                        <p>We know these types of experiment can feel a bit repetitive and tedious, but it is important for us that you stay focus until the end.<br>Please take this opportunity to <b>take a break and relax your neck and eyes</b>.</p>`,
+                        <p>We know these types of experiment can feel a bit repetitive and tedious, but it is important for us that you stay focused until the end.<br>Please take this opportunity to <b>take a break and relax your neck and eyes</b>.</p>`,
                     },
                 ],
             },
@@ -539,7 +539,7 @@ var fiction_feedback1 = {
             {
                 type: "checkbox",
                 name: "FeedbackFiction1",
-                title: "Quality AI-Generated images",
+                title: "Quality of AI-Generated images",
                 description: "Please select all that apply (if any)",
                 choices: [
                     "I found AI-generated paintings more beautiful than real ones",

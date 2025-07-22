@@ -352,7 +352,7 @@ var demographics_debriefing = {
 The purpose of this study was actually to study the effect on perceived beauty of <i>believing</i> that the content is fake (AI-generated or forgery).
 Our hypothesis is that believing that something is AI-generated will primarily impact the perceived meaningfulness and desirability compared to the aesthetic appreciation.
 As we are primarily interested in your <i>beliefs</i> about reality, <b>all images were in fact taken from an existing database of real paintings</b> used in psychology research to study aesthetic judgments.
-We apologize for the necessary deception used in the instructions (as they were no AI-generated images!), and we hope that you understand its role in ensuring the validity of our experiment.</p>
+We apologize for the necessary deception used in the instructions (as there were no AI-generated images!), and we hope that you understand its role in ensuring the validity of our experiment.</p>
 <p align='left'><b>Thank you again!</b> Your participation in this study will be kept completely confidential. If you have any questions or concerns about the project, please contact D.Makowski@sussex.ac.uk. and/or A.Neves@sussex.ac.uk </p>
 <p>To complete your participation in this study, click on 'Continue' and <b style="color: red">wait until your responses have been successfully saved</b> before closing the tab.</p> 
                             `,
