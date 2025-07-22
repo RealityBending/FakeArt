@@ -418,8 +418,8 @@ var demographics_endscreen = {
         if (jsPsych.data.urlVariables()["exp"] == "surveyswap") {
             text +=
                 "<p style='color:red;'><b>Click " +
-                "<a href='TODO'>here<a/>" +
-                " to redeem your SurveySwap participation</b><br>(in case the link doesn't work, the code is: TODO)</p>"
+                "<a href='https://surveyswap.io/sr/5UFI-3Q9P-GSOZ'>here<a/>" +
+                " to redeem your SurveySwap participation</b><br>(in case the link doesn't work, the code is: 5UFI-3Q9P-GSOZ)</p>"
         }
         text += "<p><b>You can safely close the tab now.</b></p>"
 
