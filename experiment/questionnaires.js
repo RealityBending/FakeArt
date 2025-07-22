@@ -324,6 +324,7 @@ function bait_feedback(screen = "questionnaire_bait") {
     return feedback
 }
 
+// TODO: replace this by a Survey plugin instead of HtmlButtonResponse
 const feedback_bait = {
     type: jsPsychHtmlButtonResponse,
     stimulus: function () {
