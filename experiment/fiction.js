@@ -464,6 +464,7 @@ var fiction_ratings2 = {
                 elements: [
                     {
                         type: "html",
+                        name: "Instructions",
                         html: "The labels we showed you in the previous phase have been mixed up! Can you tell to what category each image belongs?",
                     },
                     {
