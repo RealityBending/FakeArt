@@ -405,21 +405,21 @@ var demographics_endscreen = {
             if (d["Reward"] == "Automatic") {
                 text +=
                     "<p><b style='color:red;'>After clicking 'End', you will be redirected to the Prolific reimbursement page</b> (You can alternatively click " +
-                    "<a href='TODO'>here<a/>" +
+                    "<a href='TODO'>here</a>" +
                     " to directly access the link).</p>"
             } else {
                 text +=
                     "<p><b style='color:red;'>Unfortunately, your participation data did not pass our quality check algorithm (this is typically caused by random patterns of answers and failed attention check questions)." +
                     " In order to avoid any penalties, we suggest that you return your participation by clicking " +
-                    "<a href='TODO'>here<a/>" +
+                    "<a href='TODO'>here</a>" +
                     ". We apologize for this outcome. Please don't hesitate to contact us on Prolific if you believe that there was a mistake.</p>"
             }
         }
         if (jsPsych.data.urlVariables()["exp"] == "surveyswap") {
             text +=
-                "<p style='color:red;'><b>Click " +
-                "<a href='https://surveyswap.io/sr/5UFI-3Q9P-GSOZ'>here<a/>" +
-                " to redeem your SurveySwap participation</b><br>(in case the link doesn't work, the code is: 5UFI-3Q9P-GSOZ)</p>"
+                "<p><b style='color:red;'>" +
+                "<a href='https://surveyswap.io/sr/5UFI-3Q9P-GSOZ'>Click here</a></b>" +
+                " to redeem your <b style='color:purple;'>SurveySwap</b> participation<br>(in case the link doesn't work, the code is: <b>5UFI-3Q9P-GSOZ</b>)</p>"
         }
         text += "<p><b>You can safely close the tab now.</b></p>"
 
