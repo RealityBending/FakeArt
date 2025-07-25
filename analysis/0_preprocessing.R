@@ -75,7 +75,7 @@ for (file in files) {
     resp$`Education-Comment`,
     resp$Education
   )
-  # data_ppt$Education <- ifelse(data_ppt$Education %in% c("HND (college)"), "High school", data_ppt$Education)
+  data_ppt$Education <- ifelse(data_ppt$Education %in% c("Nvq level 3"), "High school", data_ppt$Education)
 
   data_ppt$Student <- ifelse(!is.null(resp$Student), resp$Student, NA)
   data_ppt$Country <- ifelse(!is.null(resp$Country), resp$Country, NA)
@@ -153,6 +153,12 @@ for (file in files) {
   ])
   erns$instructions_erns <- NULL
   data_ppt <- cbind(data_ppt, as.data.frame(erns))
+  data_ppt$Duration_ERNS <- as.numeric(rawdata[
+    rawdata$screen == "questionnaire_erns",
+    "rt"
+  ]) /
+    1000 /
+    60
 
   vviq <- jsonlite::fromJSON(rawdata[
     rawdata$screen == "questionnaire_vviq",
@@ -168,6 +174,12 @@ for (file in files) {
     x
   })
   data_ppt <- cbind(data_ppt, as.data.frame(vviq))
+  data_ppt$Duration_VVIQ <- as.numeric(rawdata[
+    rawdata$screen == "questionnaire_vviq",
+    "rt"
+  ]) /
+    1000 /
+    60
 
 
   # Task Feedback
@@ -322,47 +334,58 @@ for (file in files) {
   }
 
   # Eye tracking
+  data_ppt$Eyetracking_Validation1 <- NA
+  data_ppt$Eyetracking_Validation2 <- NA
+
   calibration <- rawdata[rawdata$screen == "eyetracking_validation_run", ]
-  calibration <- tail(calibration$percent_in_roi, 2) # Take last 2
-  calibration <- sapply(calibration, \(x) {
-    scores <- jsonlite::fromJSON(x)
-    mean(scores)
-  }, USE.NAMES = FALSE)
-  data_ppt$Eyetracking_Validation1 <- calibration[1]
-  data_ppt$Eyetracking_Validation2 <- calibration[2]
-
-  gaze_isi <- lapply(isi1$webgazer_data, \(x) {
-    as.data.frame(jsonlite::fromJSON(x))
-  })
-  gaze_img <- lapply(img1$webgazer_data, \(x) {
-    as.data.frame(jsonlite::fromJSON(x))
-  })
-
-  # It seems likely that in the WebGazer extension for jsPsych, the (0,0)
-  # coordinates correspond to the top-left corner of the viewport, based on
-  # standard web coordinate systems. Research suggests x increases to the
-  # right and y increases downward.
-
-  data_gaze <- data.frame()
-  for(i in 1:64) {
-    if(nrow(gaze_isi[[i]]) > 0) {
-      gaze_isi[[i]]$Item <- data_task[i, "Item"]
-      gaze_isi[[i]]$Stimulus <- "Fixation"
-      gaze_isi[[i]]$x <- gaze_isi[[i]]$x / data_task[i, "ScreenWidth"]
-      gaze_isi[[i]]$y <-  1 - gaze_isi[[i]]$y / data_task[i, "ScreenHeight"]
-      data_gaze <- rbind(data_gaze, gaze_isi[[i]])
+  if(nrow(calibration) > 0) {
+    calibration <- tail(calibration$percent_in_roi, 2) # Take last 2
+    calibration <- sapply(calibration, \(x) {
+      scores <- jsonlite::fromJSON(x)
+      mean(scores)
+    }, USE.NAMES = FALSE)
+    if(!"numeric" %in% class(calibration[1])) {
+      stop("Calibration data is not numeric!")
     }
+    data_ppt$Eyetracking_Validation1 <- calibration[1]
+    data_ppt$Eyetracking_Validation2 <- calibration[2]
 
-  if(nrow(gaze_img[[i]]) > 0) {
-      gaze_img[[i]]$Item <- data_task[i, "Item"]
-      gaze_img[[i]]$Stimulus <- "Image"
-      gaze_img[[i]]$x <- gaze_img[[i]]$x / data_task[i, "ScreenWidth"]
-      gaze_img[[i]]$y <-  1 - gaze_img[[i]]$y / data_task[i, "ScreenHeight"]
-      data_gaze <- rbind(data_gaze, gaze_img[[i]])
+    gaze_isi <- lapply(isi1$webgazer_data, \(x) {
+      as.data.frame(jsonlite::fromJSON(x))
+    })
+    gaze_img <- lapply(img1$webgazer_data, \(x) {
+      as.data.frame(jsonlite::fromJSON(x))
+    })
+
+    # It seems likely that in the WebGazer extension for jsPsych, the (0,0)
+    # coordinates correspond to the top-left corner of the viewport, based on
+    # standard web coordinate systems. Research suggests x increases to the
+    # right and y increases downward.
+
+    data_gaze <- data.frame()
+    for(i in 1:64) {
+      if(nrow(gaze_isi[[i]]) > 0) {
+        gaze_isi[[i]]$Item <- data_task[i, "Item"]
+        gaze_isi[[i]]$Stimulus <- "Fixation"
+        gaze_isi[[i]]$x <- gaze_isi[[i]]$x / data_task[i, "ScreenWidth"]
+        gaze_isi[[i]]$y <-  1 - gaze_isi[[i]]$y / data_task[i, "ScreenHeight"]
+        data_gaze <- rbind(data_gaze, gaze_isi[[i]])
+      }
+
+      if(nrow(gaze_img[[i]]) > 0) {
+        gaze_img[[i]]$Item <- data_task[i, "Item"]
+        gaze_img[[i]]$Stimulus <- "Image"
+        gaze_img[[i]]$x <- gaze_img[[i]]$x / data_task[i, "ScreenWidth"]
+        gaze_img[[i]]$y <-  1 - gaze_img[[i]]$y / data_task[i, "ScreenHeight"]
+        data_gaze <- rbind(data_gaze, gaze_img[[i]])
+      }
+    }
+    if(nrow(data_gaze) > 0) {
+      data_gaze$t <- data_gaze$t / 1000 # Convert to seconds
+      data_gaze$Participant <- participant
     }
   }
-  data_gaze$t <- data_gaze$t / 1000 # Convert to seconds
-  data_gaze$Participant <- participant
+
 
   # Save all
   alldata <- rbind(data_ppt, alldata)
@@ -374,29 +397,43 @@ for (file in files) {
 # table(alldata$Ethnicity)
 # table(alldata$Recruitment)
 
+alldata[c("Duration_ERNS", "Duration_VVIQ", "Experiment_Duration")]
 
+hist(alldata$Experiment_Duration)
 
 # Should we re-map the Worth values? -----------------------------------
 # Re-map to values in dollars
-data_task$Worth2 <- ifelse(data_task$Worth == 1, 10, data_task$Worth)
-data_task$Worth2 <- ifelse(data_task$Worth2 == 2, 100, data_task$Worth2)
-data_task$Worth2 <- ifelse(data_task$Worth2 == 3, 1000, data_task$Worth2)
-data_task$Worth2 <- ifelse(data_task$Worth2 == 4, 10000, data_task$Worth2)
-data_task$Worth2 <- ifelse(data_task$Worth2 == 5, 100000, data_task$Worth2)
+# alldata_task$Worth2 <- ifelse(alldata_task$Worth == 1, 10, alldata_task$Worth)
+# alldata_task$Worth2 <- ifelse(alldata_task$Worth2 == 2, 100, alldata_task$Worth2)
+# alldata_task$Worth2 <- ifelse(alldata_task$Worth2 == 3, 1000, alldata_task$Worth2)
+# alldata_task$Worth2 <- ifelse(alldata_task$Worth2 == 4, 10000, alldata_task$Worth2)
+# alldata_task$Worth2 <- ifelse(alldata_task$Worth2 == 5, 100000, alldata_task$Worth2)
+#
+# library(tidyverse)
+#
+# t <- as.data.frame(table(alldata_task$Worth))
+# cor.test(as.numeric(as.character(t$Var1)), t$Freq)
+# t <- as.data.frame(table(log1p(alldata_task$Worth2)))
+# cor.test(as.numeric(as.character(t$Var1)), t$Freq)
+#
+# ggplot(alldata_task, aes(x=Worth)) +
+#   geom_bar() +
+#   geom_abline()
+# ggplot(alldata_task, aes(x=log1p(Worth2))) +
+#   geom_bar()
+# ggplot(alldata_task, aes(x=Worth2)) +
+#   geom_bar() +
+#   scale_x_continuous(transform = "log1p", breaks = c(0, 10, 100, 1000, 10000, 100000))
+# ggplot(alldata_task, aes(x=Worth, y=Beauty)) +
+#   geom_smooth(method = "lm") +
+#   geom_jitter(height=0)
+# ggplot(alldata_task, aes(x=Worth2, y=Beauty)) +
+#   geom_smooth(method = "lm") +
+#   geom_jitter(height=0) +
+#   scale_x_continuous(transform = "log1p", breaks = c(0, 10, 100, 1000, 10000, 100000))
+# summary(lm(Beauty ~ Worth, data = alldata_task))
+# summary(lm(Beauty ~ log1p(Worth2), data = alldata_task))
 
-library(tidyverse)
-
-ggplot(data_task, aes(x=Worth)) +
-  geom_bar()
-ggplot(data_task, aes(x=Worth2)) +
-  geom_bar() +
-  scale_x_continuous(transform = "log1p", breaks = c(0, 10, 100, 1000, 10000, 100000))
-ggplot(data_task, aes(x=Worth, y=Beauty)) +
-  geom_smooth() +
-  geom_jitter(height=0)
-ggplot(data_task, aes(x=log1p(Worth2), y=Beauty)) +
-  geom_smooth() +
-  geom_jitter(height=0)
 # Attention checks --------------------------------------------------------
 checks <- data.frame(
   MINT = 1 - alldata$MINT_AttentionCheck / 6,
@@ -435,3 +472,7 @@ alldata$Participant <- ids[alldata$Participant]
 options(warn = 0)
 
 write.csv(alldata, "../data/rawdata_participants.csv", row.names = FALSE)
+write.csv(alldata_task, "../data/rawdata_task.csv", row.names = FALSE)
+write.csv(alldata_gaze, "../data/rawdata_eyetracking.csv", row.names = FALSE)
+
+

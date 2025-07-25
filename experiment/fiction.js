@@ -314,7 +314,7 @@ var fiction_ratings1 = {
                                 text: "Beautiful",
                             },
                         ],
-                        defaultValue: 0,
+                        // defaultValue: 0,
                     },
                     {
                         type: "rating",
@@ -488,7 +488,7 @@ var fiction_ratings2 = {
                                 text: "Human creation",
                             },
                         ],
-                        defaultValue: 0,
+                        // defaultValue: 0,
                     },
                     {
                         type: "slider",
@@ -511,7 +511,7 @@ var fiction_ratings2 = {
                                 text: "Original Creation",
                             },
                         ],
-                        defaultValue: 0,
+                        // defaultValue: 0,
                     },
                 ],
             },
