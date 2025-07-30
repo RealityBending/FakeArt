@@ -6,11 +6,7 @@
 
         <!-- Load JsPsych -->
         <script src="https://unpkg.com/jspsych@8.2.2"></script>
-        <link
-            href="https://unpkg.com/jspsych@8.2.2/css/jspsych.css"
-            rel="stylesheet"
-            type="text/css"
-        />
+        <link href="https://unpkg.com/jspsych@8.2.2/css/jspsych.css" rel="stylesheet" type="text/css" />
 
         <!-- Load plugins -->
         <script src="https://unpkg.com/@jspsych/plugin-browser-check@2.1.0"></script>
@@ -20,10 +16,7 @@
         <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.1.0"></script>
         <script src="https://unpkg.com/@jspsych/plugin-fullscreen@2.1.0"></script>
         <script src="https://unpkg.com/@jspsych/plugin-survey@3.0.0"></script>
-        <link
-            rel="stylesheet"
-            href="https://unpkg.com/@jspsych/plugin-survey@3.0.0/css/survey.css"
-        />
+        <link rel="stylesheet" href="https://unpkg.com/@jspsych/plugin-survey@3.0.0/css/survey.css" />
 
         <!-- To save data via DataPipe (for online experiments) -->
         <script src="https://unpkg.com/@jspsych-contrib/plugin-pipe@0.5.0"></script>
@@ -71,7 +64,7 @@
         // Initialize timeline
         var timeline = []
         participant_ID = jsPsych.randomization.randomID(10)
-        timeline.push(bait)
+
         // Demographics ===========================================================
         timeline.push(fullscreen_on) // Enter fullscreen mode
         timeline.push(demographics_browser_info)
@@ -92,13 +85,7 @@
         timeline.push(fiction_feedback1)
 
         // Questionnaires ===========================================================
-        questionnaires = [
-            questionnaire_mint,
-            questionnaire_vviq,
-            questionnaire_phq4,
-            questionnaire_erns,
-            bait,
-        ]
+        questionnaires = [questionnaire_mint, questionnaire_vviq, questionnaire_phq4, questionnaire_erns, bait]
         questionnaires = jsPsych.randomization.shuffle(questionnaires) // Shuffle order of questionnaires
 
         timeline.push(questionnaires_instructions0)
