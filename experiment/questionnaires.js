@@ -123,36 +123,53 @@ const mint_items = {
     MINT_ExAc_3: "I can always accurately feel when I am about to burp",
     MINT_ReIA_4: "I always feel in my body if I am relaxed",
     MINT_ReIA_5: "I always know when I am relaxed",
-    MINT_ReIA_6: "My body is always in the same specific state when I am relaxed",
-    MINT_SexS_7: "During sex or masturbation, I often feel very strong sensations coming from my genital areas",
-    MINT_SexS_8: "My genital organs are very sensitive to pleasant stimulations",
+    MINT_ReIA_6:
+        "My body is always in the same specific state when I am relaxed",
+    MINT_SexS_7:
+        "During sex or masturbation, I often feel very strong sensations coming from my genital areas",
+    MINT_SexS_8:
+        "My genital organs are very sensitive to pleasant stimulations",
     MINT_SexS_9:
         "When I am sexually aroused, I often notice specific sensations in my genital area (e.g., tingling, warmth, wetness, stiffness, pulsations)",
-    MINT_CaCo_10: "Sometimes my breathing becomes erratic or shallow and I often don't know why",
-    MINT_CaCo_11: "I often feel like I can't get enough oxygen by breathing normally",
+    MINT_CaCo_10:
+        "Sometimes my breathing becomes erratic or shallow and I often don't know why",
+    MINT_CaCo_11:
+        "I often feel like I can't get enough oxygen by breathing normally",
     MINT_CaCo_12: "Sometimes my heart starts racing and I often don't know why",
-    MINT_Urin_13: "I sometimes feel like I need to urinate or defecate but when I go to the bathroom I produce less than I expected",
-    MINT_Urin_14: "I often feel the need to urinate even when my bladder is not full",
-    MINT_Urin_15: "Sometimes I am not sure whether I need to go to the toilet or not (to urinate or defecate)",
+    MINT_Urin_13:
+        "I sometimes feel like I need to urinate or defecate but when I go to the bathroom I produce less than I expected",
+    MINT_Urin_14:
+        "I often feel the need to urinate even when my bladder is not full",
+    MINT_Urin_15:
+        "Sometimes I am not sure whether I need to go to the toilet or not (to urinate or defecate)",
     MINT_Derm_16: "In general, my skin is very sensitive",
     MINT_Derm_17: "My skin is susceptible to itchy fabrics and materials",
-    MINT_Derm_18: "I can notice even very subtle stimulations to my skin (e.g., very light touches)",
-    MINT_Sati_19: "I don't always feel the need to eat until I am really hungry",
-    MINT_Sati_20: "Sometimes I don't realise I was hungry until I ate something ",
-    MINT_Sati_21: "I don't always feel the need to drink until I am really thirsty",
+    MINT_Derm_18:
+        "I can notice even very subtle stimulations to my skin (e.g., very light touches)",
+    MINT_Sati_19:
+        "I don't always feel the need to eat until I am really hungry",
+    MINT_Sati_20:
+        "Sometimes I don't realise I was hungry until I ate something ",
+    MINT_Sati_21:
+        "I don't always feel the need to drink until I am really thirsty",
     MINT_Olfa_22: "I often check the smell of my armpits",
     MINT_Olfa_23: "I often check the smell of my own breath",
     MINT_Olfa_24: "I often check the smell of my farts",
     MINT_Resp_25: "In general, I am very sensitive to changes in my breathing",
     MINT_Resp_26: "I can notice even very subtle changes in my breathing",
-    MINT_Resp_27: "I am always very aware of how I am breathing, even when I am calm",
+    MINT_Resp_27:
+        "I am always very aware of how I am breathing, even when I am calm",
     MINT_Card_28: "In general, I am very sensitive to changes in my heart rate",
     MINT_Card_29: "I often notice changes in my heart rate",
-    MINT_Card_30: "I can notice even very subtle changes in the way my heart beats",
-    MINT_Gast_31: "I can notice even very subtle changes in what my stomach is doing",
+    MINT_Card_30:
+        "I can notice even very subtle changes in the way my heart beats",
+    MINT_Gast_31:
+        "I can notice even very subtle changes in what my stomach is doing",
     MINT_Gast_32: "In general, I am very sensitive to what my stomach is doing",
-    MINT_Gast_33: "I am always very aware of what my stomach is doing, even when I am calm",
-    MINT_AttentionCheck: "I can always accurately answer to the extreme left on this question to show that I am reading it",
+    MINT_Gast_33:
+        "I am always very aware of what my stomach is doing, even when I am calm",
+    MINT_AttentionCheck:
+        "I can always accurately answer to the extreme left on this question to show that I am reading it",
 }
 
 function make_mint(items, required = true, ticks = ["Disagree", "Agree"]) {
@@ -183,7 +200,8 @@ const questionnaire_mint = {
     survey_json: function () {
         return {
             title: "About you and your body",
-            description: "Please answer the following questions based on how accurately each statement describes you in general.",
+            description:
+                "Please answer the following questions based on how accurately each statement describes you in general.",
             showQuestionNumbers: false,
             goNextPageAutomatic: true,
             pages: make_mint(mint_items),
@@ -212,14 +230,22 @@ const questionnaire_mint = {
 
 const bait_items = {
     // BAIT-12 items used in FakeFace2 study
-    BAIT_1_ImagesRealistic: "Current AI algorithms can generate very realistic images",
-    BAIT_2_ImagesIssues: "Images of faces or people generated by AI always contain errors and artifacts",
-    BAIT_3_VideosIssues: "Videos generated by AI have obvious problems that make them easy to spot as fake",
-    BAIT_4_VideosRealistic: "Current AI algorithms can generate very realistic videos",
-    BAIT_5_ImitatingReality: "Computer-Generated Images (CGI) are capable of perfectly imitating reality",
-    BAIT_6_EnvironmentReal: "Technology allows the creation of environments that seem just as real as reality",
-    BAIT_7_TextRealistic: "AI assistants can write texts that are indistinguishable from those written by humans",
-    BAIT_8_TextIssues: "Documents and paragraphs written by AI usually read differently compared to Human productions",
+    BAIT_1_ImagesRealistic:
+        "Current AI algorithms can generate very realistic images",
+    BAIT_2_ImagesIssues:
+        "Images of faces or people generated by AI always contain errors and artifacts",
+    BAIT_3_VideosIssues:
+        "Videos generated by AI have obvious problems that make them easy to spot as fake",
+    BAIT_4_VideosRealistic:
+        "Current AI algorithms can generate very realistic videos",
+    BAIT_5_ImitatingReality:
+        "Computer-Generated Images (CGI) are capable of perfectly imitating reality",
+    BAIT_6_EnvironmentReal:
+        "Technology allows the creation of environments that seem just as real as reality",
+    BAIT_7_TextRealistic:
+        "AI assistants can write texts that are indistinguishable from those written by humans",
+    BAIT_8_TextIssues:
+        "Documents and paragraphs written by AI usually read differently compared to Human productions",
 
     // Attitudes (adapted from GAAIS; Schepman et al., 2023)
     BAIT_9_Dangerous: "AI is dangerous",
@@ -228,17 +254,20 @@ const bait_items = {
     BAIT_12_Benefit: "Much of society will benefit from a future full of AI",
 
     // Additional art related items
-    BAIT_13_ArtIssues: "Human-made art evokes stronger emotional responses than AI-generated art",
-    BAIT_14_ArtRealistic: "AI-generated art can sometimes surpass human creativity and artistic value",
+    BAIT_13_ArtIssues:
+        "Human-made art evokes stronger emotional responses than AI-generated art",
+    BAIT_14_ArtRealistic:
+        "AI-generated art can sometimes surpass human creativity and artistic value",
 
-    BAIT_AttentionCheck: "I can show that I am Human and not an AI by answering all the way to the right",
+    BAIT_AttentionCheck:
+        "I can show that I am Human and not an AI by answering all the way to the right",
 }
 
 function make_bait(items, required = true, ticks = ["Disagree", "Agree"]) {
     items = shuffleObject(items)
 
     // AI Expertise
-    var aiexpertise = [
+    var aiquestions = [
         {
             title: "How knowledgeable do you consider yourself about Artificial Intelligence (AI) technology?",
             name: "BAIT_AI_Knowledge",
@@ -248,6 +277,22 @@ function make_bait(items, required = true, ticks = ["Disagree", "Agree"]) {
             minRateDescription: "Not at all",
             maxRateDescription: "Expert",
             rateValues: [0, 1, 2, 3, 4, 5, 6],
+        },
+        {
+            title: "How frequently do you use Artificial Intelligence (AI) tools or technologies in your daily life? ",
+            description:
+                "This includes tools like ChatGPT, image or art generators, and AI assistants.",
+            name: "BAIT_AI_Use",
+            type: "radiogroup",
+            // displayMode: "buttons",
+            isRequired: required,
+            choices: [
+                "Never",
+                "A few times a month",
+                "A few times per week",
+                "Once a day",
+                "A few times daily",
+            ],
         },
     ]
 
@@ -270,7 +315,7 @@ function make_bait(items, required = true, ticks = ["Disagree", "Agree"]) {
     }
 
     return [
-        { elements: aiexpertise },
+        { elements: aiquestions },
         {
             elements: questions,
             description:
@@ -347,12 +392,15 @@ var bait = {
 const erns_items = {
     ERNS_1: "I am able to feel a wide range of emotions (e.g., happiness, sadness, anger, and fear)",
     ERNS_2_r: "I feel cut off from my emotions", // r
-    ERNS_3_r: "In situations when other people have strong emotional responses, I don't feel anything at all", // r
+    ERNS_3_r:
+        "In situations when other people have strong emotional responses, I don't feel anything at all", // r
     ERNS_4_r: "There are certain emotions that I cannot feel", // r
     ERNS_5: "I think of myself as a very emotional person",
     ERNS_6_r: "I feel like I am emotionally numb", // r
-    ERNS_7_r: "I have a hard time feeling close to people, even my friends or family", // r
-    ERNS_8_r: "There are some negative emotions that I rarely feel even when there is reason to feel them", // r
+    ERNS_7_r:
+        "I have a hard time feeling close to people, even my friends or family", // r
+    ERNS_8_r:
+        "There are some negative emotions that I rarely feel even when there is reason to feel them", // r
 }
 
 function make_erns(items, required = true) {
@@ -427,15 +475,20 @@ const vviq_items = {
     VVIQ_Sun_7: "Clouds. A storm blows up with flashes of lightning",
     VVIQ_Sun_8: "A rainbow appears",
 
-    VVIQ_Shop_9: "The overall appearance of the shop from the opposite side of the road",
-    VVIQ_Shop_10: "A window display including colours, shapes and details of individual items for sale",
-    VVIQ_Shop_11: "You are near the entrance. The colour, shape and details of the door",
-    VVIQ_Shop_12: "You enter the shop and go to the counter. The counter Assistant serves you. Money changes hands",
+    VVIQ_Shop_9:
+        "The overall appearance of the shop from the opposite side of the road",
+    VVIQ_Shop_10:
+        "A window display including colours, shapes and details of individual items for sale",
+    VVIQ_Shop_11:
+        "You are near the entrance. The colour, shape and details of the door",
+    VVIQ_Shop_12:
+        "You enter the shop and go to the counter. The counter Assistant serves you. Money changes hands",
 
     VVIQ_Country_13: "The contours of the landscape",
     VVIQ_Country_14: "The colour and shape of the lake",
     VVIQ_Country_15: "The colour and shape of the trees",
-    VVIQ_Country_16: "A strong wind blows on the trees and on the lake causing reflections in the water",
+    VVIQ_Country_16:
+        "A strong wind blows on the trees and on the lake causing reflections in the water",
 }
 
 function make_vviq(items, required = true, ticks = ["Disagree", "Agree"]) {
