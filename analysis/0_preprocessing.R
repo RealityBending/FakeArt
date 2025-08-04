@@ -4,7 +4,17 @@ library(progress)
 options(warn = 2) # Stop on warnings
 
 path <- "C:/Users/domma/Box/Data/FictionArt/"
-# path <- "C:/Users/maisi/Box/FictionArt/
+# path <- "C:/Users/dmm56/Box/Data/FictionArt/"
+
+
+datastims <- read.csv("../experiment/stimuli/stimuli_data.csv")
+names(datastims) <- gsub("Familarity_Mean_All", "Norms_Familiarity", names(datastims))
+names(datastims) <- gsub("Complexity_Mean_All", "Norms_Complexity", names(datastims))
+names(datastims) <- gsub("Liking_Mean_All", "Norms_Liking", names(datastims))
+names(datastims) <- gsub("Valence_Mean_All", "Norms_Valence", names(datastims))
+names(datastims) <- gsub("Arousal_Mean_All", "Norms_Arousal", names(datastims))
+
+
 
 # Run loop ----------------------------------------------------------------
 
@@ -18,6 +28,7 @@ alldata <- data.frame()
 alldata_task <- data.frame()
 alldata_gaze <- data.frame()
 
+
 for (file in files) {
   progbar$tick()
   rawdata <- read.csv(file)
@@ -30,7 +41,7 @@ for (file in files) {
     next
   }
 
-  if(dat$researcher %in% c("testp")) {
+  if(dat$researcher %in% c("testp", "test")) {
     next # Skip test participants
   }
 
@@ -139,6 +150,9 @@ for (file in files) {
   ]) /
     1000 /
     60
+  if(!"BAIT_AI_Use" %in% names(bait)) {
+    data_ppt$BAIT_AI_Use <- NA
+  }
 
   phq4 <- jsonlite::fromJSON(rawdata[
     rawdata$screen == "questionnaire_phq4",
@@ -248,16 +262,16 @@ for (file in files) {
     if (any(grepl("watched each painting", fb$FeedbackFiction3))) {
       data_ppt$Feedback_LabelsPaidAttention <- TRUE
     }
-    if (any(grepl("labels did not match", fb$FeedbackFiction3))) {
+    if (any(grepl("not always match", fb$FeedbackFiction3))) {
       data_ppt$Feedback_LabelsNotMatched <- TRUE
     }
     if (any(grepl("labels were reversed", fb$FeedbackFiction3))) {
       data_ppt$Feedback_LabelsReversed <- TRUE
     }
-    if (any(grepl("all images were real", fb$FeedbackFiction3))) {
+    if (any(grepl("images were real", fb$FeedbackFiction3))) {
       data_ppt$Feedback_LabelsAllReal <- TRUE
     }
-    if (any(grepl("all images were AI-generated", fb$FeedbackFiction3))) {
+    if (any(grepl("images were AI-generated", fb$FeedbackFiction3))) {
       data_ppt$Feedback_LabelsAllAI <- TRUE
     }
   }
@@ -333,6 +347,9 @@ for (file in files) {
     next
   }
 
+  # Merge with stim info
+  data_task <- merge(data_task, datastims[!names(datastims) %in% c("Date", "Width", "Height")])
+
   # Eye tracking
   data_ppt$Eyetracking_Validation1 <- NA
   data_ppt$Eyetracking_Validation2 <- NA
@@ -353,8 +370,14 @@ for (file in files) {
     gaze_isi <- lapply(isi1$webgazer_data, \(x) {
       as.data.frame(jsonlite::fromJSON(x))
     })
+    gaze_isi_stim <- lapply(isi1$webgazer_targets, \(x) {
+      as.data.frame(jsonlite::fromJSON(x)$`#jspsych-html-keyboard-response-stimulus`)
+    })
     gaze_img <- lapply(img1$webgazer_data, \(x) {
       as.data.frame(jsonlite::fromJSON(x))
+    })
+    gaze_img_stim <- lapply(img1$webgazer_targets, \(x) {
+      as.data.frame(jsonlite::fromJSON(x)$`#jspsych-image-keyboard-response-stimulus`)
     })
 
     # It seems likely that in the WebGazer extension for jsPsych, the (0,0)
@@ -367,16 +390,28 @@ for (file in files) {
       if(nrow(gaze_isi[[i]]) > 0) {
         gaze_isi[[i]]$Item <- data_task[i, "Item"]
         gaze_isi[[i]]$Stimulus <- "Fixation"
-        gaze_isi[[i]]$x <- gaze_isi[[i]]$x / data_task[i, "ScreenWidth"]
-        gaze_isi[[i]]$y <-  1 - gaze_isi[[i]]$y / data_task[i, "ScreenHeight"]
+        gaze_isi[[i]]$x <- gaze_isi[[i]]$x
+        gaze_isi[[i]]$y <- gaze_isi[[i]]$y
+        gaze_isi[[i]]$ScreenWidth <- data_task[i, "ScreenWidth"]
+        gaze_isi[[i]]$ScreenHeight <- data_task[i, "ScreenHeight"]
+        gaze_isi[[i]]$Stimulus_left <- gaze_isi_stim[[i]]$x
+        gaze_isi[[i]]$Stimulus_top <- gaze_isi_stim[[i]]$top
+        gaze_isi[[i]]$Stimulus_height <- gaze_isi_stim[[i]]$height
+        gaze_isi[[i]]$Stimulus_width <- gaze_isi_stim[[i]]$width
         data_gaze <- rbind(data_gaze, gaze_isi[[i]])
       }
 
       if(nrow(gaze_img[[i]]) > 0) {
         gaze_img[[i]]$Item <- data_task[i, "Item"]
         gaze_img[[i]]$Stimulus <- "Image"
-        gaze_img[[i]]$x <- gaze_img[[i]]$x / data_task[i, "ScreenWidth"]
-        gaze_img[[i]]$y <-  1 - gaze_img[[i]]$y / data_task[i, "ScreenHeight"]
+        gaze_img[[i]]$x <- gaze_img[[i]]$x
+        gaze_img[[i]]$y <- gaze_img[[i]]$y
+        gaze_img[[i]]$ScreenWidth <- data_task[i, "ScreenWidth"]
+        gaze_img[[i]]$ScreenHeight <- data_task[i, "ScreenHeight"]
+        gaze_img[[i]]$Stimulus_left <- gaze_img_stim[[i]]$x
+        gaze_img[[i]]$Stimulus_top <- gaze_img_stim[[i]]$top
+        gaze_img[[i]]$Stimulus_height <- gaze_img_stim[[i]]$height
+        gaze_img[[i]]$Stimulus_width <- gaze_img_stim[[i]]$width
         data_gaze <- rbind(data_gaze, gaze_img[[i]])
       }
     }
@@ -399,7 +434,7 @@ for (file in files) {
 
 alldata[c("Duration_ERNS", "Duration_VVIQ", "Experiment_Duration")]
 
-hist(alldata$Experiment_Duration)
+hist(alldata$Experiment_Duration, breaks = 30)
 
 # Should we re-map the Worth values? -----------------------------------
 # Re-map to values in dollars
@@ -465,6 +500,8 @@ ids <- paste0("S", format(sprintf("%03d", 1:nrow(alldata))))
 names(ids) <- alldata$Participant[order(alldata$Experiment_StartDate)]
 # Replace IDs
 alldata$Participant <- ids[alldata$Participant]
+alldata_task$Participant <- ids[alldata_task$Participant]
+alldata_gaze$Participant <- ids[alldata_gaze$Participant]
 
 
 # Save --------------------------------------------------------------------
@@ -474,5 +511,21 @@ options(warn = 0)
 write.csv(alldata, "../data/rawdata_participants.csv", row.names = FALSE)
 write.csv(alldata_task, "../data/rawdata_task.csv", row.names = FALSE)
 write.csv(alldata_gaze, "../data/rawdata_eyetracking.csv", row.names = FALSE)
+
+
+# PILOT STIMULI SELECTION -------------------------------------------------
+
+library(tidyverse)
+
+alldata_task |>
+  datawizard::normalize(select = c("Beauty", "Valence", "Meaning", "Worth", "Reality", "Authenticity")) |>
+  mutate(Item = fct_reorder(Item, Reality)) |>
+  pivot_longer(c(Beauty, Valence, Meaning, Worth, Reality, Authenticity),
+               names_to = "Variable", values_to = "Value") |>
+  filter(Variable %in% c("Beauty", "Reality", "Authenticity")) |>
+  ggplot(aes(y = Item, x = Value, fill = Style)) +
+  ggdist::stat_slab(normalize = "all", height = 3, color = "black") +
+  facet_wrap(~ Variable, scales = "free_x")
+alldata_task[alldata_task$Item == "40224.jpg",]
 
 

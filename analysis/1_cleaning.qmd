@@ -1,0 +1,985 @@
+---
+title: "FictionArt - Data Cleaning"
+editor: source
+editor_options: 
+  chunk_output_type: console
+format:
+  html:
+    code-fold: true
+    self-contained: false
+    toc: true
+---
+
+## Data Preparation
+
+```{r}
+#| warning: false
+#| code-fold: false
+#| error: false
+
+library(tidyverse)
+library(easystats)
+library(patchwork)
+library(ggside)
+library(ggdist)
+
+df <- read.csv("../data/rawdata_participants.csv")
+dftask <- read.csv("../data/rawdata_task.csv")
+```
+
+## Recruitment History
+
+```{r}
+#| message: false
+
+# Consecutive count of participants per day (as area)
+df |>
+  mutate(Date = as.Date(Experiment_StartDate, format = "%Y-%m-%d %H:%M:%S")) |> 
+  summarize(N = n(), .by=c("Date", "Recruitment")) |> 
+  complete(Date, Recruitment, fill = list(N = 0)) |> 
+  mutate(N = cumsum(N), .by="Recruitment") |>
+  ggplot(aes(x = Date, y = N)) +
+  geom_area(aes(fill=Recruitment)) +
+  scale_y_continuous(expand = c(0, 0)) +
+  labs(
+    title = "Recruitment History",
+    x = "Date",
+    y = "Total Number of Participants"
+  ) +
+  see::theme_modern()
+```
+
+```{r}
+#| message: false
+
+# Table
+summarize(df, N = n(), .by=c("Recruitment")) |> 
+  arrange(desc(N)) |> 
+  gt::gt() |> 
+  gt::grand_summary_rows(columns = "N", fns = Total ~ sum(.)) |> 
+  gt::opt_stylize(style = 2, color = "gray") |> 
+  gt::tab_header("Number of participants per recruitment source") 
+```
+
+## Feedback
+
+### Evaluation
+
+::: {.panel-tabset}
+
+#### Experiment Enjoyment
+
+```{r}
+df |> 
+  summarise(n = n(), .by=c("Experiment_Enjoyment")) |>
+  filter(!is.na(Experiment_Enjoyment)) |> 
+  mutate(n = n / sum(n),
+         Experiment_Enjoyment = fct_rev(as.factor(Experiment_Enjoyment))) |>
+  ggplot(aes(y = n, x = 1, fill = Experiment_Enjoyment)) +
+  geom_bar(stat="identity", position="stack") +
+  scale_fill_manual(values=c("green", "yellowgreen",  "yellow", "orange", "red")) +
+  coord_flip() +
+  scale_x_continuous(expand=c(0, 0))  +
+  scale_y_continuous(labels = scales::percent)  +
+  labs(title="Experiment Enjoyment",
+       subtitle="Proportion of participants by condition") + 
+  guides(fill = guide_legend(reverse=TRUE)) +
+  theme_minimal() +
+  theme(
+    axis.title = element_blank(),
+    axis.text.y = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    legend.position = "top",
+    legend.title = element_blank()) 
+```
+
+
+#### Proportion
+
+```{r}
+df |> 
+  select(starts_with("Feedback"), -contains("Confidence")) |>
+  pivot_longer(everything(), names_to = "Question", values_to = "Answer") |>
+  group_by(Question, Answer) |> 
+  summarise(prop = n()/nrow(df), .groups = 'drop') |> 
+  complete(Question, Answer, fill = list(prop = 0)) |> 
+  filter(Answer == TRUE) |> 
+  mutate(Question = str_remove(Question, "Feedback_"),
+         # Question = str_replace(Question, "NoFacesAttractive", "No Faces Attractive"),
+         # Question = str_replace(Question, "LabelsIncorrect", "Labels were Incorrect"),
+         # Question = str_replace(Question, "LabelsReversed", "Labels were Reversed"),
+         # Question = str_replace(Question, "DiffNone", "No Difference Real/AI"),
+         # Question = str_replace(Question, "DiffObvious", "Obvious Difference Real/AI"),
+         # Question = str_replace(Question, "DiffSubtle", "Subtle Difference Real/AI"),
+         # Question = str_replace(Question, "AILessAttractive", "AI = less attractive"),
+         # Question = str_replace(Question, "AIMoreAttractive", "AI = more attractive"),
+         # Question = str_replace(Question, "SomeFacesAttractive", "Some Faces Attractive"),
+         # Question = str_replace(Question, "AllReal", "All Faces were Real"),
+         Question = str_replace(Question, "BadForgeries", "Forgeries were less well executed")) |>
+  mutate(Question = fct_reorder(Question, desc(prop))) |> 
+  ggplot(aes(x = Question, y = prop)) +
+  geom_bar(stat = "identity") +
+  scale_y_continuous(expand = c(0, 0), breaks= scales::pretty_breaks(), labels=scales::percent) +
+  labs(x="Feedback", y = "Participants", title = "Feedback") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = rel(1.2), face = "bold", hjust = 0),
+    plot.subtitle = element_text(size = rel(1.2), vjust = 7),
+    axis.text.y = element_text(size = rel(1.1)),
+    axis.text.x = element_text(size = rel(1.1), angle = 45, hjust = 1),
+    axis.title.x = element_blank()
+  )
+```
+
+#### Co-occurence
+
+```{r}
+#| warning: false
+
+cor <- df |> 
+  select(starts_with("Feedback"), -contains("Confidence"))  |> 
+  select(-Feedback_MoreBeautifulAI) |>  # No variance
+  mutate_all(~ifelse(.==TRUE, 1, 0)) |> 
+  correlation(method="tetrachoric", redundant = TRUE) |> 
+  correlation::cor_sort() |> 
+  correlation::cor_lower()
+
+cor |> 
+  mutate(val = paste0(insight::format_value(rho), format_p(p, stars_only=TRUE))) |>
+  mutate(Parameter2 = fct_rev(Parameter2)) |>
+  mutate(Parameter1 = fct_relabel(Parameter1, \(x) str_remove_all(x, "Feedback_")),
+         Parameter2 = fct_relabel(Parameter2, \(x) str_remove_all(x, "Feedback_"))) |>
+  ggplot(aes(x=Parameter1, y=Parameter2)) +
+  geom_tile(aes(fill = rho), color = "white") +
+  geom_text(aes(label = val), size = 3) +
+  labs(title = "Feedback Co-occurence Matrix") +
+  scale_fill_gradient2(
+    low = "#2196F3",
+    mid = "white",
+    high = "#F44336",
+    breaks = c(-1, 0, 1),
+    guide = guide_colourbar(ticks=FALSE),
+    midpoint = 0,
+    na.value = "grey85",
+    limit = c(-1, 1))  + 
+  theme_minimal() +
+  theme(legend.title = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+:::
+
+### Comments
+
+```{r}
+data.frame(Comments = df$Experiment_Feedback) |> 
+  filter(!tolower(Comments) %in% c(NA, "no", "none", "thank you")) |> 
+  gt::gt() |> 
+  gt::opt_stylize() |> 
+  gt::opt_interactive(use_compact_mode = TRUE) 
+```
+
+## Exclusions
+
+```{r}
+outliers <- list()
+```
+
+
+### Manipulation
+
+```{r}
+#| fig-width: 15
+#| fig-height: 15
+
+manipcheck <- df |> 
+  select(Participant, Feedback_ConfidenceReal, Feedback_ConfidenceAI) |> 
+  pivot_longer(-Participant, values_to = "Confidence", names_to = "Answer") |>
+  filter(!is.na(Confidence)) 
+
+manipcheck |> 
+  mutate(Answer = ifelse(str_detect(Answer, "Real"), "All images are real", "All images are fake")) |> 
+  ggplot(aes(x=Confidence, fill=Answer)) +
+  geom_bar() +
+  facet_grid(~Answer) +
+  theme_minimal() +
+  theme(legend.position = "none") 
+
+# outliers$manipulation <- filter(df, Feedback_AllRealConfidence >= 4 | Feedback_AllFakeConfidence >= 4)$Participant
+
+manipcheck |> 
+  summarize(N = n(), 
+            Prop = n() / nrow(df), 
+            Mean_Confidence = mean(Confidence, na.rm = TRUE),
+            SD_Confidence = sd(Confidence, na.rm = TRUE),
+            .by = "Answer") |> 
+  gt::gt() 
+```
+
+
+### Attention Checks
+
+```{r}
+dfchecks <- data.frame(
+  Participant = df$Participant,
+  FailedAttentionChecks = rowSums(dplyr::mutate(df,
+    A1 = ifelse(MINT_AttentionCheck == 0, 0, 1),
+    A2 = ifelse(BAIT_AttentionCheck == 6, 0, 1),
+    .keep = "none"
+  )))
+
+dfchecks |>
+  mutate(Total = as.factor(paste0(FailedAttentionChecks, "/2"))) |> 
+  ggplot(aes(x = Total)) +
+  geom_bar(aes(fill = Total)) +
+  scale_fill_viridis_d(guide = "none") +
+  labs(title = "Failed Attention Checks", y = "Number of Participants", subtitle = "Number of failed attention checks per participant") +
+  theme_modern(axis.title.space = 15) +
+  theme(
+    plot.title = element_text(size = rel(1.2), face = "bold", hjust = 0),
+    plot.subtitle = element_text(size = rel(1.2), vjust = 7),
+    axis.title.x = element_blank(),
+  )
+```
+
+```{r}
+outliers$attentionchecks <- dfchecks$Participant[dfchecks$FailedAttentionChecks >= 1]
+```
+
+<!-- We removed `r length(outliers$attentionchecks)` (`r insight::format_percent(length(outliers$attentionchecks) / nrow(df))`) participants for having failed at least 1 attention check (out of 2). -->
+
+### Self-Reported Participation Score
+
+```{r}
+dfchecks$AttentionCheck <- ifelse(dfchecks$FailedAttentionChecks >= 1, 1, 0)
+dfchecks$AttentionCheckLabel <- ifelse(dfchecks$AttentionCheck == 1, "Failed attention check", "Valid")
+dfchecks$SubjectiveQuality <- df$Experiment_Quality
+
+# m <- mgcv::gam(AttentionCheck ~ s(Quality), data = dfchecks, family = "binomial")
+m <- glm(AttentionCheck ~ SubjectiveQuality, data = dfchecks, family = "binomial")
+
+estimate_relation(m, length=50) |> 
+  ggplot(aes(x = SubjectiveQuality, y = Predicted)) +
+  geom_ribbon(aes(ymin = CI_low, ymax = CI_high), alpha = 0.2) +
+  geom_line() +
+  # geom_vline(xintercept=10, linetype="dashed", color="red") +
+  scale_y_continuous(labels = scales::percent) +
+  theme_minimal() +
+  ggside::geom_xsidedensity(data=dfchecks, aes(fill=AttentionCheckLabel), alpha=0.3) +
+  ggside::theme_ggside_void() +
+  labs(title = "Self-reported participation level",
+       subtitle = "Predicted probability of failing attention checks by duration",
+       x = "Subjective Data Quality",
+       y = "Probability of failing attention checks") 
+```
+
+### Experiment Duration
+
+```{r}
+dfchecks$Duration_Experiment <- log(df$Experiment_Duration)
+dfchecks$Duration_Instructions1 <- log(df$Duration_TaskInstructions1)
+dfchecks$Duration_Instructions2 <- log(df$Duration_TaskInstructions2)
+# dfchecks <- filter(dfchecks, Duration < 120)
+
+# m <- mgcv::gam(AttentionCheck ~ s(Duration), data = dfchecks, family = "binomial")
+m <- glm(AttentionCheck ~ Duration_Experiment, data = dfchecks, family = "binomial")
+
+estimate_relation(m, length=50) |> 
+  ggplot(aes(x = exp(Duration_Experiment), y = Predicted)) +
+  geom_ribbon(aes(ymin = CI_low, ymax = CI_high), alpha = 0.2) +
+  geom_line() +
+  # geom_vline(xintercept=60, linetype="dashed", color="red") +
+  theme_minimal() +
+  scale_y_continuous(labels = scales::percent) +
+  ggside::geom_xsidedensity(data=dfchecks, aes(fill=AttentionCheckLabel), alpha=0.3) +
+  ggside::theme_ggside_void() +
+  labs(title = "Experiment Duration",
+       subtitle = "Predicted probability of failing attention checks by duration",
+       x = "Experiment Duration (minutes)",
+       y = "Probability of failing attention checks") 
+```
+
+```{r}
+# outliers$duration <- as.character(df[df$Experiment_Duration < 10, "Participant"])
+# outliers$duration <- outliers$duration[!outliers$duration %in% outliers$attentionchecks]
+```
+
+<!-- We removed `r length(outliers$duration)` (`r insight::format_percent(length(outliers$duration) / nrow(df))`) participants for having completed the experiment in less than 5 minutes. -->
+
+
+### Response Consistency
+
+```{r}
+#| warning: false
+
+# (plot(cor_test(dftask, "Beauty", "Valence")) | 
+#   plot(cor_test(dftask, "Beauty", "Meaning")) |
+#   plot(cor_test(dftask, "Beauty", "Worth"))) /
+#   (plot(cor_test(dftask, "Meaning", "Valence")) |
+#   plot(cor_test(dftask, "Meaning", "Worth")) |
+#   plot(cor_test(dftask, "Worth", "Valence")))
+
+dfchecks <- dftask |> 
+  summarize(across(c("Beauty", "Valence", "Meaning", "Worth", "Reality"), 
+                   list(M = ~ mean(.x, na.rm = TRUE), SD = ~ sd(.x, na.rm = TRUE))),
+            cor_BeautyValence = cor(Beauty, Valence),
+            cor_MeaningWorth = cor(Meaning, Worth),
+            .by = c("Participant")) |> 
+  mutate(cor_BeautyValence = ifelse(is.na(cor_BeautyValence), 0, cor_BeautyValence),
+         cor_MeaningWorth = ifelse(is.na(cor_MeaningWorth), 0, cor_MeaningWorth)) |>
+  full_join(dfchecks, by = "Participant", keep = FALSE)
+```
+
+### Clustering
+
+```{r}
+#| warning: false
+
+features <- dfchecks |> 
+  select(matches("_M|_SD|cor_|AttentionCheck$|SubjectiveQuality|Duration")) |> 
+  standardize()
+
+model <- solitude::isolationForest$new(sample_size = nrow(features), num_trees = 100)
+model$fit(features)
+dfchecks$AnomalyScore <- model$predict(features)$anomaly_score
+
+
+rez <- dbscan::optics(features, eps = 100, minPts = 2)
+hist(rez$reachdist)
+clusters <- dbscan::extractDBSCAN(rez, eps_cl = 4)
+dfchecks$Cluster <- as.factor(clusters$cluster)
+```
+
+
+```{r}
+#| warning: false
+
+# Example features
+selected_features <- features |> 
+  mutate(AnomalyScoreRaw=dfchecks$AnomalyScore, 
+         Cluster = dfchecks$Cluster,
+         AnomalyScore=as.numeric(standardize(dfchecks$AnomalyScore)), 
+         # AttentionCheck, 
+         SubjectiveQuality, 
+         Duration_Experiment, 
+         Duration_Instructions1,
+         Duration_Instructions2,
+         Beauty_M, 
+         Beauty_SD, 
+         cor_BeautyValence,
+         .keep = "none") |> 
+  select(AnomalyScoreRaw, Cluster, AnomalyScore, SubjectiveQuality, starts_with("Duration"), everything())
+
+
+var_names <- names(select(selected_features, -AnomalyScoreRaw, -Cluster))
+feature_pairs <- expand_grid(x_var = var_names, y_var = var_names)
+feature_pairs <- feature_pairs |> 
+  mutate(
+    triangle = case_when(
+      match(x_var, var_names) > match(y_var, var_names) ~ "lower",
+      match(x_var, var_names) == match(y_var, var_names) ~ "diag",
+      TRUE ~ "upper"
+    )
+  )
+plot_data <- pmap_dfr(feature_pairs, function(x_var, y_var, triangle) {
+  selected_features |> 
+    select(AnomalyScoreRaw, Cluster, x = all_of(x_var), y = all_of(y_var)) |> 
+    mutate(x_var = x_var, y_var = y_var, triangle = triangle)
+}) |> 
+  mutate(
+    x_var = factor(x_var, levels = rev(var_names)),
+    y_var = factor(y_var, levels = rev(var_names))
+  ) 
+
+diag_histograms <- map_dfr(var_names, function(var) {
+  hist_data <- hist(selected_features[[var]], breaks = 30, plot = FALSE)
+  y_range <- range(selected_features[[var]], na.rm = TRUE)
+
+  data.frame(
+    x = hist_data$breaks[-length(hist_data$breaks)],
+    xmax = hist_data$breaks[-1],
+    ymin = y_range[1],                              # variable min, bars start here
+    ymax = as.numeric(datawizard::rescale(hist_data$counts, to = y_range)),
+    var = var)
+}) |> mutate(
+  x_var = factor(var, levels = rev(var_names)),
+  y_var = factor(var, levels = rev(var_names))
+)
+
+ggplot(plot_data, aes(x = x)) +
+  geom_rect(data = diag_histograms,
+           aes(xmin = x, xmax = xmax, ymin = ymin, ymax = ymax), fill = "grey60") +
+  stat_density_2d_filled(data = filter(plot_data, triangle == "lower", x_var != "AttentionCheck", y_var != "AttentionCheck"),
+                         aes(y = y, fill = after_stat(nlevel)), show.legend = FALSE) +
+  geom_point2(data = filter(plot_data, triangle == "lower"),
+              aes(y = y, color = Cluster), alpha = 0.7, size = 3) +
+  geom_blank(data = filter(plot_data, triangle != "lower")) +
+  
+  facet_grid(y_var ~ x_var, scales = "free", switch = "both") +
+  scale_fill_gradient(low = "white", high = "darkgreen") +
+  # scale_color_gradient(low = "black", high = "red") +
+  theme_minimal() +
+  theme(panel.grid = element_blank(),
+        axis.text = element_blank(),
+        axis.title = element_blank())
+```
+
+### UMAP
+```{r}
+# Grid search
+
+param_grid <- expand.grid(
+  n_neighbors = c(3, 5, 10),
+  min_dist = c(0.01, 0.1, 0.5),
+  metric = "euclidean"
+)
+
+umap_plots <- list()
+for (i in seq_len(nrow(param_grid))) {
+  params <- param_grid[i, ]
+  set.seed(123)
+  out <- uwot::umap(as.matrix(features),
+                   n_neighbors = params$n_neighbors,
+                   min_dist = params$min_dist,
+                   metric = params$metric) |> 
+    as.data.frame()
+  
+  colnames(out) <- c("UMAP1", "UMAP2")
+  out$param_combo <- paste0("nn=", params$n_neighbors, ", md=", params$min_dist)
+  out$Participant <- dfchecks$Participant
+  out$AnomalyScore <- selected_features$AnomalyScore
+  out$Cluster <- selected_features$Cluster
+  
+  umap_plots[[i]] <- ggplot(out, aes(UMAP1, UMAP2, color = Cluster)) +
+    # geom_point(size = 3, alpha = 0.8) +
+    geom_text(aes(label = Participant), size = 3, vjust = 0.5, hjust=0.5) +
+    # scale_color_viridis_c(option = "plasma") +
+    theme_minimal() +
+    labs(title = out$param_combo[1]) 
+}
+
+wrap_plots(umap_plots, ncol = 3)
+```
+
+
+
+```{r}
+#| code-fold: false
+
+# df <- filter(df, !Participant %in% c(outliers$attentionchecks, outliers$duration, outliers$distance))
+```
+
+```{r}
+dftask |> 
+  select(Participant, Beauty, Valence, Meaning, Worth, Reality, Authenticity) |> 
+  pivot_longer(-Participant, names_to = "Variable", values_to = "Value") |>
+  ggplot(aes(x = Value)) +
+  geom_histogram(aes(fill = Variable, y = after_stat(density)), bins = 30, position = "identity") +
+  stat_density(aes(group=Participant), geom = "line", position = "identity", 
+               color = "black", linewidth = 0.5, alpha = 0.5) +
+  facet_wrap(~Variable, scales = "free") 
+```
+
+## Dimension Computation
+
+```{r}
+#| code-fold: true
+
+compute_and_remove <- function(df, name="BodyAwareness", pattern=name, method="mean") {
+  items <- select(df, starts_with(pattern), -contains("AttentionCheck"))
+  df <- df[!names(df) %in% names(items)]
+  if(method == "mean") {
+    df[[name]] <- rowMeans(items, na.rm=TRUE)
+  } else {
+    df[[name]] <- rowSums(items, na.rm=TRUE)
+  }
+  df
+}
+```
+
+```{r}
+#| code-fold: false
+
+df <- compute_and_remove(df, name="IAS", method="sum")
+
+df <- compute_and_remove(df, name="BPQ", pattern="BodyAwareness", method="mean")
+
+
+df[grepl("^MAIA_.*_R$", names(df))] <- 6 - df[grepl("^MAIA_.*_R$", names(df))]  # Reverse
+df <- compute_and_remove(df, name="MAIA_AttentionRegulation", method="mean")
+df <- compute_and_remove(df, name="MAIA_BodyListening", method="mean")
+df <- compute_and_remove(df, name="MAIA_EmotionalAwareness", method="mean")
+df <- compute_and_remove(df, name="MAIA_NotDistracting", method="mean")
+df <- compute_and_remove(df, name="MAIA_Noticing", method="mean")
+df <- compute_and_remove(df, name="MAIA_NotWorrying", method="mean")
+df <- compute_and_remove(df, name="MAIA_SelfRegulation", method="mean")
+df <- compute_and_remove(df, name="MAIA_Trusting", method="mean")
+```
+
+
+
+## Final Sample
+
+::: {.panel-tabset}
+
+### Summary
+
+
+We removed `r sum(is.na(df$MINT_Awareness_RelA_29))` participants with missing data for the MINT due to a technical error.
+
+```{r}
+#| code-fold: false
+
+df <- filter(df, !is.na(df$MINT_Awareness_RelA_29))
+```
+
+
+The final sample includes `r report::report_participants(df, age = "Age", sex = NA, gender = "Gender")`.
+
+
+
+### Age and Gender
+
+```{r p_demographics_age_gender}
+p_age <- df |>
+  ggplot(aes(x = Age, fill = Gender)) + 
+  geom_histogram(data=df, aes(x = Age, fill=Gender), binwidth = 2) +
+  geom_vline(xintercept = mean(df$Age), color = "red", linewidth=1.5, linetype="dashed") +
+  scale_fill_viridis_d() +
+  scale_x_continuous(expand = c(0, 0), breaks = seq(20, max(df$Age), by = 10 )) +
+  scale_y_continuous(expand = c(0, 0)) +
+  labs(title = "Age", y = "Number of Participants", color = NULL, subtitle = "Distribution of participants' age") +
+  theme_modern(axis.title.space = 10) +
+  theme(
+    plot.title = element_text(size = rel(1.2), face = "bold", hjust = 0),
+    plot.subtitle = element_text(size = rel(1.2), vjust = 7),
+    axis.text.y = element_text(size = rel(1.1)),
+    axis.text.x = element_text(size = rel(1.1)),
+    axis.title.x = element_blank()
+  )
+
+p_age
+```
+
+### Education
+
+```{r p_demographics_education}
+#| warning: false
+#| error: false
+
+p_edu <- df |>
+  mutate(Student = ifelse(is.na(Student), FALSE, Student),
+         Education = fct_relevel(Education, "High school", "Bachelor", "Master", "Doctorate")) |>
+  ggplot(aes(x = Education)) +
+  geom_bar(aes(fill = Student)) +
+  scale_y_continuous(expand = c(0, 0), breaks= scales::pretty_breaks()) +
+  labs(title = "Education", y = "Number of Participants", subtitle = "Participants per achieved education level", fill = "Is currently a student") +
+  theme_modern(axis.title.space = 15) +
+  theme(
+    plot.title = element_text(size = rel(1.2), face = "bold", hjust = 0),
+    plot.subtitle = element_text(size = rel(1.2), vjust = 7),
+    axis.text.y = element_text(size = rel(1.1)),
+    axis.text.x = element_text(size = rel(0.5), angle = 45, hjust =1),
+    axis.title.x = element_blank()
+  )
+
+p_edu
+```
+
+### Ethnicity
+
+```{r p_demographics_ethnicity}
+#| warning: false
+#| error: false
+
+p_eth <- df |>
+  filter(!is.na(Ethnicity)) |> 
+  ggplot(aes(x = "", fill = Ethnicity)) +
+  geom_bar() +
+  coord_polar("y") +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_blank(),
+    axis.title.x = element_blank(),
+    axis.text.y = element_blank(),
+    axis.title.y = element_blank()
+  )
+    
+p_eth
+```
+
+### Country
+
+```{r p_demographics_map}
+p_map <- df |>
+  mutate(Country = case_when(
+    Country=="United States"~ "USA",
+    Country=="United Kingdom" ~ "UK",
+    TRUE ~ Country
+  ))|>
+  dplyr::select(region = Country) |>
+  group_by(region) |>
+  summarize(n = n()) |>
+  right_join(map_data("world"), by = "region") |>
+  # mutate(n = replace_na(n, 0)) |>
+  ggplot(aes(long, lat, group = group)) +
+  geom_polygon(aes(fill = n)) +
+  scale_fill_gradientn(colors = c("#E66101", "#ca0020", "#cc66cc")) +
+  labs(fill = "N") +
+  theme_void() +
+  labs(title = "Country of Residence", subtitle = "Number of participants by country")  +
+  theme(
+    plot.title = element_text(size = rel(1.2), face = "bold", hjust = 0),
+    plot.subtitle = element_text(size = rel(1.2))
+  )
+
+p_map
+```
+
+```{r}
+sort(table(df$Country)) |> 
+  as.data.frame() |>
+  rename(Country = Var1) |> 
+  arrange(desc(Freq)) |> 
+  gt::gt()
+```
+
+### BMI
+
+```{r}
+p_bmi <- df |> 
+  filter(!is.na(BMI), Gender != "Other") |> 
+  ggplot(aes(x=BMI)) +
+  annotate("rect", xmin=10, xmax=18.5, ymin=0, ymax=Inf, fill="red", alpha=0.1) +
+  annotate("rect", xmin=18.5, xmax=25, ymin=0, ymax=Inf, fill="green", alpha=0.25) +
+  annotate("rect", xmin=25, xmax=30, ymin=0, ymax=Inf, fill="yellow", alpha=0.25) +
+  annotate("rect", xmin=30, xmax=40, ymin=0, ymax=Inf, fill="orange", alpha=0.25) +
+  annotate("rect", xmin=40, xmax=Inf, ymin=0, ymax=Inf, fill="red", alpha=0.1) +
+  geom_density(aes(color=Gender, fill=Gender), alpha=0.5, linewidth=2) +
+  labs(title = "BMI distribution") +
+  scale_fill_manual(values = c("Male"= "#64B5F6", "Female"= "#F06292", "Other"="orange", "Missing"="brown")) +
+  scale_color_manual(values = c("Male"= "#64B5F6", "Female"= "#F06292", "Other"="orange", "Missing"="brown")) +
+  theme_minimal() +
+  theme(axis.title.y = element_blank(),
+        axis.text.y = element_blank())
+
+p_bmi_a <- df |> 
+  filter(!is.na(BMI), Gender != "Other") |> 
+  ggplot(aes(x=Age, y=BMI, color=Gender)) +
+  geom_point(size=3, alpha=0.5) +
+  geom_smooth(aes(fill=Gender), alpha=0.3, method = 'loess', formula = 'y ~ x') +
+  scale_fill_manual(values = c("Male"= "#64B5F6", "Female"= "#F06292", "Other"="orange", "Missing"="brown")) +
+  scale_color_manual(values = c("Male"= "#64B5F6", "Female"= "#F06292", "Other"="orange", "Missing"="brown")) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+p_bmi_b <- df |> 
+  filter(!is.na(BMI), Gender != "Other") |> 
+  ggplot(aes(x=Physical_Active, y=BMI)) +
+  geom_jitter(aes(color=Gender), width=0.1, size=3, alpha=0.5) +
+  geom_smooth(aes(fill=Gender, color=Gender), alpha=0.3, method = 'lm', formula = 'y ~ x') +
+  labs(x = "Physically Active", y = "") +
+  scale_x_continuous(breaks=0:7) +
+  scale_fill_manual(values = c("Male"= "#64B5F6", "Female"= "#F06292", "Other"="orange", "Missing"="brown")) +
+  scale_color_manual(values = c("Male"= "#64B5F6", "Female"= "#F06292", "Other"="orange", "Missing"="brown")) +
+  theme_minimal() +
+  theme(legend.position = "none",
+        panel.grid.minor.x = element_blank()) +
+  ggside::geom_xsidehistogram(aes(fill=Gender), bins = 30, position="dodge") +
+  ggside::theme_ggside_void()
+
+df$Physical_Workout[df$Physical_Workout > 25] <- NA
+
+p_bmi_c <- df |> 
+  filter(!is.na(BMI) & !is.na(Physical_Workout), Gender != "Other") |> 
+  ggplot(aes(x=Physical_Workout, y=BMI)) +
+  geom_point(aes(color=Gender), size=3, alpha=0.5) +
+  geom_smooth(aes(fill=Gender, color=Gender), alpha=0.3, method = 'lm', formula = 'y ~ x') +
+  labs(x = "Hours of Active Workout", y = "") +
+  scale_fill_manual(values = c("Male"= "#64B5F6", "Female"= "#F06292", "Other"="orange", "Missing"="brown")) +
+  scale_color_manual(values = c("Male"= "#64B5F6", "Female"= "#F06292", "Other"="orange", "Missing"="brown")) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  ggside::geom_xsidehistogram(aes(fill=Gender), bins = 30, position="dodge") +
+  ggside::theme_ggside_void()
+
+p_bmi / (p_bmi_a | p_bmi_b | p_bmi_c)
+```
+
+### Mental Health
+
+
+```{r}
+df$Disorders_Psychiatric_Mood <- ifelse(str_detect(df$Disorders_Psychiatric, "MDD|GAD|Bipolar"), TRUE, FALSE)
+df$Disorders_Psychiatric_MoodTreatment <- ifelse(
+  df$Disorders_Psychiatric_Mood & !is.na(df$Disorders_PsychiatricTreatment) & str_detect(df$Disorders_PsychiatricTreatment, "Mood|Antidepressant|Anxiolytic|Psychotherapy"), TRUE, FALSE)
+
+df$Disorders_Psychiatric_Anxiety <- ifelse(str_detect(df$Disorders_Psychiatric, "Panic|GAD|Social Phobia|Phobia"), TRUE, FALSE)
+df$Disorders_Psychiatric_AnxietyTreatment <- ifelse(
+  df$Disorders_Psychiatric_Anxiety & !is.na(df$Disorders_PsychiatricTreatment) & str_detect(df$Disorders_PsychiatricTreatment, "Anxiolytic|Psychotherapy|Mindfulness"), TRUE, FALSE)
+
+df$Disorders_Psychiatric_Eating <- ifelse(str_detect(df$Disorders_Psychiatric, "Eating"), TRUE, FALSE)
+df$Disorders_Psychiatric_Addiction <- ifelse(str_detect(df$Disorders_Psychiatric, "Addiction"), TRUE, FALSE)
+df$Disorders_Psychiatric_Borderline <- ifelse(str_detect(df$Disorders_Psychiatric, "BPD"), TRUE, FALSE)
+
+df$Disorders_Psychiatric_Autism <- ifelse(str_detect(df$Disorders_Psychiatric, "ASD"), TRUE, FALSE)
+df$Disorders_Psychiatric_ADHD <- ifelse(str_detect(df$Disorders_Psychiatric, "ADHD"), TRUE, FALSE)
+
+
+# df$Disorders_Psychiatric_Other <- ifelse(str_detect(df$Disorders_Psychiatric, "MDD|GAD|Bipolar"), TRUE, FALSE)
+
+select(df, Participant, Gender, 
+             Disorders_Psychiatric_Mood, Disorders_Psychiatric_MoodTreatment,
+             Disorders_Psychiatric_Anxiety, Disorders_Psychiatric_AnxietyTreatment,
+             Disorders_Psychiatric_Eating, Disorders_Psychiatric_Addiction, Disorders_Psychiatric_Borderline,
+             Disorders_Psychiatric_Autism, Disorders_Psychiatric_ADHD) |> 
+  pivot_longer(cols = starts_with("Disorders_"), names_to = "Disorder", values_to = "Value") |> 
+  mutate(Disorder = str_remove_all(Disorder, fixed("Disorders_Psychiatric_")),
+         Disorder = str_replace(Disorder, "MoodTreatment", "Mood Disorder (with treatment)"),
+         Disorder = str_replace(Disorder, "AnxietyTreatment", "Anxiety (with treatment)"),
+         Disorder = str_replace(Disorder, "Mood$", "Mood Disorder")) |> 
+  summarize(N = sum(Value) / nrow(df), .by=c("Gender", "Disorder")) |> 
+  mutate(N_tot = sum(N), .by="Disorder") |>
+  mutate(Disorder = fct_reorder(Disorder, desc(N_tot)),
+         Treatment = ifelse(str_detect(Disorder,  "Treatment"), "With treatment", "Without treatment")) |>
+  ggplot(aes(x = Disorder, y = N, fill=Gender)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("Male"= "#64B5F6", "Female"= "#F06292", "Other"="orange", "Missing"="brown")) +
+  scale_y_continuous(expand = c(0, 0), labels=scales::percent) +
+  labs(title = "Mood Disorders", y = "Number of Participants", subtitle = "Participants per self-declared mood disorder", x="Type") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+```
+
+
+### Somatic
+
+```{r}
+somatic <- data.frame(
+  Hypermobility = ifelse(str_detect(df$Disorders_Somatic, "Hypermobility Syndrome"), TRUE, FALSE),
+  Fibromyalgia = ifelse(str_detect(df$Disorders_Somatic, "Fibromyalgia"), TRUE, FALSE),
+  ChronicFatigue = ifelse(str_detect(df$Disorders_Somatic, "Chronic Fatigue Syndrome"), TRUE, FALSE),
+  ChronicPain = ifelse(str_detect(df$Disorders_Somatic, "Chronic Pain Syndrome"), TRUE, FALSE),
+  BackPain = ifelse(str_detect(df$Disorders_Somatic, "Back Pain"), TRUE, FALSE),
+  MuscleTension = ifelse(str_detect(df$Disorders_Somatic, "Muscle Tension"), TRUE, FALSE),
+  SkinRashes = ifelse(str_detect(df$Disorders_Somatic, "Skin Rashes"), TRUE, FALSE),
+  Eczema = ifelse(str_detect(df$Disorders_Somatic, "Eczema"), TRUE, FALSE),
+  Psoriasis = ifelse(str_detect(df$Disorders_Somatic, "Psoriasis"), TRUE, FALSE),
+   # Dermatological = ifelse(str_detect(df$Disorders_Somatic, "Other Dermatological"), TRUE, FALSE),
+  # Musculoskeletal = ifelse(str_detect(df$Disorders_Somatic, "Other Musculoskeletal"), TRUE, FALSE),
+  Sjogrens = ifelse(str_detect(df$Disorders_Somatic, "Sjogren"), TRUE, FALSE),
+  ChestPain = ifelse(str_detect(df$Disorders_Somatic, "Chest Pain"), TRUE, FALSE),
+  Arrhythmia = ifelse(str_detect(df$Disorders_Somatic, "Cardiac Arrhythmia"), TRUE, FALSE),
+  Hypertension = ifelse(str_detect(df$Disorders_Somatic, "Hypertension"), TRUE, FALSE),
+  Hypotension = ifelse(str_detect(df$Disorders_Somatic, "Hypotension"), TRUE, FALSE),
+  IBS = ifelse(str_detect(df$Disorders_Somatic, "IBS"), TRUE, FALSE),
+  GERD = ifelse(str_detect(df$Disorders_Somatic, "GERD"), TRUE, FALSE),
+  Crohn = ifelse(str_detect(df$Disorders_Somatic, "Crohn"), TRUE, FALSE),
+  UlcerativeColitis = ifelse(str_detect(df$Disorders_Somatic, "Ulcerative Colitis"), TRUE, FALSE),
+  Celiac = ifelse(str_detect(df$Disorders_Somatic, "Celiac Disease"), TRUE, FALSE),
+  Gluten = ifelse(str_detect(df$Disorders_Somatic, "Gluten"), TRUE, FALSE),
+  Lactose = ifelse(str_detect(df$Disorders_Somatic, "Lactose"), TRUE, FALSE),
+  ShortBreath = ifelse(str_detect(df$Disorders_Somatic, "Shortness of Breath"), TRUE, FALSE),
+  Asthma = ifelse(str_detect(df$Disorders_Somatic, "Asthma"), TRUE, FALSE),
+  COPD = ifelse(str_detect(df$Disorders_Somatic, "COPD"), TRUE, FALSE),
+  SleepApnea = ifelse(str_detect(df$Disorders_Somatic, "Sleep Apnea"), TRUE, FALSE),
+  Bronchitis = ifelse(str_detect(df$Disorders_Somatic, "Chronic Bronchitis"), TRUE, FALSE),
+  Nausea = ifelse(str_detect(df$Disorders_Somatic, "Nausea/Vomiting"), TRUE, FALSE),
+  Dizziness = ifelse(str_detect(df$Disorders_Somatic, "Dizziness/Lightheadedness"), TRUE, FALSE),
+  Migraine = ifelse(str_detect(df$Disorders_Somatic, "Migraine"), TRUE, FALSE),
+  Neuropathy = ifelse(str_detect(df$Disorders_Somatic, "Neuropathy"), TRUE, FALSE),
+  Epilepsy = ifelse(str_detect(df$Disorders_Somatic, "Epilepsy"), TRUE, FALSE),
+  MS = ifelse(str_detect(df$Disorders_Somatic, "Multiple Sclerosis"), TRUE, FALSE),
+  FrequentUrination = ifelse(str_detect(df$Disorders_Somatic, "Frequent Urination"), TRUE, FALSE),
+  Endometriosis = ifelse(str_detect(df$Disorders_Somatic, "Endometriosis"), TRUE, FALSE),
+  Cystitis = ifelse(str_detect(df$Disorders_Somatic, "Interstitial Cystitis"), TRUE, FALSE),
+  PelvicPain = ifelse(str_detect(df$Disorders_Somatic, "Chronic Pelvic Pain Syndrome"), TRUE, FALSE)
+)
+
+
+somatic |> 
+  select(where(~n_distinct(.) > 1)) |> 
+  correlation::correlation(redundant = TRUE, p_adjust="none") |>
+  correlation::cor_sort() |> 
+  mutate(label = ifelse(p < .001, "*", ""),
+         label = ifelse(r == 1, "", label)) |> 
+  ggplot(aes(x=Parameter1, y=Parameter2, fill=r)) +
+  geom_tile() +
+  geom_text(aes(label=label), size=3) +
+  scale_fill_gradient2(low="blue", high="red", mid="white", midpoint=0) +
+  labs(title = "Co-occurence Matrix of Somatic Disorders") +
+  theme_minimal()  +
+  theme(axis.text.x = element_text(angle=45, hjust=1),
+        axis.title = element_blank())
+  
+
+# pca <- as.data.frame(prcomp(somatic)$rotation[, 1:5])
+# pca$PC <- colnames(pca)[max.col(pca, ties.method='first')]
+# 
+# pca |> 
+#   rownames_to_column(var="Disorder") |> 
+#   pivot_longer(-c(Disorder, PC)) |> 
+#   filter(PC == name) |> 
+#   arrange(name, desc(value)) |> 
+#   ggplot(aes(x=value, y=Disorder, fill=name)) +
+#   geom_bar(stat = "identity") +
+#   facet_wrap(~name, scale="free_y")
+```
+
+```{r}
+#| fig-keep: "first"
+
+# somatic |> 
+#   select(where(~n_distinct(.) > 1)) |> 
+#   EGAnet::bootEGA(
+#     corr="pearson",
+#     EGA.type = "EGA.fit",
+#     model = "glasso", 
+#     algorithm = "leiden",
+#     seed=42)
+```
+
+To facilitate mechanistic interpretation and reduce redundancy, self-reported somatic symptoms were grouped into four non-overlapping clusters based on shared physiological pathways and known etiological mechanisms. The **Afferent Sensitivity** cluster included conditions associated with heightened interoceptive awareness and neurogenic excitability, such as migraine, neuropathy, dizziness, nausea, muscle tension, epilepsy, and frequent urination. The **Central Sensitization** cluster comprised syndromes characterized by chronic pain and fatigue, likely reflecting central amplification of sensory signals and HPA-axis dysregulation; this included fibromyalgia, chronic fatigue syndrome, chronic pain, back pain, pelvic pain, endometriosis, irritable bowel syndrome (IBS), and interstitial cystitis. The **Autonomic Dysfunction** cluster captured disorders linked to dysregulation of the autonomic and cardiopulmonary systems, including joint hypermobility, cardiac arrhythmia, chest pain, shortness of breath, hypo-/hypertension, sleep apnea, chronic obstructive pulmonary disease (COPD), and chronic bronchitis. Finally, the **Immune-Inflammatory** cluster encompassed conditions associated with immune dysregulation, barrier dysfunction, and gut-brain axis disturbance, such as eczema, psoriasis, skin rashes, asthma, celiac disease, gluten and lactose sensitivity, inflammatory bowel diseases (Crohn’s disease and ulcerative colitis), gastroesophageal reflux disease (GERD), multiple sclerosis, and Sjögren’s syndrome. Each symptom was assigned to a single cluster to preserve orthogonality and support subsequent analyses linking symptom profiles to interoceptive processes.
+
+```{r}
+# df$Disorders_Somatic_Number <- ifelse(df$Disorders_Somatic == "", 0, str_count(df$Disorders_Somatic, ";")+1)
+
+# Cluster A: Afferent Sensitivity (neurogenic excitability, interoceptive hypervigilance)
+df$Disorders_Somatic_AfferentSensitivity_N <- rowSums(somatic[, c(
+  "Migraine", "Neuropathy", "MuscleTension", "Dizziness", 
+  "Nausea", "Epilepsy", "FrequentUrination"
+)])
+df$Disorders_Somatic_AfferentSensitivity <- df$Disorders_Somatic_AfferentSensitivity_N >= 1
+
+# Cluster B: Central Sensitization (pain and fatigue syndromes)
+df$Disorders_Somatic_CentralSensitization_N <- rowSums(somatic[, c(
+  "Fibromyalgia", "ChronicPain", "ChronicFatigue", "BackPain", 
+  "PelvicPain", "Endometriosis", "IBS", "Cystitis"
+)])
+df$Disorders_Somatic_CentralSensitization <- df$Disorders_Somatic_CentralSensitization_N >= 1
+
+# Cluster C: Autonomic Dysfunction (dysautonomia and cardiorespiratory instability)
+df$Disorders_Somatic_AutonomicDysfunction_N <- rowSums(somatic[, c(
+  "Hypermobility", "Arrhythmia", "ChestPain", "ShortBreath", 
+  "Hypotension", "Hypertension", "SleepApnea", "COPD", "Bronchitis"
+)])
+df$Disorders_Somatic_AutonomicDysfunction <- df$Disorders_Somatic_AutonomicDysfunction_N >= 1
+
+# Cluster D: Immune-Inflammatory (gut-brain axis, autoimmune and barrier-related conditions)
+df$Disorders_Somatic_ImmuneInflammatory_N <- rowSums(somatic[, c(
+  "SkinRashes", "Eczema", "Psoriasis", "Sjogrens", "Asthma", 
+  "Celiac", "Gluten", "Lactose", "Crohn", "UlcerativeColitis", 
+  "GERD", "MS"
+)])
+df$Disorders_Somatic_ImmuneInflammatory <- df$Disorders_Somatic_ImmuneInflammatory_N >= 1
+
+
+
+
+p2 <- df |> 
+  select(starts_with("Disorders_Somatic_"), Gender, Participant) |> 
+  select(ends_with("_N"), Gender, Participant) |>
+  pivot_longer(starts_with("Disorders_Somatic_")) |> 
+  summarize(n = n(), .by=c("name", "value", "Gender")) |> 
+  mutate(name = str_remove(name, "Disorders_Somatic_"),
+         name = str_remove(name, "_N")) |> 
+  ggplot(aes(x = value, y=n, fill=Gender)) +
+  geom_bar(stat="identity") +
+  scale_fill_manual(values = c("Male"= "#64B5F6", "Female"= "#F06292", "Other"="orange", "Missing"="brown")) +
+  scale_y_continuous(expand = c(0, 0)) +
+  labs(title = "Somatic Issues", y = "Number of Participants", subtitle = "Participants per somatic issues", x="Number of Issues") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  facet_wrap(~name)
+p2
+# 
+# p2 <- df |> 
+#   select(starts_with("Disorders_Somatic_"), Gender, Participant) |> 
+#   select(-ends_with("_N"), Gender, Participant) |>
+#   pivot_longer(starts_with("Disorders_Somatic_")) |> 
+#   summarize(n = n(), .by=c("name", "value", "Gender")) |> 
+#   filter(value == TRUE) |> 
+#   ggplot(aes(x = name, y=n, fill=Gender)) +
+#   geom_bar(stat="identity") +
+#   scale_fill_manual(values = c("Male"= "#64B5F6", "Female"= "#F06292", "Other"="orange", "Missing"="brown")) +
+#   scale_y_continuous(expand = c(0, 0)) +
+#   labs(title = "Somatic Issues", y = "Number of Participants", subtitle = "Participants per somatic issues", x="Type") +
+#   theme_minimal() +
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+# p2
+```
+
+### Wearables 
+
+```{r}
+#| fig-height: 12
+
+p1 <- df |> 
+  ggplot(aes(x = Wearables_Number)) +
+  geom_bar() +
+  scale_x_continuous(breaks = c(0:max(df$Wearables_Number)), expand=c(0, 0)) +
+  scale_y_continuous(expand = c(0, 0)) +
+  labs(title = "Number of Wearable Devices", y = "Number of Participants", x="Number Owned") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  theme_minimal()
+
+
+p2 <- df |> 
+  select(contains("Wearables"), -contains("Importance"), -Wearables_Number) |> 
+  pivot_longer(everything()) |> 
+  summarize(n = n(), .by=c("name", "value")) |> 
+  mutate(value = fct_relevel(value, "Not owning", "Never", "Very rarely", "A few times per week", "Once a day", "A few times per day", "A few times per hour"),
+         name = str_remove(name, "Wearables_")) |> 
+  ggplot(aes(x=value, y=n, fill=name)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Usage frequency", y = "") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+get_databubble <- function(df, var="Heart") {
+  x <- paste0("Wearables_", var)
+  y <- paste0("Wearables_", var, "Importance")
+  dat <- df[df[[x]] != "Not owning", ]
+  dat <- summarize(dat, n = n(), .by = all_of(c(x, y)))
+  lvl <- c("Never", "Very rarely", "A few times per week", "Once a day", "A few times per day", "A few times per hour")
+  dat[[x]] <- factor(dat[[x]], levels=lvl[lvl %in% unique(dat[[x]])])
+  names(dat) <- c("Usage", "Importance", "n")
+  dat$Device <- var
+  dat
+}
+
+p3 <- rbind(
+  get_databubble(df, "Heart"),
+  get_databubble(df, "Sleep"),
+  get_databubble(df, "Steps"),
+  get_databubble(df, "Weight"),
+  get_databubble(df, "CalorieIntake"),
+  get_databubble(df, "CaloriesBurnt")
+) |> 
+  filter(!is.na(Importance)) |> 
+  ggplot(aes(x=Usage, y=Importance)) +
+  geom_jitter(aes(size = n, color = Device), width = 0.2, height = 0.2, alpha = 0.5) +
+  geom_smooth(aes(x=as.numeric(Usage), color = Device), method = "lm", se = FALSE, formula = 'y ~ x') +
+  labs(x = "Usage frequency") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none")
+
+p1 / p2 / p3
+```
+
+
+
+:::
+
+## Save
+
+```{r}
+df |> 
+  select(-contains("AttentionCheck")) |> 
+  write.csv("../data/data_participants.csv", row.names = FALSE)
+```
