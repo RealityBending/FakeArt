@@ -490,6 +490,12 @@ if (nrow(alldata[duplicated(alldata), ]) > 0) {
   stop("Duplicates detected!")
 }
 
+
+# Outlier (based on feedback) ------------------------------------------------------
+# "fghgugdaz0 thought phase 2 was a memory task"
+# alldata_task[alldata_task$Participant == "fghgugdaz0", "Reality"] <- NA
+# alldata_task[alldata_task$Participant == "fghgugdaz0", "Authenticity"] <- NA
+
 # Anonymize ---------------------------------------------------------------
 alldata$ID <- NULL
 alldata$Reward <- NULL
@@ -526,6 +532,6 @@ alldata_task |>
   ggplot(aes(y = Item, x = Value, fill = Style)) +
   ggdist::stat_slab(normalize = "all", height = 3, color = "black") +
   facet_wrap(~ Variable, scales = "free_x")
-alldata_task[alldata_task$Item == "40224.jpg",]
+# unique(alldata_task[alldata_task$Item == "10319.jpg", "Artist"])
 
 

@@ -136,14 +136,14 @@ p_fix
 # By trials
 invalid <- dfori |>
   filter(Stimulus != "Fixation") |>
-  summarize(GazeWithin = sum(GazeWithin), p = sum(GazeWithin) / n(), .by=c("Participant", "Item"))
+  summarize(GazeWithin = sum(GazeWithin), prop = sum(GazeWithin) / n(), .by=c("Participant", "Item"))
 
 p_bad1 <- invalid |> 
   ggplot(aes(x=GazeWithin)) +
   stat_density(aes(group = Participant, y = after_stat(density), color = Participant), geom = "line", position = "identity") +
   scale_y_sqrt() | 
   invalid |> 
-  ggplot(aes(x=p)) +
+  ggplot(aes(x=prop)) +
   stat_density(aes(group = Participant, y = after_stat(density), color = Participant), geom = "line", position = "identity") +
   scale_y_sqrt()
 p_bad1
@@ -151,7 +151,7 @@ p_bad1
 
 # By participants
 dfsub_bad <- invalid |>
-  summarize(Bad = sum(p < 1/3) / n(), .by=c("Participant"))
+  summarize(Bad = sum(prop < 1/3) / n(), .by=c("Participant"))
 
 p_bad2 <- dfsub_bad |>
   mutate(

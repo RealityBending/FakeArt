@@ -308,6 +308,31 @@ estimate_relation(m, length=50) |>
 ```
 
 <!-- We removed `r length(outliers$duration)` (`r insight::format_percent(length(outliers$duration) / nrow(df))`) participants for having completed the experiment in less than 5 minutes. -->
+### Instruction Misunderstanding
+
+Did they misunderstand phase 2 and thought it was a recognition task?
+
+```{r}
+phase2congruence <- dftask |> 
+  summarize(Reality = sum(Reality > 0) / n(), Authenticity = sum(Authenticity > 0)  / n(),
+            # Reality = mean(Reality), Authenticity = mean(Authenticity), 
+            .by=c("Participant", "Condition")) |> 
+  pivot_wider(names_from = Condition, values_from = c(Reality, Authenticity)) |> 
+  # mutate(CongruentReality = (Reality_Human + Reality_AI) / 2,
+  #        CongruentAuthenticity = (Authenticity_Human + Authenticity_Forgery) / 2) |> 
+  full_join(select(df, Participant, Duration_TaskInstructions2), by = "Participant")
+
+phase2congruence |> 
+  ggplot(aes(x = Reality_Human, y = Authenticity_Human, color = log(Duration_TaskInstructions2))) +
+  geom_point(shape = "+", size = 5) +
+  ggrepel::geom_label_repel(data = filter(phase2congruence, Reality_Human > 0.8), 
+                            aes(label = Participant), size = 3) +
+  theme_minimal() +
+  scale_colour_viridis_c()
+  
+
+# Note: we know for sure S024 (fghgugdaz0) is an outlier and thought it was recognition
+```
 
 
 ### Response Consistency

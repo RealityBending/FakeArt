@@ -1,0 +1,259 @@
+---
+title: "Stimuli Selection"
+format: 
+  html:
+    self-contained: false
+editor_options: 
+  chunk_output_type: console
+execute:
+  cache: false
+---
+
+```{r}
+#| message: false
+
+library(tidyverse)
+library(ggside)
+library(patchwork)
+```
+
+
+## Create Data
+
+Script taken from the `stimuli_selection.qmd` of study 1.
+
+```{r}
+# Local path
+filepaths <- list.files("C:/Users/domma/Box/Databases/Art/VAPS/VAPS/", 
+                        pattern=".jpg$", full.names = TRUE, recursive = TRUE, ignore.case = TRUE) 
+
+df <- haven::read_sav("../../experiment/stimuli/stimuli_selection/VAPS_ValidationData.sav") |> # File provided in the database
+  full_join(readxl::read_xlsx("../../experiment/stimuli/stimuli_selection/VAPS_Information.xlsx"), by = "Picture_Number") |> 
+  mutate(
+    Picture_Number = as.numeric(Picture_Number),
+    Folder = case_when(
+      Category == 1 ~ "1 Scenes",
+      Category == 2 ~ "2 Portraits",
+      Category == 3 ~ "3 Landscapes",
+      Category == 4 ~ "4 Still Lifes",
+      .default = "5 Toward Abstraction"),
+    Category = case_when(
+      Category == 1 ~ "Scene",
+      Category == 2 ~ "Portrait",
+      Category == 3 ~ "Landscape",
+      Category == 4 ~ "Still Life",
+      .default = "Abstract"),
+    File = paste0(Picture_Number, ".jpg"),
+    Date = sub("-.*", "", Date),
+    Date = sub("/.*", "", Date),
+    Date = sub("ca. ", "", Date),
+    Date = sub("about ", "", Date),
+    Date = sub("around ", "", Date),
+    Date = sub("before ", "", Date),
+    Date = sub("after ", "", Date),
+    Date = sub("er", "", Date),
+    Date = sub("s", "", Date),
+    Date = sub("um ", "", Date),
+    Date = ifelse(Date %in% c("unknown", "unkown","undated", "Unknown"), NA, Date),
+    Date = as.numeric(Date)) 
+
+df$File <- unlist(sapply(df$File, function(f) filepaths[grepl(f, filepaths, ignore.case = T)], USE.NAMES = F))
+
+df |> 
+  summarize(n = n(), .by = c("Category", "Style")) |> 
+  pivot_wider(names_from = Category, values_from = n, values_fill = 0) |> 
+  full_join(summarize(df, Date = paste0(min(Date, na.rm = TRUE), "-", max(Date, na.rm = TRUE)), .by = "Style"), by = "Style") |>
+  gt::gt()
+
+
+df$Subcategory <- df$Style
+
+df$Style <- case_when(
+  df$Style %in% c("Surrealistic tendencies", "Cubistic tendencies") | df$Category == "Abstract" ~ "Abstract and Avant-garde",
+  df$Style %in% c("Impressionistic tendencies", "Postimpressionistic tendencies",
+                  "Expressionistic tendencies") ~ "Impressionist and Expressionist",
+  df$Style %in% c("Renaissance and Mannerism", "Baroque and Rococo") ~ "Classical",
+  df$Style %in% c("Idealistic tendencies", "Realistic tendencies I. (19th century)",
+                  "Realistic tendencies II. (20th century)") ~ "Romantic and Realism",
+  .default = df$Style
+)
+```
+
+## Old Items
+
+```{r}
+old <- read.csv("../../experiment/stimuli/stimuli_data.csv")
+df$Old <- df$Picture_Number %in% gsub(".jpg", "", old$Item)
+```
+
+## Find Nearest Neighbours
+
+To ensure that each previously seen ("old") artwork was paired with a unique novel ("new") artwork of the same style while maximising overall similarity, we used the Hungarian algorithm (Kuhn, 1955) to solve the assignment problem. For each style, we first computed a distance matrix between all old and eligible new artworks based on their standardised feature ratings (e.g., liking, valence, arousal, complexity, familiarity). The Hungarian algorithm then identified the one-to-one mapping between old and new items that minimised the total Euclidean distance across all pairs. 
+<!-- This approach prevents multiple old artworks from being matched to the same new artwork and yields a globally optimal set of matches rather than a series of independent, greedy nearest-neighbour assignments. -->
+
+```{r}
+features <- select(df, Old, Picture_Number, Style, ends_with("Mean_All"), ends_with("Mean_All")) |> 
+  datawizard::standardise(exclude = c("Old", "Picture_Number", "Style")) 
+vars <- names(select(features, -Old, -Picture_Number, -Style))
+
+matches <- features |>
+  group_split(Style) |>
+  lapply(\(df) {
+    old_items <- df |> filter(Old)
+    new_items <- df |> filter(!Old, Familarity_Mean_All <= 2)
+    
+    # if fewer new than old items, you can't do 1-to-1
+    if (nrow(new_items) < nrow(old_items)) {
+      return(NULL)
+    }
+    
+    # distance matrix
+    dist_mat <- as.matrix(dist(
+      rbind(
+        old_items |> select(all_of(vars)),
+        new_items |> select(all_of(vars))
+      )
+    ))
+    
+    # keep only old x new block
+    dist_mat <- dist_mat[seq_len(nrow(old_items)),
+                         (nrow(old_items) + 1):(nrow(old_items) + nrow(new_items))]
+    
+    # Hungarian algorithm for minimal total distance
+    assignment <- clue::solve_LSAP(dist_mat)
+    
+    tibble(
+      Style = unique(df$Style),
+      Old_Picture_Number = old_items$Picture_Number,
+      Match_Picture_Number = new_items$Picture_Number[assignment],
+      Distance = dist_mat[cbind(seq_len(nrow(old_items)), assignment)]
+    )
+  }) |>
+  bind_rows()
+```
+
+```{r}
+#| fig-width: 10
+#| fig-height: 18
+#| warning: false
+#| code-fold: true
+
+make_plot <- function(x = "Valence_Mean_All", y = "Arousal_Mean_All") {
+  dat <- matches |>
+    left_join(features |> select(Picture_Number, !!x, !!y),
+              by = c("Old_Picture_Number" = "Picture_Number")) |>
+    rename(x_old = !!x, y_old = !!y) |>
+    left_join(features |> select(Picture_Number, !!x, !!y),
+              by = c("Match_Picture_Number" = "Picture_Number")) |>
+    rename(x_new = !!x, y_new = !!y)
+  
+  dat |> 
+    ggplot(aes(x=x_old, y=y_old)) +
+    geom_segment(aes(x = x_old, y = y_old, xend = x_new, yend = y_new),
+                 color = "gray50", alpha = 0.5) +
+    geom_point(aes(x = x_old, y = y_old, color = Style), shape = 16, size = 2) +
+    geom_point(aes(x = x_new, y = y_new, color = Style), shape = 17, size = 2) +
+    ggside::geom_ysidedensity(linewidth = 1, linetype = "solid") +
+    ggside::geom_xsidedensity(linewidth = 1, linetype = "solid") +
+    ggside::geom_ysidedensity(data=mutate(dat, x_old=x_new, y_old=y_new), linewidth = 1, linetype = "dashed") +
+    ggside::geom_xsidedensity(data=mutate(dat, x_old=x_new, y_old=y_new), linewidth = 1, linetype = "dashed") +
+    theme_minimal() + 
+    ggside::theme_ggside_void() + 
+    theme(ggside.panel.scale = .2) +
+    labs(x = x, y = y)  +
+    scale_color_manual(values = c("#E41A1C", "#377EB8", "#4DAF4A", "#FF7F00")) 
+}
+
+make_plot(x="Valence_Mean_All", y="Arousal_Mean_All") /
+  make_plot(x="Familarity_Mean_All", y="Liking_Mean_All") /
+  make_plot(x="Complexity_Mean_All", y="Liking_Mean_All") +
+  plot_layout(guides = "collect") 
+```
+
+
+## Final Selection
+
+
+```{r}
+dffinal <- df[df$Picture_Number %in% c(matches$Old_Picture_Number, matches$Match_Picture_Number), ]
+dffinal$Status <- ifelse(dffinal$Picture_Number %in% matches$Old_Picture_Number, "Old", "New") 
+
+files <- str_split(dffinal$File, "/", simplify = TRUE)[,11]  # Change index to take last element
+
+selection <- dffinal |> 
+  mutate(Item = files) |> 
+  select(Item, Status, Category, Subcategory, Style, Artist, Title, 
+         Date, Width=Width_unified, Height=Height_unified, ends_with("_All"),
+         File) |> 
+  arrange(Style, Item) |> 
+  as.data.frame()
+
+selection |> 
+  select(-File) |> 
+  gt::gt() |> 
+  gt::opt_interactive() |> 
+  gt::data_color(
+    columns = c("Style", "Status"))|> 
+  gt::data_color(
+    columns = c("Liking_Mean_All", "Valence_Mean_All", "Arousal_Mean_All",
+                "Complexity_Mean_All", "Familarity_Mean_All"),
+    palette = c("#E41A1C", "#FF7F00", "#4DAF4A"))
+```
+
+## Difference Test
+
+Bayesian t-tests yielded evidence against a difference (all BFs < 1) between old and new items across all norms (valence, arousal, liking, complexity, familiarity).
+
+```{r}
+rbind(
+  parameters::parameters(BayesFactor::ttestBF(formula = Valence_Mean_All ~ Status, data = selection)) |> 
+    mutate(Parameter = "Valence"),
+  parameters::parameters(BayesFactor::ttestBF(formula = Arousal_Mean_All ~ Status, data = selection)) |> 
+    mutate(Parameter = "Arousal"),
+  parameters::parameters(BayesFactor::ttestBF(formula = Liking_Mean_All ~ Status, data = selection)) |> 
+    mutate(Parameter = "Liking"),
+  parameters::parameters(BayesFactor::ttestBF(formula = Complexity_Mean_All ~ Status, data = selection)) |> 
+    mutate(Parameter = "Complexity"),
+  parameters::parameters(BayesFactor::ttestBF(formula = Familarity_Mean_All ~ Status, data = selection)) |> 
+    mutate(Parameter = "Familarity")
+) |> 
+  format() |> 
+  select(-Method, -Prior) |> 
+  gt::gt() |> 
+  gt::opt_interactive() |> 
+  gt::fmt_auto() |> 
+  gt::tab_header(
+    title = "Bayes Factors for Old vs. New Items"
+  ) 
+```
+
+## Save
+
+
+```{r}
+#| code-fold: true
+#| eval: true
+
+write.csv(select(selection, -File), "../stimuli_data.csv", row.names = FALSE)
+
+json <- selection |>
+  select(Item, Status, Width, Height) |>
+  jsonlite::toJSON()
+
+write(paste("var stimuli_list = ", json), "../stimuli_list.js")
+```
+
+```{r}
+#| code-fold: true
+#| eval: true
+
+# Remove all current files
+unlink("../stimuli/*")
+
+# Copy each file
+for(file in selection$File) {
+  file.copy(file, "../stimuli/")
+}
+```
+
+
