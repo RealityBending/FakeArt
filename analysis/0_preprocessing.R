@@ -33,6 +33,8 @@ for (file in files) {
   progbar$tick()
   rawdata <- read.csv(file)
 
+  participant <- gsub(".csv", "", rev(strsplit(file, "/")[[1]])[1]) # Filename without extension
+
   # Initialize participant-level data
   dat <- rawdata[rawdata$screen == "browser_info", ]
 
@@ -44,8 +46,6 @@ for (file in files) {
   if(dat$researcher %in% c("testp", "test")) {
     next # Skip test participants
   }
-
-  participant <- gsub(".csv", "", rev(strsplit(file, "/")[[1]])[1]) # Filename without extension
 
   data_ppt <- data.frame(
     Participant = participant,

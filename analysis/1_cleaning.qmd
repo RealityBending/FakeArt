@@ -208,7 +208,7 @@ manipcheck |>
   theme_minimal() +
   theme(legend.position = "none") 
 
-# outliers$manipulation <- filter(df, Feedback_AllRealConfidence >= 4 | Feedback_AllFakeConfidence >= 4)$Participant
+outliers$manipulation <- filter(manipcheck, Confidence >= 4)$Participant
 
 manipcheck |> 
   summarize(N = n(), 
@@ -216,7 +216,7 @@ manipcheck |>
             Mean_Confidence = mean(Confidence, na.rm = TRUE),
             SD_Confidence = sd(Confidence, na.rm = TRUE),
             .by = "Answer") |> 
-  gt::gt() 
+  gt::gt()
 ```
 
 
@@ -273,7 +273,7 @@ estimate_relation(m, length=50) |>
   labs(title = "Self-reported participation level",
        subtitle = "Predicted probability of failing attention checks by duration",
        x = "Subjective Data Quality",
-       y = "Probability of failing attention checks") 
+       y = "Probability of failing attention checks")
 ```
 
 ### Experiment Duration
@@ -374,7 +374,7 @@ dfchecks$AnomalyScore <- model$predict(features)$anomaly_score
 
 rez <- dbscan::optics(features, eps = 100, minPts = 2)
 hist(rez$reachdist)
-clusters <- dbscan::extractDBSCAN(rez, eps_cl = 4)
+clusters <- dbscan::extractDBSCAN(rez, eps_cl = quantile(rez$reachdist, 0.66))
 dfchecks$Cluster <- as.factor(clusters$cluster)
 ```
 
