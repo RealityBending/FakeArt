@@ -53,9 +53,12 @@
                 if (jsPsych.data.urlVariables()["exp"] == "SONA") {
                     window.location = "URM" + jsPsych.data.urlVariables()["sona_id"]
                 } else if (jsPsych.data.urlVariables()["exp"] == "prolific") {
-                    window.location = "https://realitybending.github.io/" // Redirect to lab website
-                } else {
-                    window.location = "https://realitybending.github.io/" // Redirect to lab website
+                    d = jsPsych.data.get().filter({ screen: "demographics_debrief" })["trials"][0]
+                    if (d["Reward"] == "Automatic") {
+                        window.location = "https://app.prolific.com/submissions/complete?cc=C1FUNHUW" // Pass
+                    } else {
+                        window.location = "https://app.prolific.com/submissions/complete?cc=C1I3M32X" // Fail
+                    }
                 }
             },
             extensions: [{ type: jsPsychExtensionWebgazer }],

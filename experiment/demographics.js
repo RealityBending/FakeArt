@@ -403,7 +403,7 @@ We apologize for the necessary deception used in the instructions (as there were
         let score = correct.reduce((a, b) => a + b, 0) / correct.length
 
         // Save score and decision
-        if (score >= 0.75) {
+        if (score >= 0) {
             data["Reward"] = "Automatic"
             data["AttentionScore"] = score
         } else {
@@ -433,13 +433,13 @@ var demographics_endscreen = {
             if (d["Reward"] == "Automatic") {
                 text +=
                     "<p><b style='color:red;'>After clicking 'End', you will be redirected to the Prolific reimbursement page</b> (You can alternatively click " +
-                    "<a href='TODO'>here</a>" +
+                    "<a href='https://app.prolific.com/submissions/complete?cc=C1FUNHUW'>here</a>" +
                     " to directly access the link).</p>"
             } else {
                 text +=
                     "<p><b style='color:red;'>Unfortunately, your participation data did not pass our quality check algorithm (this is typically caused by random patterns of answers and failed attention check questions)." +
                     " In order to avoid any penalties, we suggest that you return your participation by clicking " +
-                    "<a href='TODO'>here</a>" +
+                    "<a href='https://app.prolific.com/submissions/complete?cc=C1I3M32X'>here</a>" +
                     ". We apologize for this outcome. Please don't hesitate to contact us on Prolific if you believe that there was a mistake.</p>"
             }
         }
