@@ -71,6 +71,7 @@ for (file in files) {
   }
 
   data_ppt$Reward <- rawdata[rawdata$screen == "demographics_debrief", "Reward"]
+  data_ppt$AttentionScore <- rawdata[rawdata$screen == "demographics_debrief", "AttentionScore"]
 
   # Demographics
   resp <- jsonlite::fromJSON(
@@ -175,9 +176,9 @@ for (file in files) {
       1000 /
       60
   } else {
-    data_ppt$ERNs <- NA
-    data_ppt$ERNs_1 <- data_ppt$ERNs_2_r <- data_ppt$ERNs_3_r <- data_ppt$ERNs_4_r <- NA
-    data_ppt$ERNs_5 <- data_ppt$ERNs_6_r <- data_ppt$ERNs_7_r <- data_ppt$ERNs_8_r <- NA
+    data_ppt$Duration_ERNS <- NA
+    data_ppt$ERNS_1 <- data_ppt$ERNS_2_r <- data_ppt$ERNS_3_r <- data_ppt$ERNS_4_r <- NA
+    data_ppt$ERNS_5 <- data_ppt$ERNS_6_r <- data_ppt$ERNS_7_r <- data_ppt$ERNS_8_r <- NA
   }
 
 
@@ -457,7 +458,6 @@ alldata_gaze <- do.call(rbind, alldata_gaze)
 # table(alldata$Ethnicity)
 # table(alldata$Recruitment)
 
-alldata[c("Duration_ERNS", "Duration_VVIQ", "Experiment_Duration")]
 
 hist(alldata$Experiment_Duration, breaks = 30)
 
@@ -497,9 +497,13 @@ hist(alldata$Experiment_Duration, breaks = 30)
 # Attention checks --------------------------------------------------------
 checks <- data.frame(
   MINT = 1 - alldata$MINT_AttentionCheck / 6,
-  BAIT = alldata$BAIT_AttentionCheck / 6
+  BAIT = alldata$BAIT_AttentionCheck / 6,
+  TASK = alldata$Task_AttentionCheck
 )
-checks$Score <- rowMeans(checks)
+# Weighted mean (MINT + BAIT + TASK * 6)
+checks$Score <- apply(as.matrix(checks), 1, \(x) weighted.mean(x, w = c(1, 1, 6), na.rm  = TRUE))
+# checks$Score <- rowMeans(checks)
+checks$AttentionScore <- alldata$AttentionScore
 checks$ID <- alldata$ID
 checks$Experiment_Duration <- alldata$Experiment_Duration
 checks$Reward <- alldata$Reward

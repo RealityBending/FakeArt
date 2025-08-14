@@ -399,16 +399,15 @@ We apologize for the necessary deception used in the instructions (as there were
         correct = correct.concat([check1, check2])
 
         // Compute attention check score --------------------------------------------------
-        // Compute average
+        // Compute mean
         let score = correct.reduce((a, b) => a + b, 0) / correct.length
 
         // Save score and decision
+        data["AttentionScore"] = score
         if (score >= 0) {
             data["Reward"] = "Automatic"
-            data["AttentionScore"] = score
         } else {
             data["Reward"] = "Return"
-            data["AttentionScore"] = score
         }
     },
 }

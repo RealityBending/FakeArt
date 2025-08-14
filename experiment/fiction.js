@@ -496,7 +496,14 @@ const fiction_phase1_break = {
 
 var fiction_phase1b = {
     timeline_variables: stimuli.slice(Math.ceil(stimuli.length / 2), stimuli.length), // .slice(0, 2), // <---------------------------- TODO: remove the extra slicing added for testing
-    timeline: [fiction_fixation1a, fiction_cue, fiction_fixation1b, fiction_showimage1, fiction_ratings1],
+    timeline: [
+        fiction_fixation1a,
+        fiction_cue,
+        fiction_fixation1b,
+        fiction_showimage1,
+        t_fiction_ratings1_check,
+        t_fiction_ratings1_nocheck,
+    ],
 }
 
 // Stage 2 loops and variables
