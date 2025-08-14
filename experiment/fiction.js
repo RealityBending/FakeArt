@@ -68,8 +68,8 @@ var text_cue = {
 
 stimuli = assignCondition(stimuli_list)
 
-// We make 8 catch trials (always starting from 2 = the first trial)
-catch_trials = [2].concat(generateRandomNumbers(3, stimuli_list.length, 7))
+// We make 6 catch trials (always starting from 2 = the first trial)
+catch_trials = [2].concat(generateRandomNumbers(3, stimuli_list.length, 5))
 
 // Screens =====================================================================
 const fiction_instructions1 = {
