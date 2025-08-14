@@ -24,9 +24,9 @@ files <- list.files(path, full.names = TRUE, pattern = "*.csv")
 # Progress bar
 progbar <- progress_bar$new(total = length(files))
 
-alldata <- data.frame()
-alldata_task <- data.frame()
-alldata_gaze <- data.frame()
+alldata <- list()
+alldata_task <- list()
+alldata_gaze <- list()
 
 
 for (file in files) {
@@ -161,18 +161,25 @@ for (file in files) {
   phq4$instructions_phq4 <- NULL
   data_ppt <- cbind(data_ppt, as.data.frame(phq4))
 
-  erns <- jsonlite::fromJSON(rawdata[
-    rawdata$screen == "questionnaire_erns",
-    "response"
-  ])
-  erns$instructions_erns <- NULL
-  data_ppt <- cbind(data_ppt, as.data.frame(erns))
-  data_ppt$Duration_ERNS <- as.numeric(rawdata[
-    rawdata$screen == "questionnaire_erns",
-    "rt"
-  ]) /
-    1000 /
-    60
+  if("questionnaire_erns" %in% rawdata$screen) {
+    erns <- jsonlite::fromJSON(rawdata[
+      rawdata$screen == "questionnaire_erns",
+      "response"
+    ])
+    erns$instructions_erns <- NULL
+    data_ppt <- cbind(data_ppt, as.data.frame(erns))
+    data_ppt$Duration_ERNS <- as.numeric(rawdata[
+      rawdata$screen == "questionnaire_erns",
+      "rt"
+    ]) /
+      1000 /
+      60
+  } else {
+    data_ppt$ERNs <- NA
+    data_ppt$ERNs_1 <- data_ppt$ERNs_2_r <- data_ppt$ERNs_3_r <- data_ppt$ERNs_4_r <- NA
+    data_ppt$ERNs_5 <- data_ppt$ERNs_6_r <- data_ppt$ERNs_7_r <- data_ppt$ERNs_8_r <- NA
+  }
+
 
   vviq <- jsonlite::fromJSON(rawdata[
     rawdata$screen == "questionnaire_vviq",
@@ -288,7 +295,13 @@ for (file in files) {
   img1 <- rawdata[rawdata$screen == "fiction_image1", ]
   resp1 <- sapply(
     rawdata[rawdata$screen == "fiction_ratings1", "response"],
-    \(x) as.data.frame(jsonlite::fromJSON(x)),
+    \(x) {
+      x <- as.data.frame(jsonlite::fromJSON(x))
+      if(!"AttentionCheck" %in% names(x)) {
+        x$AttentionCheck <- NA
+      }
+      x
+      },
     simplify = FALSE,
     USE.NAMES = FALSE
   )
@@ -335,6 +348,14 @@ for (file in files) {
       sort = FALSE
     )
 
+
+  # Attention check
+  taskchecks <- ifelse(is.na(resp1$AttentionCheck), NA, 0)
+  taskchecks <- ifelse(resp1$AttentionCheck == "Human Forgery" & cue1$condition == "Forgery", 1, taskchecks)
+  taskchecks <- ifelse(resp1$AttentionCheck =="AI-Generated" & cue1$condition == "AI", 1, taskchecks)
+  taskchecks <- ifelse(resp1$AttentionCheck=="Original" & cue1$condition == "Human", 1, taskchecks)
+  data_ppt$Task_AttentionCheck <- mean(taskchecks, na.rm = TRUE)
+
   # Re-map to values in dollars
   # data_task$Worth <- ifelse(data_task$Worth == 1, 10, data_task$Worth)
   # data_task$Worth <- ifelse(data_task$Worth == 2, 100, data_task$Worth)
@@ -342,7 +363,7 @@ for (file in files) {
   # data_task$Worth <- ifelse(data_task$Worth == 4, 10000, data_task$Worth)
   # data_task$Worth <- ifelse(data_task$Worth == 5, 100000, data_task$Worth)
 
-  if (nrow(data_task) != 64) {
+  if (!nrow(data_task) %in% c(64, 48)) {
     print(paste0("No task data for: ", participant))
     next
   }
@@ -386,7 +407,7 @@ for (file in files) {
     # right and y increases downward.
 
     data_gaze <- data.frame()
-    for(i in 1:64) {
+    for(i in 1:nrow(data_task)) {
       if(nrow(gaze_isi[[i]]) > 0) {
         gaze_isi[[i]]$Item <- data_task[i, "Item"]
         gaze_isi[[i]]$Stimulus <- "Fixation"
@@ -423,10 +444,14 @@ for (file in files) {
 
 
   # Save all
-  alldata <- rbind(data_ppt, alldata)
-  alldata_task <- rbind(alldata_task, data_task)
-  alldata_gaze <- rbind(alldata_gaze, data_gaze)
+  alldata[[file]] <- data_ppt
+  alldata_task[[file]] <- data_task
+  alldata_gaze[[file]] <- data_gaze
 }
+
+alldata <- do.call(rbind, alldata)
+alldata_task <- do.call(rbind, alldata_task)
+alldata_gaze <- do.call(rbind, alldata_gaze)
 
 # table(alldata$Education)
 # table(alldata$Ethnicity)
