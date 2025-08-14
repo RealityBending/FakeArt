@@ -41,6 +41,15 @@ function assignCondition(stimuli_list) {
     return shuffleArray(new_stimuli_list)
 }
 
+// Function used to insert catch-trials ("what was the label?") in some trials
+function generateRandomNumbers(min, max, N) {
+    return [...Array(max - min + 1).keys()]
+        .map((i) => i + min)
+        .sort(() => Math.random() - 0.5)
+        .slice(0, N)
+        .sort((a, b) => a - b) // Sort the numbers in ascending order
+}
+
 // Variables ===================================================================
 var fiction_trialnumber = 1
 var color_cues = shuffleArray(["red", "blue", "green"])
@@ -59,6 +68,9 @@ var text_cue = {
 
 stimuli = assignCondition(stimuli_list)
 
+// We make 8 catch trials (always starting from 2 = the first trial)
+catch_trials = [2].concat(generateRandomNumbers(3, stimuli_list.length, 7))
+
 // Screens =====================================================================
 const fiction_instructions1 = {
     type: jsPsychSurvey,
@@ -71,7 +83,7 @@ const fiction_instructions1 = {
                 elements: [
                     {
                         type: "html",
-                        name: "Instructions",
+                        name: "Instructions1",
                         html: `
   <h3>Part 2/4</h3>
   <h1>Instructions</h1>
@@ -118,16 +130,35 @@ const fiction_instructions1 = {
       </div>
     </div>
   </div>
+`,
+                    },
+                ],
+            },
+            {
+                elements: [
+                    {
+                        type: "html",
+                        name: "Instructions2",
+                        html: `
+    <h3>Part 2/4</h3>
+    <h1>Instructions</h1>
+    <h3>What you need to do</h3>
 
-  <h3>What you need to do</h3>
-  <p>Each image will be briefly presented on the screen. After each image, you will be asked to <b>rate your aesthetic experience</b> on the following dimensions:</p>
-  <ul>
-    <li><b style="color: #9C27B0">Beauty</b>: How artistically beautiful the image is? This question is about the <i>aesthetic quality</i> of the artwork in terms of composition, colors, and execution.</li>
-    <li><b style="color: #FF5722">Emotions</b>: To what extent the artwork evokes positive or negative emotions? This question is about the feelings inside you.</li>
-    <li><b style="color: #283593">Thought-Provoking</b>: Does this artwork seem to express something meaningful, profound, symbolic, or thought-provoking to you?</li>
-    <li><b style="color: #FF9800">Worth</b>: What is the maximum amount you'd be willing to pay to own this artwork (for AI-generated ones, a framed print of it) and display it in your home?</li>
- 
-  <p>We want you to <b>pay attention to what each image evokes in you</b>, as if you saw it exposed in an art gallery, without information about the artist. We are interested in your feelings about the artwork in itself.</p>
+    <div>
+    <p>Each image will be briefly presented on the screen. After each image, you will be asked to <b>rate your aesthetic experience</b> on the following dimensions:</p>
+    <ul>
+        <li><b style="color: #9C27B0">Beauty</b>: How artistically beautiful the image is? This question is about the <i>aesthetic quality</i> of the artwork in terms of composition, colors, and execution.</li>
+        <li><b style="color: #FF5722">Emotions</b>: To what extent the artwork evokes positive or negative emotions? This question is about the feelings inside you.</li>
+        <li><b style="color: #283593">Meaningfulness</b>: Does this artwork seem to express something profound, symbolic, or thought-provoking, and convey a conceptually rich message?</li>
+        <li><b style="color: #FF9800">Worth</b>: What is the maximum amount you'd be willing to pay to own this artwork (for forgeries, the physical painted copy and for AI-generated ones, a framed print of it).</li>
+    </ul>
+    <p>We want you to <b>pay attention to what each image evokes in you</b>, as if you saw it exposed in an art gallery, without information about the artist. We are interested in your feelings about the artwork in itself.</p>
+
+    <div style="text-align: center; margin-top: 20px;">
+        <img src="media/example_ratings.png" alt="Example rating scale"
+            style="width: 100%; max-width: 600px; height: auto;">
+    </div>
+    </div>
 `,
                         // Removed familiarity
                         // <li><b style="color: #607D8B">Familiarity</b>: Does this image remind you of something you've seen before? Refers to how much the image feels like something you have already seen before - whether it's the artwork, its style or subject.</ul>
@@ -283,7 +314,95 @@ var fiction_showimage1 = {
     ],
 }
 
+fiction_scales1 = [
+    {
+        type: "slider",
+        name: "Beauty",
+        title: "This artwork is...",
+        isRequired: true,
+        min: -3,
+        max: 3,
+        step: 0.01,
+        customLabels: [
+            {
+                value: -3,
+                text: "Ugly",
+            },
+            {
+                value: 3,
+                text: "Beautiful",
+            },
+        ],
+        // defaultValue: 0,
+    },
+    {
+        type: "rating",
+        name: "Valence",
+        title: "This artwork made me feel...",
+        isRequired: true,
+        rateMin: -3,
+        rateMax: 3,
+        minRateDescription: "Negative",
+        maxRateDescription: "Positive",
+        displayMode: "buttons",
+        rateType: "smileys",
+    },
+    {
+        type: "rating",
+        name: "Meaning",
+        title: "This artwork expresses something meaningful and deep...",
+        isRequired: true,
+        rateMin: 0,
+        rateMax: 6,
+        minRateDescription: "Not at all",
+        maxRateDescription: "Very much",
+        displayMode: "buttons",
+    },
+    {
+        type: "rating",
+        name: "Worth",
+        title: "To own this artwork, I'd be willing to pay...",
+        isRequired: true,
+        css_classes: ["colored-scale"],
+        displayMode: "buttons",
+        rateValues: [
+            { value: 0, text: "$ 0" },
+            { value: 1, text: "$ 10" },
+            { value: 2, text: "$ 100" },
+            { value: 3, text: "$ 1,000" },
+            { value: 4, text: "$ 10,000" },
+            { value: 5, text: "$ 100,000" },
+        ],
+    },
+
+    // Removed familiarity
+    // {
+    //     type: "radiogroup",
+    //     name: "Familiarity",
+    //     title: "This artwork is:",
+    //     isRequired: true,
+    //     choices: ["Unfamiliar", "Familiar with the style", "Familiar with the artist", "I recognize this specific artwork"],
+    // },
+]
+
 var fiction_ratings1 = {
+    type: jsPsychSurvey,
+    survey_json: {
+        goNextPageAutomatic: true,
+        showQuestionNumbers: false,
+        showNavigationButtons: false,
+        title: function () {
+            return "Rating - " + Math.round(((fiction_trialnumber - 1) / stimuli.length) * 100) + "%"
+        },
+        description: "What did you think and feel about the artwork?",
+        pages: [{ elements: fiction_scales1 }],
+    },
+    data: {
+        screen: "fiction_ratings1",
+    },
+}
+
+var fiction_ratings1_check = {
     type: jsPsychSurvey,
     survey_json: {
         goNextPageAutomatic: true,
@@ -295,76 +414,17 @@ var fiction_ratings1 = {
         description: "What did you think and feel about the artwork?",
         pages: [
             {
-                elements: [
+                elements: fiction_scales1.concat([
                     {
-                        type: "slider",
-                        name: "Beauty",
-                        title: "This artwork is...",
+                        title: "What was written in the previous screen?",
+                        name: "AttentionCheck",
+                        type: "radiogroup",
+                        choices: ["Original", "AI-Generated", "Human Forgery", "I don't remember"],
+                        showOtherItem: false,
                         isRequired: true,
-                        min: -3,
-                        max: 3,
-                        step: 0.01,
-                        customLabels: [
-                            {
-                                value: -3,
-                                text: "Ugly",
-                            },
-                            {
-                                value: 3,
-                                text: "Beautiful",
-                            },
-                        ],
-                        // defaultValue: 0,
+                        colCount: 0,
                     },
-                    {
-                        type: "rating",
-                        name: "Valence",
-                        title: "This artwork made me feel...",
-                        isRequired: true,
-                        rateMin: -3,
-                        rateMax: 3,
-                        minRateDescription: "Negative",
-                        maxRateDescription: "Positive",
-                        displayMode: "buttons",
-                        rateType: "smileys",
-                    },
-                    {
-                        type: "rating",
-                        name: "Meaning",
-                        title: "I find this artwork thought-provoking:",
-                        isRequired: true,
-                        rateMin: 0,
-                        rateMax: 6,
-                        minRateDescription: "Not at all",
-                        maxRateDescription: "Very much",
-                        displayMode: "buttons",
-                    },
-                    {
-                        type: "rating",
-                        name: "Worth",
-                        title: "To own this artwork, I'd be willing to pay...",
-                        isRequired: true,
-                        css_classes: ["colored-scale"],
-                        displayMode: "buttons",
-                        rateValues: [
-                            { value: 0, text: "$ 0" },
-                            { value: 1, text: "$ 10" },
-                            { value: 2, text: "$ 100" },
-                            { value: 3, text: "$ 1,000" },
-                            { value: 4, text: "$ 10,000" },
-                            { value: 5, text: "$ 100,000" },
-                        ],
-                    },
-
-                    // Removed familiarity
-                    // {
-                    //     type: "radiogroup",
-                    //     name: "Familiarity",
-                    //     title: "This artwork is:",
-                    //     isRequired: true,
-                    //     choices: ["Unfamiliar", "Familiar with the style", "Familiar with the artist", "I recognize this specific artwork"],
-                    // },
-                ],
+                ]),
             },
         ],
     },
@@ -373,9 +433,40 @@ var fiction_ratings1 = {
     },
 }
 
+// The rating screens are created as conditional timelines to allow for dynamic changes
+// (with or without the attention check question) depending on the trial number
+var t_fiction_ratings1_check = {
+    timeline: [fiction_ratings1_check],
+    conditional_function: function () {
+        if (catch_trials.includes(fiction_trialnumber)) {
+            return true
+        } else {
+            return false
+        }
+    },
+}
+
+var t_fiction_ratings1_nocheck = {
+    timeline: [fiction_ratings1],
+    conditional_function: function () {
+        if (catch_trials.includes(fiction_trialnumber)) {
+            return false
+        } else {
+            return true
+        }
+    },
+}
+
 var fiction_phase1a = {
-    timeline_variables: stimuli.slice(0, Math.ceil(stimuli.length / 2)), // .slice(0, 2), // <---------------------------- TODO: remove the extra slicing added for testing
-    timeline: [fiction_fixation1a, fiction_cue, fiction_fixation1b, fiction_showimage1, fiction_ratings1],
+    timeline_variables: stimuli.slice(0, Math.ceil(stimuli.length / 2)).slice(0, 2), // .slice(0, 2), // <---------------------------- TODO: remove the extra slicing added for testing
+    timeline: [
+        fiction_fixation1a,
+        fiction_cue,
+        fiction_fixation1b,
+        fiction_showimage1,
+        t_fiction_ratings1_check,
+        t_fiction_ratings1_nocheck,
+    ],
 }
 
 const fiction_phase1_break = {

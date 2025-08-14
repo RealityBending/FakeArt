@@ -19,7 +19,7 @@ library(ggimage)
 
 ```{r}
 # Local path
-filepaths <- list.files("C:/Users/domma/Box/Databases/VAPS/VAPS/", 
+filepaths <- list.files("C:/Users/domma/Box/Databases/Art/VAPS/VAPS/", 
                         pattern=".jpg$", full.names = TRUE, recursive = TRUE, ignore.case = TRUE) 
 
 df <- haven::read_sav("VAPS_ValidationData.sav") |> # File provided in the database
@@ -50,7 +50,8 @@ df <- haven::read_sav("VAPS_ValidationData.sav") |> # File provided in the datab
     Date = sub("s", "", Date),
     Date = sub("um ", "", Date),
     Date = ifelse(Date %in% c("unknown", "unkown","undated", "Unknown"), NA, Date),
-    Date = as.numeric(Date))
+    Date = as.numeric(Date)) |> 
+  filter(Picture_Number != "10319")  # Recognized by most members of team and pilots
 
 df$File <- unlist(sapply(df$File, function(f) filepaths[grepl(f, filepaths, ignore.case = T)], USE.NAMES = F))
 
@@ -130,7 +131,7 @@ df |>
 
 
 ```{r}
-N_per_quadrant <- 4
+N_per_quadrant <- 3
 
 dffinal <- data.frame()  # Initialize selected items
 dffiltered <- filter(df, Familiar == FALSE)
@@ -312,7 +313,7 @@ p
 
 
 ```{r}
-files <- str_split(dffinal$File, "/", simplify = TRUE)[,10]  # Change index to take last element
+files <- str_split(dffinal$File, "/", simplify = TRUE)[,11]  # Change index to take last element
 
 selection <- dffinal |> 
   mutate(Item = files) |> 
@@ -339,6 +340,7 @@ selection |>
 
 ```{r}
 #| code-fold: true
+#| eval: true
 
 write.csv(select(selection, -File), "../stimuli_data.csv", row.names = FALSE)
 
@@ -351,6 +353,7 @@ write(paste("var stimuli_list = ", json), "../stimuli_list.js")
 
 ```{r}
 #| code-fold: true
+#| eval: true
 
 # Remove all current files
 unlink("../stimuli/*")

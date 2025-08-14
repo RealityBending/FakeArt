@@ -365,14 +365,42 @@ We apologize for the necessary deception used in the instructions (as there were
         screen: "demographics_debrief",
     },
     on_finish: function (data) {
+        // Task Attention Checks ---------------------------------------------------
+        // Get condition labels and responses to attention check questions
+        let trials = jsPsych.data.get().filter({ screen: "fiction_ratings1" }).values()
+        trials = trials.map((trial) => trial.response)
+        // Get index of trials that contain a AttentionCheck field
+        let idx = trials.map((trial) => Object.keys(trial).includes("AttentionCheck"))
+        // Keep only trials with an AttentionCheck field and extract the answers as an array (do not keep any null)
+        let answers = trials.filter((trial, i) => idx[i]).map((trial) => trial["AttentionCheck"])
+
+        let conditions = jsPsych.data.get().filter({ screen: "fiction_cue" }).values()
+        conditions = conditions.map((trial) => trial.condition).filter((trial, i) => idx[i])
+        // Replace in vector: AI -> AI-Generated, Forgery -> Human Forgery, Human -> Original in a concise way
+        conditions = conditions.map((condition) => {
+            if (condition == "AI") return "AI-Generated"
+            if (condition == "Forgery") return "Human Forgery"
+            if (condition == "Human") return "Original"
+            return condition
+        })
+        // For each answer, 1 if it matches the condition
+        let correct = answers.map((answer, i) => {
+            return answer === conditions[i] ? 1 : 0
+        })
+
+        // Questionnaire Attention Checks ---------------------------------------------
         // Compute attention check score
         let check1 = jsPsych.data.get().filter({ screen: "questionnaire_mint" }).values()[0].response["MINT_AttentionCheck"]
         check1 = 1 - check1 / 6
 
         let check2 = jsPsych.data.get().filter({ screen: "questionnaire_bait" }).values()[0].response["BAIT_AttentionCheck"]
         check2 = check2 / 6
+        // append check1 and check2 to correct
+        correct = correct.concat([check1, check2])
 
-        let score = (check1 + check2) / 2
+        // Compute attention check score --------------------------------------------------
+        // Compute average
+        let score = correct.reduce((a, b) => a + b, 0) / correct.length
 
         // Save score and decision
         if (score >= 0.75) {
