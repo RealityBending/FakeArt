@@ -404,7 +404,7 @@ We apologize for the necessary deception used in the instructions (as there were
 
         // Save score and decision
         data["AttentionScore"] = score
-        if (score >= 0.75) {
+        if (score >= 0.7) {
             data["Reward"] = "Automatic"
         } else {
             data["Reward"] = "Return"
