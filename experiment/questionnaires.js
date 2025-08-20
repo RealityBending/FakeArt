@@ -121,9 +121,9 @@ const mint_items = {
     MINT_ExAc_1: "I can always accurately feel when I am about to fart",
     MINT_ExAc_2: "I can always accurately feel when I am about to sneeze",
     MINT_ExAc_3: "I can always accurately feel when I am about to burp",
-    MINT_ReIA_4: "I always feel in my body if I am relaxed",
-    MINT_ReIA_5: "I always know when I am relaxed",
-    MINT_ReIA_6: "My body is always in the same specific state when I am relaxed",
+    MINT_RelA_4: "I always feel in my body if I am relaxed",
+    MINT_RelA_5: "I always know when I am relaxed",
+    MINT_RelA_6: "My body is always in the same specific state when I am relaxed",
     MINT_SexS_7: "During sex or masturbation, I often feel very strong sensations coming from my genital areas",
     MINT_SexS_8: "My genital organs are very sensitive to pleasant stimulations",
     MINT_SexS_9:
