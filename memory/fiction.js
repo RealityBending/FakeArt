@@ -2,7 +2,6 @@ var fiction_preloadstims_exp2 = {
     type: jsPsychPreload,
     images: [
       ...stimuli_list.map((a) => "./../experiment/stimuli/stimuli/" + a.Item),
-      ...lure_list.map((b) => "./lure/lure/" + b.Item)
     ],
     message: "Please wait while the experiment is being loaded (it can take a few minutes)",
 }
@@ -166,8 +165,7 @@ var fiction_fixation_exp2_1 = {
 var fiction_exp2_showimage1 = {
     type: jsPsychImageKeyboardResponse,
     stimulus: function () {
-      const path = Math.random() < 0 ? "./lure/lure/" : "./../experiment/stimuli/stimuli/" // 0.3 for 30%, 0 for no lure
-      return path + jsPsych.evaluateTimelineVariable("Item")
+      return "./../experiment/stimuli/stimuli/" + jsPsych.evaluateTimelineVariable("Item")
     },
     stimulus_width: function () {
         let ratio = jsPsych.evaluateTimelineVariable("Width") / jsPsych.evaluateTimelineVariable("Height")
