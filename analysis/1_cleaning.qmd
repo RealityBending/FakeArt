@@ -61,15 +61,14 @@ summarize(df, N = n(), .by=c("Recruitment")) |>
   gt::tab_header("Number of participants per recruitment source") 
 ```
 
-## Feedback
+## Experiment Feedback
 
-### Evaluation
-
-::: {.panel-tabset}
-
-#### Experiment Enjoyment
+### Experiment Enjoyment
 
 ```{r}
+#| fig-height: 3
+#| fig-width: 8
+
 df |> 
   summarise(n = n(), .by=c("Experiment_Enjoyment")) |>
   filter(!is.na(Experiment_Enjoyment)) |> 
@@ -94,11 +93,23 @@ df |>
     legend.title = element_blank()) 
 ```
 
-
-#### Proportion
+### Comments
 
 ```{r}
-df |> 
+data.frame(Comments = df$Experiment_Feedback) |> 
+  filter(!tolower(Comments) %in% c(NA, "no", "none", "thank you", "nope", "N/A")) |> 
+  gt::gt() |> 
+  gt::opt_stylize() |> 
+  gt::opt_interactive(use_compact_mode = TRUE) 
+```
+
+
+## Task Feedback
+
+### Proportion
+
+```{r}
+dat <- df |> 
   select(starts_with("Feedback"), -contains("Confidence")) |>
   pivot_longer(everything(), names_to = "Question", values_to = "Answer") |>
   group_by(Question, Answer) |> 
@@ -106,18 +117,19 @@ df |>
   complete(Question, Answer, fill = list(prop = 0)) |> 
   filter(Answer == TRUE) |> 
   mutate(Question = str_remove(Question, "Feedback_"),
-         # Question = str_replace(Question, "NoFacesAttractive", "No Faces Attractive"),
-         # Question = str_replace(Question, "LabelsIncorrect", "Labels were Incorrect"),
-         # Question = str_replace(Question, "LabelsReversed", "Labels were Reversed"),
+         Question = str_replace(Question, "LabelsNotMatched", "Labels did not always match the images"),
+         Question = str_replace(Question, "LabelsReversed", "Labels were Reversed"),
          # Question = str_replace(Question, "DiffNone", "No Difference Real/AI"),
          # Question = str_replace(Question, "DiffObvious", "Obvious Difference Real/AI"),
          # Question = str_replace(Question, "DiffSubtle", "Subtle Difference Real/AI"),
          # Question = str_replace(Question, "AILessAttractive", "AI = less attractive"),
          # Question = str_replace(Question, "AIMoreAttractive", "AI = more attractive"),
          # Question = str_replace(Question, "SomeFacesAttractive", "Some Faces Attractive"),
-         # Question = str_replace(Question, "AllReal", "All Faces were Real"),
+         Question = str_replace(Question, "GoodForgeries", "Forgeries very convincing and hard to distinguish"),
          Question = str_replace(Question, "BadForgeries", "Forgeries were less well executed")) |>
-  mutate(Question = fct_reorder(Question, desc(prop))) |> 
+  mutate(Question = fct_reorder(Question, desc(prop)))
+
+dat |> 
   ggplot(aes(x = Question, y = prop)) +
   geom_bar(stat = "identity") +
   scale_y_continuous(expand = c(0, 0), breaks= scales::pretty_breaks(), labels=scales::percent) +
@@ -132,14 +144,27 @@ df |>
   )
 ```
 
-#### Co-occurence
+```{r}
+dat |> 
+  select(Question, prop) |> 
+  arrange(desc(prop)) |> 
+  mutate(prop = format_percent(prop)) |> 
+  gt::gt() |> 
+  gt::opt_stylize() |> 
+  gt::tab_header("Proportion of participants who answered 'yes' to each question") |> 
+  gt::cols_label(prop = "Proportion of participants who answered 'Yes'")
+```
+
+
+### Co-occurence
 
 ```{r}
 #| warning: false
+#| fig-width: 10
+#| fig-height: 9
 
 cor <- df |> 
   select(starts_with("Feedback"), -contains("Confidence"))  |> 
-  select(-Feedback_MoreBeautifulAI) |>  # No variance
   mutate_all(~ifelse(.==TRUE, 1, 0)) |> 
   correlation(method="tetrachoric", redundant = TRUE) |> 
   correlation::cor_sort() |> 
@@ -172,343 +197,46 @@ cor |>
 
 :::
 
-### Comments
-
-```{r}
-data.frame(Comments = df$Experiment_Feedback) |> 
-  filter(!tolower(Comments) %in% c(NA, "no", "none", "thank you")) |> 
-  gt::gt() |> 
-  gt::opt_stylize() |> 
-  gt::opt_interactive(use_compact_mode = TRUE) 
-```
-
-## Exclusions
-
-```{r}
-outliers <- list()
-```
-
-
-### Manipulation
-
-```{r}
-#| fig-width: 15
-#| fig-height: 15
-
-manipcheck <- df |> 
-  select(Participant, Feedback_ConfidenceReal, Feedback_ConfidenceAI) |> 
-  pivot_longer(-Participant, values_to = "Confidence", names_to = "Answer") |>
-  filter(!is.na(Confidence)) 
-
-manipcheck |> 
-  mutate(Answer = ifelse(str_detect(Answer, "Real"), "All images are real", "All images are fake")) |> 
-  ggplot(aes(x=Confidence, fill=Answer)) +
-  geom_bar() +
-  facet_grid(~Answer) +
-  theme_minimal() +
-  theme(legend.position = "none") 
-
-outliers$manipulation <- filter(manipcheck, Confidence >= 4)$Participant
-
-manipcheck |> 
-  summarize(N = n(), 
-            Prop = n() / nrow(df), 
-            Mean_Confidence = mean(Confidence, na.rm = TRUE),
-            SD_Confidence = sd(Confidence, na.rm = TRUE),
-            .by = "Answer") |> 
-  gt::gt()
-```
-
-
-### Attention Checks
-
-```{r}
-dfchecks <- data.frame(
-  Participant = df$Participant,
-  FailedAttentionChecks = rowSums(dplyr::mutate(df,
-    A1 = ifelse(MINT_AttentionCheck == 0, 0, 1),
-    A2 = ifelse(BAIT_AttentionCheck == 6, 0, 1),
-    .keep = "none"
-  )))
-
-dfchecks |>
-  mutate(Total = as.factor(paste0(FailedAttentionChecks, "/2"))) |> 
-  ggplot(aes(x = Total)) +
-  geom_bar(aes(fill = Total)) +
-  scale_fill_viridis_d(guide = "none") +
-  labs(title = "Failed Attention Checks", y = "Number of Participants", subtitle = "Number of failed attention checks per participant") +
-  theme_modern(axis.title.space = 15) +
-  theme(
-    plot.title = element_text(size = rel(1.2), face = "bold", hjust = 0),
-    plot.subtitle = element_text(size = rel(1.2), vjust = 7),
-    axis.title.x = element_blank(),
-  )
-```
-
-```{r}
-outliers$attentionchecks <- dfchecks$Participant[dfchecks$FailedAttentionChecks >= 1]
-```
-
-<!-- We removed `r length(outliers$attentionchecks)` (`r insight::format_percent(length(outliers$attentionchecks) / nrow(df))`) participants for having failed at least 1 attention check (out of 2). -->
-
-### Self-Reported Participation Score
-
-```{r}
-dfchecks$AttentionCheck <- ifelse(dfchecks$FailedAttentionChecks >= 1, 1, 0)
-dfchecks$AttentionCheckLabel <- ifelse(dfchecks$AttentionCheck == 1, "Failed attention check", "Valid")
-dfchecks$SubjectiveQuality <- df$Experiment_Quality
-
-# m <- mgcv::gam(AttentionCheck ~ s(Quality), data = dfchecks, family = "binomial")
-m <- glm(AttentionCheck ~ SubjectiveQuality, data = dfchecks, family = "binomial")
-
-estimate_relation(m, length=50) |> 
-  ggplot(aes(x = SubjectiveQuality, y = Predicted)) +
-  geom_ribbon(aes(ymin = CI_low, ymax = CI_high), alpha = 0.2) +
-  geom_line() +
-  # geom_vline(xintercept=10, linetype="dashed", color="red") +
-  scale_y_continuous(labels = scales::percent) +
-  theme_minimal() +
-  ggside::geom_xsidedensity(data=dfchecks, aes(fill=AttentionCheckLabel), alpha=0.3) +
-  ggside::theme_ggside_void() +
-  labs(title = "Self-reported participation level",
-       subtitle = "Predicted probability of failing attention checks by duration",
-       x = "Subjective Data Quality",
-       y = "Probability of failing attention checks")
-```
-
-### Experiment Duration
-
-```{r}
-dfchecks$Duration_Experiment <- log(df$Experiment_Duration)
-dfchecks$Duration_Instructions1 <- log(df$Duration_TaskInstructions1)
-dfchecks$Duration_Instructions2 <- log(df$Duration_TaskInstructions2)
-# dfchecks <- filter(dfchecks, Duration < 120)
-
-# m <- mgcv::gam(AttentionCheck ~ s(Duration), data = dfchecks, family = "binomial")
-m <- glm(AttentionCheck ~ Duration_Experiment, data = dfchecks, family = "binomial")
-
-estimate_relation(m, length=50) |> 
-  ggplot(aes(x = exp(Duration_Experiment), y = Predicted)) +
-  geom_ribbon(aes(ymin = CI_low, ymax = CI_high), alpha = 0.2) +
-  geom_line() +
-  # geom_vline(xintercept=60, linetype="dashed", color="red") +
-  theme_minimal() +
-  scale_y_continuous(labels = scales::percent) +
-  ggside::geom_xsidedensity(data=dfchecks, aes(fill=AttentionCheckLabel), alpha=0.3) +
-  ggside::theme_ggside_void() +
-  labs(title = "Experiment Duration",
-       subtitle = "Predicted probability of failing attention checks by duration",
-       x = "Experiment Duration (minutes)",
-       y = "Probability of failing attention checks") 
-```
-
-```{r}
-# outliers$duration <- as.character(df[df$Experiment_Duration < 10, "Participant"])
-# outliers$duration <- outliers$duration[!outliers$duration %in% outliers$attentionchecks]
-```
-
-<!-- We removed `r length(outliers$duration)` (`r insight::format_percent(length(outliers$duration) / nrow(df))`) participants for having completed the experiment in less than 5 minutes. -->
-### Instruction Misunderstanding
-
-Did they misunderstand phase 2 and thought it was a recognition task?
-
-```{r}
-phase2congruence <- dftask |> 
-  summarize(Reality = sum(Reality > 0) / n(), Authenticity = sum(Authenticity > 0)  / n(),
-            # Reality = mean(Reality), Authenticity = mean(Authenticity), 
-            .by=c("Participant", "Condition")) |> 
-  pivot_wider(names_from = Condition, values_from = c(Reality, Authenticity)) |> 
-  # mutate(CongruentReality = (Reality_Human + Reality_AI) / 2,
-  #        CongruentAuthenticity = (Authenticity_Human + Authenticity_Forgery) / 2) |> 
-  full_join(select(df, Participant, Duration_TaskInstructions2), by = "Participant")
-
-phase2congruence |> 
-  ggplot(aes(x = Reality_Human, y = Authenticity_Human, color = log(Duration_TaskInstructions2))) +
-  geom_point(shape = "+", size = 5) +
-  ggrepel::geom_label_repel(data = filter(phase2congruence, Reality_Human > 0.8), 
-                            aes(label = Participant), size = 3) +
-  theme_minimal() +
-  scale_colour_viridis_c()
-  
-
-# Note: we know for sure S024 (fghgugdaz0) is an outlier and thought it was recognition
-```
-
-
-### Response Consistency
-
-```{r}
-#| warning: false
-
-# (plot(cor_test(dftask, "Beauty", "Valence")) | 
-#   plot(cor_test(dftask, "Beauty", "Meaning")) |
-#   plot(cor_test(dftask, "Beauty", "Worth"))) /
-#   (plot(cor_test(dftask, "Meaning", "Valence")) |
-#   plot(cor_test(dftask, "Meaning", "Worth")) |
-#   plot(cor_test(dftask, "Worth", "Valence")))
-
-dfchecks <- dftask |> 
-  summarize(across(c("Beauty", "Valence", "Meaning", "Worth", "Reality"), 
-                   list(M = ~ mean(.x, na.rm = TRUE), SD = ~ sd(.x, na.rm = TRUE))),
-            cor_BeautyValence = cor(Beauty, Valence),
-            cor_MeaningWorth = cor(Meaning, Worth),
-            .by = c("Participant")) |> 
-  mutate(cor_BeautyValence = ifelse(is.na(cor_BeautyValence), 0, cor_BeautyValence),
-         cor_MeaningWorth = ifelse(is.na(cor_MeaningWorth), 0, cor_MeaningWorth)) |>
-  full_join(dfchecks, by = "Participant", keep = FALSE)
-```
-
-### Clustering
-
-```{r}
-#| warning: false
-
-features <- dfchecks |> 
-  select(matches("_M|_SD|cor_|AttentionCheck$|SubjectiveQuality|Duration")) |> 
-  standardize()
-
-model <- solitude::isolationForest$new(sample_size = nrow(features), num_trees = 100)
-model$fit(features)
-dfchecks$AnomalyScore <- model$predict(features)$anomaly_score
-
-
-rez <- dbscan::optics(features, eps = 100, minPts = 2)
-hist(rez$reachdist)
-clusters <- dbscan::extractDBSCAN(rez, eps_cl = quantile(rez$reachdist, 0.66))
-dfchecks$Cluster <- as.factor(clusters$cluster)
-```
-
-
-```{r}
-#| warning: false
-
-# Example features
-selected_features <- features |> 
-  mutate(AnomalyScoreRaw=dfchecks$AnomalyScore, 
-         Cluster = dfchecks$Cluster,
-         AnomalyScore=as.numeric(standardize(dfchecks$AnomalyScore)), 
-         # AttentionCheck, 
-         SubjectiveQuality, 
-         Duration_Experiment, 
-         Duration_Instructions1,
-         Duration_Instructions2,
-         Beauty_M, 
-         Beauty_SD, 
-         cor_BeautyValence,
-         .keep = "none") |> 
-  select(AnomalyScoreRaw, Cluster, AnomalyScore, SubjectiveQuality, starts_with("Duration"), everything())
-
-
-var_names <- names(select(selected_features, -AnomalyScoreRaw, -Cluster))
-feature_pairs <- expand_grid(x_var = var_names, y_var = var_names)
-feature_pairs <- feature_pairs |> 
-  mutate(
-    triangle = case_when(
-      match(x_var, var_names) > match(y_var, var_names) ~ "lower",
-      match(x_var, var_names) == match(y_var, var_names) ~ "diag",
-      TRUE ~ "upper"
-    )
-  )
-plot_data <- pmap_dfr(feature_pairs, function(x_var, y_var, triangle) {
-  selected_features |> 
-    select(AnomalyScoreRaw, Cluster, x = all_of(x_var), y = all_of(y_var)) |> 
-    mutate(x_var = x_var, y_var = y_var, triangle = triangle)
-}) |> 
-  mutate(
-    x_var = factor(x_var, levels = rev(var_names)),
-    y_var = factor(y_var, levels = rev(var_names))
-  ) 
-
-diag_histograms <- map_dfr(var_names, function(var) {
-  hist_data <- hist(selected_features[[var]], breaks = 30, plot = FALSE)
-  y_range <- range(selected_features[[var]], na.rm = TRUE)
-
-  data.frame(
-    x = hist_data$breaks[-length(hist_data$breaks)],
-    xmax = hist_data$breaks[-1],
-    ymin = y_range[1],                              # variable min, bars start here
-    ymax = as.numeric(datawizard::rescale(hist_data$counts, to = y_range)),
-    var = var)
-}) |> mutate(
-  x_var = factor(var, levels = rev(var_names)),
-  y_var = factor(var, levels = rev(var_names))
-)
-
-ggplot(plot_data, aes(x = x)) +
-  geom_rect(data = diag_histograms,
-           aes(xmin = x, xmax = xmax, ymin = ymin, ymax = ymax), fill = "grey60") +
-  stat_density_2d_filled(data = filter(plot_data, triangle == "lower", x_var != "AttentionCheck", y_var != "AttentionCheck"),
-                         aes(y = y, fill = after_stat(nlevel)), show.legend = FALSE) +
-  geom_point2(data = filter(plot_data, triangle == "lower"),
-              aes(y = y, color = Cluster), alpha = 0.7, size = 3) +
-  geom_blank(data = filter(plot_data, triangle != "lower")) +
-  
-  facet_grid(y_var ~ x_var, scales = "free", switch = "both") +
-  scale_fill_gradient(low = "white", high = "darkgreen") +
-  # scale_color_gradient(low = "black", high = "red") +
-  theme_minimal() +
-  theme(panel.grid = element_blank(),
-        axis.text = element_blank(),
-        axis.title = element_blank())
-```
-
-### UMAP
-```{r}
-# Grid search
-
-param_grid <- expand.grid(
-  n_neighbors = c(3, 5, 10),
-  min_dist = c(0.01, 0.1, 0.5),
-  metric = "euclidean"
-)
-
-umap_plots <- list()
-for (i in seq_len(nrow(param_grid))) {
-  params <- param_grid[i, ]
-  set.seed(123)
-  out <- uwot::umap(as.matrix(features),
-                   n_neighbors = params$n_neighbors,
-                   min_dist = params$min_dist,
-                   metric = params$metric) |> 
-    as.data.frame()
-  
-  colnames(out) <- c("UMAP1", "UMAP2")
-  out$param_combo <- paste0("nn=", params$n_neighbors, ", md=", params$min_dist)
-  out$Participant <- dfchecks$Participant
-  out$AnomalyScore <- selected_features$AnomalyScore
-  out$Cluster <- selected_features$Cluster
-  
-  umap_plots[[i]] <- ggplot(out, aes(UMAP1, UMAP2, color = Cluster)) +
-    # geom_point(size = 3, alpha = 0.8) +
-    geom_text(aes(label = Participant), size = 3, vjust = 0.5, hjust=0.5) +
-    # scale_color_viridis_c(option = "plasma") +
-    theme_minimal() +
-    labs(title = out$param_combo[1]) 
-}
-
-wrap_plots(umap_plots, ncol = 3)
-```
-
-
-
-```{r}
-#| code-fold: false
-
-# df <- filter(df, !Participant %in% c(outliers$attentionchecks, outliers$duration, outliers$distance))
-```
-
-```{r}
-dftask |> 
-  select(Participant, Beauty, Valence, Meaning, Worth, Reality, Authenticity) |> 
-  pivot_longer(-Participant, names_to = "Variable", values_to = "Value") |>
-  ggplot(aes(x = Value)) +
-  geom_histogram(aes(fill = Variable, y = after_stat(density)), bins = 30, position = "identity") +
-  stat_density(aes(group=Participant), geom = "line", position = "identity", 
-               color = "black", linewidth = 0.5, alpha = 0.5) +
-  facet_wrap(~Variable, scales = "free") 
-```
 
 ## Dimension Computation
+
+```{r}
+# Should we re-map the Worth values? -----------------------------------
+# Re-map to values in dollars
+# alldata_task$Worth2 <- ifelse(alldata_task$Worth == 1, 10, alldata_task$Worth)
+# alldata_task$Worth2 <- ifelse(alldata_task$Worth2 == 2, 100, alldata_task$Worth2)
+# alldata_task$Worth2 <- ifelse(alldata_task$Worth2 == 3, 1000, alldata_task$Worth2)
+# alldata_task$Worth2 <- ifelse(alldata_task$Worth2 == 4, 10000, alldata_task$Worth2)
+# alldata_task$Worth2 <- ifelse(alldata_task$Worth2 == 5, 100000, alldata_task$Worth2)
+#
+# library(tidyverse)
+#
+# t <- as.data.frame(table(alldata_task$Worth))
+# cor.test(as.numeric(as.character(t$Var1)), t$Freq)
+# t <- as.data.frame(table(log1p(alldata_task$Worth2)))
+# cor.test(as.numeric(as.character(t$Var1)), t$Freq)
+#
+# ggplot(alldata_task, aes(x=Worth)) +
+#   geom_bar() +
+#   geom_abline()
+# ggplot(alldata_task, aes(x=log1p(Worth2))) +
+#   geom_bar()
+# ggplot(alldata_task, aes(x=Worth2)) +
+#   geom_bar() +
+#   scale_x_continuous(transform = "log1p", breaks = c(0, 10, 100, 1000, 10000, 100000))
+# ggplot(alldata_task, aes(x=Worth, y=Beauty)) +
+#   geom_smooth(method = "lm") +
+#   geom_jitter(height=0)
+# ggplot(alldata_task, aes(x=Worth2, y=Beauty)) +
+#   geom_smooth(method = "lm") +
+#   geom_jitter(height=0) +
+#   scale_x_continuous(transform = "log1p", breaks = c(0, 10, 100, 1000, 10000, 100000))
+# summary(lm(Beauty ~ Worth, data = alldata_task))
+# summary(lm(Beauty ~ log1p(Worth2), data = alldata_task))
+```
+
+
+### MINT
 
 ```{r}
 #| code-fold: true
@@ -528,21 +256,612 @@ compute_and_remove <- function(df, name="BodyAwareness", pattern=name, method="m
 ```{r}
 #| code-fold: false
 
-df <- compute_and_remove(df, name="IAS", method="sum")
+# > names(df)
+#   [1] "Participant"                    "Recruitment"                    "Experiment_StartDate"           "Experiment_Duration"           
+#   [5] "Browser_Version"                "Mobile"                         "Platform"                       "Screen_Width"                  
+#   [9] "Screen_Height"                  "Gender"                         "Age"                            "Education"                     
+#  [13] "Student"                        "Country"                        "Ethnicity"                      "Art_Expertise"                 
+#  [17] "Experiment_Enjoyment"           "Experiment_Quality"             "Experiment_Feedback"            "MINT_Derm_16"                  
+#  [21] "MINT_Resp_26"                   "MINT_ExAc_1"                    "MINT_Gast_33"                   "MINT_Olfa_23"                  
+#  [25] "MINT_Derm_18"                   "MINT_Sati_20"                   "MINT_Resp_25"                   "MINT_ReIA_6"                   
+#  [29] "MINT_ReIA_4"                    "MINT_ExAc_2"                    "MINT_SexS_9"                    "MINT_SexS_7"                   
+#  [33] "MINT_Gast_32"                   "MINT_Derm_17"                   "MINT_Urin_15"                   "MINT_CaCo_11"                  
+#  [37] "MINT_Urin_13"                   "MINT_Sati_21"                   "MINT_Card_29"                   "MINT_CaCo_10"                  
+#  [41] "MINT_Resp_27"                   "MINT_Sati_19"                   "MINT_CaCo_12"                   "MINT_AttentionCheck"           
+#  [45] "MINT_Olfa_24"                   "MINT_Gast_31"                   "MINT_Urin_14"                   "MINT_ReIA_5"                   
+#  [49] "MINT_Card_28"                   "MINT_Card_30"                   "MINT_SexS_8"                    "MINT_ExAc_3"                   
+#  [53] "MINT_Olfa_22"                   "Duration_MINT"                  "BAIT_AI_Knowledge"              "BAIT_AI_Use"                   
+#  [57] "BAIT_5_ImitatingReality"        "BAIT_12_Benefit"                "BAIT_4_VideosRealistic"         "BAIT_8_TextIssues"             
+#  [61] "BAIT_1_ImagesRealistic"         "BAIT_2_ImagesIssues"            "BAIT_3_VideosIssues"            "BAIT_14_ArtRealistic"          
+#  [65] "BAIT_6_EnvironmentReal"         "BAIT_9_Dangerous"               "BAIT_7_TextRealistic"           "BAIT_13_ArtIssues"             
+#  [69] "BAIT_AttentionCheck"            "BAIT_10_Worry"                  "BAIT_11_Exciting"               "Duration_BAIT"                 
+#  [73] "LifeSatisfaction"               "PHQ4_Depression_4"              "PHQ4_Anxiety_1"                 "PHQ4_Depression_3"             
+#  [77] "PHQ4_Anxiety_2"                 "Duration_ERNS"                  "ERNS_4_r"                       "ERNS_3_r"                      
+#  [81] "ERNS_2_r"                       "ERNS_1"                         "ERNS_8_r"                       "ERNS_7_r"                      
+#  [85] "ERNS_6_r"                       "ERNS_5"                         "VVIQ_Friend_1"                  "VVIQ_Friend_2"                 
+#  [89] "VVIQ_Friend_3"                  "VVIQ_Friend_4"                  "VVIQ_Sun_5"                     "VVIQ_Sun_7"                    
+#  [93] "VVIQ_Sun_6"                     "VVIQ_Sun_8"                     "VVIQ_Shop_9"                    "VVIQ_Shop_10"                  
+#  [97] "VVIQ_Shop_11"                   "VVIQ_Shop_12"                   "VVIQ_Country_13"                "VVIQ_Country_14"               
+# [101] "VVIQ_Country_15"                "VVIQ_Country_16"                "Duration_VVIQ"                  "Duration_TaskInstructions1"    
+# [105] "Duration_TaskInstructions2"     "Feedback_MoreBeautifulAI"       "Feedback_LessBeautifulAI"       "Feedback_BigDifferenceRealAI"  
+# [109] "Feedback_SmallDifferenceRealAI" "Feedback_NoDifferenceRealAI"    "Feedback_BadForgeries"          "Feedback_GoodForgeries"        
+# [113] "Feedback_LabelsNoAttention"     "Feedback_LabelsPaidAttention"   "Feedback_LabelsNotMatched"      "Feedback_LabelsReversed"       
+# [117] "Feedback_LabelsAllReal"         "Feedback_LabelsAllAI"           "Feedback_ConfidenceReal"        "Feedback_ConfidenceAI"         
+# [121] "Task_AttentionCheck"            "Eyetracking_Validation1"        "Eyetracking_Validation2"       
 
-df <- compute_and_remove(df, name="BPQ", pattern="BodyAwareness", method="mean")
+df <- compute_and_remove(df, name="MINT_Card", method="mean")
+df <- compute_and_remove(df, name="MINT_Urin", method="mean")
+df <- compute_and_remove(df, name="MINT_SexS", method="mean")
+df <- compute_and_remove(df, name="MINT_Gast", method="mean")
+df <- compute_and_remove(df, name="MINT_Olfa", method="mean")
+df <- compute_and_remove(df, name="MINT_Derm", method="mean")
+df <- compute_and_remove(df, name="MINT_ExAc", method="mean")
+df <- compute_and_remove(df, name="MINT_RelA", method="mean")
 
 
-df[grepl("^MAIA_.*_R$", names(df))] <- 6 - df[grepl("^MAIA_.*_R$", names(df))]  # Reverse
-df <- compute_and_remove(df, name="MAIA_AttentionRegulation", method="mean")
-df <- compute_and_remove(df, name="MAIA_BodyListening", method="mean")
-df <- compute_and_remove(df, name="MAIA_EmotionalAwareness", method="mean")
-df <- compute_and_remove(df, name="MAIA_NotDistracting", method="mean")
-df <- compute_and_remove(df, name="MAIA_Noticing", method="mean")
-df <- compute_and_remove(df, name="MAIA_NotWorrying", method="mean")
-df <- compute_and_remove(df, name="MAIA_SelfRegulation", method="mean")
-df <- compute_and_remove(df, name="MAIA_Trusting", method="mean")
+
+
+
+# df[grepl("^MAIA_.*_R$", names(df))] <- 6 - df[grepl("^MAIA_.*_R$", names(df))]  # Reverse
+# df <- compute_and_remove(df, name="MAIA_AttentionRegulation", method="mean")
 ```
+
+
+## Exclusions 
+
+```{r}
+exclude <- list()
+```
+
+### Questionnaires
+
+
+```{r}
+m <- mgcv::gam(MINT_AttentionCheck ~ s(Duration_MINT), 
+         data = mutate(df, MINT_AttentionCheck = ifelse(MINT_AttentionCheck != 0, 1, 0)), family = "binomial")
+
+estimate_relation(m, length=50) |>
+  ggplot(aes(x = Duration_MINT, y = Predicted)) +
+  geom_ribbon(aes(ymin = CI_low, ymax = CI_high), alpha = 0.2) +
+  geom_line() +
+  theme_minimal() +
+  scale_y_continuous(labels = scales::percent) +
+  labs(title = "MINT Attention Check",
+       subtitle = "Predicted probability of failing attention check by duration",
+       x = "Duration (minutes)",
+       y = "Probability of failing attention check")
+
+table(ifelse(df$MINT_AttentionCheck != 0, 1, 0), ifelse(df$BAIT_AttentionCheck != 6, 1, 0))
+
+
+for(ppt in df$Participant) {
+  if(df[df$Participant == ppt, "MINT_AttentionCheck"] != 0) {
+    df[df$Participant == ppt, names(select(df, starts_with("MINT"), -MINT_AttentionCheck))] <- NA
+    df[df$Participant == ppt, names(select(df, starts_with("VVIQ")))] <- NA
+  }
+  
+  if(df[df$Participant == ppt, "BAIT_AttentionCheck"] != 6) {
+    df[df$Participant == ppt, names(select(df, starts_with("BAIT"), -BAIT_AttentionCheck))] <- NA
+  }
+}
+```
+
+
+
+### Attention Checks
+
+```{r}
+dfchecks <- data.frame(
+  Participant = df$Participant,
+  A_MINT = ifelse(df$MINT_AttentionCheck == 0, 0, 1),
+  A_BAIT = ifelse(df$BAIT_AttentionCheck == 6, 0, 1),
+  A_TASK = 1 - df$Task_AttentionCheck
+)
+
+summary(correlation(dfchecks))
+
+dfchecks |>
+  mutate(Total = round(A_TASK, 2)) |> 
+  ggplot(aes(x = Total)) +
+  geom_bar(aes(fill = as.factor(Total))) +
+  scale_fill_viridis_d(guide = "none") +
+  scale_x_continuous(labels = scales::percent) +
+  labs(title = "Failed Attention Checks", y = "Number of Participants", subtitle = "Number of failed attention checks per participant") +
+  theme_modern(axis.title.space = 15) +
+  theme(
+    plot.title = element_text(size = rel(1.2), face = "bold", hjust = 0),
+    plot.subtitle = element_text(size = rel(1.2), vjust = 7),
+    axis.title.x = element_blank(),
+  )
+```
+
+```{r}
+exclude$checks <- as.character(na.omit(dfchecks[dfchecks$A_TASK >= 0.5, "Participant"]))
+```
+
+
+We removed `r length(exclude$checks)` (`r insight::format_percent(length(exclude$checks) / nrow(df))`) participants for having failed at least 50% of attention checks.
+
+
+
+### Experiment Duration
+
+```{r}
+dfchecks$Duration_Experiment <- df |> 
+  mutate(Version = ifelse(Recruitment == "prolific", "long", "short")) |> 
+  mutate(Experiment_Duration = as.numeric(standardize(Experiment_Duration)), .by = "Version") |>
+  pull(Experiment_Duration) |> 
+  normalize() |> 
+  log1p()
+
+# hist(dfchecks$Duration_Experiment)
+
+dfchecks$Duration_Instructions1 <- log(df$Duration_TaskInstructions1)
+dfchecks$Duration_Instructions2 <- log(df$Duration_TaskInstructions2)
+
+m <- mgcv::gam(A_TASK ~ s(Duration_Experiment), 
+               data = dfchecks[!is.na(dfchecks$A_TASK),] |> 
+                 mutate(A_TASK = normalize(A_TASK, include_bounds = 0.001)), family = "betar")
+
+estimate_relation(m, length=50) |> 
+  ggplot(aes(x = Duration_Experiment, y = Predicted)) +
+  geom_ribbon(aes(ymin = CI_low, ymax = CI_high), alpha = 0.2) +
+  geom_line() +
+  geom_hline(yintercept=1/3, linetype="dashed", color="darkgrey") +
+  geom_vline(xintercept=0.52, linetype="dashed", color="red") +
+  theme_minimal() +
+  scale_y_continuous(labels = scales::percent) +
+  ggside::geom_xsidedensity(
+    data=mutate(dfchecks[!is.na(dfchecks$A_TASK),], AttentionCheckLabel = ifelse(A_TASK >= 0.5, "Failed 50% attention checks", "Valid")), 
+    aes(fill=AttentionCheckLabel), alpha=0.3) +
+  ggside::theme_ggside_void() +
+  labs(title = "Experiment Duration",
+       subtitle = "Predicted probability of failing attention checks by duration",
+       x = "Experiment Duration (log(Z))",
+       y = "Probability of failing attention checks") 
+```
+
+```{r}
+exclude$duration <- as.character(dfchecks[dfchecks$Experiment_Duration >= 0.52, "Participant"])
+exclude$duration <- exclude$duration[!exclude$duration %in% exclude$checks]
+```
+
+<!-- We removed `r length(exclude$duration)` (`r insight::format_percent(length(exclude$duration) / nrow(df))`) participants for having completed the experiment in less than 5 minutes. -->
+
+
+### Response Consistency
+
+```{r}
+#| warning: false
+#| fig-width: 10
+#| fig-height: 10
+
+dftask |> 
+  select(-starts_with("Screen"), -starts_with("Trial")) |> 
+  correlation() |> 
+  summary() |> 
+  plot() +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+dfchecks <- dftask |> 
+  summarize(across(c("Beauty", "Valence", "Meaning", "Worth", "Reality"), 
+                   list(M = ~ mean(.x, na.rm = TRUE), SD = ~ sd(.x, na.rm = TRUE))),
+            cor_BeautyValence = cor(Beauty, Valence, method = "spearman"),
+            cor_MeaningWorth = cor(Meaning, Worth, method = "spearman"),
+            cor_BeautyNorm = cor(Beauty, Norms_Liking, method = "spearman"),
+            cor_ValenceNorm = cor(Valence, Norms_Valence, method = "spearman"),
+            .by = c("Participant")) |> 
+  mutate(cor_BeautyValence = ifelse(is.na(cor_BeautyValence), -1, cor_BeautyValence),
+         cor_MeaningWorth = ifelse(is.na(cor_MeaningWorth), -1, cor_MeaningWorth),
+         cor_BeautyNorm = ifelse(is.na(cor_BeautyNorm), -1, cor_BeautyNorm)) |>
+  full_join(dfchecks, by = "Participant", keep = FALSE)
+```
+
+### Anomaly Score
+
+```{r}
+#| warning: false
+#| message: false
+
+features <- dfchecks |> 
+  mutate(A_QUESTIONNAIRES = (A_MINT + A_BAIT) / 2) |> 
+  select(-A_MINT, -A_BAIT, -A_TASK) |> 
+  select(matches("_M|_SD|cor_|A_|SubjectiveQuality|Duration")) |> 
+  standardize()
+
+model <- solitude::isolationForest$new(sample_size = nrow(features), num_trees = 500)
+model$fit(features)
+dfchecks$AnomalyScore <- model$predict(features)$anomaly_score
+ 
+# features <- mice::mice(features, method="pmm", m = 20, seed = 123, printFlag = FALSE) |> 
+#   suppressWarnings() |> 
+#   mice::complete(1)
+```
+
+```{r}
+#| warning: false
+
+m <- mgcv::gam(A_TASK ~ s(log(AnomalyScore), k=80), 
+               data = dfchecks[!is.na(dfchecks$A_TASK),] |> 
+                 mutate(A_TASK = normalize(A_TASK, include_bounds = 0.001)), 
+               family = "betar")
+# m <- mgcv::gam(A_TASK ~ s(log(AnomalyScore), k=20), data = mutate(dfchecks, A_TASK = ifelse(A_TASK >= 0.5, 1, 0)), family = "binomial")
+
+estimate_relation(m, length=100) |> 
+  ggplot(aes(x = AnomalyScore, y = Predicted)) +
+  geom_ribbon(aes(ymin = CI_low, ymax = CI_high), alpha = 0.2) +
+  geom_line() +
+  geom_vline(xintercept=quantile(dfchecks$AnomalyScore, 0.95), linetype="dashed", color="red") +
+  theme_minimal() +
+  scale_y_continuous(labels = scales::percent) +
+  labs(title = "Experiment Duration",
+       subtitle = "Predicted probability of failing attention checks by duration",
+       x = "Anomaly Score",
+       y = "Probability of failing attention checks") +
+  ggside::geom_xsidehistogram(data=dfchecks, alpha=0.3, bins = 60) +
+  ggside::geom_ysidedensity(data=dfchecks, aes(y=A_TASK), alpha=0.3) +
+  ggside::theme_ggside_void() 
+```
+
+
+```{r}
+exclude$anomaly <- as.character(dfchecks[dfchecks$AnomalyScore > quantile(dfchecks$AnomalyScore, 0.95), "Participant"])
+exclude$anomaly <- exclude$anomaly[!exclude$anomaly %in% exclude$duration]
+exclude$anomaly <- exclude$anomaly[!exclude$anomaly %in% exclude$checks]
+
+length(c(exclude$anomaly, exclude$duration, exclude$checks))
+```
+
+
+<!-- ### Clustering -->
+
+<!-- ```{r} -->
+<!-- #| warning: false -->
+
+<!-- rez <- dbscan::optics(features, eps = 100, minPts = 3) -->
+<!-- hist(rez$reachdist) -->
+<!-- clusters <- dbscan::extractDBSCAN(rez, eps_cl = quantile(rez$reachdist, 0.85)) -->
+<!-- dfchecks$Cluster <- as.factor(clusters$cluster) -->
+<!-- ``` -->
+
+
+```{r}
+#| warning: false
+#| fig-width: 13
+#| fig-height: 13
+
+selected_features <- features |>
+  mutate(Cluster = ifelse(dfchecks$Participant %in% c(exclude$anomaly, exclude$duration, exclude$checks), "Excluded", "Valid")) |>
+  select(Cluster, starts_with("Duration"), starts_with("A_"), starts_with("cor_"), starts_with("Beauty_"))
+
+
+var_names <- names(select(selected_features, -Cluster))
+feature_pairs <- expand_grid(x_var = var_names, y_var = var_names)
+feature_pairs <- feature_pairs |>
+  mutate(
+    triangle = case_when(
+      match(x_var, var_names) > match(y_var, var_names) ~ "lower",
+      match(x_var, var_names) == match(y_var, var_names) ~ "diag",
+      TRUE ~ "upper"
+    )
+  )
+plot_data <- pmap_dfr(feature_pairs, function(x_var, y_var, triangle) {
+  selected_features |>
+    select(Cluster, x = all_of(x_var), y = all_of(y_var)) |>
+    mutate(x_var = x_var, y_var = y_var, triangle = triangle)
+}) |>
+  mutate(
+    x_var = factor(x_var, levels = rev(var_names)),
+    y_var = factor(y_var, levels = rev(var_names))
+  )
+
+diag_histograms <- map_dfr(var_names, function(var) {
+  # histogram bins computed globally for consistent breaks
+  breaks <- hist(selected_features[[var]], breaks = 20, plot = FALSE)$breaks
+  all_counts <- selected_features |>
+    group_by(Cluster) |>
+    summarise(counts = list(hist(!!sym(var), breaks = breaks, plot = FALSE)$counts),
+              .groups = "drop")
+
+  # max count across all clusters for this variable
+  max_count <- max(unlist(all_counts$counts), na.rm = TRUE)
+  y_range <- range(selected_features[[var]], na.rm = TRUE)
+
+  all_counts |>
+    unnest_wider(counts, names_sep = "_") |>
+    pivot_longer(starts_with("counts_"), names_to = "bin", values_to = "count") |>
+    mutate(
+      bin_id = as.integer(gsub("counts_", "", bin)),
+      x = breaks[-length(breaks)][bin_id],
+      xmax = breaks[-1][bin_id],
+      ymin = y_range[1],
+      ymax = ymin + (count / max_count) * diff(y_range),
+      var = var
+    ) |>
+    select(x, xmax, ymin, ymax, var, Cluster)
+}) |> mutate(
+  x_var = factor(var, levels = rev(var_names)),
+  y_var = factor(var, levels = rev(var_names))
+)
+
+ggplot(plot_data, aes(x = x)) +
+  # stat_density_2d_filled(data = filter(plot_data, triangle == "lower", x_var != "AttentionCheck", y_var != "AttentionCheck"),
+  #                        aes(y = y, fill = after_stat(nlevel)), show.legend = FALSE) +
+  # scale_fill_gradient(low = "white", high = "darkgreen") +
+  # ggnewscale::new_scale_fill() +
+  geom_point2(data = filter(plot_data, triangle == "lower"),
+              aes(y = y, color = Cluster), alpha = 0.7, size = 3, shape = "+") +
+  geom_rect(data = diag_histograms,
+          aes(xmin = x, xmax = xmax, ymin = ymin, ymax = ymax, fill = Cluster),
+          colour = NA, alpha = 0.5) +
+  geom_blank(data = filter(plot_data, triangle != "lower")) +
+  facet_grid(y_var ~ x_var, scales = "free", switch = "both") +
+  # scale_color_gradient(low = "black", high = "red") +
+  labs(color = "Participants", fill = "Participants") +
+  theme_minimal() +
+  theme(strip.placement = "outside",
+        strip.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+        axis.title = element_blank())
+```
+
+<!-- ### UMAP -->
+
+<!-- ```{r} -->
+<!-- # Grid search -->
+<!-- # UMAP or T-SNE? -->
+
+<!-- param_grid <- expand.grid( -->
+<!--   n_neighbors = c(3, 5, 10), -->
+<!--   min_dist = c(0.01, 0.05, 0.1, 0.5), -->
+<!--   metric = "euclidean" -->
+<!-- ) -->
+
+<!-- umap_plots <- list() -->
+<!-- for (i in seq_len(nrow(param_grid))) { -->
+<!--   params <- param_grid[i, ] -->
+<!--   set.seed(123) -->
+<!--   out <- uwot::umap(as.matrix(features), -->
+<!--                    n_neighbors = params$n_neighbors, -->
+<!--                    min_dist = params$min_dist, -->
+<!--                    metric = params$metric) |>  -->
+<!--     as.data.frame() -->
+
+<!--   colnames(out) <- c("UMAP1", "UMAP2") -->
+<!--   out$param_combo <- paste0("nn=", params$n_neighbors, ", md=", params$min_dist) -->
+<!--   out$Participant <- dfchecks$Participant -->
+<!--   out$AnomalyScore <- selected_features$AnomalyScore -->
+<!--   out$Cluster <- selected_features$Cluster -->
+
+<!--   umap_plots[[i]] <- ggplot(out, aes(UMAP1, UMAP2, color = Cluster)) + -->
+<!--     # geom_point(size = 3, alpha = 0.8) + -->
+<!--     geom_text(aes(label = Participant), size = 3, vjust = 0.5, hjust=0.5) + -->
+<!--     # scale_color_viridis_c(option = "plasma") + -->
+<!--     theme_minimal() + -->
+<!--     labs(title = out$param_combo[1])  -->
+<!-- } -->
+
+<!-- wrap_plots(umap_plots, ncol = 4) -->
+<!-- ``` -->
+
+
+### Self-Reported Quality
+
+```{r}
+dfchecks$SubjectiveQuality <- df$Experiment_Quality
+
+dfchecks |> 
+  ggplot(aes(x = SubjectiveQuality, y = A_TASK)) +
+  geom_jitter(width = 0) +
+  geom_smooth(method = "lm") 
+```
+
+
+
+### Effect of Exclusion
+
+```{r}
+dftask |> 
+  select(Participant, Beauty, Valence, Meaning, Worth, Reality, Authenticity) |> 
+  pivot_longer(-Participant, names_to = "Variable", values_to = "Value") |>
+  ggplot(aes(x = Value)) +
+  geom_histogram(aes(fill = Variable, y = after_stat(density)), bins = 30, position = "identity") +
+  facet_wrap(~Variable, scales = "free") 
+```
+
+```{r}
+library(glmmTMB)
+
+dftask <- mutate(dftask, Condition = fct_relevel(Condition, "Human", "AI", "Forgery"))
+
+quick_test <- function(what = "Beauty", family = "gaussian", exclude = c()){
+  f <- as.formula(paste0(what, " ~ Condition + (1 + Condition|Participant)"))
+  if(family == "ordbeta") {
+    dat <- normalize(dftask, select = what)
+  } else {
+    dat <- dftask
+  }
+  
+  m <- glmmTMB::glmmTMB(f, data = dat, family = family)
+  params <-  parameters::parameters(m, effects = "fixed")
+  
+  m2 <- glmmTMB::glmmTMB(f, data = filter(dat, !Participant %in% exclude), family = family)
+  params2 <-  parameters::parameters(m2, effects = "fixed")
+  
+  params$Coefficient_Excluded <- params2$Coefficient
+  params$p_Excluded <- format_p(params2$p, name = NULL)
+  
+  p <- estimate_means(m, by = "Condition") |> 
+    mutate(Exclusion = "Whole sample") |> 
+    rbind(estimate_means(m2, by = "Condition") |> 
+            mutate(Exclusion = "Excluded")) 
+  
+  if("Proportion" %in% names(p)) p <- datawizard::data_rename(p, "Proportion", "Mean")
+  
+  p <- p |>
+    ggplot(aes(x = Condition, y = Mean, color = Exclusion, group = Exclusion)) +
+    geom_line(position = position_dodge(width = 0.1)) +
+    geom_pointrange(aes(ymin = CI_low, ymax = CI_high), position = position_dodge(width = 0.1), size = 1) 
+
+  list(params = select(params, Parameter, Coefficient, Coefficient_Excluded, p, p_Excluded),
+       plot = p)
+}
+```
+
+```{r}
+rez <- quick_test(what = "Beauty", family = "gaussian", exclude = c(exclude$anomaly, exclude$duration, exclude$checks))
+rez$params
+rez$plot  
+
+rez <- quick_test(what = "Beauty", family = "ordbeta", exclude = c(exclude$anomaly, exclude$duration, exclude$checks))
+rez$params
+rez$plot  
+
+rez <- quick_test(what = "Valence", family = "gaussian", exclude = c(exclude$anomaly, exclude$duration, exclude$checks))
+rez$params
+rez$plot  
+
+rez <- quick_test(what = "Valence", family = "ordbeta", exclude = c(exclude$anomaly, exclude$duration, exclude$checks))
+rez$params
+rez$plot  
+
+rez <- quick_test(what = "Meaning", family = "gaussian", exclude = c(exclude$anomaly, exclude$duration, exclude$checks))
+rez$params
+rez$plot  
+
+rez <- quick_test(what = "Meaning", family = "ordbeta", exclude = c(exclude$anomaly, exclude$duration, exclude$checks))
+rez$params
+rez$plot  
+
+rez <- quick_test(what = "Worth", family = "poisson", exclude = c(exclude$anomaly, exclude$duration, exclude$checks))
+rez$params
+rez$plot  
+
+rez <- quick_test(what = "Reality", family = "ordbeta", exclude = c(exclude$anomaly, exclude$duration, exclude$checks))
+rez$params
+rez$plot
+rez <- quick_test(what = "Authenticity", family = "ordbeta", exclude = c(exclude$anomaly, exclude$duration, exclude$checks))
+rez$params
+rez$plot
+```
+
+### Exclude
+
+```{r}
+#| code-fold: false
+
+df <- filter(df, !Participant %in% c(exclude$anomaly, exclude$duration, exclude$checks))
+```
+
+
+## Manipulation Check
+
+```{r}
+#| fig-width: 15
+#| fig-height: 15
+
+manipcheck <- df |> 
+  select(Participant, Feedback_ConfidenceReal, Feedback_ConfidenceAI) |> 
+  pivot_longer(-Participant, values_to = "Confidence", names_to = "Answer") |>
+  filter(!is.na(Confidence)) |> 
+  mutate(Answer = ifelse(str_detect(Answer, "Real"), "All images are real", "All images are fake"))
+
+manipcheck |> 
+  ggplot(aes(x=Confidence, fill=Answer)) +
+  geom_bar() +
+  facet_grid(~Answer) +
+  theme_minimal() +
+  theme(legend.position = "none") 
+
+exclude$manipulation <- filter(manipcheck, Confidence >= 4)$Participant
+
+manipcheck |> 
+  summarize(N = n(), 
+            Prop = n() / nrow(df), 
+            Mean_Confidence = mean(Confidence, na.rm = TRUE),
+            SD_Confidence = sd(Confidence, na.rm = TRUE),
+            .by = "Answer") |> 
+  gt::gt() |> 
+  gt::fmt_auto() |> 
+  gt::opt_stylize()
+```
+
+```{r}
+df_belief <- dftask |> 
+  summarize(
+    # Reality = sum(Reality > 0) / n(),
+    # Authenticity = sum(Authenticity > 0)  / n(),
+    Reality = mean(Reality, na.rm=TRUE),
+    Authenticity = mean(Authenticity, na.rm=TRUE),
+    .by=c("Participant")) |> 
+  full_join(manipcheck, by = "Participant") |> 
+  mutate(Confidence = ifelse(is.na(Answer), -1, Confidence),
+         Answer = ifelse(is.na(Answer), "No doubts", Answer))
+
+df_belief |> 
+  ggplot(aes(x = Reality, y = Authenticity, color = Answer)) +
+  geom_jitter(aes(size=Confidence), shape = "+", width = 0.01, height=0.01, alpha = 0.9) +
+  ggrepel::geom_label_repel(data = filter(df_belief, abs(Reality) > 95 | abs(Authenticity) > 95),
+                            aes(label = Participant), size = 3) +
+  ggside::geom_xsidedensity(aes(fill=Answer), alpha=0.3) +
+  ggside::geom_ysidedensity(aes(fill=Answer), alpha=0.3) +
+  ggside::theme_ggside_void() +
+  theme_minimal() +
+  scale_size_continuous(range = c(4, 8)) 
+```
+
+```{r}
+exclude$phase2 <- filter(df_belief, Reality > 90 | Authenticity > 90)$Participant
+```
+
+
+### Phase 2 Instruction Misunderstanding
+
+Did they misunderstand phase 2 and thought it was a recognition task?
+
+```{r}
+phase2congruence <- dftask |> 
+  summarize(Reality = sum(Reality > 0) / n(), Authenticity = sum(Authenticity > 0)  / n(),
+            # Reality = mean(Reality), Authenticity = mean(Authenticity), 
+            .by=c("Participant", "Condition")) |> 
+  pivot_wider(names_from = Condition, values_from = c(Reality, Authenticity)) |> 
+  # mutate(CongruentReality = (Reality_Human + Reality_AI) / 2,
+  #        CongruentAuthenticity = (Authenticity_Human + Authenticity_Forgery) / 2) |> 
+  full_join(select(df, Participant, Duration_TaskInstructions2), by = "Participant") |> 
+  full_join(manipcheck, by = "Participant") |> 
+  mutate(Confidence = ifelse(is.na(Answer), -1, Confidence),
+         Answer = ifelse(is.na(Answer), "No doubts", Answer)) |> 
+  mutate(Mean_Congruence = (Reality_Human + (1 - Reality_AI) + (1 - Authenticity_Forgery) + Authenticity_Human) / 4) |> 
+  arrange(desc(Mean_Congruence))
+
+phase2congruence |> 
+  ggplot(aes(x=Mean_Congruence)) +
+  geom_histogram(bins = 20)
+
+phase2congruence |> 
+  ggplot(aes(x = Reality_Human, y = Authenticity_Human, color = Answer)) +
+  geom_jitter(aes(size=Confidence), shape = "+", width = 0.01, height=0.01, alpha = 0.9) +
+  ggrepel::geom_label_repel(data = filter(phase2congruence, Reality_Human > 0.95 | Authenticity_Human > 0.95), 
+                            aes(label = Participant), size = 3) +
+  ggside::geom_xsidedensity(aes(fill=Answer), alpha=0.3) +
+  ggside::geom_ysidedensity(aes(fill=Answer), alpha=0.3) +
+  ggside::theme_ggside_void() +
+  theme_minimal() +
+  scale_size_continuous(range = c(4, 8)) 
+  
+
+# Note: we know for sure S024 (fghgugdaz0) is an outlier and thought it was recognition
+```
+
+```{r}
+exclude$phase2
+# exclude$phase2_cong <- filter(phase2congruence, Reality_Human == 1 | Authenticity_Human == 1)$Participant
+exclude$phase2_cong <- filter(phase2congruence, Mean_Congruence > 0.7 & !Participant %in% exclude$phase2)$Participant
+
+dftask[dftask$Participant %in% c(exclude$phase2, exclude$phase2_cong), "Reality"] <- NA
+dftask[dftask$Participant %in% c(exclude$phase2, exclude$phase2_cong), "Authenticity"] <- NA
+```
+
 
 
 
@@ -551,15 +870,6 @@ df <- compute_and_remove(df, name="MAIA_Trusting", method="mean")
 ::: {.panel-tabset}
 
 ### Summary
-
-
-We removed `r sum(is.na(df$MINT_Awareness_RelA_29))` participants with missing data for the MINT due to a technical error.
-
-```{r}
-#| code-fold: false
-
-df <- filter(df, !is.na(df$MINT_Awareness_RelA_29))
-```
 
 
 The final sample includes `r report::report_participants(df, age = "Age", sex = NA, gender = "Gender")`.

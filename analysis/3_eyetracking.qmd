@@ -141,13 +141,14 @@ invalid <- dfori |>
 p_bad1 <- invalid |> 
   ggplot(aes(x=GazeWithin)) +
   stat_density(aes(group = Participant, y = after_stat(density), color = Participant), geom = "line", position = "identity") +
-  scale_y_sqrt() | 
+  scale_y_sqrt() +
+  theme(legend.position = "none") | 
   invalid |> 
   ggplot(aes(x=prop)) +
   stat_density(aes(group = Participant, y = after_stat(density), color = Participant), geom = "line", position = "identity") +
-  scale_y_sqrt()
+  scale_y_sqrt() +
+  theme(legend.position = "none")
 p_bad1
-
 
 # By participants
 dfsub_bad <- invalid |>
@@ -211,7 +212,8 @@ sr |>
   ggplot(aes(x = sampling_rate)) +
   geom_vline(xintercept = 29, linetype="dashed", color="black") +
   stat_density(aes(group=Participant, color=Participant), geom = "line", position = "identity") +
-  scale_y_sqrt() |
+  scale_y_sqrt() +
+  theme(legend.position = "none") |
     srsub |>
   ggplot(aes(x=sampling_rate)) +
   geom_histogram(bins=30) 
@@ -221,7 +223,30 @@ sr |>
 ```{r}
 # TODO: Filter participants that are not in the cleaned-up dftask
 bad_ppt <- filter(srsub, sampling_rate < 10)$Participant
-dfori <- filter(dfori, !Participant %in% c(bad_ppt, "S013"))
+dfori <- filter(dfori, !Participant %in% c(bad_ppt))
+```
+
+#### Movement
+
+```{r}
+vel <- dfori |> 
+  mutate(velocity = sqrt((x - lag(x))^2 + (y - lag(y))^2) / (t - lag(t)), 
+         .by = c("Participant", "Item")) |> 
+  summarize(
+    MeanVelocity = mean(velocity, na.rm = TRUE),
+    MaxVelocity = max(velocity, na.rm = TRUE),
+    .by = "Participant"
+  )
+
+ggplot(vel, aes(x=MeanVelocity)) +
+  geom_histogram(bins=100)
+
+```
+
+```{r}
+# TODO: Filter participants that are not in the cleaned-up dftask
+bad_ppt <- filter(vel, MeanVelocity < 0.1 | MeanVelocity > 6000)$Participant
+dfori <- filter(dfori, !Participant %in% bad_ppt)
 ```
 
 ### Remove Bad Trials
@@ -254,7 +279,7 @@ for(ppt in unique(df$Participant)) {
   for(item in unique(df[df$Participant == ppt, "Item"])) {
     dat <- filter(df, Participant == ppt, Item == item) 
     
-    dat_interp <- interpolate_xy(dat) 
+    dat_interp <- interpolate_xy(dat, screenwidth = unique(dat$ScreenWidth))
     dat_interp$Participant <- ppt
     dat_interp$Item <- item
     dat_interp$ScreenWidth <- unique(dat$ScreenWidth)
@@ -271,21 +296,203 @@ for(ppt in unique(df$Participant)) {
 dfeye <- dplyr::bind_rows(dfeye) |> 
   filter(t >= 0, !is.na(velocity))
 
-
+  
 dfeye |> 
+  filter(velocity < 5) |> 
   ggplot(aes(x=velocity)) +
+  geom_histogram(bins=100, aes(y=after_stat(density))) +
   stat_density(aes(group=Participant, y=after_stat(density), color = Participant), geom="line", position="identity") +
-  coord_cartesian(xlim=c(0, 5000)) +
-  scale_y_sqrt()
+  coord_cartesian(xlim=c(0, 5)) +
+  scale_y_sqrt() +
+  theme(legend.position = "none") 
+```
+
+
+### Fixation Detection
+
+```{r}
+get_fixations <- function(dfeye, dispersion_threshold = 0.1, min_duration = 0.1, verbose = TRUE) {
+  # Detect fixations
+  dffixations <- dfeye  |> 
+    mutate(event = detect_fixations_idt(
+      t, x, y, screenwidth = ScreenWidth,
+      dispersion_threshold = dispersion_threshold, min_duration = min_duration),
+      .by = c("Participant", "Item")) |>
+    filter(event != "Saccade") |>
+    mutate(gaze_within = x >= Stimulus_left & x <= Stimulus_right & y >= Stimulus_top & y <= Stimulus_bottom)
+  
+  # Compute fixation centroids
+  dffixations <- dffixations |>
+    summarise(
+      x = mean(x, na.rm = TRUE),
+      y = mean(y, na.rm = TRUE),
+      duration = max(t, na.rm = TRUE) - min(t, na.rm = TRUE),
+      p_within = mean(gaze_within, na.rm = TRUE),
+      Stimulus_left = first(Stimulus_left),
+      Stimulus_right = first(Stimulus_right),
+      Stimulus_top = first(Stimulus_top),
+      Stimulus_bottom = first(Stimulus_bottom),
+      ScreenWidth = first(ScreenWidth),
+      ScreenHeight = first(ScreenHeight),
+      .by = c("Participant", "Item", "event")
+    ) 
+  
+  # Remove extra long fixations (more than 2 s)
+  if(verbose) {
+    print(paste0("Proportion of fixations longer than 2s: ", 
+               format_percent(mean(dffixations$duration > 2, na.rm = TRUE))))
+  }
+  dffixations <- filter(dffixations, duration <= 2)
+  
+  # Remove fixations that are not on the target area
+  if(verbose) {
+    print(paste0("Proportion of fixations outside the target area: ", 
+                 format_percent(mean(dffixations$p_within < 0.5, na.rm = TRUE))))
+  }
+  
+  filter(dffixations, p_within >= 0.5) 
+}
+```
+
+#### Grid Search
+
+```{r}
+dftask <- read.csv("../data/rawdata_task.csv")
+
+feat_list <- c("Fixations_N", "Fixations_DurationMean", "N_Glances", "N_Sustained")
+outcome_list <- c("Beauty", "Valence", "Meaning", "Worth")
+
+ps <- list()
+params <- data.frame()
+for(disp in c(0.04, 0.06, 0.08, 0.1, 0.15, 0.2)) {
+  cat(".")
+  
+  dffixations <- get_fixations(dfeye, dispersion_threshold = disp, min_duration = 0.08, verbose = FALSE)
+
+  ps[[paste0("d", disp)]] <- dffixations |>
+    filter(duration < 1) |> 
+    ggplot(aes(x = duration)) +
+    stat_density(aes(group = Participant, y = after_stat(density), color = Participant), geom = "line", position = "identity",
+                 alpha = 0.5) +
+    stat_density(aes(y = after_stat(density)), geom = "line", position = "identity", linewidth = 1) +
+    guides(color = "none") +
+    scale_x_sqrt(expand = c(0, 0)) + 
+    scale_y_sqrt() +
+    coord_cartesian(xlim = c(0.08, NA)) +
+    labs(title = paste0("Dispersion Threshold: ", disp),
+         x = "Fixation Duration (s)", y = NULL)
+  
+  features <- dffixations |> 
+    mutate(Type = ifelse(duration < 0.2, "Glance", "Sustained")) |> 
+    summarize(
+      Fixations_N = n(),
+      Fixations_DurationMean = mean(duration, na.rm = TRUE),
+      N_Glances = sum(Type == "Glance"),
+      N_Sustained = sum(Type == "Sustained"),
+      .by = c("Participant", "Item", "Type")
+    ) |>
+      dplyr::left_join(dftask, by = c("Participant", "Item"))
+  
+  for(feat in feat_list) {
+    for(outcome in outcome_list) {
+      m <- lme4::lmer(as.formula(paste0(outcome, " ~ ", feat, " + (1|Participant)")), 
+                      data=features)
+      params <- parameters::parameters(m, effects="fixed")[2,] |>
+        dplyr::select(t, p) |>
+        dplyr::mutate(Feature = feat, Outcome = outcome, Dispersion = disp) |> 
+        rbind(params)
+    }
+  }
+}
+
+patchwork::wrap_plots(ps)
+
+params |> 
+  ggplot(aes(x=Feature, y=Outcome, fill=p)) +
+  geom_tile() +
+  scale_fill_gradientn(colors=c("darkgreen", "lightgreen", "white", "white"), values = c(0, 0.05, 0.1, 1),
+                       breaks = c(0, 0.1, 0.5, 0.75)) +
+  facet_wrap(~Dispersion)
+```
+
+
+
+#### Final
+
+```{r}
+dffixations <- get_fixations(dfeye, dispersion_threshold = 0.08, min_duration = 0.08) |> 
+  mutate(Type = ifelse(duration < 0.2, "Glance", "Sustained"))
 ```
 
 
 ### Features
 
+```{r}
+dffeatures <- dffixations |> 
+    summarise(
+      Fixations_N = n(), 
+      Fixations_DurationMean = mean(duration, na.rm = TRUE),
+      Fixations_DurationMedian = median(duration, na.rm = TRUE),
+      N_Glances = sum(Type == "Glance"),
+      N_Sustained = sum(Type == "Sustained"),
+      SpatialEntropy = get_spatial_entropy(
+        x, y,
+        stim_left = first(Stimulus_left),
+        stim_right = first(Stimulus_right),
+        stim_top = first(Stimulus_top),
+        stim_bottom = first(Stimulus_bottom)
+      ),
+      MeanJump = get_mean_jump(x, y, screenwidth = first(ScreenWidth)),
+      AngularVariability = get_angular_variability(x, y, screenwidth = first(ScreenWidth)),
+      .by = c("Participant", "Item")
+    ) |>
+      dplyr::left_join(dftask, by = c("Participant", "Item"))
+```
 
+## Validation
 
 ```{r}
-get_features <- function(dfeye, dispersion_threshold = 100, min_duration = 0.1) {
+
+rez <- data.frame()
+for(feature in c("Fixations_N", "Fixations_DurationMean", "Fixations_DurationMedian", "N_Glances", "N_Sustained",
+                 "SpatialEntropy", "MeanJump", "AngularVariability")) {
+  
+  rez  <- glmmTMB::glmmTMB(as.formula(paste0("Beauty ~ ", feature, " + (1|Participant) + (1|Item)")), 
+                         data=dffeatures) |> 
+    parameters::parameters(effects = "fixed") |>
+    dplyr::mutate(Feature = feature, Outcome = "Beauty") |>
+    rbind(rez)
+  
+  rez  <- glmmTMB::glmmTMB(as.formula(paste0("Meaning ~ ", feature, " + (1|Participant) + (1|Item)")), 
+                         data=dffeatures) |> 
+    parameters::parameters(effects = "fixed") |>
+    dplyr::mutate(Feature = feature, Outcome = "Meaning") |>
+    rbind(rez)
+  
+  rez  <- glmmTMB::glmmTMB(as.formula(paste0("Valence ~ ", feature, " + (1|Participant) + (1|Item)")), 
+                         data=dffeatures) |>
+    parameters::parameters(effects = "fixed") |>
+    dplyr::mutate(Feature = feature, Outcome = "Valence") |>
+    rbind(rez)
+  
+  rez  <- glmmTMB::glmmTMB(as.formula(paste0("Worth ~ ", feature, " + (1|Participant) + (1|Item)")), 
+                         data=dffeatures, family = "poisson") |> 
+    parameters::parameters(effects = "fixed") |>
+    dplyr::mutate(Feature = feature, Outcome = "Worth") |>
+    rbind(rez)
+}
+
+rez <- filter(rez, Parameter != "(Intercept)")
+arrange(rez, p) 
+
+
+```
+
+
+#### OLD
+
+```{r}
+get_features <- function(dfeye, dispersion_threshold = 0.05, min_duration = 0.1) {
   
   # Detect fixations
   dffixations <- dfeye  |> 
@@ -300,8 +507,8 @@ get_features <- function(dfeye, dispersion_threshold = 100, min_duration = 0.1) 
   dffixations <- dffixations |> 
     mutate(gaze_within = x >= Stimulus_left & x <= Stimulus_right & y >= Stimulus_top & y <= Stimulus_bottom) |> 
     mutate(on_target = mean(gaze_within, na.rm = TRUE), .by = c("Participant", "Item", "event")) |> 
-    filter(on_target >= 0.5)
-  
+    filter(on_target >= 0.5) 
+    
   features <- dffixations |>
     # Compute fixation centroids
     summarise(
@@ -314,7 +521,8 @@ get_features <- function(dfeye, dispersion_threshold = 100, min_duration = 0.1) 
       Stimulus_bottom = first(Stimulus_bottom),
       .by = c("Participant", "Item", "event")
     ) |> 
-    filter(delay < 4.5) |> 
+    # Remove extreme durations fixations
+    filter(delay < 1) |> 
     # Compute indices
     summarise(
       Fixations_N = n(), 
@@ -348,22 +556,127 @@ get_features <- function(dfeye, dispersion_threshold = 100, min_duration = 0.1) 
 ```{r}
 dftask <- read.csv("../data/rawdata_task.csv")
 
-ps <- list()
-for(thresh in c(50, 100, 150, 200, 250)) {
-  for(mindura in c(0.05, 0.1, 0.15, 0.2, 0.25)) {
+# Load required packages
+library(parallel)
+library(doParallel)
+library(foreach)
+library(lme4)
+library(parameters)
+library(progress)
+
+# Set up parallel backend
+num_cores <- detectCores() - 1  # Use all cores except one for system stability
+registerDoParallel(cores = num_cores)
+
+# Initialize parameters data frame and range
+params <- list()
+range_mindura <- seq(0.1, 0.7, by = 0.025)
+range_thresh <- seq(0.1, 0.2, by = 0.025)
+feat_list <- c("Fixations_N", "Fixations_DurationTotal", "SpatialEntropy")
+# "Fixations_DurationTotal", "Fixations_DurationMean", "Fixations_DurationMedian","MeanJump", "AngularVariability"
+outcome_list <- c("Beauty", "Valence", "Meaning", "Worth")
+
+# Create a progress bar
+progbar <- progress::progress_bar$new(total = length(range_thresh) * length(range_mindura),
+                                      format = "  [:bar] :percent eta: :eta")
+
+for (thresh in range_thresh) {
+  for (mindura in range_mindura) {
+    progbar$tick()
+    features <- get_features(dfeye, dispersion_threshold = thresh, min_duration = mindura) |>
+      dplyr::left_join(dftask, by = c("Participant", "Item"))
+
+    res <- foreach::foreach(feat = feat_list, .combine = dplyr::bind_rows,
+                            .packages = c("lme4","parameters","dplyr")) %:%
+      foreach::foreach(outcome = outcome_list, .combine = dplyr::bind_rows) %dopar% {
+        # build formula
+        fml <- as.formula(paste0(outcome, " ~ ", feat, " + (1|Participant)"))
+        # drop NAs for the needed columns
+        dat <- features |>
+          dplyr::select(Participant, dplyr::all_of(c(feat, outcome))) |>
+          tidyr::drop_na()
+
+        out <- tryCatch({
+          m <- lme4::lmer(fml, data = dat)
+          parameters::parameters(m, effects = "fixed")[2, ] |>
+            dplyr::select(t, p) |>
+            dplyr::mutate(Feature = feat, Outcome = outcome,
+                          thresh = thresh, mindura = mindura)
+        }, error = function(e) {
+          dplyr::tibble(t = NA_real_, p = NA_real_,
+                        Feature = feat, Outcome = outcome,
+                        thresh = thresh, mindura = mindura)
+        })
+        out
+      }
+
+    params[[paste(thresh, mindura)]] <- res
+  }
+}
+
+params <- dplyr::bind_rows(params)
+stopImplicitCluster()
+
+(params |> 
+  summarize(N_sig = sum(p < .05), .by=c("Feature", "mindura", "thresh")) |> 
+  ggplot(aes(x=as.factor(thresh), y=as.factor(mindura), fill=N_sig)) +
+  geom_tile() +
+  scale_fill_gradientn(colors=c("white", "darkred")) +
+  facet_grid(~Feature)) / 
+  (params |> 
+  ggplot(aes(x=as.factor(thresh), y=as.factor(mindura), fill=p)) +
+  geom_tile() +
+  scale_fill_gradientn(colors=c("darkgreen", "lightgreen", "white", "white"), values = c(0, 0.05, 0.1, 1),
+                       breaks = c(0, 0.05, 0.1, 0.5, 0.75)) +
+  facet_grid(Feature~Outcome))
+
+
+
+
+
+params <- data.frame()
+
+range <- c(0.01, seq(0.05, 0.8, by = 0.05))
+
+progbar <- progress::progress_bar$new(total = length(range)^2)
+for(thresh in range) {
+  for(mindura in range) {
+    progbar$tick()
     features <- get_features(dfeye, dispersion_threshold = thresh, min_duration = mindura) |> 
       left_join(dftask, by = c("Participant", "Item"))
     
-    ps[[paste(thresh, mindura)]] <- correlation(
-      select(features, starts_with("Fixations_"), SpatialEntropy, MeanJump, AngularVariability),
-      select(features, Beauty, Valence, Meaning, Worth)) |> 
-      summary() |> 
-      plot() +
-      ggtitle(paste("Thresh:", thresh, "Dur:", mindura)) +
-      theme(legend.position = "none") 
+    for(feat in c("Fixations_N", 
+                  # "Fixations_DurationTotal", 
+                  # "Fixations_DurationMean", 
+                  # "Fixations_DurationMedian",
+                  "SpatialEntropy"
+                  # "MeanJump", 
+                  # "AngularVariability"
+                  )) {
+      for(outcome in c("Beauty", "Valence", "Meaning", "Worth")) {
+        # t0 <- Sys.time()
+        m <- lme4::lmer(as.formula(paste0(outcome, " ~ ", feat, " + (1|Participant)")), 
+                        data=features, 
+                        control = lme4::lmerControl(optimizer = "bobyqa"),
+                        REML = TRUE)
+        # Sys.time() - t0
+        params <- parameters::parameters(m, effects="fixed")[2,] |> 
+          select(t, p) |> 
+          mutate(Feature = feat, Outcome = outcome, thresh = thresh, mindura=mindura) |> 
+          rbind(params)
+      }
+    }
   }
 }
-patchwork::wrap_plots(ps, ncol=5)
+arrange(params, p) |> 
+  filter( p < .05)
+
+params |> 
+  ggplot(aes(x=as.factor(thresh), y=as.factor(mindura), fill=p)) +
+  geom_tile() +
+  scale_fill_gradientn(colors=c("darkgreen", "lightgreen", "white", "white"), values = c(0, 0.05, 0.1, 1),
+                       breaks = c(0, 0.05, 0.1, 0.5, 0.75)) +
+  facet_grid(Feature~Outcome) 
 ```
 
 
@@ -393,18 +706,11 @@ STOPPED HERE.
 ### Final
 
 ```{r}
-features <- get_features(dfeye, dispersion_threshold = 100, min_duration = 0.1) |> 
+features <- get_features(dfeye, dispersion_threshold = 0.1, min_duration = 0.05) |> 
   left_join(read.csv("../data/rawdata_task.csv"), by = c("Participant", "Item"))
 
-features |> 
-  pivot_longer(cols=-c(Participant, Item), names_to="Index", values_to="Value") |>
-  ggplot(aes(x=Value)) +
-  geom_histogram(bins=60, aes(y=after_stat(density))) +
-  # stat_density(aes(y=after_stat(density), color=Participant), geom="line", position="identity") +
-  facet_wrap(~Index, scales="free") 
-
-m <- glmmTMB::glmmTMB(Beauty ~ Fixations_N + (1|Participant) + (1|Item), data=features)
-parameters::parameters(m)
+# m <- glmmTMB::glmmTMB(as.formula(paste0("Beauty ~ ", feat, " + (1|Participant)")), data=features)
+# params <- rbind(params, parameters::parameters(m, effects="fixed") |> mutate(Feature = feat))
 ```
 
 

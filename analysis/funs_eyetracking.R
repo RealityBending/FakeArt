@@ -1,14 +1,12 @@
-
 # Interpolate -------------------------------------------------------------
 
-
-
 # Data must have variables x (pixels from left), y (pixels from top), t (timestamp in seconds)
-interpolate_xy <- function(data, debug=FALSE) {
+# screenwidth is used for normalization of velocity
+interpolate_xy <- function(data, screenwidth, debug = FALSE) {
   # Interpolated interval (resampled to 100 Hz)
   t_new <- seq(min(data$t), max(data$t), by = 0.01)
 
-  # Linear interpolationt
+  # Linear interpolation
   x_new <- approx(data$t, data$x, xout = t_new, rule = 2, ties = "ordered")$y
   y_new <- approx(data$t, data$y, xout = t_new, rule = 2, ties = "ordered")$y
 
@@ -22,7 +20,7 @@ interpolate_xy <- function(data, debug=FALSE) {
   out <- data.frame(t = t_new, x = x_new, y = y_new)
 
   # Debug plot
-  if(debug) {
+  if (debug) {
     ggplot(data, aes(x = t, y = x)) +
       geom_line(color = "red") +
       geom_line(data = out, aes(x = t, y = x), color = "darkred") +
@@ -30,8 +28,11 @@ interpolate_xy <- function(data, debug=FALSE) {
       geom_line(data = out, aes(x = t, y = y), color = "darkgreen")
   }
 
-  # Compute velocity
-  distances <- sqrt(diff(out$x)^2 + diff(out$y)^2)
+  # Compute velocity (based on normalized coordinates)
+
+  xZ <- out$x / screenwidth
+  yZ <- out$y / screenwidth
+  distances <- sqrt(diff(xZ)^2 + diff(yZ)^2)
   out$velocity <- c(NA, distances / diff(out$t))
 
   # Sanitize
@@ -46,14 +47,26 @@ interpolate_xy <- function(data, debug=FALSE) {
 # - I-VT - Velocity-Threshold Identification
 # - I-DT - Dispersion-Threshold Identification
 
-detect_fixations_idt <- function(t, x, y, dispersion_threshold = 100, min_duration = 0.1) {
+# @param dispersion_threshold Maximum dispersion for a fixation
+# screenwidth is used for normalization of velocity
+detect_fixations_idt <- function(
+  t, x, y, screenwidth,
+  dispersion_threshold = 0.1,
+  min_duration = 0.1
+) {
   n <- length(t)
-  if (n < 2) return(rep("Saccade", n))  # not enough data
+  if (n < 2) {
+    return(rep("Saccade", n))
+  } # not enough data
 
   # Estimate sampling interval
   dt <- median(diff(t), na.rm = TRUE)
   # Minimum number of samples for a fixation
   min_samples <- ceiling(min_duration / dt)
+
+  # Normalize coordinates by screen width
+  x <- x / unique(screenwidth)
+  y <- y / unique(screenwidth)
 
   labels <- rep(NA_character_, n)
   start_idx <- 1
@@ -98,16 +111,21 @@ detect_fixations_idt <- function(t, x, y, dispersion_threshold = 100, min_durati
 }
 
 
-
 # Features ----------------------------------------------------------------
 
-
-get_spatial_entropy <- function(x, y,
-                                stim_left, stim_right,
-                                stim_top, stim_bottom,
-                                n_grid = 10) {
+get_spatial_entropy <- function(
+  x,
+  y,
+  stim_left,
+  stim_right,
+  stim_top,
+  stim_bottom,
+  n_grid = 4
+) {
   # If all inputs are NA or too short
-  if (length(x) < 2 || all(is.na(x)) || all(is.na(y))) return(NA_real_)
+  if (length(x) < 2 || all(is.na(x)) || all(is.na(y))) {
+    return(NA_real_)
+  }
 
   # Define grid edges
   x_breaks <- seq(stim_left, stim_right, length.out = n_grid + 1)
@@ -119,14 +137,18 @@ get_spatial_entropy <- function(x, y,
 
   # Remove NAs from binned fixations (outside bounds)
   valid <- !(is.na(x_bin) | is.na(y_bin))
-  if (sum(valid) < 2) return(NA_real_)  # Not enough valid data to compute entropy
+  if (sum(valid) < 2) {
+    return(NA_real_)
+  } # Not enough valid data to compute entropy
 
   # Create cell IDs
   cell_ids <- paste(x_bin[valid], y_bin[valid], sep = "-")
   counts <- table(cell_ids)
 
   # If all in same cell, entropy is 0
-  if (length(counts) == 1) return(0)
+  if (length(counts) == 1) {
+    return(0)
+  }
 
   # Compute normalized Shannon entropy
   # This gives a normalized entropy between 0 and 1, where:
@@ -135,13 +157,13 @@ get_spatial_entropy <- function(x, y,
   entropy::entropy(counts, unit = "log2") / log2(n_grid^2)
 }
 
-get_mean_jump <- function(x, y) {
-  mean(sqrt(diff(x)^2 + diff(y)^2), na.rm = TRUE)
+get_mean_jump <- function(x, y, screenwidth) {
+  mean(sqrt(diff(x / screenwidth)^2 + diff(y / screenwidth)^2), na.rm = TRUE)
 }
 
-get_angular_variability <- function(x, y) {
-  dx <- diff(x)
-  dy <- diff(y)
+get_angular_variability <- function(x, y, screenwidth) {
+  dx <- diff(x / screenwidth)
+  dy <- diff(y / screenwidth)
   angles <- atan2(dy, dx)
   mean(abs(diff(angles)), na.rm = TRUE)
 }

@@ -43,7 +43,7 @@ for (file in files) {
     next
   }
 
-  if(dat$researcher %in% c("testp", "test")) {
+  if(dat$researcher %in% c("testp", "test", "README")) {
     next # Skip test participants
   }
 
@@ -87,7 +87,7 @@ for (file in files) {
     resp$`Education-Comment`,
     resp$Education
   )
-  data_ppt$Education <- ifelse(data_ppt$Education %in% c("Nvq level 3"), "High school", data_ppt$Education)
+  data_ppt$Education <- ifelse(data_ppt$Education %in% c("Nvq level 3", "College", "some college,no degree", "Vocational", "Associate Degree", "associate"), "High school", data_ppt$Education)
 
   data_ppt$Student <- ifelse(!is.null(resp$Student), resp$Student, NA)
   data_ppt$Country <- ifelse(!is.null(resp$Country), resp$Country, NA)
@@ -99,12 +99,16 @@ for (file in files) {
     resp$`Ethnicity-Comment`,
     resp$Ethnicity
   )
-  # data_ppt$Ethnicity <- ifelse(data_ppt$Ethnicity %in% c("Southern European", "White European"), "White", data_ppt$Ethnicity)
+  data_ppt$Ethnicity <- ifelse(data_ppt$Ethnicity %in% c("Indigenous Native Indian"), "Other", data_ppt$Ethnicity)
+  data_ppt$Ethnicity <- ifelse(data_ppt$Ethnicity %in% c("Turkish"), "Middle Eastern/North African", data_ppt$Ethnicity)
   data_ppt$Ethnicity <- ifelse(
     data_ppt$Ethnicity %in% c("Prefer not to say"),
     NA,
     data_ppt$Ethnicity
   )
+
+  # Art_Expertise
+  data_ppt$Art_Expertise <- resp$Art_Expertise
 
   # Experiment Feedback
   feedback <- jsonlite::fromJSON(rawdata[
@@ -127,11 +131,13 @@ for (file in files) {
     feedback$Feedback_Text
   )
 
+
   # Questionnaires
   mint <- as.data.frame(jsonlite::fromJSON(rawdata[
     rawdata$screen == "questionnaire_mint",
     "response"
   ]))
+  names(mint) <- gsub("MINT_ReIA", "MINT_RelA", names(mint))
   data_ppt <- cbind(data_ppt, mint)
   data_ppt$Duration_MINT <- as.numeric(rawdata[
     rawdata$screen == "questionnaire_mint",
@@ -458,41 +464,19 @@ alldata_gaze <- do.call(rbind, alldata_gaze)
 # table(alldata$Ethnicity)
 # table(alldata$Recruitment)
 
+# Histogram with median
+dur <- alldata[alldata$Recruitment == "prolific", "Experiment_Duration"]
+hist(dur, breaks = 30)
+abline(v = median(dur), col = "red", lwd = 2)
+bootstrapped_median <- mean(sapply(1:1000, \(x) {
+  median(sample(dur, length(dur), replace = TRUE))
+}))
+abline(v = bootstrapped_median, col = "blue", lwd = 2)
 
-hist(alldata$Experiment_Duration, breaks = 30)
 
-# Should we re-map the Worth values? -----------------------------------
-# Re-map to values in dollars
-# alldata_task$Worth2 <- ifelse(alldata_task$Worth == 1, 10, alldata_task$Worth)
-# alldata_task$Worth2 <- ifelse(alldata_task$Worth2 == 2, 100, alldata_task$Worth2)
-# alldata_task$Worth2 <- ifelse(alldata_task$Worth2 == 3, 1000, alldata_task$Worth2)
-# alldata_task$Worth2 <- ifelse(alldata_task$Worth2 == 4, 10000, alldata_task$Worth2)
-# alldata_task$Worth2 <- ifelse(alldata_task$Worth2 == 5, 100000, alldata_task$Worth2)
-#
-# library(tidyverse)
-#
-# t <- as.data.frame(table(alldata_task$Worth))
-# cor.test(as.numeric(as.character(t$Var1)), t$Freq)
-# t <- as.data.frame(table(log1p(alldata_task$Worth2)))
-# cor.test(as.numeric(as.character(t$Var1)), t$Freq)
-#
-# ggplot(alldata_task, aes(x=Worth)) +
-#   geom_bar() +
-#   geom_abline()
-# ggplot(alldata_task, aes(x=log1p(Worth2))) +
-#   geom_bar()
-# ggplot(alldata_task, aes(x=Worth2)) +
-#   geom_bar() +
-#   scale_x_continuous(transform = "log1p", breaks = c(0, 10, 100, 1000, 10000, 100000))
-# ggplot(alldata_task, aes(x=Worth, y=Beauty)) +
-#   geom_smooth(method = "lm") +
-#   geom_jitter(height=0)
-# ggplot(alldata_task, aes(x=Worth2, y=Beauty)) +
-#   geom_smooth(method = "lm") +
-#   geom_jitter(height=0) +
-#   scale_x_continuous(transform = "log1p", breaks = c(0, 10, 100, 1000, 10000, 100000))
-# summary(lm(Beauty ~ Worth, data = alldata_task))
-# summary(lm(Beauty ~ log1p(Worth2), data = alldata_task))
+quantile(dur, 0.05)
+sum(dur > 25.23) / length(dur)
+
 
 # Attention checks --------------------------------------------------------
 checks <- data.frame(
@@ -509,10 +493,30 @@ checks$Experiment_Duration <- alldata$Experiment_Duration
 checks$Reward <- alldata$Reward
 checks <- checks[!is.na(checks$ID), ]
 checks <- checks[order(checks$Score, decreasing = TRUE), ]
-# checks
-# checks[checks$ID=="5ff454f2f0b5ed607169fba6", ]
+checks
+
+hist(checks$AttentionScore)
+score <- checks[!checks$ID %in% c("os", "fw", "dm"), "AttentionScore"]
+hist(score)
+# How many ppt below 0.75
+sum(score < 0.6) / length(score)
+# checks[checks$ID=="5b7a360589bc2f0001e60363", ]
 
 # Hi, unfortunately, we can't find your data (and Prolific information suggests that you did not finish the experiment?) Did anything go wrong? Sorry for that!
+# Hi, thanks for getting in touch! We just double checked manually, and can confirm that you responded incorrectly on 50% of the questions about "what was the label" of the image, which is far below the expected minimum. Correct answers to these questions are critical because they ensure that you actually read the labels before each image (which is what the experiment is about). We really apologise for that outcome, it is frustrating but unfortunately we must comply with our quality control policy. We hope you understand, and we are sorry for the inconvenience.
+
+# Failed attention checks:
+# - Responded incorrectly on 50% of the questions about "what was the label" of the image, which is far below the expected minimum
+# - Failed the question on "answer all the way to the left" in the questionnaires
+
+# Hi, thanks for getting in touch! We just double checked manually, and can confirm that you responded incorrectly on 50% of the questions about "what was the label" of the image, which is far below the expected minimum. Correct answers to these questions are critical because they ensure that you actually read the labels before each image (which is what the experiment is about). Note that I can also confirm that you passed the 2 other more obvious questionnaire checks (answer to the right or left), but that wasn't enough to compensate for the low data quality score mentioned above. We really apologise for that outcome, it is frustrating but unfortunately we must comply with our quality control policy. We hope you understand, and we are sorry for the inconvenience.
+
+# I'm afraid this is not an attention check based on memory: it is a question asking about the immediate experience (similarly, it would be hard to argue that the questions about "Beauty" is memory-based, given that it follows directly each stimulus). On top of that, technically this metric is not even a "check" given that we mention in the instructions before that this question will be included.
+# This is quite a standard procedure, approved by our ethics committee and compliant with prolific's rules and regulations.
+# I wish we could somehow pro-rate your participation, given that I'm sure you've tried your best and invested a lot of time in this experiment, but the thresholds for quality controls have been established and approved, and we don't have the possibility of making exceptions. I am really sorry, perhaps getting in touch with prolific might get them to reimburse your participation, though I am quite pessimistic about that outcome...
+
+# Hello, first of all thanks for your feedback. I've made notes of it and fed it upwards to the team and the supervisor to hopefully improve things in the future. We also heard back from the ethics board and got authorization to offer you a pro-rated compensation in exchange for your return. The pro-rated compensation is set to 50% of the total amount (4.30 GBP / 2). If you agree to this, please let me know, I will make the payment and you can return your participation. Apologies again for the inconvenience.
+
 
 # Make sure there are no duplicates
 if (nrow(alldata[duplicated(alldata), ]) > 0) {
@@ -528,6 +532,7 @@ if (nrow(alldata[duplicated(alldata), ]) > 0) {
 # Anonymize ---------------------------------------------------------------
 alldata$ID <- NULL
 alldata$Reward <- NULL
+alldata$AttentionScore <- NULL
 
 # Generate IDs
 ids <- paste0("S", format(sprintf("%03d", 1:nrow(alldata))))
@@ -543,24 +548,14 @@ alldata_gaze$Participant <- ids[alldata_gaze$Participant]
 # restore default warnings settings
 options(warn = 0)
 
+pilot <- alldata[alldata$Recruitment != "prolific", "Participant"]
+# write.csv(alldata[alldata$Participant %in% pilot,], "../data/rawdata_participants.csv", row.names = FALSE)
+# write.csv(alldata_task[alldata_task$Participant %in% pilot,], "../data/rawdata_task.csv", row.names = FALSE)
+# write.csv(alldata_gaze[alldata_task$Participant %in% pilot,], "../data/rawdata_eyetracking.csv", row.names = FALSE)
 write.csv(alldata, "../data/rawdata_participants.csv", row.names = FALSE)
 write.csv(alldata_task, "../data/rawdata_task.csv", row.names = FALSE)
 write.csv(alldata_gaze, "../data/rawdata_eyetracking.csv", row.names = FALSE)
 
 
-# PILOT STIMULI SELECTION -------------------------------------------------
-
-library(tidyverse)
-
-alldata_task |>
-  datawizard::normalize(select = c("Beauty", "Valence", "Meaning", "Worth", "Reality", "Authenticity")) |>
-  mutate(Item = fct_reorder(Item, Reality)) |>
-  pivot_longer(c(Beauty, Valence, Meaning, Worth, Reality, Authenticity),
-               names_to = "Variable", values_to = "Value") |>
-  filter(Variable %in% c("Beauty", "Reality", "Authenticity")) |>
-  ggplot(aes(y = Item, x = Value, fill = Style)) +
-  ggdist::stat_slab(normalize = "all", height = 3, color = "black") +
-  facet_wrap(~ Variable, scales = "free_x")
-# unique(alldata_task[alldata_task$Item == "10319.jpg", "Artist"])
 
 
