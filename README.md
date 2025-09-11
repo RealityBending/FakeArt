@@ -1,6 +1,6 @@
 # FakeArt
 
-This project is about reality and art.
+This project is about perceived reality and art.
 
 - [**Stimuli selection**](https://realitybending.github.io/FakeArt/experiment/stimuli/stimuli_selection/stimuli_selection.html)
 - [**Preregistration**](https://osf.io/xbrhe)
