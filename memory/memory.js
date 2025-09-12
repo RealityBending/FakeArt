@@ -9,10 +9,10 @@ function shuffleArray(array) {
 
 
 
-var fiction_trialnumber = 1
+var memory_trialnumber = 1
 
 
-var fiction_preloadstims = {
+var memory_preloadstims = {
     type: jsPsychPreload,
     images: stimuli_list.map((a) => "stimuli/" + a.Item),
     message: "Please wait while the experiment is loading in (it can take a few minutes).",
@@ -21,17 +21,17 @@ var fiction_preloadstims = {
 
 
 
-var fiction_fixation = {
+var memory_fixation = {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: "<div  style='font-size:500%; position:fixed; text-align: center; top:50%; bottom:50%; right:20%; left:20%'>+</div>",
     choices: ["s"],
     trial_duration: 750,
     save_trial_parameters: { trial_duration: true },
-    data: { screen: "fiction_fixation" },
+    data: { screen: "memory_fixation" },
 }
 
 
- var fiction_showimage = {
+ var memory_showimage = {
     type: jsPsychImageKeyboardResponse,
     stimulus: function () {
         return "stimuli/" + jsPsych.evaluateTimelineVariable("Item")
@@ -50,18 +50,18 @@ var fiction_fixation = {
     save_trial_parameters: { trial_duration: true },
     data: function () {
         return {
-            screen: "fiction_image",
-            trial_number: fiction_trialnumber,
+            screen: "memory_image",
+            trial_number: memory_trialnumber,
             item: jsPsych.evaluateTimelineVariable("Item"),
         }
     },
     on_finish: function () {
-        fiction_trialnumber += 1
+        memory_trialnumber += 1
     },
 } 
 
 
-var fiction_ratings = {
+var memory_ratings = {
     type: jsPsychSurvey,
     survey_json: {
         goNextPageAutomatic: true,
@@ -69,7 +69,7 @@ var fiction_ratings = {
         completeText: "Continue",
         showNavigationButtons: true,
          title: function () {
-            return "Rating - " + Math.round(((fiction_trialnumber - 1) / stimuli_list.length) * 100) + "%"
+            return "Rating - " + Math.round(((memory_trialnumber - 1) / stimuli_list.length) * 100) + "%"
         },
         description: "Do you recognise the artwork?",
         pages: [
@@ -170,12 +170,12 @@ var fiction_ratings = {
         ],
     },
     data: {
-        screen: "fiction_ratings",
+        screen: "memory_ratings",
     },
 }
 
 
-var fiction_phase = {
+var memory_phase = {
     timeline_variables: shuffleArray(stimuli_list),
-    timeline: [fiction_fixation, fiction_showimage, fiction_ratings],
+    timeline: [memory_fixation, memory_showimage, memory_ratings],
 }
