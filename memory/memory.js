@@ -6,54 +6,10 @@ function shuffleArray(array) {
     return array
 }
 
-var color_cues = shuffleArray(["red", "blue", "green"])
-color_cues = {
-    AI: color_cues[0],
-    Human: color_cues[1],
-    Forgery: color_cues[2],
-}
-
-function assignCondition(stimuli_list) {
-    let new_stimuli_list = []
-    
-    for (let style of [...new Set(stimuli_list.map((a) => a.Style))]) {
-        
-        var style_stimuli = stimuli_list.filter((a) => a.Style == style)
-
-       
-        style_stimuli = shuffleArray(style_stimuli)
-
-        
-        let conditions = ["AI", "Human", "Forgery"]
-        let third = Math.floor(style_stimuli.length / 3) 
-        let remainder = style_stimuli.length % 3
-
-        let index = 0
-        for (let i = 0; i < 3; i++)
-            for (let j = 0; j < third; j++) {
-                style_stimuli[index].Condition = conditions[i]
-                index++
-            }
-
-        let shuffledConditions = shuffleArray(conditions)
-        for (let i = 0; i < remainder; i++) {
-            style_stimuli[index].Condition = shuffledConditions[i]
-            index++
-        }
-
-        
-        new_stimuli_list.push(...style_stimuli)
-    }
-    return shuffleArray(new_stimuli_list)
-}
-
 
 
 
 var fiction_trialnumber = 1
-
-
-stimuli = assignCondition(stimuli_list)
 
 
 var fiction_preloadstims = {
@@ -113,7 +69,7 @@ var fiction_ratings = {
         completeText: "Continue",
         showNavigationButtons: true,
          title: function () {
-            return "Rating - " + Math.round(((fiction_trialnumber - 1) / stimuli.length) * 100) + "%"
+            return "Rating - " + Math.round(((fiction_trialnumber - 1) / stimuli_list.length) * 100) + "%"
         },
         description: "Do you recognise the artwork?",
         pages: [
@@ -220,6 +176,6 @@ var fiction_ratings = {
 
 
 var fiction_phase = {
-    timeline_variables: shuffleArray(stimuli),
+    timeline_variables: shuffleArray(stimuli_list),
     timeline: [fiction_fixation, fiction_showimage, fiction_ratings],
 }
