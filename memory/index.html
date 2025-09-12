@@ -24,11 +24,10 @@
     <script>
         /* initialize jsPsych */
         var jsPsych = initJsPsych({
-            override_safe_mode: true,
             show_progress_bar: "true",
             message_progress_bar: "Progress",
             on_finish: function () {
-                oliveracollins.github.io
+                jsPsych.data.displayData("json")
             },
         })
 
