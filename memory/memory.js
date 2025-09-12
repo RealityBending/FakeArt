@@ -66,6 +66,23 @@ var memory_ratings = {
         pages: [
             {
                 elements: [
+                    // {
+                    //     type: "html",
+                    //     name: "Stimulus",
+                    //     html: "<p> IMAGE </p>",
+                    // },
+                    {
+                        type: "rating",
+                        name: "SelfRelevance",
+                        title: "This painting is personally relevant...",
+                        description: "It relates to my personality, interests, or reminds me of events in my life",
+                        isRequired: true,
+                        rateMin: 0,
+                        rateMax: 6,
+                        minRateDescription: "Not at all",
+                        maxRateDescription: "Very much",
+                    },
+
                     {
                         type: "radiogroup",
                         name: "Recognition",

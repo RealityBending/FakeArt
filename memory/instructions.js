@@ -92,7 +92,12 @@ const memory_instructions = {
 <h3>The current memory study</h3>
         <p>In this follow-up study, we will show you the artworks from the previous study, <u>mixed with some new artworks.</u></p>
 
+        <h4>1) Personal Relevance</h4>
+        <p>Firstly, we would like you to indicate, for each artwork, how <b>personally relevant</b> it is to you. In other words, how much the artwork relates to your past experiences, interests, personality, events in your life, etc.  (e.g., "the artwork depicts a cat and I am a cat lover", "my uncle paints abstract art and this painting reminds me of him"), <b>regardless of whether you think it is beautiful or not</b>.</p> You may find an ugly artwork personally relevant, or a pleasing artwork to not be relevant to you. Similarly, a familiar painting may not feel self-relevant to you and vice versa.
 
+        <h4>2) Recognition</h4>
+
+        <h4>3) Memory</h4>
         <p>If you recognise an artwork from the previous study, you will be asked the following questions relating to your <b>memory</b>:</p>
         <ul>
             <li><b style="color: #FFA500">Artwork category:</b> Which category (<b style = "color: #ff0000">Original</b>/<b style = "color: #0000ff">AI-Generated</b>/<b style = "color: #00820e">Human Forgery</b>) was the artwork said to have belonged to in the first stage of the previous study?
