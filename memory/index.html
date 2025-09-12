@@ -1,74 +1,71 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <!-- Tab Title -->
-    <title>Experiment</title>
+    <head>
+        <title>Experiment</title>
+        <script src="https://unpkg.com/jspsych@8.2.2"></script>
+        <script src="https://unpkg.com/@jspsych/plugin-browser-check@2.1.0"></script>
+        <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.1.0"></script>
+        <script src="https://unpkg.com/@jspsych/plugin-image-keyboard-response@2.1.0"></script>
+        <script src="https://unpkg.com/@jspsych/plugin-html-button-response@2.1.0"></script>
+        <script src="https://unpkg.com/@jspsych/plugin-preload@2.1.0"></script>
+        <script src="https://unpkg.com/@jspsych/plugin-fullscreen@2.1.0"></script>
+        <script src="https://unpkg.com/@jspsych/plugin-survey@3.0.0"></script>
+        <link rel="stylesheet" href="https://unpkg.com/@jspsych/plugin-survey@3.0.0/css/survey.css" />
+        <link href="https://unpkg.com/jspsych@8.2.2/css/jspsych.css" rel="stylesheet" type="text/css" />
 
-    <!-- Load JsPsych Library and Stylesheet -->
-    <script src="https://unpkg.com/jspsych@8.2.2"></script>
-    <link href="https://unpkg.com/jspsych@8.2.2/css/jspsych.css" rel="stylesheet" type="text/css" />
+        <script src="https://unpkg.com/@jspsych-contrib/plugin-pipe@0.5.0"></script>
 
+        <script src="stimuli_list.js"></script>
+        <script src="consent.js"></script>
+        <script src="instructions.js"></script>
+        <script src="memory.js"></script>
+    </head>
+    <body></body>
+    <script>
+        /* initialize jsPsych */
+        var jsPsych = initJsPsych({
+            show_progress_bar: "true",
+            message_progress_bar: "Progress",
+            on_finish: function () {
+                jsPsych.data.displayData("json")
+            },
+        })
 
-    <!-- Plugins -->
-    <!-- Text and Image Plugin -->
-    <script src="https://unpkg.com/@jspsych/plugin-image-keyboard-response@2.1.0"></script>
-    <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.1.0"></script>
-    <!-- Preload Media Plugin-->
-    <script src="https://unpkg.com/@jspsych/plugin-preload@2.1.0"></script>
-    <!-- Fullscreen -->
-    <script src="https://unpkg.com/@jspsych/plugin-fullscreen@2.1.0"></script>
-    <!-- Browser -->
-    <script src="https://unpkg.com/@jspsych/plugin-browser-check@2.1.0"></script>
-    <!-- Button Plugin -->
-    <script src="https://unpkg.com/@jspsych/plugin-html-button-response@2.1.0"></script>
-    <!-- Survey Plugins -->
-    <script src="https://unpkg.com/@jspsych/plugin-survey@3.0.0"></script>
-    <link rel="stylesheet" href="https://unpkg.com/@jspsych/plugin-survey@3.0.0/css/survey.css" />
-    <!--Eye-Tracking-->
-    <script src="https://unpkg.com/@jspsych/extension-webgazer@1.2.0"></script>
+        /* create timeline */
+        var timeline = []
+        /* enter fullscreen */
+        var fullscreen_on = {
+            type: jsPsychFullscreen,
+            message: "<p>The experiment will switch to full screen mode when you press the button below.</p>",
+            fullscreen_mode: true,
+            delay_after: 0,
+        }
 
-    <!-- Re-use Existing Scripts from Experiment 1-->
-    <script src="./../experiment/stimuli/stimuli_list.js"></script>
-    <script src="./../experiment/demographics.js"></script> 
-    <script src="./../experiment/fiction.js"></script>
+        timeline.push(fullscreen_on)
 
-    <!-- Custom Scripts -->
-    <script src="demographics.js"></script>
-    <script src="fiction.js"></script>
+        timeline.push(memory_preloadstims)
+        timeline.push(consent)
+        timeline.push(memory_instructions)
+        timeline.push(memory_phase)
+        timeline.push(debrief)
 
-  </head>
+        /* saving data via DataPipe
+        timeline.push({
+        type: jsPsychPipe,
+        action: "save",
+        experiment_id: "cGSVw8AnfxEJ",
+        filename: jsPsych.randomization.randomID(10) + ".csv",
+        data_string: ()=>jsPsych.data.get().csv()
+                  }); */ // NOT NECESSARY YET
 
-  <body></body>
+        /* end of experiment */
+        timeline.push({
+            type: jsPsychFullscreen,
+            fullscreen_mode: false,
+        })
+        timeline.push(endscreen)
 
-  <script>
-    // Initialise experiment =====================================================
-    var jsPsych = initJsPsych({
-        show_progress_bar: true,
-        message_progress_bar: "Progress",
-        on_finish: function() {
-          jsPsych.data.displayData();
-        },
-    });
-    // Timeline
-    var timeline = [];
-    // Participant ID
-    participant_ID = jsPsych.randomization.randomID(10)
-
-    // Demographics ==============================================================
-    timeline.push(fullscreen_on, demographics_browser_info, demographics_consent_exp2, fiction_preloadstims_exp2)
-
-    // Instructions ==============================================================
-    timeline.push(fiction_instructions1_exp2)
-    // Experiment 
-    timeline.push(fiction_phase_exp2(0));
-
-    // Exit fullscreen mode ======================================dd================
-    timeline.push(fullscreen_off)
-    timeline.push(debrief)
-    timeline.push(demographics_endscreen)
-
-    // Run Experiment Timeline
-    jsPsych.run(timeline);
-
-  </script>
+        /* run timeline */
+        jsPsych.run(timeline)
+    </script>
 </html>
