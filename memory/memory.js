@@ -58,7 +58,7 @@ stimuli = assignCondition(stimuli_list)
 
 var fiction_preloadstims = {
     type: jsPsychPreload,
-    images: stimuli_list.map((a) => "stimuli/stimuli/" + a.Item),
+    images: stimuli_list.map((a) => "stimuli/" + a.Item),
     message: "Please wait while the experiment is loading in (it can take a few minutes).",
 }
 
@@ -78,7 +78,7 @@ var fiction_fixation = {
  var fiction_showimage = {
     type: jsPsychImageKeyboardResponse,
     stimulus: function () {
-        return "stimuli/stimuli/" + jsPsych.evaluateTimelineVariable("Item")
+        return "stimuli/" + jsPsych.evaluateTimelineVariable("Item")
     },
     stimulus_width: function () {
         let ratio = jsPsych.evaluateTimelineVariable("Width") / jsPsych.evaluateTimelineVariable("Height")

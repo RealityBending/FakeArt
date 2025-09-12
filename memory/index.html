@@ -15,7 +15,7 @@
 
     <script src="https://unpkg.com/@jspsych-contrib/plugin-pipe@0.5.0"></script>
 
-    <script src="stimuli/stimuli_list.js"></script>
+    <script src="stimuli_list.js"></script>
     <script src="consent.js"></script>
     <script src="instructions.js"></script>
     <script src="memory.js"></script>
@@ -59,14 +59,6 @@
     timeline.push(fullscreen_on);
 
     timeline.push(fiction_preloadstims);
-
-
-    /* define welcome message trial */
-    var welcome = {
-      type: jsPsychHtmlKeyboardResponse,
-      stimulus: "Welcome to the experiment. Press any key to begin."
-    };
-    timeline.push(welcome);
 
 
    /* consent */
