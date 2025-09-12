@@ -37,22 +37,11 @@
         const filename = `${subject_id}.csv`
 
         /* enter fullscreen */
-        var fullscreen_text = "<p>The experiment will switch to full screen mode when you press the button below.</p>"
-        var fullscreen_button = "Continue"
-
         var fullscreen_on = {
             type: jsPsychFullscreen,
-            message: fullscreen_text,
-            button_label: fullscreen_button,
+            message: "<p>The experiment will switch to full screen mode when you press the button below.</p>",
             fullscreen_mode: true,
             delay_after: 0,
-        }
-
-        var fullscreen_off = {
-            type: jsPsychFullscreen,
-            message: fullscreen_text,
-            button_label: fullscreen_button,
-            fullscreen_mode: false,
         }
 
         timeline.push(fullscreen_on)
@@ -84,8 +73,11 @@
               }); */ // NOT NECESSARY YET
 
         /* end of experiment */
+        timeline.push({
+            type: jsPsychFullscreen,
+            fullscreen_mode: false,
+        })
         timeline.push(endscreen)
-        timeline.push(fullscreen_off)
 
         /* run timeline */
         jsPsych.run(timeline)
