@@ -12,7 +12,7 @@ var participant_id = {
                 elements: [
                     {
                         type: "html",
-                        html: `<div style="text-align: center</div>`,
+                        html: `<div style="text-align: center;"></div>`,
                     },
                     {
                         type: "text",
@@ -45,37 +45,36 @@ const memory_instructions = {
                         name: "Instructions",
                         html: `
 <h1>Instructions</h1>
+<p><b>Welcome to our study!</b> It is a follow-up of the previous study you completed a few weeks ago on AI and art. Let us remind you of some of the details.</p>
+
+<h3>What you did last time</h3>
+
 <div style="display: flex; align-items: flex-start; gap: 24px;">
     <div style="flex: 1; min-width: 0; text-align: left;">
-        <p><b>Welcome to our study!</b> It is a follow-up of the previous study you completed a few weeks ago on AI and art. Let us remind you of some of the details.</p>
-
-        <h3>What you did last time</h3>
         <p>In the <b>first stage</b> of the previous study, you were shown <b>labels</b> before each artwork, and were asked to rate those artworks on different rating scales.</p>
         <p>There were 3 different labels:</p>
         <ul>
-                <li><b style="color: #ff0000">Original</b></li>
-                <li><b style="color: #0000ff">AI-Generated</b></li>
-                <li><b style="color: #00820e">Human Forgery</b></li>
+            <li><b style="color: #ff0000">Original</b></li>
+            <li><b style="color: #0000ff">AI-Generated</b></li>
+            <li><b style="color: #00820e">Human Forgery</b></li>
         </ul>
-
-        <p><b>Below is a representation of the initial section of the previous study.</b></p>
-
-        <p>In the <b>second stage</b>, you have been told that the <b>labels had been mixed up</b>, and you were then asked to express <b>your own beliefs</b> about whether the artwork was:</p>
-        <ul>
-                <li><b style="color: #880E4F">AI-generated or Human-created?</b></li>
-                <li><b style="color: rgb(32, 14, 136)">Original or Copy?</b> I.e., whether you thought the artwork was an original Human creation, or AI-Generated with prompts "<i>to be original</i>" and <i>"make something new</i>" - or a copy (a Human Forgery, or AI-Generated with the prompt to mimic a certain style, artist, or artwork)?</li>
-        </ul>
-        
-        <p>At the end of the experiment, it was revealed that <b>all the artworks had actually been Human originals</b>.</p>
-        <p>In the current study, we are interested in <b>how well you remember</b> the artworks, the labels and your own answers from the previous study.</p>
     </div>
     <div style="flex: 0 0 50%; max-width: 50%;">
-        <p style="text-align: center;"><i>First stage</i></p>
         <img src="media/exp1_graphic1.jpg" style="width: 100%; height: auto; display: block; border-radius: 4px;">
-        <p style="text-align: center;"><i>Second stage</i></p>
-        <img src = "media/exp1_graphic2.jpg" style = "width: 100%; height: auto; display: block; border-radius: 4px;">
+        <p style="text-align: center;"><i>First stage</i></p>
     </div>
 </div>
+
+<p>In the <b>second stage</b>, you were told that the <u>labels had been mixed up</u>, and you were then asked to express <b>your own beliefs</b> about whether the artwork was <b style="color: #880E4F">AI-generated or Human-made</b> and if it was an <b style="color: rgb(32, 14, 136)">Original or a Copy</b> (i.e., an original Human creation or AI-Generated with prompts "<i>to be original</i>" and "<i>make something new</i>"—or a Human Forgery, or AI-Generated with the prompt to mimic a certain style, artist, or artwork).</p>
+<p>In other words, you had to choose between 4 categories: "<b>Human Original</b>", "<b>Human Forgery</b>", "<b>AI Original</b>", "<b>AI Copy</b>"</p>
+
+<div style="margin-top: 8px; text-align: center;">
+    <img src="media/exp1_graphic2.jpg" style="max-width: 720px; width: 100%; height: auto; display: inline-block; border-radius: 4px;">
+    <p><i>Second stage</i></p>
+  
+</div>
+
+<p><b>At the end of the experiment</b>, it was revealed that <b>all the artworks had actually been Human originals</b>.</p>
 
 `,
                     },
@@ -91,7 +90,7 @@ const memory_instructions = {
 <div style="flex: 2; text-align: left;">
 
 <h3>The current memory study</h3>
-        <p>In this follow-up study, we will show you the artworks from the previous study, <b>mixed with some new artworks.</b></p>
+        <p>In this follow-up study, we will show you the artworks from the previous study, <u>mixed with some new artworks.</u></p>
 
 
         <p>If you recognise an artwork from the previous study, you will be asked the following questions relating to your <b>memory</b>:</p>

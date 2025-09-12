@@ -77,7 +77,7 @@ var memory_ratings = {
                     {
                         type: "rating",
                         name: "SourceCondition",
-                        title: "In the previous study, this artwork was labelled as...",
+                        title: "In the previous study, we labelled the artwork as...",
                         isRequired: true,
                         visibleIf: "{Recognition} = 'Yes'",
                         displayMode: "buttons",
