@@ -108,7 +108,7 @@ var fiction_fixation = {
 var fiction_ratings = {
     type: jsPsychSurvey,
     survey_json: {
-        goNextPageAutomatic: false,
+        goNextPageAutomatic: true,
         showQuestionNumbers: false,
         completeText: "Continue",
         showNavigationButtons: true,
@@ -133,13 +133,8 @@ var fiction_ratings = {
                       title: "In the previous study, this artwork was labelled as...",
                       isRequired: true,
                       visibleIf: "{Recognition} = 'Yes'",
-                      css_classes: ["colored-scale"],
                       displayMode: "buttons",
-                      rateValues: [
-                            { value: 0, text: "Original" },
-                            { value: 1, text: "AI-Generated" },
-                            { value: 2, text: "Human Forgery" },
-                      ],
+                      rateValues: ["Original", "AI-Generated" , "Human Forgery" ],
                     },
 
 
