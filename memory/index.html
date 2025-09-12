@@ -33,9 +33,6 @@
 
         /* create timeline */
         var timeline = []
-        const subject_id = jsPsych.randomization.randomID(10) // random ID generation (to test DataPipe and OSF), but maybe using self-generated ID instead???
-        const filename = `${subject_id}.csv`
-
         /* enter fullscreen */
         var fullscreen_on = {
             type: jsPsychFullscreen,
@@ -48,14 +45,11 @@
 
         timeline.push(memory_preloadstims)
 
-        //  /* consent */
-        //  timeline.push(consent);
+        /* consent */
+        timeline.push(consent)
 
-        //   /* instructions 1 */
-        //   timeline.push(memory_instructions_1);
-
-        //   /* instructions 2 */
-        //   timeline.push(memory_instructions_2);
+        /* instructions */
+        timeline.push(memory_instructions)
 
         /*experimental trials */
         timeline.push(memory_phase)
@@ -64,13 +58,13 @@
         timeline.push(debrief)
 
         /* saving data via DataPipe
-    timeline.push({
-    type: jsPsychPipe,
-    action: "save",
-    experiment_id: "cGSVw8AnfxEJ",
-    filename: filename,
-    data_string: ()=>jsPsych.data.get().csv()
-              }); */ // NOT NECESSARY YET
+        timeline.push({
+        type: jsPsychPipe,
+        action: "save",
+        experiment_id: "cGSVw8AnfxEJ",
+        filename: jsPsych.randomization.randomID(10) + ".csv",
+        data_string: ()=>jsPsych.data.get().csv()
+                  }); */ // NOT NECESSARY YET
 
         /* end of experiment */
         timeline.push({

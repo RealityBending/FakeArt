@@ -1,4 +1,4 @@
-   var participant_id = {
+var participant_id = {
     type: jsPsychSurvey,
     survey_json: {
         title: "Before we begin",
@@ -8,8 +8,7 @@
         goNextPageAutomatic: false,
         showQuestionNumbers: false,
         pages: [
-          {
-          
+            {
                 elements: [
                     {
                         type: "html",
@@ -21,26 +20,23 @@
                         name: "ID",
                         isRequired: true,
                         inputType: "text",
-                        placeholder: "e.g., xxxxxx"
+                        placeholder: "e.g., xxxxxx",
                     },
                 ],
-              }
-            ]
-          }
-        }
+            },
+        ],
+    },
+}
 
-    
-    
-    const fiction_instructions_1 = {
-      type: jsPsychSurvey,
-      data: {screen: "fiction_instructions1"},
-      on_finish: function () {
-        fiction_trialnumber = 1
-      }
-    ,
-        survey_json: {
+const memory_instructions = {
+    type: jsPsychSurvey,
+    data: { screen: "memory_instructions" },
+    on_finish: function () {
+        memory_trialnumber = 1
+    },
+    survey_json: {
         showQuestionNumbers: false,
-        completeText: "Next",
+        completeText: "Let's start",
         pages: [
             {
                 elements: [
@@ -87,22 +83,6 @@
                     },
                 ],
             },
-        ],
-    },
-}
-
-
-const fiction_instructions_2 = {
-      type: jsPsychSurvey,
-      data: {screen: "fiction_instructions2"},
-      on_finish: function () {
-        fiction_trialnumber = 1
-      }
-    ,
-        survey_json: {
-        showQuestionNumbers: false,
-        completeText: "Let's start",
-        pages: [
             {
                 elements: [
                     {
@@ -138,10 +118,7 @@ const fiction_instructions_2 = {
     },
 }
 
-
-
-
- var endscreen = {
+var endscreen = {
     type: jsPsychSurvey,
     survey_json: {
         showQuestionNumbers: false,
