@@ -147,6 +147,6 @@ var memory_ratings = {
 }
 
 var memory_phase = {
-    timeline_variables: shuffleArray(stimuli_list).slice(0, 2), // <---------------------------- TODO: remove the extra slicing added for testing
+    timeline_variables: shuffleArray(stimuli_list).slice(0, 4), // <---------------------------- TODO: remove the extra slicing added for testing
     timeline: [memory_ratings],
 }
