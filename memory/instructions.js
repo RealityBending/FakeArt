@@ -45,39 +45,37 @@ const memory_instructions = {
                         name: "Instructions",
                         html: `
 <h1>Instructions</h1>
-<div style="flex: 2; text-align: left;">
-        <p>Thank you for participating in our study. This study constitutes a follow-up of the previous study you completed in investigating how new technology impacts human appreciation of art.</p>
+<div style="display: flex; align-items: flex-start; gap: 24px;">
+    <div style="flex: 1; min-width: 0; text-align: left;">
+        <p><b>Welcome to our study!</b> It is a follow-up of the previous study you completed a few weeks ago on AI and art. Let us remind you of some of the details.</p>
 
-<h3>What you saw last time</h3>
-        <p>In the <b>first stage</b> of the previous study, you were presented with labels assigned to various artworks, and were asked to rate those artworks on different rating scales.
-        Afterwards, you were told that some images had been intentionally mislabelled (the idea that an artwork was labelled as AI-generated when it was actually a human original, or a forgery, or vice versa).</p> 
-        <p>As a reminder, artworks were labelled according to the following categories:</p>
+        <h3>What you did last time</h3>
+        <p>In the <b>first stage</b> of the previous study, you were shown <b>labels</b> before each artwork, and were asked to rate those artworks on different rating scales.</p>
+        <p>There were 3 different labels:</p>
         <ul>
-            <li><b style="color: #ff0000">Original:</b> Images of original paintings (by humans) taken from public artwork databases.</li>
-            <li><b style="color: #0000ff">AI-Generated:</b> Realistic painting images generated using platforms like <i>Midjourney</i> and <i>Stable Diffusion</i>, either in a new style or inspired by existing artists or artworks.</li>
-            <li><b style="color: #00820e">Human Forgery:</b> Human copies of famous paintings or works mimicking a style, often by anonymous forgers, intended to be sold as originals.</li>
+                <li><b style="color: #ff0000">Original</b></li>
+                <li><b style="color: #0000ff">AI-Generated</b></li>
+                <li><b style="color: #00820e">Human Forgery</b></li>
         </ul>
 
-    <p><b>Below is a representation of what you saw in the initial section of the previous study.</b></p>
-    <div style = "text-align: center;">
-        <img src = "media/exp1_graphic1.jpg" style = "width: 90%"; "height: 90%">
-    </div>                   
+        <p><b>Below is a representation of the initial section of the previous study.</b></p>
 
-
-    <p>In the <b>second stage</b>, after being told that the labels had been mixed up, you were then asked to categorise each artwork according to two different questions:</p>
-    <ul>
-            <li><b style="color: #880E4F">AI-generated or Human-created?</b> Do you think the image corresponds to a real painting (painted by a Human) or is AI-Generated?</li>
-            <li><b style="color: rgb(32, 14, 136)">Original or Copy?</b> Do you think the artwork is an "Original" (an original Human creation, or AI-Generated with prompts "<i>to be original</i>" and <i>"make something new</i>") or a Copy (a Human Forgery, or AI-Generated with the prompt to mimic a certain style, artist, or artwork)?</li>
+        <p>In the <b>second stage</b>, you have been told that the <b>labels had been mixed up</b>, and you were then asked to express <b>your own beliefs</b> about whether the artwork was:</p>
+        <ul>
+                <li><b style="color: #880E4F">AI-generated or Human-created?</b></li>
+                <li><b style="color: rgb(32, 14, 136)">Original or Copy?</b> I.e., whether you thought the artwork was an original Human creation, or AI-Generated with prompts "<i>to be original</i>" and <i>"make something new</i>" - or a copy (a Human Forgery, or AI-Generated with the prompt to mimic a certain style, artist, or artwork)?</li>
         </ul>
-
-    <p><b>Below is a representation of what you saw in the second section of the previous study.</b></p>
-    <div style = "text-align: center;">
-        <img src = "media/exp1_graphic2.jpg" style = "width: 85%"; "height: 85%">
+        
+        <p>At the end of the experiment, it was revealed that <b>all the artworks had actually been Human originals</b>.</p>
+        <p>In the current study, we are interested in <b>how well you remember</b> the artworks, the labels and your own answers from the previous study.</p>
     </div>
-
-    <p>At the end of the study, you were told that all artworks presented were actually <b>human originals</b>.
-
-    <p>For the remainder of the study, it is <b>very important</b> that you understand the distinction between the above labels and categories.</p>
+    <div style="flex: 0 0 50%; max-width: 50%;">
+        <p style="text-align: center;"><i>First stage</i></p>
+        <img src="media/exp1_graphic1.jpg" style="width: 100%; height: auto; display: block; border-radius: 4px;">
+        <p style="text-align: center;"><i>Second stage</i></p>
+        <img src = "media/exp1_graphic2.jpg" style = "width: 100%; height: auto; display: block; border-radius: 4px;">
+    </div>
+</div>
 
 `,
                     },
@@ -92,10 +90,10 @@ const memory_instructions = {
 <h1>Instructions</h1>
 <div style="flex: 2; text-align: left;">
 
-<h3>What you need to do in this study</h3>
-        <p>In this follow-up study, we will briefly present a number of artworks. Some are from the previous study, whereas others will be new.
-        
-        
+<h3>The current memory study</h3>
+        <p>In this follow-up study, we will show you the artworks from the previous study, <b>mixed with some new artworks.</b></p>
+
+
         <p>If you recognise an artwork from the previous study, you will be asked the following questions relating to your <b>memory</b>:</p>
         <ul>
             <li><b style="color: #FFA500">Artwork category:</b> Which category (<b style = "color: #ff0000">Original</b>/<b style = "color: #0000ff">AI-Generated</b>/<b style = "color: #00820e">Human Forgery</b>) was the artwork said to have belonged to in the first stage of the previous study?
@@ -106,10 +104,8 @@ const memory_instructions = {
         <div style = "text-align: center;">
             <img src = "media/instructions.jpg"></div>
         </div>
-            
-        <p>For the remainder of the study, it is <b>very important</b> that you understand the distinction between the above labels and categories.</p>                
 
-        <p><b>Press "Let's start" when you are ready to begin the experiment.</b></p>
+        <p>Remember that we are not asking about what you think now, but how well you are able to remember your own answers. <b>If you don't remember your answer, just make your best guess!</b></p>
 `,
                     },
                 ],

@@ -34,7 +34,7 @@ const consent = {
             // Description
             "<p align='left'><b>Why have I been invited and what will I do?</b><br>" +
             "The goal is to study how <b>new technology impacts human appreciation of art</b>.  In this study, you will complete a visual task where you will view and identify artworks. " +
-            "The whole experiment will take you <b style='color:#FF5722;'>~45 min</b> to complete. Please make sure that you are <b>attentive and in a quiet environment</b>, and that you have time to complete it in one go.</p>" +
+            "The whole experiment will take you <b style='color:#FF5722;'>~10 min</b> to complete. Please make sure that you are <b>attentive and in a quiet environment</b>, and that you have time to complete it in one go.</p>" +
             // Results and personal information
             "<p align='left'><b>What will happen to the results and my personal information?</b><br>" +
             "The results of this research may be written into a scientific publication. Your anonymity will be ensured in the way described in the consent information below. <b>Please read this information carefully</b> and then, if you wish to take part, please acknowledge that you have fully understood this sheet, and that you consent to take part in the study as it is described here.</p>" +
@@ -76,22 +76,21 @@ const consent = {
     },
 }
 
-
 /* debrief form */
 
 const debrief = {
-  type: jsPsychSurvey,
-  data: { screen: "Debrief" },
-  survey_json: {
-    showQuestionNumbers: false,
-    completeText: "Continue",
-    pages: [
-      {
-        elements: [
-          {
-            type: "html",
-            name: "Debrief",
-            html: `
+    type: jsPsychSurvey,
+    data: { screen: "Debrief" },
+    survey_json: {
+        showQuestionNumbers: false,
+        completeText: "Continue",
+        pages: [
+            {
+                elements: [
+                    {
+                        type: "html",
+                        name: "Debrief",
+                        html: `
               <img src="https://blogs.brighton.ac.uk/sussexwrites/files/2019/06/University-of-Sussex-logo-transparent.png" width="150px" align="right" />
               <br><br><br><br><br>
               <h3>Debriefing</h3>
@@ -114,10 +113,10 @@ const debrief = {
                 To complete your participation in this study, click on 'Continue' and 
                 <b style="color: red;">wait until your responses have been successfully saved</b> before closing the tab.
               </p>
-            `
-          }
-        ]
-      }
-    ]
-  }
-};
+            `,
+                    },
+                ],
+            },
+        ],
+    },
+}
