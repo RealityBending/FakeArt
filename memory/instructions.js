@@ -87,29 +87,37 @@ const memory_instructions = {
                         name: "Instructions",
                         html: `
 <h1>Instructions</h1>
-<div style="flex: 2; text-align: left;">
-
-<h3>The current memory study</h3>
+<div style="display: flex; align-items: flex-start; gap: 24px;">
+    <!-- Left column: text -->
+    <div style="flex: 1; min-width: 0; text-align: left;">
+        <h3>The current study</h3>
         <p>In this follow-up study, we will show you the artworks from the previous study, <u>mixed with some new artworks.</u></p>
 
         <h4>1) Personal Relevance</h4>
-        <p>Firstly, we would like you to indicate, for each artwork, how <b>personally relevant</b> it is to you. In other words, how much the artwork relates to your past experiences, interests, personality, events in your life, etc.  (e.g., "the artwork depicts a cat and I am a cat lover", "my uncle paints abstract art and this painting reminds me of him"), <b>regardless of whether you think it is beautiful or not</b>.</p> You may find an ugly artwork personally relevant, or a pleasing artwork to not be relevant to you. Similarly, a familiar painting may not feel self-relevant to you and vice versa.
+        <p>Firstly, we would like you to indicate, for each artwork, how <b>personally relevant</b> it is to you. In other words, how much the artwork relates to your past experiences, personality, hobbies, events in your life, etc. (e.g., "the artwork depicts a cat and I am a cat lover", "my uncle paints abstract art and this painting reminds me of him"), <b>regardless of whether you think it is beautiful or not</b>. You may find an ugly artwork personally relevant, or a pleasing artwork to not be relevant to you. Similarly, a familiar painting may not feel self-relevant to you and vice versa.</p>
 
         <h4>2) Recognition</h4>
+        <p>Secondly, for each artwork, we would like you to indicate whether you <b>recognise</b> it from the previous study.</p>
 
         <h4>3) Memory</h4>
-        <p>If you recognise an artwork from the previous study, you will be asked the following questions relating to your <b>memory</b>:</p>
+        <p>If you recognise an artwork from the previous study, you will be asked the following questions relating to details of your <b>memory</b>:</p>
         <ul>
-            <li><b style="color: #FFA500">Artwork category:</b> Which category (<b style = "color: #ff0000">Original</b>/<b style = "color: #0000ff">AI-Generated</b>/<b style = "color: #00820e">Human Forgery</b>) was the artwork said to have belonged to in the first stage of the previous study?
-            <div style = "text-align: center;">
-            <li><b style="color: #880E4F">AI-Generated or Human-Created?</b> In the second stage of the previous study, did you think that the artwork corresponded to a <b>real painting</b> (painted by a human, either an <b>Original</b> or <b>Human Forgery</b>) or that it was <b>AI-Generated</b>?</li>
-            <li><b style="color: rgb(32, 14, 136)">Original or Copy?</b> In the second stage of the previous study, did you think the artwork was an <b>"Original"</b> (an original Human creation, or AI-generated with prompts <i>"to be original"</i> and <i>"make something new"</i>) or a <b>Copy/Forgery</b> (a Human forgery, or AI-generated with the prompt to mimic a certain style, artist or artwork)?</li>
+            <li><b>Label</b>: Which category (<b style="color: #ff0000">Original</b>/<b style="color: #0000ff">AI-Generated</b>/<b style="color: #00820e">Human Forgery</b>) was the artwork said to have belonged to in the first stage of the previous study?</li>
+            <li><b>Your own beliefs</b>: What did you answer the real nature of the artwork was in the second stage of the previous study? (i.e., did you think it was Human Original, Human Forgery, AI Original, or AI Copy)</li>
         </ul>
-        <div style = "text-align: center;">
-            <img src = "media/instructions.jpg"></div>
-        </div>
-
         <p>Remember that we are not asking about what you think now, but how well you are able to remember your own answers. <b>If you don't remember your answer, just make your best guess!</b></p>
+
+        <h4>4) Beauty</h4>
+        <p>If you think the artwork was not included in the previous study, we will ask you to rate its Beauty.</p>
+    </div>
+
+    <!-- Right column: image -->
+    <div style="flex: 0 0 30%; max-width: 30%; text-align: center;">
+        <img src="media/instructions.jpg" style="width: 100%; height: auto; display: block; border-radius: 4px;" alt="Instructions illustration">
+    </div>
+</div>
+
+
 `,
                     },
                 ],

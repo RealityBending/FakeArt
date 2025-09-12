@@ -95,13 +95,7 @@ const debrief = {
               <br><br><br><br><br>
               <h3>Debriefing</h3>
               <p align="left">
-                The purpose of this follow-up study was to investigate 
-                how subjective appraisals of visual art and belief that the content is 
-                fake (AI-generated or forgery) affect memory and source recognition.<br><br>
-                
-                Our hypothesis is that artworks receiving extreme aesthetic ratings or labelled as 
-                AI-generated will elicit higher recognition and source memory accuracy, 
-                especially if strong attitudes are held towards AI.<br><br>
+                The purpose of this follow-up study was to investigate how believing that artworks are Human or AI-generated influences our memory of them.<br><br>
               </p>
               <p align="left">
                 <b>Thank you again!</b> Your participation in this study will be kept completely confidential.<br>
