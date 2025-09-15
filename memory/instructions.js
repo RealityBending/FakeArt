@@ -65,11 +65,11 @@ const memory_instructions = {
     </div>
 </div>
 
-<p>In the <b>second stage</b>, you were told that the <u>labels had been mixed up</u>, and you were then asked to express <b>your own beliefs</b> about whether the artwork was <b style="color: #880E4F">AI-generated or Human-made</b> and if it was an <b style="color: rgb(32, 14, 136)">Original or a Copy</b> (i.e., an original Human creation or AI-Generated with prompts "<i>to be original</i>" and "<i>make something new</i>"—or a Human Forgery, or AI-Generated with the prompt to mimic a certain style, artist, or artwork).</p>
+<p>In the <b>second stage</b>, you were told that the <u>labels had been mixed up</u>, and you were then asked to express <b>your own beliefs</b> about whether the artwork was <b style="color: #880E4F">AI-generated or Human-made</b> and if it was an <b style="color: rgb(32, 14, 136)">Original or a Copy</b> (i.e., an original Human creation or AI-Generated with prompts "<i>to be original</i>" and "<i>make something new</i>" - or a Human Forgery, or AI-Generated with the prompt to mimic a certain style, artist, or artwork).</p>
 <p>In other words, you had to choose between 4 categories: "<b>Human Original</b>", "<b>Human Forgery</b>", "<b>AI Original</b>", "<b>AI Copy</b>"</p>
 
 <div style="margin-top: 8px; text-align: center;">
-    <img src="media/exp1_graphic2.jpg" style="max-width: 720px; width: 100%; height: auto; display: inline-block; border-radius: 4px;">
+    <img src="media/exp1_graphic2.gif" style="max-width: 720px; width: 100%; height: auto; display: inline-block; border-radius: 4px;">
     <p><i>Second stage</i></p>
   
 </div>
@@ -97,7 +97,7 @@ const memory_instructions = {
         <p>Firstly, we would like you to indicate, for each artwork, how <b>personally relevant</b> it is to you. In other words, how much the artwork relates to your past experiences, personality, hobbies, events in your life, etc. (e.g., "the artwork depicts a cat and I am a cat lover", "my uncle paints abstract art and this painting reminds me of him"), <b>regardless of whether you think it is beautiful or not</b>. You may find an ugly artwork personally relevant, or a pleasing artwork to not be relevant to you. Similarly, a familiar painting may not feel self-relevant to you and vice versa.</p>
 
         <h4>2) Recognition</h4>
-        <p>Secondly, for each artwork, we would like you to indicate whether you <b>recognise</b> it from the previous study.</p>
+        <p>Secondly, for each artwork, we would like you to indicate whether you <b>recognise</b> it from the previous study. You should answer "Yes" if you recall seeing this artwork in the previous experiment or "No" if you think this is a new artwork not shown in the previous experiment.</p>
 
         <h4>3) Memory</h4>
         <p>If you recognise an artwork from the previous study, you will be asked the following questions relating to details of your <b>memory</b>:</p>
