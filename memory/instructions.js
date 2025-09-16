@@ -65,7 +65,7 @@ const memory_instructions = {
     </div>
 </div>
 
-<p>In the <b>second stage</b>, you were told that the <u>labels had been mixed up</u>, and you were then asked to express <b>your own beliefs</b> about whether the artwork was <b style="color: #880E4F">AI-generated or Human-made</b> and if it was an <b style="color: rgb(32, 14, 136)">Original or a Copy</b> (i.e., an original Human creation or AI-Generated with prompts "<i>to be original</i>" and "<i>make something new</i>" - or a Human Forgery, or AI-Generated with the prompt to mimic a certain style, artist, or artwork).</p>
+<p>In the <b>second stage</b>, you were told that the <u>labels had been mixed up</u>, and you were then asked to express <b>your own beliefs</b> about whether the artwork was <b style="color: #880E4F">AI-Generated or Human-Made</b> and if it was an <b style="color: rgb(32, 14, 136)">Original or a Copy</b> (i.e., an original Human creation or AI-Generated with prompts "<i>to be original</i>" and "<i>make something new</i>" - or a Human Forgery, or AI-Generated with the prompt to mimic a certain style, artist, or artwork).</p>
 <p>In other words, you had to choose between 4 categories: "<b>Human Original</b>", "<b>Human Forgery</b>", "<b>AI Original</b>", "<b>AI Copy</b>"</p>
 
 <div style="margin-top: 8px; text-align: center;">

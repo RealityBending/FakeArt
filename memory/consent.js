@@ -95,8 +95,8 @@ const debrief = {
               <br><br><br><br><br>
               <h3>Debriefing</h3>
               <p align="left">
-                The purpose of this follow-up study was to investigate how believing that artworks are Human or AI-generated influences our memory of them.<br><br>
-              </p>
+                The key aim of this follow-up study was to investigate the effect of prior (and current) aesthetic appraisals of visual art (beauty, emotional valence (attractiveness), meaningfulness, worth) on the subsequent recognition and memory of artworks, according to the prior reality beliefs modulation (whether an artwork was labelled <b style="color: #ff0000">Original</b>/<b style="color: #0000ff">AI-Generated</b>/<b style="color: #00820e">Human Forgery</b>) and individuals' subjective reality beliefs about each artwork (based on the <b style="color: #880E4F">AI-Generated or Human-Made</b> and <b style="color: rgb(32, 14, 136)">Original or Copy</b> scales from the previous experiment).</p>
+              <p>A primary hypothesis of this follow-up study is that extreme aesthetic ratings of artworks in the previous study will lead to higher recognition accuracy in the follow-up study, relative to artworks that received more neutral aesthetic ratings. It is believed that this might be related to the "<b>self-reference effect</b>", which suggests that extreme positive/negative aesthetic appraisals may be the result of artworks being perceived as strongly/weakly personally relevant to the individual.</p><br><br>
               <p align="left">
                 <b>Thank you again!</b> Your participation in this study will be kept completely confidential.<br>
                 If you have any questions or concerns about the project, please contact 
