@@ -14,44 +14,6 @@ var memory_preloadstims = {
     message: "Please wait while the experiment is loading in (it can take a few minutes).",
 }
 
-var memory_fixation = {
-    type: jsPsychHtmlKeyboardResponse,
-    stimulus: "<div  style='font-size:500%; position:fixed; text-align: center; top:50%; bottom:50%; right:20%; left:20%'>+</div>",
-    choices: ["s"],
-    trial_duration: 750,
-    save_trial_parameters: { trial_duration: true },
-    data: { screen: "memory_fixation" },
-}
-
-var memory_showimage = {
-    type: jsPsychImageKeyboardResponse,
-    stimulus: function () {
-        return "stimuli/" + jsPsych.evaluateTimelineVariable("Item")
-    },
-    stimulus_width: function () {
-        let ratio = jsPsych.evaluateTimelineVariable("Width") / jsPsych.evaluateTimelineVariable("Height")
-        return Math.round(Math.min(0.9 * window.innerHeight * ratio, 0.9 * window.innerWidth))
-    },
-
-    stimulus_height: function () {
-        let ratio = jsPsych.evaluateTimelineVariable("Width") / jsPsych.evaluateTimelineVariable("Height")
-        return Math.round(Math.min((0.9 * window.innerWidth) / ratio, 0.9 * window.innerHeight))
-    },
-    trial_duration: 2000,
-    choices: ["s"],
-    save_trial_parameters: { trial_duration: true },
-    data: function () {
-        return {
-            screen: "memory_image",
-            trial_number: memory_trialnumber,
-            item: jsPsych.evaluateTimelineVariable("Item"),
-        }
-    },
-    on_finish: function () {
-        memory_trialnumber += 1
-    },
-}
-
 var memory_ratings = {
     type: jsPsychSurvey,
     survey_json: function () {
@@ -74,7 +36,27 @@ var memory_ratings = {
                                 "<img src='" +
                                 "stimuli/" +
                                 jsPsych.evaluateTimelineVariable("Item") +
-                                "' style='max-width: 900px; width: 100%; height: auto; display: block; margin: 0 auto; border-radius: 4px;'></img>",
+                                "' style='max-width:80vw; max-height:50vh; width:auto; height:auto; display:block; margin:0 auto; border-radius:4px;'>",
+                        },
+                        {
+                            type: "slider",
+                            name: "Beauty2",
+                            title: "This artwork is...",
+                            isRequired: true,
+                            min: -3,
+                            max: 3,
+                            step: 0.01,
+                            customLabels: [
+                                {
+                                    value: -3,
+                                    text: "Ugly",
+                                },
+                                {
+                                    value: 3,
+                                    text: "Beautiful",
+                                },
+                            ],
+                            // defaultValue: 0,
                         },
                         {
                             type: "rating",
@@ -117,21 +99,21 @@ var memory_ratings = {
                         },
                         {
                             type: "slider",
-                            name: "Beauty2",
-                            title: "This artwork is...",
+                            name: "PerceivedArtificiality",
+                            title: "I could easily believe that this artwork was created by AI",
                             isRequired: true,
                             visibleIf: "{Recognition} = 'No'",
-                            min: -3,
-                            max: 3,
-                            step: 0.01,
+                            min: 0,
+                            max: 1,
+                            step: 0.1,
                             customLabels: [
                                 {
-                                    value: -3,
-                                    text: "Ugly",
+                                    value: 0,
+                                    text: "Not at all",
                                 },
                                 {
-                                    value: 3,
-                                    text: "Beautiful",
+                                    value: 1,
+                                    text: "Very much",
                                 },
                             ],
                             // defaultValue: 0,

@@ -543,6 +543,8 @@ alldata$Participant <- ids[alldata$Participant]
 alldata_task$Participant <- ids[alldata_task$Participant]
 alldata_gaze$Participant <- ids[alldata_gaze$Participant]
 
+# TODO: rename Reality as Artificiality (Artificial & Synthetic vs. Authenticity)
+
 
 # Save --------------------------------------------------------------------
 # restore default warnings settings
