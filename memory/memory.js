@@ -11,7 +11,8 @@ var memory_trialnumber = 1
 var memory_preloadstims = {
     type: jsPsychPreload,
     images: stimuli_list.map((a) => "stimuli/" + a.Item),
-    message: "Please wait while the experiment is loading in (it can take a few minutes).",
+    message:
+        "Please wait while the experiment is loading in (it can take a few minutes).",
 }
 
 var memory_ratings = {
@@ -23,7 +24,13 @@ var memory_ratings = {
             completeText: "Continue",
             showNavigationButtons: true,
             title: function () {
-                return "Rating - " + Math.round(((memory_trialnumber - 1) / stimuli_list.length) * 100) + "%"
+                return (
+                    "Rating - " +
+                    Math.round(
+                        ((memory_trialnumber - 1) / stimuli_list.length) * 100
+                    ) +
+                    "%"
+                )
             },
             description: "Do you recognise the artwork?",
             pages: [
@@ -62,7 +69,8 @@ var memory_ratings = {
                             type: "rating",
                             name: "SelfRelevance",
                             title: "This painting is personally relevant...",
-                            description: "It relates to my personality, interests, or reminds me of events in my life",
+                            description:
+                                "It relates to my personality, interests, or reminds me of events in my life",
                             isRequired: true,
                             rateMin: 0,
                             rateMax: 6,
@@ -82,11 +90,16 @@ var memory_ratings = {
                             type: "rating",
                             name: "SourceCondition",
                             title: "In the previous study, the artwork was labelled as...",
-                            description: "What was the label preceding the artwork in the first stage of the study",
+                            description:
+                                "What was the label preceding the artwork in the first stage of the study",
                             isRequired: true,
                             visibleIf: "{Recognition} = 'Yes'",
                             displayMode: "buttons",
-                            rateValues: ["Original", "AI-Generated", "Human Forgery"],
+                            rateValues: [
+                                "Original",
+                                "AI-Generated",
+                                "Human Forgery",
+                            ],
                         },
 
                         {
@@ -95,7 +108,12 @@ var memory_ratings = {
                             title: "In the previous study, I answered that the artwork was...",
                             isRequired: true,
                             visibleIf: "{Recognition} = 'Yes'",
-                            choices: ["Human Original", "Human Forgery", "AI Original", "AI Copy"],
+                            choices: [
+                                "Human Original",
+                                "Human Forgery",
+                                "AI Original",
+                                "AI Copy",
+                            ],
                         },
                         {
                             type: "slider",
@@ -103,12 +121,12 @@ var memory_ratings = {
                             title: "I could easily believe that this artwork was created by AI",
                             isRequired: true,
                             visibleIf: "{Recognition} = 'No'",
-                            min: 0,
+                            min: -1,
                             max: 1,
                             step: 0.1,
                             customLabels: [
                                 {
-                                    value: 0,
+                                    value: -1,
                                     text: "Not at all",
                                 },
                                 {
