@@ -1,5 +1,29 @@
-/* consent form */
+// Retrieve and save browser info ========================================================
+var demographics_browser_info = {
+    type: jsPsychBrowserCheck,
+    data: {
+        screen: "browser_info",
+        date: new Date().toLocaleDateString("fr-FR"), // French format (=european) means dd/mm/yyyy
+        time: new Date().toLocaleTimeString("fr-FR"), // French format (=european) means hh:mm:ss
+    },
+    on_finish: function (data) {
+        dat = jsPsych.data.get().filter({ screen: "browser_info" }).values()[0]
 
+        // Rename
+        data["screen_height"] = dat["height"]
+        data["screen_width"] = dat["width"]
+
+        // Add URL variables - ?sona_id=x&exp=1
+        let urlvars = jsPsych.data.urlVariables()
+        data["researcher"] = urlvars["exp"]
+        data["sona_id"] = urlvars["sona_id"]
+        data["prolific_id"] = urlvars["PROLIFIC_PID"] // Prolific
+        data["study_id"] = urlvars["STUDY_ID"] // Prolific
+        data["session_id"] = urlvars["SESSION_ID"] // Prolific
+    },
+}
+
+/* consent form */
 const consent = {
     type: jsPsychSurvey,
     survey_json: function () {
@@ -34,7 +58,7 @@ const consent = {
             // Description
             "<p align='left'><b>Why have I been invited and what will I do?</b><br>" +
             "The goal is to study how <b>aesthetic appraisals and reality beliefs impact memory</b>.  In this study, you will complete a recognition task where you will identify if artworks were in the previous study, and rate their aesthetic qualities. " +
-            "The whole experiment will take you <b style='color:#FF5722;'>~10 min</b> to complete. Please make sure that you are <b>attentive and in a quiet environment</b>, and that you have time to complete it in one go.</p>" +
+            "The whole experiment will take you <b style='color:#FF5722;'>~15 min</b> to complete. Please make sure that you are <b>attentive and in a quiet environment</b>, and that you have time to complete it in one go.</p>" +
             // Results and personal information
             "<p align='left'><b>What will happen to the results and my personal information?</b><br>" +
             "The results of this research may be written into a scientific publication. Your anonymity will be ensured in the way described in the consent information below. <b>Please read this information carefully</b> and then, if you wish to take part, please acknowledge that you have fully understood this sheet, and that you consent to take part in the study as it is described here.</p>" +
@@ -99,13 +123,13 @@ const debrief = {
               <p>A primary hypothesis of this follow-up study is that extreme aesthetic ratings of artworks in the previous study will lead to higher recognition accuracy in the follow-up study, relative to artworks that received more neutral aesthetic ratings. It is believed that this might be related to the "<b>self-reference effect</b>", which suggests that extreme positive/negative aesthetic appraisals may be the result of artworks being perceived as strongly/weakly personally relevant to the individual.</p><br><br>
               <p align="left">
                 <b>Thank you again!</b> Your participation in this study will be kept completely confidential.<br>
-                If you have any questions or concerns about the project, please contact 
-                <a href="mailto:D.Makowski@sussex.ac.uk">D.Makowski@sussex.ac.uk</a> and/or 
+                If you have any questions or concerns about the project, please contact
+                <a href="mailto:D.Makowski@sussex.ac.uk">D.Makowski@sussex.ac.uk</a> and/or
                 <a href="mailto:A.Neves@sussex.ac.uk">A.Neves@sussex.ac.uk</a>.
               </p>
               <p>
-                To complete your participation in this study, click on 'Continue' and 
-                <b style="color: red;">wait until your responses have been successfully saved</b> before closing the tab.
+                To complete your participation in this study, click on 'Continue' and
+                <b style="color: red;">wait until your responses have been successfully saved</b> before closing the tab. You will then <b style="color: red;">receive your Prolific completion code</b>.
               </p>
             `,
                     },

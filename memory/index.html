@@ -10,8 +10,15 @@
         <script src="https://unpkg.com/@jspsych/plugin-preload@2.1.0"></script>
         <script src="https://unpkg.com/@jspsych/plugin-fullscreen@2.1.0"></script>
         <script src="https://unpkg.com/@jspsych/plugin-survey@3.0.0"></script>
-        <link rel="stylesheet" href="https://unpkg.com/@jspsych/plugin-survey@3.0.0/css/survey.css" />
-        <link href="https://unpkg.com/jspsych@8.2.2/css/jspsych.css" rel="stylesheet" type="text/css" />
+        <link
+            rel="stylesheet"
+            href="https://unpkg.com/@jspsych/plugin-survey@3.0.0/css/survey.css"
+        />
+        <link
+            href="https://unpkg.com/jspsych@8.2.2/css/jspsych.css"
+            rel="stylesheet"
+            type="text/css"
+        />
 
         <script src="https://unpkg.com/@jspsych-contrib/plugin-pipe@0.5.0"></script>
 
@@ -27,7 +34,15 @@
             show_progress_bar: "true",
             message_progress_bar: "Progress",
             on_finish: function () {
-                jsPsych.data.displayData("json")
+                // jsPsych.data.displayData("json") // Display data in browser
+                // window.location = "https://realitybending.github.io/" // Redirect to lab website
+                if (jsPsych.data.urlVariables()["exp"] == "SONA") {
+                    window.location =
+                        "URM" + jsPsych.data.urlVariables()["sona_id"]
+                } else if (jsPsych.data.urlVariables()["exp"] == "prolific") {
+                    window.location =
+                        "https://app.prolific.com/submissions/complete?cc=C1IX56QL" // Pass
+                }
             },
         })
 
@@ -36,27 +51,28 @@
         /* enter fullscreen */
         var fullscreen_on = {
             type: jsPsychFullscreen,
-            message: "<p>The experiment will switch to full screen mode when you press the button below.</p>",
+            message:
+                "<p>The experiment will switch to full screen mode when you press the button below.</p>",
             fullscreen_mode: true,
             delay_after: 0,
         }
 
         timeline.push(fullscreen_on)
-
+        timeline.push(demographics_browser_info)
         timeline.push(memory_preloadstims)
         timeline.push(consent)
         timeline.push(memory_instructions)
         timeline.push(memory_phase)
         timeline.push(debrief)
 
-        /* saving data via DataPipe
+        // Save data via DataPipe ====================================================
         timeline.push({
-        type: jsPsychPipe,
-        action: "save",
-        experiment_id: "cGSVw8AnfxEJ",
-        filename: jsPsych.randomization.randomID(10) + ".csv",
-        data_string: ()=>jsPsych.data.get().csv()
-                  }); */ // NOT NECESSARY YET
+            type: jsPsychPipe,
+            action: "save",
+            experiment_id: "DoOfdX2FFR4H", // This is generated in the DataPipe interface
+            filename: `memory_${participant_ID}.csv`,
+            data_string: () => jsPsych.data.get().csv(),
+        })
 
         /* end of experiment */
         timeline.push({

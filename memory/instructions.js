@@ -1,33 +1,3 @@
-var participant_id = {
-    type: jsPsychSurvey,
-    survey_json: {
-        title: "Before we begin",
-        completeText: "Continue",
-        pageNextText: "Next",
-        pagePrevText: "Previous",
-        goNextPageAutomatic: false,
-        showQuestionNumbers: false,
-        pages: [
-            {
-                elements: [
-                    {
-                        type: "html",
-                        html: `<div style="text-align: center;"></div>`,
-                    },
-                    {
-                        type: "text",
-                        title: "Please enter the same 6-character participant ID as used in the previous study, to ensure that results can be matched between both studies. [TYPE OUT ID CODE RULES BELOW]",
-                        name: "ID",
-                        isRequired: true,
-                        inputType: "text",
-                        placeholder: "e.g., xxxxxx",
-                    },
-                ],
-            },
-        ],
-    },
-}
-
 const memory_instructions = {
     type: jsPsychSurvey,
     data: { screen: "memory_instructions" },
@@ -71,7 +41,7 @@ const memory_instructions = {
 <div style="margin-top: 8px; text-align: center;">
     <img src="media/exp1_graphic2.gif" style="max-width: 720px; width: 100%; height: auto; display: inline-block; border-radius: 4px;">
     <p><i>Second stage</i></p>
-  
+
 </div>
 
 <p><b>At the end of the experiment</b>, it was revealed that <b>all the artworks had actually been Human originals</b>.</p>
@@ -99,7 +69,7 @@ const memory_instructions = {
 
         <h4>2) Recognition</h4>
         <p>Afterwards, for each artwork, we would like you to indicate whether you <b>recognise</b> it from the previous study. You should answer "Yes" if you recall seeing this artwork in the previous experiment or "No" if you think this is a new artwork not shown in the previous experiment.</p>
-        <p>If you do <b>not</b> recognise an artwork as being shown in the previous experiment, we would then like you to rate the extent to which you could easily believe the artwork was created by AI: the AI-likeness of the artwork.</p>         
+        <p>If you do <b>not</b> recognise an artwork as being shown in the previous experiment, we would then like you to rate the extent to which you could easily believe the artwork was created by AI: the AI-likeness of the artwork.</p>
 
         <h4>3) Memory</h4>
         <p><i>If</i> you recognise an artwork from the previous study, you will be asked the following questions relating to details of your <b>memory</b>:</p>
@@ -107,7 +77,7 @@ const memory_instructions = {
             <li><b>Label</b>: Which category (<b style="color: #ff0000">Original</b>/<b style="color: #0000ff">AI-Generated</b>/<b style="color: #00820e">Human Forgery</b>) was the artwork said to have belonged to in the first stage of the previous study?</li>
             <li><b>Your own beliefs</b>: What did you answer the real nature of the artwork was in the second stage of the previous study? (i.e., did you think it was Human Original, Human Forgery, AI Original, or AI Copy)</li>
         </ul>
-        <p>Remember that we are not asking about what you think now, but how well you are able to remember your own answers. <b>If you don't remember your answer, just make your best guess!</b></p>
+        <p>Remember that we are not asking about what you think now, but how well you are able to remember your own answers. <b>We know it is very difficult, as the experiment was a long time ago!</b> So it is <b>totally normal</b> to not fully remember these details, but we are still very interested in your best guess!</b></p>
 
     </div>
 
@@ -116,8 +86,6 @@ const memory_instructions = {
         <img src="media/instructions_update_2.jpg" style="width: 110%; height: auto; display: block; border-radius: 4px;" alt="Instructions illustration">
     </div>
 </div>
-
-
 `,
                     },
                 ],
@@ -139,7 +107,7 @@ var endscreen = {
                         name: "Debrief",
                         html: `
 <h2 style='color:green;';"text-align: center;">Data saved successfully!</h2>
-<p style="text-align:center">Thank you for your participation. You may now close the tab.</p>
+<p style="text-align:center">Thank you for your participation. <b style="color: red;">The Prolific completion code is C1IX56QL (you will be redirected to the completion page after this experiment)</b>. You may now close the tab.</p>
                             `,
                     },
                 ],
