@@ -107,7 +107,7 @@ var endscreen = {
                         name: "Debrief",
                         html: `
 <h2 style='color:green;';"text-align: center;">Data saved successfully!</h2>
-<p style="text-align:center">Thank you for your participation. <b style="color: red;">The Prolific completion code is C1IX56QL (you will be redirected to the completion page after this experiment)</b>. You may now close the tab.</p>
+<p style="text-align:center">Thank you for your participation. <b style="color: red;">The Prolific completion code is <a href="https://app.prolific.com/submissions/complete?cc=C1IX56QL">C1IX56QL</a> (you will be redirected to the completion page after this experiment)</b>. You may now close the tab.</p>
                             `,
                     },
                 ],
