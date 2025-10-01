@@ -70,7 +70,7 @@
             type: jsPsychPipe,
             action: "save",
             experiment_id: "DoOfdX2FFR4H", // This is generated in the DataPipe interface
-            filename: `memory_${participant_ID}.csv`,
+            filename: `memory_${jsPsych.randomization.randomID(10)}.csv`,
             data_string: () => jsPsych.data.get().csv(),
         })
 
