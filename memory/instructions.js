@@ -75,9 +75,9 @@ const memory_instructions = {
         <p><i>If</i> you recognise an artwork from the previous study, you will be asked the following questions relating to details of your <b>memory</b>:</p>
         <ul>
             <li><b>Label</b>: Which category (<b style="color: #ff0000">Original</b>/<b style="color: #0000ff">AI-Generated</b>/<b style="color: #00820e">Human Forgery</b>) was the artwork said to have belonged to in the first stage of the previous study?</li>
-            <li><b>Your own beliefs</b>: What did you answer the real nature of the artwork was in the second stage of the previous study? (i.e., did you think it was Human Original, Human Forgery, AI Original, or AI Copy)</li>
+            <li><b>Your own beliefs</b>: What did you answer the real nature of the artwork was in the second stage of the previous study? (i.e., did you think it was Human Original, Human Forgery, AI Original, or AI Copy). Remember that we are not asking about what you think now, but how well you are able to remember your own answers.</li>
         </ul>
-        <p>Remember that we are not asking about what you think now, but how well you are able to remember your own answers. <b>We know it is very difficult, as the experiment was a long time ago!</b> So it is <b>totally normal</b> to not fully remember these details, but we are still very interested in your best guess!</b></p>
+        <p><b>We know that remembering all of this is very difficult, as the experiment was a long time ago!</b> It is <b>totally normal</b> to not remember much of it. But we are still very interested in your best guess, even if you don't think you can remember!</b></p>
 
     </div>
 
