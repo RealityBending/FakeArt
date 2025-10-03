@@ -58,7 +58,7 @@ const consent = {
             // Description
             "<p align='left'><b>Why have I been invited and what will I do?</b><br>" +
             "The goal is to study how <b>aesthetic appraisals and reality beliefs impact memory</b>.  In this study, you will complete a recognition task where you will identify if artworks were in the previous study, and rate their aesthetic qualities. " +
-            "The whole experiment will take you <b style='color:#FF5722;'>~15 min</b> to complete. Please make sure that you are <b>attentive and in a quiet environment</b>, and that you have time to complete it in one go.</p>" +
+            "The whole experiment will take you <b style='color:#FF5722;'>~25 min</b> to complete. Please make sure that you are <b>attentive and in a quiet environment</b>, and that you have time to complete it in one go.</p>" +
             // Results and personal information
             "<p align='left'><b>What will happen to the results and my personal information?</b><br>" +
             "The results of this research may be written into a scientific publication. Your anonymity will be ensured in the way described in the consent information below. <b>Please read this information carefully</b> and then, if you wish to take part, please acknowledge that you have fully understood this sheet, and that you consent to take part in the study as it is described here.</p>" +
