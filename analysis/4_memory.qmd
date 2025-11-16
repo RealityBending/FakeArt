@@ -8,6 +8,8 @@ format:
     code-fold: true
     self-contained: false
     toc: true
+execute:
+  cache: true
 ---
 
 ## Data Preparation
@@ -25,43 +27,29 @@ library(ggdist)
 library(brms)
 
 
-dftask <- read.csv("../data/rawdata_task.csv") |> 
-  select(Participant, Item, Condition, Beauty, Reality, Authenticity) |> 
-  mutate(Reality = Reality / 100, Authenticity = Authenticity / 100)
-df <- read.csv("../data/rawdata_memory_task.csv") |> 
-  left_join(dftask, by = c("Participant", "Item")) |>
-  rename(AnswerCondition = SourceCondition, AnswerBelief = SourceBelief) |> 
-  mutate(Type = ifelse(is.na(Condition), "New", "Old"),
-         Condition = ifelse(is.na(Condition), "New Items", Condition),
-         Condition = fct_relevel(Condition, "Human Original", "Human Forgery", "AI-Generated", "New Items"),
-         AnswerCondition = ifelse(is.na(AnswerCondition), "Not recognized", AnswerCondition),
+df <- read.csv("../data/data_memory_task.csv") |> 
+  left_join(select(read.csv("../data/data_task.csv"), -Condition, -Reality, -Authenticity), by = c("Participant", "Item")) |>
+  mutate(Condition = fct_relevel(Condition, "Human Original", "Human Forgery", "AI-Generated", "New Items"),
          AnswerCondition = fct_relevel(AnswerCondition, "Human Original", "Human Forgery", "AI-Generated", "Not recognized"),
-         AnswerBelief = ifelse(is.na(AnswerBelief), "Not recognized", AnswerBelief),
          AnswerBelief = fct_relevel(AnswerBelief, "Human Original", "Human Forgery", "AI Original", "AI Copy", "Not recognized"),
-         Belief = case_when(
-           Reality >= 0 & Authenticity >= 0 ~ "Human Original",
-           Reality < 0 & Authenticity >= 0 ~ "AI Original",
-           Reality >= 0 & Authenticity < 0 ~ "Human Forgery",
-           Reality < 0 & Authenticity < 0 ~ "AI Copy",
-           .default = "None"
-         ),
          Belief = fct_relevel(Belief, "Human Original", "Human Forgery", "AI Original", "AI Copy", "None"))
 
-dfsub <- read.csv("../data/rawdata_participants.csv") |> 
-  select(Participant, Date_Expe1 = Experiment_StartDate, Gender, Age,
-         Art_Expertise, BAIT_AI_Knowledge, BAIT_AI_Use) |> 
-  right_join(
-    read.csv("../data/rawdata_memory_participants.csv") |> 
-  select(Participant, Date_Expe2 = Experiment_StartDate), by = "Participant") |> 
-  mutate(Delay = as.numeric(as.Date(Date_Expe2) - as.Date(Date_Expe1)))
+dfsub <- read.csv("../data/data_participants.csv") |> 
+  filter(Participant %in% df$Participant)
 
 cols <- c(
+  # Condition
   "Human Original" = "#F51D56",
   "Human Forgery" = "#F5A41D",
   "AI-Generated" = "#1D9AF5",
   "AI Original" = "#1D9AF5",
   "AI Copy" = "#4CAF50",
-  "Not recognized" = "#607D8B"
+  "Not recognized" = "#607D8B",
+  # Style
+  "Abstract and Avant-garde" = "#E41A1C", 
+  "Classical" = "#377EB8", 
+  "Impressionist and Expressionist" = "#4DAF4A", 
+  "Romantic and Realism" = "#FF7F00"
 )
 ```
 
@@ -71,10 +59,11 @@ cols <- c(
 ```{r}
 dfsub |> 
   ggplot(aes(x=Delay)) +
-  geom_histogram(bins=30)
+  geom_histogram(bins=30) +
+  theme_minimal()
 ```
 
-The mean and median days between the two experiments were `r mean(dfsub$Delay)` and `r median(dfsub$Delay)`, respectively.
+The mean and median days between the two experiments were `r format_number(mean(dfsub$Delay))` and `r format_number(median(dfsub$Delay))`, respectively.
 
 
 ## Memory of Condition
@@ -88,7 +77,9 @@ m_cond1 <- brm(AnswerCondition ~ Condition + (1|Participant) + (1|Item),
     algorithm = "meanfield",
     iter = 8000,
     backend = "cmdstanr")
+```
 
+```{r}
 # Modify the order of dodging based on the groups for visualization
 make_group <- function(resp, covariate = NULL) {
   group <- case_when(  
@@ -171,7 +162,9 @@ m_cond2a <- brm(AnswerCondition ~ Condition * SelfRelevance + (1|Participant),
     algorithm = "meanfield",
     iter = 8000,
     backend = "cmdstanr")
+```
 
+```{r}
 dat_cond2a <- estimate_means(m_cond2a, by=c("Condition", "SelfRelevance"), length = 7) |> 
   mutate(group = make_group(Response, SelfRelevance),
          SelfRelevance = as.factor(SelfRelevance)) 
@@ -210,7 +203,9 @@ m_cond2b <- brm(AnswerCondition ~ Condition * poly(Beauty, 2) + (1|Participant),
     algorithm = "meanfield",
     iter = 8000,
     backend = "cmdstanr")
+```
 
+```{r}
 dat_cond2b <- estimate_means(m_cond2b, by=c("Condition", "Beauty"), length = 7) |> 
   mutate(group = make_group(Response, Beauty),
          Beauty = as.factor(Beauty))
@@ -247,7 +242,9 @@ m_belief1a <- brm(AnswerBelief ~ Belief + (1|Participant),
     algorithm = "meanfield",
     iter = 8000,
     backend = "cmdstanr")
+```
 
+```{r}
 dat_belief1a <- estimate_means(m_belief1a, by=c("Belief")) |> 
   mutate(group = make_group(Response))
 
@@ -282,7 +279,9 @@ m_belief1b <- brm(AnswerBelief ~ poly(Reality, 2) * Authenticity + (1|Participan
     algorithm = "meanfield",
     iter = 12000,
     backend = "cmdstanr")
+```
 
+```{r}
 dat_belief1b <- estimate_means(m_belief1b, by=c("Reality", "Authenticity"), length = c(11, 5)) |> 
   mutate(
     group = make_group(Response, Authenticity),
@@ -313,184 +312,26 @@ p_belief1a / p_belief1b +
 
 
 
-## Sankey Diagram
-
-
-```{r}
-library(plotly)
-
-
-dat <- df |> 
-  select(Condition, RecognitionCorrect, SourceCondition, SourceRecognitionCorrect) |> 
-  mutate(RecognitionCorrect = ifelse(RecognitionCorrect == 1, "Recognized", "Not Recognized"),
-         SourceRecognitionCorrect = ifelse(SourceRecognitionCorrect == 1, "Recognized", "")) |>
-  summarize(p = n(), .by=c("Condition", "RecognitionCorrect", "SourceCondition", "SourceRecognitionCorrect"))
-
-
-# Define stages explicitly
-stages <- list(
-  Condition = unique(dat$Condition),
-  RecognitionCorrect = unique(dat$RecognitionCorrect),
-  SourceCondition = na.omit(unique(dat$SourceCondition))
-)
-
-# Add dummy (hidden) node to anchor "Not Recognized"
-nodes <- tibble(
-  value = c(stages$Condition,
-            stages$RecognitionCorrect,
-            stages$SourceCondition,
-            ""),  # hidden dummy
-  stage = c(
-    rep("Condition", length(stages$Condition)),
-    rep("RecognitionCorrect", length(stages$RecognitionCorrect)),
-    rep("SourceCondition", length(stages$SourceCondition)),
-    "Dummy"
-  )
-) |>
-  mutate(id = row_number() - 1,
-         x = case_when(
-           stage == "Condition" ~ 0,
-           stage == "RecognitionCorrect" ~ 0.5,
-           stage == "SourceCondition" ~ 1,
-           stage == "Dummy" ~ 1
-         ))
-
-# Normalise y so all stages share same vertical extent
-max_nodes <- nodes |>
-  count(stage) |>
-  summarise(max(n)) |>
-  pull()
-
-nodes <- nodes |>
-  group_by(stage) |>
-  mutate(y = seq(0, 1, length.out = max_nodes)[seq_len(n())]) |>
-  ungroup()
-
-# Helper
-get_id <- function(x) nodes$id[match(x, nodes$value)]
-
-# Links
-links <- bind_rows(
-  dat |> filter(!is.na(RecognitionCorrect)) |>
-    transmute(source = get_id(Condition),
-              target = get_id(RecognitionCorrect),
-              value = p),
-  dat |> filter(!is.na(SourceCondition)) |>
-    transmute(source = get_id(RecognitionCorrect),
-              target = get_id(SourceCondition),
-              value = p),
-  # Dummy tiny link (keeps Not Recognized in stage 2)
-  tibble(source = get_id("Not Recognized"),
-         target = get_id(""),
-         value = 0.0001)
-)
-
-# Sankey
-fig <- plot_ly(
-  type = "sankey",
-  arrangement = "snap",
-  node = list(
-    label = nodes$value,  # dummy label = ""
-    x = nodes$x,
-    y = nodes$y,
-    pad = 15,
-    thickness = 20
-  ),
-  link = list(
-    source = links$source,
-    target = links$target,
-    value  = links$value
-  )
-)
-
-fig
-```
-
-
-
-
-```{r}
-library(ggalluvial)
-
-blend_cmyk <- function(col1, col2, alpha = 0.5) {
-  # Hex -> RGB [0-1]
-  rgb1 <- col2rgb(col1) / 255
-  rgb2 <- col2rgb(col2) / 255
-  
-  # RGB -> CMY
-  to_cmyk <- function(rgb) {
-    cmy <- 1 - rgb
-    K <- min(cmy)
-    if (K == 1) return(c(0, 0, 0, 1))
-    C <- (cmy[1] - K) / (1 - K)
-    M <- (cmy[2] - K) / (1 - K)
-    Y <- (cmy[3] - K) / (1 - K)
-    c(C, M, Y, K)
-  }
-  
-  cmyk1 <- to_cmyk(rgb1)
-  cmyk2 <- to_cmyk(rgb2)
-  
-  # Blend in CMYK
-  cmyk_blend <- (1 - alpha) * cmyk1 + alpha * cmyk2
-  
-  # CMYK -> RGB -> hex
-  from_cmyk <- function(cmyk) {
-    C <- cmyk[1]; M <- cmyk[2]; Y <- cmyk[3]; K <- cmyk[4]
-    R <- 1 - (C * (1 - K) + K)
-    G <- 1 - (M * (1 - K) + K)
-    B <- 1 - (Y * (1 - K) + K)
-    rgb(R, G, B)
-  }
-  
-  from_cmyk(cmyk_blend)
-}
-
-
-dat <- df |> 
-  select(Condition, RecognitionAnswer, SourceCondition, SourceRecognitionCorrect) |> 
-  mutate(SourceRecognitionCorrect = case_when(
-           SourceRecognitionCorrect == 1 ~ "Correct",
-           SourceRecognitionCorrect == 0 ~ "Incorrect",
-           is.na(SourceRecognitionCorrect) ~ "N/A"
-         )) |>
-  summarize(p = n(), .by=c("Condition", "RecognitionAnswer", "SourceCondition", "SourceRecognitionCorrect")) |> 
-  mutate(SourceAnswer = ifelse(RecognitionAnswer == 0, "Not recognized", SourceCondition),
-         Condition = fct_relevel(Condition, "Human", "AI", "Forgery", "None"),
-         SourceAnswer = fct_relevel(SourceAnswer, "Original", "AI-Generated", "Human Forgery", "Not recognized"))
-
-
-
-p <- dat |> 
-  # filter(!(Condition == "None" & SourceAnswer == "Not recognized")) |> 
-  ggplot(aes(axis1 = Condition, axis2 = SourceAnswer,
-             y = p)) +
-  scale_x_discrete(limits = c("Condition", "Source Answer")) +
-  geom_alluvium(aes(fill=SourceAnswer)) +
-  geom_stratum() +
-  geom_text(stat = "stratum", aes(label = after_stat(stratum))) +
-  scale_fill_manual(values= c(
-    "Original" = "#F51D56",
-    "AI-Generated" = "#1D9AF5",
-    "Human Forgery" = "#F5A41D",
-    "NA" = "grey"), breaks = c("Original", "AI-Generated", "Human Forgery")) +
-  labs(fill = "Remembered as") +
-  theme_void()
-p
-```
-
-
 ## Participant-level
 
-It corresponds to data from a recognition task, in which people were presented old and new items, and had to 1) answer if they recognize  it or not, and if so then remember the condition it was presented in as well as the memory of their own belief that they had about the item.
-
-I would like the code to compute the following participant-level indices.
-- Recognition performance: based on the yes/no "Recognition" answer and the old/new items "Types", compute the rate of false alarms, correct rejections, hits, and misses, and then compute SDT indices for each participant (discrimination, bias etc.). Pick a parametric or non-parametric approach and justify it.
-- Human bias for Condition: indices that quantify the tendency to remember that the condition of items was "Human Original" vs. the 2 other categories. 
-- Human bias for Belief: indices that quantify the tendency to remember that their own belief was "Human Original" vs. the 3 other categories, as Human (the 2 Human categories vs. the 2 AI ones), and a Copy (the forgery and copy categories vs. the two original ones)
+In this recognition task, in which people were presented old and new items, and had to 1) answer if they recognize  it or not, and if so then remember the condition it was presented in as well as the memory of their own belief that they had about the item.
 
 ### Compute Indidces 
 
+
+- **dprime**:  Sensitivity index quantifying how well a participant discriminates *old* from *new* items. Higher values indicate better recognition accuracy; 0 reflects chance-level discrimination.
+- **c** : Parametric response bias criterion. Negative values indicate a liberal bias (more “old” responses), positive values a conservative bias (more “new” responses), and 0 indicates no bias.
+- **BiasCondition_Human**:  Among all recognised items, the proportion labelled *Human Original*. Higher values indicate a stronger tendency to classify recognised items as human, regardless of their original condition assignment.
+- **BiasCondition_Forgery**: Among all recognised items, the proportion labelled *Human Forgery*. This reflects a bias towards attributing recognised items to manipulated human sources, regardless of their original condition assignment.
+- **BiasCondition_AI**: Among all recognised items, the proportion labelled *AI-Generated*. Higher values indicate a stronger general tendency to attribute recognised items to AI, regardless of their original condition assignment.
+- **BiasBelief_HumanOriginal**: Proportion of recognised items for which participants remember having believed they were *Human Original*.
+- **BiasBelief_HumanForgery**:  Proportion remembered as *Human Forgery*, indicating recalled suspicion of human tampering.
+- **BiasBelief_AIOriginal**: Proportion remembered as *AI Original*, indicating remembered beliefs that items were originally produced by AI.
+- **BiasBelief_AICopy**: Proportion remembered as *AI Copy*, reflecting recalled beliefs that items were AI-generated and derivative.
+- **BiasBelief_Human**: Combined proportion of *Human Original + Human Forgery*. Represents the tendency to remember having believed items were human rather than AI.
+- **BiasBelief_Authentic**: Combined proportion of *Human Original + AI Original*. Captures the tendency to recall having believed items were “authentic” originals rather than copies or forgeries.
+  
+  
 
 ```{r}
 # log-linear corrected rates to avoid 0/1 extremes
@@ -563,8 +404,13 @@ dffeatures <- df |>
 ### Correlation
 
 ```{r}
+#| fig-width: 8
+#| fig-height: 8
+
 df2 <- dfsub |> 
-  select(Participant, Gender, Age, Art_Expertise, starts_with("BAIT_")) |> 
+  select(Participant, Gender, Age, Delay, Art_Expertise, 
+         BAIT_AI_Use, BAIT_AI_Knowledge, BAIT_Negative, BAIT_Positive, BAIT_ArtRealistic, BAIT_Total,
+         VVIQ_Total, LifeSatisfaction, PHQ4_Anxiety, PHQ4_Depression, starts_with("MINT_"), -MINT_AttentionCheck) |> 
   mutate(Gender = case_when(
     Gender == "Male" ~ 0,
     Gender == "Female" ~ 1,
@@ -579,14 +425,40 @@ df2 <- dfsub |>
     .default = NA
   ))
 
+cleanlabels <- function(params) {
+  params <- as.character(params)
+  params[str_detect(params, "MINT_")] <- paste0(params[str_detect(params, "MINT_")], ")")
+  params <- str_replace_all(params, "MINT_", "MINT (")
+  params <- str_replace_all(params, "VVIQ_Total", "VVIQ")
+  params <- str_replace_all(params, "PHQ4_", "PHQ4 - ")
+  params <- str_replace_all(params, "LifeSatisfaction", "Life Satisfaction")
+  params <- str_replace_all(params, "Delay", "Recognition Interval")
+  params <- str_replace_all(params, "Art_Expertise", "Art Expertise")
+  params <- str_replace_all(params, "BAIT_AI_Use", "AI - Usage Frequency")
+  params <- str_replace_all(params, "BAIT_AI_Knowledge", "AI - Expertise")
+  params <- str_replace_all(params, "BAIT_Negative", "BAIT - Negative Expectations")
+  params <- str_replace_all(params, "BAIT_Positive", "BAIT - Positive Expectations")
+  params <- str_replace_all(params, "BAIT_ArtRealistic", "BAIT - Art Realism")
+  params <- str_replace_all(params, "BAIT_Total", "BAIT - Total")
+  
+  params <- str_replace_all(params, "BiasCondition_", "Bias for Condition ")
+  params <- str_replace_all(params, "BiasBelief_HumanOriginal", "Bias for Belief - Human Original")
+  params <- str_replace_all(params, "BiasBelief_HumanForgery", "Bias for Belief - Human Forgery")
+  params <- str_replace_all(params, "BiasBelief_AIOriginal", "Bias for Belief - AI Original")
+  params <- str_replace_all(params, "BiasBelief_AICopy", "Bias for Belief - AI Copy")
+  params <- str_replace_all(params, "BiasBelief_Human", "Bias for Belief - Human")
+  params <- str_replace_all(params, "BiasBelief_Authentic", "Bias for Belief - Authentic")
+  params <- str_replace_all(params, "dprime", "Sensitivity (d')")
+  params[params == "c"] <-  "Response Bias (c)"
+  factor(params, levels = sort(as.character(unique(params))))
+}
 
 r <- dffeatures |> 
   correlation::correlation(df2, p_adjust="none") |> 
   correlation::cor_sort() |>
   mutate(label = ifelse(p < .05, paste0(insight::format_value(r, lead_zero = FALSE, zap_small = TRUE)), ""),
-         # Parameter1 = cleanlabels(Parameter1, qname=qname_x),
-         # Parameter2 = cleanlabels(Parameter2, qname=qname_y))
-         Parameter1 = Parameter1)
+         Parameter1 = cleanlabels(Parameter1),
+         Parameter2 = cleanlabels(Parameter2))
 r[as.character(r$Parameter1) == as.character(r$Parameter2), "label"] <- ""
 
 xnames <- levels(r$Parameter1)
@@ -594,15 +466,17 @@ ynames <- levels(r$Parameter2)
 
 xcol <- case_when(
   str_detect(xnames, "MINT") ~ "#00838F",
-  str_detect(xnames, "MAIA") ~ "#EF6C00",
-  str_detect(xnames, "IAS") ~ "#C62828",
+  str_detect(xnames, "BAIT") ~ "#EF6C00",
+  str_detect(xnames, "AI -") ~ "#FF9800",
+  str_detect(xnames, "PHQ4") ~ "#9C27B0",
   str_detect(xnames, "BPQ") ~ "#795548",
   .default = "#424242"
 )
 ycol <- case_when(
   str_detect(ynames, "MINT") ~ "#00838F",
-  str_detect(ynames, "MAIA") ~ "#EF6C00",
-  str_detect(ynames, "IAS") ~ "#C62828",
+  str_detect(ynames, "BAIT") ~ "#EF6C00",
+  str_detect(ynames, "AI -") ~ "#FF9800",
+  str_detect(ynames, "PHQ4") ~ "#9C27B0",
   str_detect(ynames, "BPQ") ~ "#795548",
   .default = "#424242"
 )
@@ -619,7 +493,7 @@ ybold <- case_when(
   .default = "plain"
 )
 
-r |> 
+r |>
   ggplot(aes(x=Parameter1, y=Parameter2, fill=r)) +
   geom_tile() +
   geom_text(aes(label=label), size=3) +

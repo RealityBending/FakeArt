@@ -48,6 +48,8 @@ cols <- c(
 ### Stimuli Selection
 
 ```{r}
+#| out-width: "100%"
+
 fig_stimselection <- png::readPNG("../experiment/stimuli/stimuli_selection/stimuli_selection_files/figure-html/unnamed-chunk-10-1.png") |>
   grid::rasterGrob(interpolate=TRUE) |> 
   patchwork::wrap_elements()
@@ -62,11 +64,15 @@ fig_stimselection
 
 ```{r}
 #| message: false
+
 make_plot  <- function(p, outcome = "Beauty", x_title = NULL, alpha_title=NULL) {
   p <- p + theme_minimal() 
   if (outcome %in%  c("Beauty", "Beauty2")) {
     if(!is.null(x_title) && x_title == "Self-Relevance") {
       ybreaks <- c(0.4, 0.5, 0.6)
+    } else if(!is.null(alpha_title) && alpha_title == "Emotion") {
+      ybreaks <- c(0.3, 0.5, 0.7)
+      alpha_title <- NULL
     } else {
       ybreaks <- c(0.45, 0.5, 0.55)
     }
@@ -85,6 +91,9 @@ make_plot  <- function(p, outcome = "Beauty", x_title = NULL, alpha_title=NULL) 
   } else if (outcome ==  "Valence") {
     if(!is.null(x_title) && x_title == "Self-Relevance") {
       ybreaks <- c(0.4, 0.5, 0.6)
+    } else if(!is.null(alpha_title) && alpha_title == "Emotion") {
+      ybreaks <- c(0.3, 0.5, 0.7)
+      alpha_title <- NULL
     } else {
       ybreaks <- c(0.45, 0.5, 0.55)
     }
@@ -101,6 +110,9 @@ make_plot  <- function(p, outcome = "Beauty", x_title = NULL, alpha_title=NULL) 
   } else if (outcome ==  "Meaning") {
     if(!is.null(x_title) && x_title == "Self-Relevance") {
       ybreaks <- c(0.35, 0.45, 0.55)
+    } else if(!is.null(alpha_title) && alpha_title == "Emotion") {
+      ybreaks <- c(0.3, 0.4, 0.5)
+      alpha_title <- NULL
     } else {
       ybreaks <- c(0.3, 0.4, 0.5)
     }
@@ -126,6 +138,9 @@ make_plot  <- function(p, outcome = "Beauty", x_title = NULL, alpha_title=NULL) 
   } else if (outcome ==  "Reality") {
     if(!is.null(x_title) && x_title == "Self-Relevance") {
       ybreaks <- c(0.4, 0.5, 0.6)
+    } else if(!is.null(alpha_title) && alpha_title == "Emotion") {
+      ybreaks <- c(0.4, 0.5, 0.6)
+      alpha_title <- NULL
     } else {
       ybreaks <- c(0.425, 0.5, 0.575)
     }
@@ -142,6 +157,9 @@ make_plot  <- function(p, outcome = "Beauty", x_title = NULL, alpha_title=NULL) 
   } else if (outcome ==  "Authenticity") {
     if(!is.null(x_title) && x_title == "Self-Relevance") {
       ybreaks <- c(0.5, 0.6, 0.7)
+    } else if(!is.null(alpha_title) && alpha_title == "Emotion") {
+      ybreaks <- c(0.5, 0.6, 0.7)
+      alpha_title <- NULL
     } else {
       ybreaks <- c(0.55, 0.6, 0.65)
     }
@@ -263,8 +281,30 @@ make_analysis <- function(dftask, outcome = "Beauty") {
     geom_pointrange(aes(ymin = CI_low, ymax = CI_high, group = ManipulationDistrust, color = Condition), 
                     position = position_dodge(width = 0.1), linewidth = 1, size = 1,
                     key_glyph=draw_key_point) +
-    scale_color_manual(values = cols) +
-    scale_alpha_continuous(breaks = c(-5, 0, 5), labels = c("All images are 'AI'", "No doubts about the manipulation", "All images are 'Real'"), range = c(0.3, 1))
+    scale_color_manual(values = cols)
+  
+  # By Emotion
+  formula <- as.formula(paste0(outcome, " ~ Condition * Emotion + (1|Participant) + (1|Item)"))
+  model <- lme4::lmer(formula, data = dftask)
+  
+  t_emotion <- estimate_contrasts(model, contrast = "Condition", by = "Emotion", backend = "marginaleffects") |> 
+    arrange(Emotion, Difference) |> 
+    make_table(outcome=outcome, subtitle = "Marginal Contrasts by Emotion")
+  
+  p_emotion <- estimate_means(model, by = c("Condition", "Emotion"), backend = "marginaleffects") |> 
+    mutate(Emotion = fct_rev(Emotion)) |> 
+    ggplot(aes(x = Condition, y = Mean))
+  p_emotion <- make_plot(p_emotion, outcome = outcome, alpha_title = "Emotion") +
+    geom_line(aes(group = Emotion, color=Emotion), 
+              position = position_dodge(width = 0.1), linewidth = 1) +
+    labs(color = "Emotion") +
+    scale_color_manual(values = c("#C5E1A5", "#4CAF50", "#CE93D8", "#9C27B0")) +
+    ggnewscale::new_scale_color() +
+    geom_pointrange(aes(ymin = CI_low, ymax = CI_high, group = Emotion, color = Condition), 
+                    position = position_dodge(width = 0.1), linewidth = 1, size = 1,
+                    key_glyph=draw_key_point) +
+    scale_color_manual(values = cols) 
+  
 
   # Self-Relevance
   if(outcome != "SelfRelevance") {
@@ -285,7 +325,8 @@ make_analysis <- function(dftask, outcome = "Beauty") {
       geom_ribbon(aes(ymin = CI_low, ymax = CI_high, fill = Condition), alpha = 0.2, show.legend  = FALSE) +
       geom_line(aes(group = Condition, color = Condition), linewidth = 1) +
       scale_color_manual(values = cols) +
-      scale_fill_manual(values = cols) 
+      scale_fill_manual(values = cols) +
+      scale_x_continuous(labels = scales::percent_format()) 
   } else{
     t_selfrelevance <- "N/A"
     t_selfrelevance2 <- "N/A"
@@ -334,6 +375,7 @@ make_analysis <- function(dftask, outcome = "Beauty") {
   list(p_desc=p_desc, 
        t_condition=t_cond, p_condition=p_condition, 
        t_style=t_style, p_style=p_style, 
+       t_emotion=t_emotion, p_emotion=p_emotion,
        t_trust=t_trust, p_trust=p_trust,
        t_selfrelevance=t_selfrelevance, t_selfrelevance2=t_selfrelevance2, p_selfrelevance=p_selfrelevance,
        t_beauty=t_beauty, t_beauty2=t_beauty2, p_beauty=p_beauty
@@ -360,6 +402,14 @@ rez_beauty$t_condition
 rez_beauty$p_style
 rez_beauty$t_style
 ```
+
+#### Emotion
+
+```{r}
+rez_beauty$p_emotion
+rez_beauty$t_emotion
+```
+
 
 #### Manipulation Belief
 
@@ -406,6 +456,14 @@ rez_valence$p_style
 rez_valence$t_style
 ```
 
+#### Emotion
+
+```{r}
+rez_valence$p_emotion
+rez_valence$t_emotion
+```
+
+
 #### Manipulation Belief
 
 ```{r}
@@ -449,6 +507,13 @@ rez_meaning$t_condition
 ```{r}
 rez_meaning$p_style
 rez_meaning$t_style
+```
+
+#### Emotion
+
+```{r}
+rez_meaning$p_emotion
+rez_meaning$t_emotion
 ```
 
 #### Manipulation Belief
@@ -496,6 +561,13 @@ rez_worth$p_style
 rez_worth$t_style
 ```
 
+#### Emotion
+
+```{r}
+rez_worth$p_emotion
+rez_worth$t_emotion
+```
+
 #### Manipulation Belief
 
 ```{r}
@@ -541,6 +613,13 @@ rez_reality$t_condition
 ```{r}
 rez_reality$p_style
 rez_reality$t_style
+```
+
+#### Emotion
+
+```{r}
+rez_reality$p_emotion
+rez_reality$t_emotion
 ```
 
 #### Manipulation Belief
@@ -591,6 +670,13 @@ rez_authenticity$p_style
 rez_authenticity$t_style
 ```
 
+#### Emotion
+
+```{r}
+rez_authenticity$p_emotion
+rez_authenticity$t_emotion
+```
+
 #### Manipulation Belief
 
 ```{r}
@@ -638,6 +724,13 @@ rez_selfrelevance$p_style
 rez_selfrelevance$t_style
 ```
 
+#### Emotion
+
+```{r}
+rez_selfrelevance$p_emotion
+rez_selfrelevance$t_emotion
+```
+
 #### Manipulation Belief
 
 ```{r}
@@ -675,21 +768,19 @@ rez_beauty2$p_style
 rez_beauty2$t_style
 ```
 
+#### Emotion
+
+```{r}
+rez_beauty2$p_emotion
+rez_beauty2$t_emotion
+```
+
 #### Manipulation Belief
 
 ```{r}
 rez_beauty2$p_trust
 rez_beauty2$t_trust
 ```
-
-#### Self-Relevance
-
-```{r}
-rez_beauty2$p_selfrelevance
-rez_beauty2$t_selfrelevance
-rez_beauty2$t_selfrelevance2
-```
-
 
 
 

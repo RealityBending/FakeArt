@@ -276,6 +276,8 @@ df <- compute_and_remove(df, name="MINT_Derm", method="mean")
 df <- compute_and_remove(df, name="MINT_ExAc", method="mean")
 df <- compute_and_remove(df, name="MINT_RelA", method="mean")
 df <- compute_and_remove(df, name="MINT_Resp", method="mean")
+df <- compute_and_remove(df, name="MINT_Sati", method="mean")
+df <- compute_and_remove(df, name="MINT_CaCo", method="mean")
 
 # df[grepl("^MAIA_.*_R$", names(df))] <- 6 - df[grepl("^MAIA_.*_R$", names(df))]  # Reverse
 # df <- compute_and_remove(df, name="MAIA_AttentionRegulation", method="mean")
@@ -295,10 +297,41 @@ Cronbach's alpha: `r insight::format_value(performance::item_alpha(df[c("VVIQ_Fr
 
 ```{r}
 df$VVIQ_Total = rowMeans(df[c("VVIQ_Friend", "VVIQ_Sun", "VVIQ_Shop", "VVIQ_Country")], na.rm = TRUE) |> 
-  datawizard::reverse_scale()  # Reverse the scale (e.g., 0–4 → 4–0) so that higher = more vivid
+  datawizard::reverse_scale()  # Reverse the scale (e.g., 0–4 -> 4–0) so that higher = more vivid
 df <- select(df, -VVIQ_Friend, -VVIQ_Sun, -VVIQ_Shop, -VVIQ_Country)
 ```
 
+### BAIT 
+
+```{r}
+#| fig-width: 10
+#| fig-height: 8
+
+df$BAIT_Negative <- rowMeans(select(df, BAIT_8_TextIssues, BAIT_2_ImagesIssues, BAIT_3_VideosIssues, BAIT_9_Dangerous, BAIT_13_ArtIssues), na.rm=TRUE)
+df$BAIT_Positive <- rowMeans(select(df, BAIT_5_ImitatingReality, BAIT_12_Benefit, BAIT_4_VideosRealistic, BAIT_1_ImagesRealistic, BAIT_14_ArtRealistic, BAIT_6_EnvironmentReal, BAIT_7_TextRealistic), na.rm=TRUE)
+df$BAIT_ArtRealistic <- rowMeans(select(mutate(df, BAIT_13_ArtIssues = abs(BAIT_13_ArtIssues - 6)), BAIT_13_ArtIssues, BAIT_14_ArtRealistic), na.rm=TRUE)
+df$BAIT_Total <- rowMeans(select(mutate(df, BAIT_Negative = abs(BAIT_Negative - 6)), BAIT_Negative, BAIT_Positive), na.rm=TRUE)
+
+df |> 
+  select(starts_with("BAIT")) |>
+  mutate(BAIT_AI_Use = case_when(
+    BAIT_AI_Use == "Never" ~ 0,
+    BAIT_AI_Use == "A few times per month" ~ 1,
+    BAIT_AI_Use == "A few times per week" ~ 2,
+    BAIT_AI_Use == "Once a day" ~ 3,
+    BAIT_AI_Use == "A few times per day" ~ 4,
+    .default = NA
+  )) |> 
+  correlation::correlation(redundant = TRUE) |> 
+  correlation::cor_sort() |> 
+  correlation::cor_lower() |> 
+  summary() |> 
+  plot(text = list(size = 2.5)) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+df <- select(df, -matches("BAIT_[0-9]+_"))
+```
 
 ### PHQ-4
 
@@ -1049,11 +1082,11 @@ sort(table(df$Country)) |>
 ## Save
 
 ```{r}
-write.csv(df, "../data/data_participants.csv", row.names = FALSE)
 dftask |> 
   left_join(select(df, Participant, ManipulationDistrust), by = c("Participant")) |> 
   left_join(select(read.csv("../data/rawdata_memory_task.csv"), Participant, Item, SelfRelevance, Beauty2), by = c("Participant", "Item")) |> 
-  mutate(Beauty = datawizard::rescale(Beauty, to = c(0, 1), range = c(-3, 3)),
+  mutate(Emotion = paste0(ifelse(Norms_Valence < median(Norms_Valence), "Negative", "Positive"), ifelse(Norms_Arousal < median(Norms_Arousal), " - Low intensity", " - High intensity")),
+         Beauty = datawizard::rescale(Beauty, to = c(0, 1), range = c(-3, 3)),
          Valence = datawizard::rescale(Valence, to = c(0, 1), range = c(-3, 3)),
          Meaning = datawizard::rescale(Meaning, to = c(0, 1), range = c(0, 6)),
          Worth = datawizard::rescale(Worth, to = c(0, 1), range = c(0, 5)),
@@ -1062,5 +1095,34 @@ dftask |>
          Beauty2 = datawizard::rescale(Beauty2, to = c(0, 1), range = c(-3, 3)),
          SelfRelevance = datawizard::rescale(SelfRelevance, to = c(0, 1), range = c(0, 6))
          ) |>
+  datawizard::normalize(select = c("Norms_Liking", "Norms_Valence", "Norms_Arousal", "Norms_Complexity", "Norms_Familiarity")) |>
   write.csv("../data/data_task.csv", row.names = FALSE)
+
+
+
+
+dfmem <- read.csv("../data/rawdata_memory_task.csv") 
+# sum(!unique(dfmem$Participant) %in% df$Participant)
+dfmem <- dfmem |> 
+  filter(Participant %in% df$Participant) |> 
+  left_join(select(dftask, Participant, Item, Condition, Reality, Authenticity), by = c("Participant", "Item")) |>
+  rename(AnswerCondition = SourceCondition, AnswerBelief = SourceBelief) |> 
+  mutate(Type = ifelse(is.na(Condition), "New", "Old"),
+         Condition = ifelse(is.na(Condition), "New Items", as.character(Condition)),
+         AnswerCondition = ifelse(is.na(AnswerCondition), "Not recognized", AnswerCondition),
+         AnswerBelief = ifelse(is.na(AnswerBelief), "Not recognized", AnswerBelief),
+         Belief = case_when(
+           Reality >= 0.5 & Authenticity >= 0.5 ~ "Human Original",
+           Reality < 0.5 & Authenticity >= 0.5 ~ "AI Original",
+           Reality >= 0.5 & Authenticity < 0.5 ~ "Human Forgery",
+           Reality < 0.5 & Authenticity < 0.5 ~ "AI Copy",
+           .default = "None"
+         ))
+write.csv(dfmem, "../data/data_memory_task.csv", row.names = FALSE)
+
+df |> 
+  left_join(select(read.csv("../data/rawdata_memory_participants.csv"), Participant, Experiment_StartDate2 = Experiment_StartDate), 
+            by = "Participant") |> 
+  mutate(Delay = as.numeric(as.Date(Experiment_StartDate2) - as.Date(Experiment_StartDate))) |> 
+  write.csv("../data/data_participants.csv", row.names = FALSE)
 ```
