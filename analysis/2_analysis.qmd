@@ -56,7 +56,6 @@ fig_stimselection
 
 ## Effect of Condition
 
-::: {.panel-tabset}
 
 ### Beauty
 
@@ -693,8 +692,6 @@ rez_beauty2$t_selfrelevance2
 
 
 
-
-:::
 
 ## Figures
 
