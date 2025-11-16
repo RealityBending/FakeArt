@@ -1,0 +1,704 @@
+---
+title: "FakeArt - Data Analysis"
+editor: source
+editor_options: 
+  chunk_output_type: console
+format:
+  html:
+    code-fold: true
+    self-contained: false
+    toc: true
+execute:
+  cache: true
+---
+
+## Data Preparation
+
+```{r}
+#| warning: false
+#| code-fold: false
+#| error: false
+
+library(tidyverse)
+library(easystats)
+library(patchwork)
+library(ggside)
+library(ggdist)
+
+df <- read.csv("../data/data_participants.csv")
+dftask <- read.csv("../data/data_task.csv") |> 
+  mutate(Condition = fct_relevel(Condition, "Human Original", "Human Forgery", "AI-Generated")) 
+
+cols <- c(
+  # Condition
+  "Human Original" = "#F51D56",
+  "Human Forgery" = "#F5A41D",
+  "AI-Generated" = "#1D9AF5",
+  "AI Original" = "#1D9AF5",
+  "AI Copy" = "#4CAF50",
+  "Not recognized" = "#607D8B",
+  # Style
+  "Abstract and Avant-garde" = "#E41A1C", 
+  "Classical" = "#377EB8", 
+  "Impressionist and Expressionist" = "#4DAF4A", 
+  "Romantic and Realism" = "#FF7F00"
+)
+```
+
+### Stimuli Selection
+
+```{r}
+fig_stimselection <- png::readPNG("../experiment/stimuli/stimuli_selection/stimuli_selection_files/figure-html/unnamed-chunk-10-1.png") |>
+  grid::rasterGrob(interpolate=TRUE) |> 
+  patchwork::wrap_elements()
+fig_stimselection
+```
+
+## Effect of Condition
+
+::: {.panel-tabset}
+
+### Beauty
+
+
+```{r}
+#| message: false
+make_plot  <- function(p, outcome = "Beauty", x_title = NULL, alpha_title=NULL) {
+  p <- p + theme_minimal() 
+  if (outcome %in%  c("Beauty", "Beauty2")) {
+    if(!is.null(x_title) && x_title == "Self-Relevance") {
+      ybreaks <- c(0.4, 0.5, 0.6)
+    } else {
+      ybreaks <- c(0.45, 0.5, 0.55)
+    }
+    by <- diff(ybreaks)[1]
+    title <- "Beauty"
+    if (outcome == "Beauty2") title <- "Beauty (Follow-up)"
+    p <- p +
+      geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray") +
+      labs(title = title, y = "This artwork is...", x = x_title, alpha = alpha_title) +
+      scale_y_continuous(
+        breaks = c(min(ybreaks) - by, ybreaks, max(ybreaks) + by), 
+        labels = c("Ugly", format_percent(ybreaks, digits=0), "Beautiful")
+      ) +
+      coord_cartesian(ylim = c(min(ybreaks) - by, max(ybreaks) + by)) +
+      theme(axis.title.y = element_text(face = "italic"), plot.title = element_text(face = "bold"))
+  } else if (outcome ==  "Valence") {
+    if(!is.null(x_title) && x_title == "Self-Relevance") {
+      ybreaks <- c(0.4, 0.5, 0.6)
+    } else {
+      ybreaks <- c(0.45, 0.5, 0.55)
+    }
+    by <- diff(ybreaks)[1]
+    p <- p +
+      geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray") +
+      labs(title = "Valence", y = "This artwork made me feel...", x = x_title, alpha = alpha_title) +
+      scale_y_continuous(
+        breaks = c(min(ybreaks) - by, ybreaks, max(ybreaks) + by), 
+        labels = c("Negative", format_percent(ybreaks, digits=0), "Positive")
+      ) +
+      coord_cartesian(ylim = c(min(ybreaks) - by, max(ybreaks) + by)) +
+      theme(axis.title.y = element_text(face = "italic"), plot.title = element_text(face = "bold"))
+  } else if (outcome ==  "Meaning") {
+    if(!is.null(x_title) && x_title == "Self-Relevance") {
+      ybreaks <- c(0.35, 0.45, 0.55)
+    } else {
+      ybreaks <- c(0.3, 0.4, 0.5)
+    }
+    by <- diff(ybreaks)[1]
+    p <- p +
+      labs(title = "Meaning", y = "This artwork expresses something meaningful and deep...", x = x_title, alpha = alpha_title) +
+      scale_y_continuous(
+        breaks = c(min(ybreaks) - by, ybreaks, max(ybreaks) + by), 
+        labels = c("Not at all", format_percent(ybreaks, digits=0), "Very much")
+      ) +
+      coord_cartesian(ylim = c(min(ybreaks) - by, max(ybreaks) + by)) +
+      theme(axis.title.y = element_text(face = "italic"), plot.title = element_text(face = "bold"))
+  } else if (outcome ==  "Worth") {
+    ylim <- c(0, 3/5)
+    p <- p +
+      labs(title = "Worth", y = "To own this artwork, I'd be willing to pay...", x = x_title, alpha = alpha_title) +
+      scale_y_continuous(
+        breaks = c(0, 1/5, 2/5, 3/5, 4/5, 1), 
+        labels = c("$ 0", "$ 10", "$ 100", "$ 1,000", "$ 10,000", "$ 100,000")
+      ) +
+      coord_cartesian(ylim = ylim) +
+      theme(axis.title.y = element_text(face = "italic"), plot.title = element_text(face = "bold"))
+  } else if (outcome ==  "Reality") {
+    if(!is.null(x_title) && x_title == "Self-Relevance") {
+      ybreaks <- c(0.4, 0.5, 0.6)
+    } else {
+      ybreaks <- c(0.425, 0.5, 0.575)
+    }
+    by <- diff(ybreaks)[1]
+    p <- p +
+      geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray") +
+      labs(title = "Syntheticness", y = "This artwork is...", x = x_title, alpha = alpha_title) +
+      scale_y_continuous(
+        breaks = c(min(ybreaks) - by, ybreaks, max(ybreaks) + by), 
+        labels = c("AI-Generated", format_percent(ybreaks, digits=0), "Human Creation")
+      ) +
+      coord_cartesian(ylim = c(min(ybreaks) - by, max(ybreaks) + by)) +
+      theme(axis.title.y = element_text(face = "italic"), plot.title = element_text(face = "bold"))
+  } else if (outcome ==  "Authenticity") {
+    if(!is.null(x_title) && x_title == "Self-Relevance") {
+      ybreaks <- c(0.5, 0.6, 0.7)
+    } else {
+      ybreaks <- c(0.55, 0.6, 0.65)
+    }
+    by <- diff(ybreaks)[1]
+    p <- p +
+      geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray") +
+      labs(title = "Authenticity", y = "This artwork is...", x = x_title, alpha = alpha_title) +
+      scale_y_continuous(
+        breaks = c(min(ybreaks) - by, ybreaks, max(ybreaks) + by), 
+        labels = c("Copy / Forgery", format_percent(ybreaks, digits=0), "Original Creation")
+      ) +
+      coord_cartesian(ylim = c(min(ybreaks) - by, max(ybreaks) + by)) +
+      theme(axis.title.y = element_text(face = "italic"), plot.title = element_text(face = "bold"))
+  }  else if (outcome ==  "SelfRelevance") {
+    ybreaks <- c(0.2, 0.3, 0.4)
+    by <- diff(ybreaks)[1]
+    p <- p +
+      geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray") +
+      labs(title = "Self-Relevance", y = "This painting is personally relevant..", x = x_title, alpha = alpha_title) +
+      scale_y_continuous(
+        breaks = c(min(ybreaks) - by, ybreaks, max(ybreaks) + by), 
+        labels = c("Not at all", format_percent(ybreaks, digits=0), "Very much")
+      ) +
+      coord_cartesian(ylim = c(min(ybreaks) - by, max(ybreaks) + by)) +
+      theme(axis.title.y = element_text(face = "italic"), plot.title = element_text(face = "bold"))
+  } 
+
+  p
+}
+
+make_table <- function(rez, outcome = "Beauty", subtitle = NULL) {
+  rez <- datawizard::data_select(rez, exclude = "SE")
+  t <- format_table(rez, zap_small = TRUE)
+
+  if("Difference" %in% names(rez)) {
+    effect_col <- "Difference"
+  } else {
+    effect_col <- "Slope"
+  }
+  t$effectsize <- rez[[effect_col]]
+  t$sig <- rez$p
+  
+  gt::gt(t) |> 
+    gt::data_color(columns = "effectsize", target_columns = effect_col, method = "numeric",
+palette = c("red", "red", "white", "green", "green"), domain = c(-0.6, 0.6)) |> 
+    gt::data_color(columns = "sig", target_columns = "p", fn = \(x) {
+      ifelse(x < 0.001, "#FFC107", ifelse(x < 0.01, "#FFEB3B", ifelse(x < 0.05, "#FFF59D", "white")))
+    }) |> 
+    gt::cols_hide(c("effectsize", "sig")) |> 
+    gt::tab_header(title = outcome, subtitle = subtitle)
+
+}
+
+make_analysis <- function(dftask, outcome = "Beauty") {
+  
+  # Descriptive
+  bins <- sort(c(unique(dftask[[outcome]]) - 0.05, unique(dftask[[outcome]]) + 0.05))
+  if(length(bins) > 100) bins <- seq(-0.01, 1.01, by = 0.02)
+  p_desc <- ggplot(dftask, aes(x = Condition, y = .data[[outcome]])) +
+    ggdist::stat_histinterval(aes(fill = Condition), point_interval = "mean_qi", side="right",  breaks = bins, align = "center") +
+    scale_fill_manual(values = cols) +
+    scale_y_continuous(labels = scales::percent_format()) +
+    theme_minimal() +
+    labs(title = paste0("Distribution of ", outcome), y = outcome)
+
+  # Model
+  formula <- as.formula(paste0(outcome, " ~ Style * Condition * ManipulationDistrust + (1|Participant) + (1|Item)"))
+  model <- lme4::lmer(formula, data = dftask)
+
+  # Performance
+  # TODO.
+
+  # Marginal effect of Condition
+  t_cond <- estimate_contrasts(model, contrast = "Condition", by = NULL, backend = "marginaleffects") |> 
+    arrange(Difference) |> 
+    make_table(outcome=outcome, subtitle = "Marginal Contrasts")
+  
+  p_condition <- estimate_means(model, by = c("Condition"), backend = "marginaleffects") |> 
+    ggplot(aes(x = Condition, y = Mean)) 
+  p_condition <- make_plot(p_condition, outcome = outcome) +
+    geom_line(aes(group=1)) +
+    geom_pointrange(aes(ymin = CI_low, ymax = CI_high, color = Condition), 
+                    linewidth = 1.5, size = 1.5,
+                    key_glyph=draw_key_point) +
+    scale_color_manual(values = cols) +
+    guides(color=guide_legend(override.aes = list(size = 5)))
+  
+
+  # By Style
+  t_style <- estimate_contrasts(model, contrast = "Condition", by = "Style", backend = "marginaleffects") |> 
+    arrange(Style, Difference) |> 
+    make_table(outcome=outcome, subtitle = "Marginal Contrasts by Style")
+
+  p_style <- estimate_means(model, by = c("Condition", "Style"), backend = "marginaleffects") |> 
+    ggplot(aes(x = Condition, y = Mean)) 
+  p_style <- make_plot(p_style, outcome = outcome) +
+    geom_line(aes(group = Style, color=Style), position = position_dodge(width = 0.15),
+              show.legend  = FALSE) +
+    geom_pointrange(aes(ymin = CI_low, ymax = CI_high, group = Style, color = Style), 
+                    position = position_dodge(width = 0.15), linewidth = 1, size = 1,
+                    key_glyph=draw_key_point) +
+    scale_color_manual(values = cols)  +
+    guides(color=guide_legend(override.aes = list(size = 5)))
+
+  # Manipulation Mistrust
+  t_trust <- estimate_contrasts(model, contrast = "Condition", by = "ManipulationDistrust = c(-5, 0, 5)", backend = "marginaleffects") |> 
+    arrange(ManipulationDistrust, Difference) |> 
+    make_table(outcome=outcome, subtitle = "Manipulation Distrust")
+
+  p_trust <- estimate_means(model, by = c("Condition", "ManipulationDistrust = c(-5, 0, 5)"), backend = "marginaleffects") |> 
+    mutate(ManipulationDistrust = as.factor(ManipulationDistrust)) |>
+    ggplot(aes(x = Condition, y = Mean)) 
+  p_trust <- make_plot(p_trust, outcome = outcome) +
+    geom_line(aes(group = ManipulationDistrust, color=ManipulationDistrust), 
+              position = position_dodge(width = 0.1), linewidth = 1) +
+    labs(color = "Doubts about the cover story") +
+    scale_color_manual(breaks = c(-5, 0, 5), labels = c("All images are 'AI'", "No doubts about the manipulation", "All images are 'Real'"), values = c("#2196F3", "black", "#E91E63")) +
+    ggnewscale::new_scale_color() +
+    geom_pointrange(aes(ymin = CI_low, ymax = CI_high, group = ManipulationDistrust, color = Condition), 
+                    position = position_dodge(width = 0.1), linewidth = 1, size = 1,
+                    key_glyph=draw_key_point) +
+    scale_color_manual(values = cols) +
+    scale_alpha_continuous(breaks = c(-5, 0, 5), labels = c("All images are 'AI'", "No doubts about the manipulation", "All images are 'Real'"), range = c(0.3, 1))
+
+  # Self-Relevance
+  if(outcome != "SelfRelevance") {
+    formula <- as.formula(paste0(outcome, " ~ Condition * poly(SelfRelevance, 2) + (1|Participant) + (1|Item)"))
+    model <- lme4::lmer(formula, data = filter(dftask, !is.na(SelfRelevance)))
+  
+    vals <- paste0("SelfRelevance = c(", paste0(as.character(sort(c(0, round(mean(dftask$SelfRelevance, na.rm=TRUE), 2), 0.5, 1))), collapse = ", "), ")")
+    t_selfrelevance <- estimate_contrasts(model, contrast = "Condition", by = vals, backend = "marginaleffects") |> 
+      arrange(SelfRelevance, Difference) |> 
+      make_table(outcome=outcome, subtitle = "Self-Relevance (Marginal Contrasts)")
+    t_selfrelevance2 <- estimate_slopes(model, trend = "SelfRelevance", by = c("Condition", "SelfRelevance = c(0, 0.25, 0.5, 0.75, 1)"), backend = "marginaleffects") |> 
+      arrange(Condition, SelfRelevance) |> 
+      make_table(outcome=outcome, subtitle = "Self-Relevance (Marginal Slopes)")
+  
+    p_selfrelevance <- estimate_relation(model, by = c("Condition", "SelfRelevance"), length=20, backend = "marginaleffects") |> 
+      ggplot(aes(x = SelfRelevance, y = Predicted)) 
+    p_selfrelevance <- make_plot(p_selfrelevance, outcome = outcome, x_title = "Self-Relevance") +
+      geom_ribbon(aes(ymin = CI_low, ymax = CI_high, fill = Condition), alpha = 0.2, show.legend  = FALSE) +
+      geom_line(aes(group = Condition, color = Condition), linewidth = 1) +
+      scale_color_manual(values = cols) +
+      scale_fill_manual(values = cols) 
+  } else{
+    t_selfrelevance <- "N/A"
+    t_selfrelevance2 <- "N/A"
+    p_selfrelevance <- "N/A"
+  }
+  
+
+  # Beauty (Follow-up)
+  if(outcome != "Beauty2") {
+    formula <- as.formula(paste0("Beauty2 ~ Condition * poly(", outcome, ", 2) + (1|Participant) + (1|Item)"))
+    model <- lme4::lmer(formula, data = filter(dftask, !is.na(Beauty2)))
+  
+    vals <- paste0(outcome, " = c(", paste0(as.character(c(0, 0.25, 0.5, 0.75, 1)), collapse = ", "), ")")
+    t_beauty <- estimate_contrasts(model, contrast = "Condition", by = vals, backend = "marginaleffects") |>
+      make_table(outcome=outcome, subtitle = "Predicting Follow-up Beauty (Contrasts)")
+    t_beauty2 <- estimate_slopes(model, trend = outcome, by = c("Condition", paste0(outcome, "= c(0, 0.25, 0.5, 0.75, 1)")), backend = "marginaleffects") |> 
+      arrange(Condition) |> 
+      make_table(outcome=outcome, subtitle = "Predicting Follow-up Beauty (Slopes)")
+  
+    p_beauty <- estimate_relation(model, by = c("Condition", outcome), length=60, backend = "marginaleffects") |>
+      ggplot(aes(x = .data[[outcome]], y = Predicted)) +
+      geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray")
+
+    if(outcome %in% c("Beauty", "Valence")) p_beauty <- p_beauty + geom_vline(xintercept = 0.5, linetype = "dashed", color = "gray")
+    p_beauty <- p_beauty +
+      geom_ribbon(aes(ymin = CI_low, ymax = CI_high, fill = Condition), alpha = 0.2, show.legend  = FALSE) +
+      geom_line(aes(group = Condition, color = Condition), linewidth = 1) +
+      scale_color_manual(values = cols) +
+      scale_fill_manual(values = cols) +
+      scale_x_continuous(labels = scales::percent_format()) +
+      scale_y_continuous(
+        breaks = c(0.2, 0.35, 0.5, 0.65, 0.8),
+        labels = c("Ugly", "35%", "50%", "65%", "Beautiful")
+      ) +
+      labs(y = "Beauty (Follow-up)", title = "Beauty (Follow-up)", 
+           subtitle = "After being reminded that all artworks were Human originals") +
+      coord_cartesian(ylim = c(0.2, 0.8)) +
+      theme_minimal() +
+      theme(plot.subtitle = element_text(face = "italic"), plot.title = element_text(face = "bold"))
+  } else {
+    t_beauty <- "N/A"
+    t_beauty2 <- "N/A"
+    p_beauty <- "N/A"
+  }
+
+  list(p_desc=p_desc, 
+       t_condition=t_cond, p_condition=p_condition, 
+       t_style=t_style, p_style=p_style, 
+       t_trust=t_trust, p_trust=p_trust,
+       t_selfrelevance=t_selfrelevance, t_selfrelevance2=t_selfrelevance2, p_selfrelevance=p_selfrelevance,
+       t_beauty=t_beauty, t_beauty2=t_beauty2, p_beauty=p_beauty
+  )
+}
+```
+
+```{r make_analysis_beauty}
+rez_beauty <- make_analysis(dftask, outcome="Beauty")
+rez_beauty$p_desc
+```
+
+
+#### Condition
+
+```{r}
+rez_beauty$p_condition
+rez_beauty$t_condition
+```
+
+#### Style
+
+```{r}
+rez_beauty$p_style
+rez_beauty$t_style
+```
+
+#### Manipulation Belief
+
+```{r}
+rez_beauty$p_trust
+rez_beauty$t_trust
+```
+
+#### Self-Relevance
+
+```{r}
+rez_beauty$p_selfrelevance
+rez_beauty$t_selfrelevance
+rez_beauty$t_selfrelevance2
+```
+
+
+#### Beauty 2
+
+```{r}
+rez_beauty$p_beauty
+rez_beauty$t_beauty
+rez_beauty$t_beauty2
+```
+
+### Valence
+
+```{r make_analysis_valence}
+rez_valence <- make_analysis(dftask, outcome="Valence")
+rez_valence$p_desc
+```
+
+#### Condition
+
+```{r}
+rez_valence$p_condition
+rez_valence$t_condition
+```
+
+#### Style
+
+```{r}
+rez_valence$p_style
+rez_valence$t_style
+```
+
+#### Manipulation Belief
+
+```{r}
+rez_valence$p_trust
+rez_valence$t_trust
+```
+
+#### Self-Relevance
+
+```{r}
+rez_valence$p_selfrelevance
+rez_valence$t_selfrelevance
+rez_valence$t_selfrelevance2
+```
+
+
+#### Beauty 2
+
+```{r}
+rez_valence$p_beauty
+rez_valence$t_beauty
+rez_valence$t_beauty2
+```
+
+### Meaning
+
+```{r make_analysis_meaning}
+rez_meaning <- make_analysis(dftask, outcome="Meaning")
+rez_meaning$p_desc
+```
+
+#### Condition
+
+```{r}
+rez_meaning$p_condition
+rez_meaning$t_condition
+```
+
+#### Style
+
+```{r}
+rez_meaning$p_style
+rez_meaning$t_style
+```
+
+#### Manipulation Belief
+
+```{r}
+rez_meaning$p_trust
+rez_meaning$t_trust
+```
+
+#### Self-Relevance
+
+```{r}
+rez_meaning$p_selfrelevance
+rez_meaning$t_selfrelevance
+rez_meaning$t_selfrelevance2
+```
+
+
+#### Beauty 2
+
+```{r}
+rez_meaning$p_beauty
+rez_meaning$t_beauty
+rez_meaning$t_beauty2
+```
+
+### Worth
+
+```{r make_analysis_worth}
+rez_worth <- make_analysis(dftask, outcome="Worth")
+rez_worth$p_desc
+```
+
+#### Condition
+
+```{r}
+rez_worth$p_condition
+rez_worth$t_condition
+```
+
+#### Style
+
+```{r}
+rez_worth$p_style
+rez_worth$t_style
+```
+
+#### Manipulation Belief
+
+```{r}
+rez_worth$p_trust
+rez_worth$t_trust
+```
+
+#### Self-Relevance
+
+```{r}
+rez_worth$p_selfrelevance
+rez_worth$t_selfrelevance
+rez_worth$t_selfrelevance2
+```
+
+
+#### Beauty 2
+
+```{r}
+rez_worth$p_beauty
+rez_worth$t_beauty
+rez_worth$t_beauty2
+```
+
+
+### Syntheticness
+
+```{r make_analysis_reality}
+rez_reality <- make_analysis(filter(dftask, !is.na(Reality)), outcome="Reality")
+rez_reality$p_desc
+```
+
+
+#### Condition
+
+```{r}
+rez_reality$p_condition
+rez_reality$t_condition
+```
+
+#### Style
+
+```{r}
+rez_reality$p_style
+rez_reality$t_style
+```
+
+#### Manipulation Belief
+
+```{r}
+rez_reality$p_trust
+rez_reality$t_trust
+```
+
+#### Self-Relevance
+
+```{r}
+rez_reality$p_selfrelevance
+rez_reality$t_selfrelevance
+rez_reality$t_selfrelevance2
+```
+
+
+#### Beauty 2
+
+```{r}
+rez_reality$p_beauty
+rez_reality$t_beauty
+rez_reality$t_beauty2
+```
+
+
+
+### Authenticity
+
+```{r make_analysis_authenticity}
+rez_authenticity <- make_analysis(filter(dftask, !is.na(Authenticity)), outcome="Authenticity")
+rez_authenticity$p_desc
+```
+
+
+#### Condition
+
+```{r}
+rez_authenticity$p_condition
+rez_authenticity$t_condition
+```
+
+#### Style
+
+```{r}
+rez_authenticity$p_style
+rez_authenticity$t_style
+```
+
+#### Manipulation Belief
+
+```{r}
+rez_authenticity$p_trust
+rez_authenticity$t_trust
+```
+
+#### Self-Relevance
+
+```{r}
+rez_authenticity$p_selfrelevance
+rez_authenticity$t_selfrelevance
+rez_authenticity$t_selfrelevance2
+```
+
+
+#### Beauty 2
+
+```{r}
+rez_authenticity$p_beauty
+rez_authenticity$t_beauty
+rez_authenticity$t_beauty2
+```
+
+
+### Self-Relevance
+
+```{r make_analysis_selfrelevance}
+rez_selfrelevance <- make_analysis(filter(dftask, !is.na(SelfRelevance)), outcome="SelfRelevance")
+rez_selfrelevance$p_desc
+```
+
+
+#### Condition
+
+```{r}
+rez_selfrelevance$p_condition
+rez_selfrelevance$t_condition
+```
+
+#### Style
+
+```{r}
+rez_selfrelevance$p_style
+rez_selfrelevance$t_style
+```
+
+#### Manipulation Belief
+
+```{r}
+rez_selfrelevance$p_trust
+rez_selfrelevance$t_trust
+```
+
+#### Beauty 2
+
+```{r}
+rez_selfrelevance$p_beauty
+rez_selfrelevance$t_beauty
+rez_selfrelevance$t_beauty2
+```
+
+### Beauty 2
+
+```{r make_analysis_beauty2}
+rez_beauty2 <- make_analysis(filter(dftask, !is.na(Beauty2)), outcome="Beauty2")
+rez_beauty2$p_desc
+```
+
+
+#### Condition
+
+```{r}
+rez_beauty2$p_condition
+rez_beauty2$t_condition
+```
+
+#### Style
+
+```{r}
+rez_beauty2$p_style
+rez_beauty2$t_style
+```
+
+#### Manipulation Belief
+
+```{r}
+rez_beauty2$p_trust
+rez_beauty2$t_trust
+```
+
+#### Self-Relevance
+
+```{r}
+rez_beauty2$p_selfrelevance
+rez_beauty2$t_selfrelevance
+rez_beauty2$t_selfrelevance2
+```
+
+
+
+
+:::
+
+## Figures
+
+```{r}
+fig_stimselection 
+```
+

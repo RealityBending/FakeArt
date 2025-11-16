@@ -19,6 +19,7 @@ names(datastims) <- gsub("Arousal_Mean_All", "Norms_Arousal", names(datastims))
 # Run loop ----------------------------------------------------------------
 
 files <- list.files(path, full.names = TRUE, pattern = "*.csv")
+files <- files[!grepl("memory_", files)] # Do process memory later
 
 
 # Progress bar
@@ -43,7 +44,7 @@ for (file in files) {
     next
   }
 
-  if(dat$researcher %in% c("testp", "test", "README")) {
+  if (dat$researcher %in% c("testp", "test", "README")) {
     next # Skip test participants
   }
 
@@ -157,7 +158,7 @@ for (file in files) {
   ]) /
     1000 /
     60
-  if(!"BAIT_AI_Use" %in% names(bait)) {
+  if (!"BAIT_AI_Use" %in% names(bait)) {
     data_ppt$BAIT_AI_Use <- NA
   }
 
@@ -168,7 +169,7 @@ for (file in files) {
   phq4$instructions_phq4 <- NULL
   data_ppt <- cbind(data_ppt, as.data.frame(phq4))
 
-  if("questionnaire_erns" %in% rawdata$screen) {
+  if ("questionnaire_erns" %in% rawdata$screen) {
     erns <- jsonlite::fromJSON(rawdata[
       rawdata$screen == "questionnaire_erns",
       "response"
@@ -304,11 +305,11 @@ for (file in files) {
     rawdata[rawdata$screen == "fiction_ratings1", "response"],
     \(x) {
       x <- as.data.frame(jsonlite::fromJSON(x))
-      if(!"AttentionCheck" %in% names(x)) {
+      if (!"AttentionCheck" %in% names(x)) {
         x$AttentionCheck <- NA
       }
       x
-      },
+    },
     simplify = FALSE,
     USE.NAMES = FALSE
   )
@@ -334,7 +335,11 @@ for (file in files) {
 
   data_task <- data.frame(
     Participant = participant,
-    Condition = cue1$condition,
+    Condition = ifelse(cue1$condition == "Human", "Human Original",
+      ifelse(cue1$condition == "Forgery", "Human Forgery",
+        ifelse(cue1$condition == "AI", "AI-Generated", NA)
+      )
+    ),
     Item = img1$item,
     Trial1 = img1$trial_number,
     CueColor = tools::toTitleCase(cue1$color),
@@ -359,8 +364,8 @@ for (file in files) {
   # Attention check
   taskchecks <- ifelse(is.na(resp1$AttentionCheck), NA, 0)
   taskchecks <- ifelse(resp1$AttentionCheck == "Human Forgery" & cue1$condition == "Forgery", 1, taskchecks)
-  taskchecks <- ifelse(resp1$AttentionCheck =="AI-Generated" & cue1$condition == "AI", 1, taskchecks)
-  taskchecks <- ifelse(resp1$AttentionCheck=="Original" & cue1$condition == "Human", 1, taskchecks)
+  taskchecks <- ifelse(resp1$AttentionCheck == "AI-Generated" & cue1$condition == "AI", 1, taskchecks)
+  taskchecks <- ifelse(resp1$AttentionCheck == "Original" & cue1$condition == "Human", 1, taskchecks)
   data_ppt$Task_AttentionCheck <- mean(taskchecks, na.rm = TRUE)
 
   # Re-map to values in dollars
@@ -383,13 +388,13 @@ for (file in files) {
   data_ppt$Eyetracking_Validation2 <- NA
 
   calibration <- rawdata[rawdata$screen == "eyetracking_validation_run", ]
-  if(nrow(calibration) > 0) {
+  if (nrow(calibration) > 0) {
     calibration <- tail(calibration$percent_in_roi, 2) # Take last 2
     calibration <- sapply(calibration, \(x) {
       scores <- jsonlite::fromJSON(x)
       mean(scores)
     }, USE.NAMES = FALSE)
-    if(!"numeric" %in% class(calibration[1])) {
+    if (!"numeric" %in% class(calibration[1])) {
       stop("Calibration data is not numeric!")
     }
     data_ppt$Eyetracking_Validation1 <- calibration[1]
@@ -414,8 +419,8 @@ for (file in files) {
     # right and y increases downward.
 
     data_gaze <- data.frame()
-    for(i in 1:nrow(data_task)) {
-      if(nrow(gaze_isi[[i]]) > 0) {
+    for (i in 1:nrow(data_task)) {
+      if (nrow(gaze_isi[[i]]) > 0) {
         gaze_isi[[i]]$Item <- data_task[i, "Item"]
         gaze_isi[[i]]$Stimulus <- "Fixation"
         gaze_isi[[i]]$x <- gaze_isi[[i]]$x
@@ -429,7 +434,7 @@ for (file in files) {
         data_gaze <- rbind(data_gaze, gaze_isi[[i]])
       }
 
-      if(nrow(gaze_img[[i]]) > 0) {
+      if (nrow(gaze_img[[i]]) > 0) {
         gaze_img[[i]]$Item <- data_task[i, "Item"]
         gaze_img[[i]]$Stimulus <- "Image"
         gaze_img[[i]]$x <- gaze_img[[i]]$x
@@ -443,7 +448,7 @@ for (file in files) {
         data_gaze <- rbind(data_gaze, gaze_img[[i]])
       }
     }
-    if(nrow(data_gaze) > 0) {
+    if (nrow(data_gaze) > 0) {
       data_gaze$t <- data_gaze$t / 1000 # Convert to seconds
       data_gaze$Participant <- participant
     }
@@ -468,14 +473,8 @@ alldata_gaze <- do.call(rbind, alldata_gaze)
 dur <- alldata[alldata$Recruitment == "prolific", "Experiment_Duration"]
 hist(dur, breaks = 30)
 abline(v = median(dur), col = "red", lwd = 2)
-bootstrapped_median <- mean(sapply(1:1000, \(x) {
-  median(sample(dur, length(dur), replace = TRUE))
-}))
-abline(v = bootstrapped_median, col = "blue", lwd = 2)
-
 
 quantile(dur, 0.05)
-sum(dur > 25.23) / length(dur)
 
 
 # Attention checks --------------------------------------------------------
@@ -485,7 +484,7 @@ checks <- data.frame(
   TASK = alldata$Task_AttentionCheck
 )
 # Weighted mean (MINT + BAIT + TASK * 6)
-checks$Score <- apply(as.matrix(checks), 1, \(x) weighted.mean(x, w = c(1, 1, 6), na.rm  = TRUE))
+checks$Score <- apply(as.matrix(checks), 1, \(x) weighted.mean(x, w = c(1, 1, 6), na.rm = TRUE))
 # checks$Score <- rowMeans(checks)
 checks$AttentionScore <- alldata$AttentionScore
 checks$ID <- alldata$ID
@@ -529,11 +528,10 @@ if (nrow(alldata[duplicated(alldata), ]) > 0) {
 # alldata_task[alldata_task$Participant == "fghgugdaz0", "Reality"] <- NA
 # alldata_task[alldata_task$Participant == "fghgugdaz0", "Authenticity"] <- NA
 
-# Anonymize ---------------------------------------------------------------
-alldata$ID <- NULL
-alldata$Reward <- NULL
-alldata$AttentionScore <- NULL
 
+
+
+# Anonymize ---------------------------------------------------------------
 # Generate IDs
 ids <- paste0("S", format(sprintf("%03d", 1:nrow(alldata))))
 # Sort Participant according to date and assign new IDs
@@ -542,22 +540,132 @@ names(ids) <- alldata$Participant[order(alldata$Experiment_StartDate)]
 alldata$Participant <- ids[alldata$Participant]
 alldata_task$Participant <- ids[alldata_task$Participant]
 alldata_gaze$Participant <- ids[alldata_gaze$Participant]
+# Store Prolific ID list (for memory task matching)
+ids_memory <- alldata$Participant
+names(ids_memory) <- alldata$ID
+# Remove cols
+alldata$ID <- NULL
+alldata$Reward <- NULL
+alldata$AttentionScore <- NULL
 
-# TODO: rename Reality as Artificiality (Artificial & Synthetic vs. Authenticity)
+
+# For memory task:
+# alldata[alldata$Participant %in% l & alldata$Recruitment == "prolific", "ID"]
+# ids_reversed <- names(ids)
+# names(ids_reversed) <- ids
+# as.character(ids_reversed[final_ppts])
 
 
 # Save --------------------------------------------------------------------
 # restore default warnings settings
 options(warn = 0)
 
-pilot <- alldata[alldata$Recruitment != "prolific", "Participant"]
-# write.csv(alldata[alldata$Participant %in% pilot,], "../data/rawdata_participants.csv", row.names = FALSE)
-# write.csv(alldata_task[alldata_task$Participant %in% pilot,], "../data/rawdata_task.csv", row.names = FALSE)
-# write.csv(alldata_gaze[alldata_task$Participant %in% pilot,], "../data/rawdata_eyetracking.csv", row.names = FALSE)
 write.csv(alldata, "../data/rawdata_participants.csv", row.names = FALSE)
 write.csv(alldata_task, "../data/rawdata_task.csv", row.names = FALSE)
-write.csv(alldata_gaze, "../data/rawdata_eyetracking.csv", row.names = FALSE)
+# Split in two for size
+write.csv(alldata_gaze[1:1174463, ], "../data/rawdata_eyetracking1.csv", row.names = FALSE)
+write.csv(alldata_gaze[1174464:nrow(alldata_gaze), ], "../data/rawdata_eyetracking2.csv", row.names = FALSE)
 
 
 
 
+
+# Memory ------------------------------------------------------------------
+
+files <- list.files(path, full.names = TRUE, pattern = "memory_.*.csv")
+
+
+# Progress bar
+progbar <- progress_bar$new(total = length(files))
+
+alldata_memory <- list()
+alldata_memory_task <- list()
+
+for (file in files) {
+  progbar$tick()
+  rawdata <- read.csv(file)
+
+  participant <- gsub(".csv", "", rev(strsplit(file, "/")[[1]])[1]) # Filename without extension
+
+  # Initialize participant-level data
+  dat <- rawdata[rawdata$screen == "browser_info", ]
+
+  if (is.na(dat$prolific_id) && is.na(dat$researcher)) {
+    print(paste0("skip (no 'exp' URLvar): ", gsub(path, "", file)))
+    next
+  }
+
+  if (dat$researcher %in% c("test", "README")) {
+    next # Skip test participants
+  }
+
+  data_memory <- data.frame(
+    Participant = dat$prolific_id,
+    Recruitment = dat$researcher,
+    Experiment_StartDate = as.POSIXct(
+      paste(dat$date, dat$time),
+      format = "%d/%m/%Y %H:%M:%S"
+    ),
+    Experiment_Duration = max(rawdata$time_elapsed) / 1000 / 60,
+    Browser_Version = paste(dat$browser, dat$browser_version),
+    Mobile = dat$mobile,
+    Platform = dat$os,
+    Screen_Width = dat$screen_width,
+    Screen_Height = dat$screen_height
+  )
+
+  # Task
+  task <- rawdata[rawdata$screen == "memory_ratings", ]
+  if (!"item" %in% names(task)) {
+    next
+  }
+
+
+
+  resp <- sapply(
+    task$response,
+    \(x) {
+      dat <- jsonlite::fromJSON(x)
+      dat <- sapply(dat, \(y) ifelse(is.null(y), NA, y), USE.NAMES = TRUE, simplify = FALSE)
+      as.data.frame(dat)
+    },
+    simplify = FALSE,
+    USE.NAMES = FALSE
+  )
+  resp <- do.call(rbind, resp)
+  resp$Stimulus <- NULL
+
+  data_memory_task <- data.frame(
+    Participant = dat$prolific_id,
+    Item = task$item,
+    RT = task$rt / 1000
+  ) |>
+    cbind(resp)
+
+  data_memory_task$SourceCondition <- ifelse(
+    data_memory_task$SourceCondition == "Original",
+    "Human Original",
+    data_memory_task$SourceCondition
+  )
+
+
+  # Save all
+  alldata_memory[[file]] <- data_memory
+  alldata_memory_task[[file]] <- data_memory_task
+}
+
+
+alldata_memory <- do.call(rbind, alldata_memory)
+row.names(alldata_memory) <- NULL
+alldata_memory_task <- do.call(rbind, alldata_memory_task)
+row.names(alldata_memory_task) <- NULL
+
+# Check for specific participant
+# alldata_memory[alldata_memory$Participant == "63f7c60b1e096c2df51e3071", ]
+
+# Anonymize
+alldata_memory$Participant <- ids_memory[alldata_memory$Participant]
+alldata_memory_task$Participant <- ids_memory[alldata_memory_task$Participant]
+
+write.csv(alldata_memory, "../data/rawdata_memory_participants.csv", row.names = FALSE)
+write.csv(alldata_memory_task, "../data/rawdata_memory_task.csv", row.names = FALSE)

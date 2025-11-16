@@ -1,0 +1,633 @@
+---
+title: "FictionArt - Data Cleaning"
+editor: source
+editor_options: 
+  chunk_output_type: console
+format:
+  html:
+    code-fold: true
+    self-contained: false
+    toc: true
+---
+
+## Data Preparation
+
+```{r}
+#| warning: false
+#| code-fold: false
+#| error: false
+
+library(tidyverse)
+library(easystats)
+library(patchwork)
+library(ggside)
+library(ggdist)
+library(brms)
+
+
+dftask <- read.csv("../data/rawdata_task.csv") |> 
+  select(Participant, Item, Condition, Beauty, Reality, Authenticity) |> 
+  mutate(Reality = Reality / 100, Authenticity = Authenticity / 100)
+df <- read.csv("../data/rawdata_memory_task.csv") |> 
+  left_join(dftask, by = c("Participant", "Item")) |>
+  rename(AnswerCondition = SourceCondition, AnswerBelief = SourceBelief) |> 
+  mutate(Type = ifelse(is.na(Condition), "New", "Old"),
+         Condition = ifelse(is.na(Condition), "New Items", Condition),
+         Condition = fct_relevel(Condition, "Human Original", "Human Forgery", "AI-Generated", "New Items"),
+         AnswerCondition = ifelse(is.na(AnswerCondition), "Not recognized", AnswerCondition),
+         AnswerCondition = fct_relevel(AnswerCondition, "Human Original", "Human Forgery", "AI-Generated", "Not recognized"),
+         AnswerBelief = ifelse(is.na(AnswerBelief), "Not recognized", AnswerBelief),
+         AnswerBelief = fct_relevel(AnswerBelief, "Human Original", "Human Forgery", "AI Original", "AI Copy", "Not recognized"),
+         Belief = case_when(
+           Reality >= 0 & Authenticity >= 0 ~ "Human Original",
+           Reality < 0 & Authenticity >= 0 ~ "AI Original",
+           Reality >= 0 & Authenticity < 0 ~ "Human Forgery",
+           Reality < 0 & Authenticity < 0 ~ "AI Copy",
+           .default = "None"
+         ),
+         Belief = fct_relevel(Belief, "Human Original", "Human Forgery", "AI Original", "AI Copy", "None"))
+
+dfsub <- read.csv("../data/rawdata_participants.csv") |> 
+  select(Participant, Date_Expe1 = Experiment_StartDate, Gender, Age,
+         Art_Expertise, BAIT_AI_Knowledge, BAIT_AI_Use) |> 
+  right_join(
+    read.csv("../data/rawdata_memory_participants.csv") |> 
+  select(Participant, Date_Expe2 = Experiment_StartDate), by = "Participant") |> 
+  mutate(Delay = as.numeric(as.Date(Date_Expe2) - as.Date(Date_Expe1)))
+
+cols <- c(
+  "Human Original" = "#F51D56",
+  "Human Forgery" = "#F5A41D",
+  "AI-Generated" = "#1D9AF5",
+  "AI Original" = "#1D9AF5",
+  "AI Copy" = "#4CAF50",
+  "Not recognized" = "#607D8B"
+)
+```
+
+
+## Delay
+
+```{r}
+dfsub |> 
+  ggplot(aes(x=Delay)) +
+  geom_histogram(bins=30)
+```
+
+The mean and median days between the two experiments were `r mean(dfsub$Delay)` and `r median(dfsub$Delay)`, respectively.
+
+
+## Memory of Condition
+
+### Main 
+
+```{r}
+m_cond1 <- brm(AnswerCondition ~ Condition + (1|Participant) + (1|Item),
+    data = df,
+    family = categorical(link = "logit"),
+    algorithm = "meanfield",
+    iter = 8000,
+    backend = "cmdstanr")
+
+# Modify the order of dodging based on the groups for visualization
+make_group <- function(resp, covariate = NULL) {
+  group <- case_when(  
+    resp == "Not recognized" ~ 0,
+    resp == "Human Original" ~ 1,
+    resp == "AI-Generated" ~ 2,
+    resp == "AI Original" ~ 2,
+    resp == "Human Forgery" ~ 3,
+    resp == "AI Copy" ~ 4,
+    .default = NA)
+  
+  if(!is.null(covariate)) {
+    covariate <- insight::format_value(normalize(covariate), style_positive="plus")
+    group <- paste0(group, covariate)
+  }
+  group
+}
+
+dat_cond1 <- estimate_means(m_cond1, by=c("Condition")) |> 
+  mutate(group = make_group(Response))
+
+p_cond1 <- dat_cond1 |> 
+  ggplot(aes(x=Condition,  y = Median, color = Response)) +
+  geom_line(aes(group=group), position = position_dodge(width=0.1), linewidth = 1,
+            show.legend = FALSE) +
+  geom_pointrange(aes(group=group, ymin = CI_low, ymax = CI_high), position = position_dodge(width=0.1),
+                  key_glyph = "point") +
+  scale_y_continuous(label = scales::percent, limits = c(0,1), expand = c(0, 0)) +
+  scale_color_manual(values = cols) +
+  guides(color = guide_legend(override.aes = list(size = 3))) +
+  labs(y="Proportion of answers", color = "Answer", x =  "Experimental Condition",
+       title = "Memory of the Experimental Condition") +
+  theme_minimal() 
+p_cond1
+```
+
+```{r}
+make_contrasts <- function(c, answer=NULL, condition=NULL) {
+  # We can detect via the space because answer comes first
+  c$Response1 <- case_when(
+    str_detect(c$Level1, "Human Original ") ~ "Human Original",
+    str_detect(c$Level1, "Human Forgery ") ~ "Human Forgery",
+    str_detect(c$Level1, "AI-Generated ") ~ "AI-Generated",
+    str_detect(c$Level1, "Not recognized ") ~ "Not recognized",
+    .default = NA
+  )
+  c$Response2 <- case_when(
+    str_detect(c$Level2, "Human Original ") ~ "Human Original",
+    str_detect(c$Level2, "Human Forgery ") ~ "Human Forgery",
+    str_detect(c$Level2, "AI-Generated ") ~ "AI-Generated",
+    str_detect(c$Level2, "Not recognized ") ~ "Not recognized",
+    .default = NA
+  )
+  c$Level1 <- str_remove(c$Level1, "Human Original |Human Forgery |AI-Generated |Not recognized ")
+  c$Level2 <- str_remove(c$Level2, "Human Original |Human Forgery |AI-Generated |Not recognized ")
+  
+  if(!is.null(answer)) {
+    c <- filter(c, str_detect(Response1, answer) & str_detect(Response2, answer))
+  }
+  if(!is.null(condition)) {
+    c <- filter(c, str_detect(Level1, condition) & str_detect(Level2, condition))
+  }
+  arrange(c, desc(abs(Median))) |> 
+    select(Response1, Level1, Response2, Level2, Median, CI_low, CI_high, pd)
+}
+
+c <- estimate_contrasts(m_cond1, contrast = c("Condition"), test = "pd")
+make_contrasts(c, answer="Not recognized") 
+make_contrasts(c, condition="Human Original")
+make_contrasts(c, condition="New Items")
+```
+
+
+### Self-Relevance
+
+```{r}
+m_cond2a <- brm(AnswerCondition ~ Condition * SelfRelevance + (1|Participant),
+    data = df,
+    family = categorical(link = "logit"),
+    algorithm = "meanfield",
+    iter = 8000,
+    backend = "cmdstanr")
+
+dat_cond2a <- estimate_means(m_cond2a, by=c("Condition", "SelfRelevance"), length = 7) |> 
+  mutate(group = make_group(Response, SelfRelevance),
+         SelfRelevance = as.factor(SelfRelevance)) 
+
+p_cond2a <- dat_cond2a |> 
+  ggplot(aes(x=Condition,  y = Median, color = Response)) +
+  geom_line(aes(group=group, alpha=SelfRelevance), position = position_dodge(width=0.2), linewidth = 1,
+            show.legend = c(color = FALSE, alpha = FALSE)) +
+  geom_pointrange(aes(group=group, ymin = CI_low, ymax = CI_high, alpha=SelfRelevance), position = position_dodge(width=0.2),
+                  show.legend = c(alpha = FALSE), key_glyph = "point") +
+  scale_y_continuous(label = scales::percent, limits = c(0,1), expand = c(0, 0)) +
+  scale_color_manual(values = cols) +
+  scale_alpha_discrete(breaks = c(0, 3, 6)) +
+  guides(color = guide_legend(override.aes = list(size = 3))) +
+  labs(y="Proportion of answers", color = "Answer", x =  "Experimental Condition",
+       title = "Effect of Self-Relevance") +
+  theme_minimal()
+p_cond2a
+```
+
+```{r}
+c <- estimate_contrasts(m_cond2a, contrast = c("Condition", "SelfRelevance"), test = "pd")
+
+# Specific contrast
+c[c$Parameter == "Human Original Human Original 6 - Human Original Human Original 0",]
+```
+
+
+
+### Beauty
+
+```{r}
+m_cond2b <- brm(AnswerCondition ~ Condition * poly(Beauty, 2) + (1|Participant),
+    data = filter(df, !is.na(Beauty)),
+    family = categorical(link = "logit"),
+    algorithm = "meanfield",
+    iter = 8000,
+    backend = "cmdstanr")
+
+dat_cond2b <- estimate_means(m_cond2b, by=c("Condition", "Beauty"), length = 7) |> 
+  mutate(group = make_group(Response, Beauty),
+         Beauty = as.factor(Beauty))
+
+p_cond2b <- dat_cond2b |> 
+  ggplot(aes(x=Condition,  y = Median, color = Response)) +
+  # geom_line(aes(group=group, alpha=Beauty), position = position_dodge(width=0.8), linewidth = 1) +
+  geom_pointrange(aes(ymin = CI_low, ymax = CI_high, alpha=Beauty), position = position_dodge(width=0.8),
+                  show.legend = c(alpha = FALSE), key_glyph = "point") +
+  scale_y_continuous(label = scales::percent, limits = c(0,1), expand = c(0, 0)) +
+  scale_color_manual(values = cols) +
+  scale_alpha_discrete(breaks = c(-3, 0, 3)) +
+  guides(alpha = "none", color = guide_legend(override.aes = list(size = 3))) +
+  labs(y="Proportion of answers", color = "Answer", x =  "Experimental Condition",
+       title = "Effect of Beauty") +
+  theme_minimal() 
+p_cond2b
+```
+
+```{r}
+((p_cond1 + theme(legend.position = "none")) | (p_cond2a / p_cond2b) +
+  plot_layout(guides = "collect")) + 
+  plot_annotation(title = "Do you remember how this artwork was labelled?", theme = theme(plot.title = element_text(hjust = 0.5, face="italic", size=rel(1.5))))
+```
+
+## Memory of Beliefs
+
+### Main
+
+```{r}
+m_belief1a <- brm(AnswerBelief ~ Belief + (1|Participant),
+    data = df,
+    family = categorical(link = "logit"),
+    algorithm = "meanfield",
+    iter = 8000,
+    backend = "cmdstanr")
+
+dat_belief1a <- estimate_means(m_belief1a, by=c("Belief")) |> 
+  mutate(group = make_group(Response))
+
+p_belief1a <- dat_belief1a |> 
+  ggplot(aes(x=Belief,  y = Median, color = Response)) +
+  geom_line(aes(group=group), position = position_dodge(width=0.1), linewidth = 1, 
+            show.legend = FALSE) +
+  geom_pointrange(aes(group=group, ymin = CI_low, ymax = CI_high), position = position_dodge(width=0.1),
+                  key_glyph = "point") +
+  scale_y_continuous(label = scales::percent, limits = c(0,1), expand = c(0, 0)) +
+  scale_color_manual(values = cols) +
+  guides(color = guide_legend(override.aes = list(size = 3))) +
+  labs(y="Proportion of answers", color = "Answer", x =  "Original Belief",
+       title = "Memory of Beliefs") +
+  theme_minimal()
+p_belief1a
+```
+
+```{r}
+c <- estimate_contrasts(m_belief1a, contrast = c("Belief"), test = "pd")
+make_contrasts(c, answer="Not recognized") 
+make_contrasts(c, condition="Human Original")
+make_contrasts(c, condition="New Items")
+```
+
+### Continuous
+
+```{r}
+m_belief1b <- brm(AnswerBelief ~ poly(Reality, 2) * Authenticity + (1|Participant),
+    data = filter(df, Type == "Old"),
+    family = categorical(link = "logit"),
+    algorithm = "meanfield",
+    iter = 12000,
+    backend = "cmdstanr")
+
+dat_belief1b <- estimate_means(m_belief1b, by=c("Reality", "Authenticity"), length = c(11, 5)) |> 
+  mutate(
+    group = make_group(Response, Authenticity),
+    Authenticity = as.factor(Authenticity))
+
+p_belief1b <- dat_belief1b |> 
+  ggplot(aes(x=Reality,  y = Median, color = Response)) +
+  geom_line(aes(group=group, alpha=Authenticity), position = position_dodge(width=0.2), linewidth = 1,
+                  key_glyph = "path", show.legend = c(color = FALSE)) +
+  geom_pointrange(data=filter(dat_belief1b, round(Reality, 6) %in% c(-1, 0, 1)),
+                  aes(group=group, ymin = CI_low, ymax = CI_high, alpha=Authenticity), position = position_dodge(width=0.2),
+                  key_glyph = "point", show.legend = c(alpha = FALSE)) +
+  scale_y_continuous(label = scales::percent, limits = c(0,0.75), expand = c(0, 0)) +
+  scale_color_manual(values = cols) +
+  guides(color = guide_legend(override.aes = list(size = 3))) +
+  labs(y="Proportion of answers", color = "Answer", x =  "Human vs. AI", alpha  = "Original vs. Copy",
+       title = "Continuous Effect of Beliefs") +
+  theme_minimal()
+p_belief1b
+```
+
+```{r}
+p_belief1a / p_belief1b + 
+  plot_layout(guides = "collect") + 
+  plot_annotation(title = "Do you remember your own judgments?",
+                  theme = theme(plot.title = element_text(hjust = 0.5, face="italic", size=rel(1.5))))
+```
+
+
+
+## Sankey Diagram
+
+
+```{r}
+library(plotly)
+
+
+dat <- df |> 
+  select(Condition, RecognitionCorrect, SourceCondition, SourceRecognitionCorrect) |> 
+  mutate(RecognitionCorrect = ifelse(RecognitionCorrect == 1, "Recognized", "Not Recognized"),
+         SourceRecognitionCorrect = ifelse(SourceRecognitionCorrect == 1, "Recognized", "")) |>
+  summarize(p = n(), .by=c("Condition", "RecognitionCorrect", "SourceCondition", "SourceRecognitionCorrect"))
+
+
+# Define stages explicitly
+stages <- list(
+  Condition = unique(dat$Condition),
+  RecognitionCorrect = unique(dat$RecognitionCorrect),
+  SourceCondition = na.omit(unique(dat$SourceCondition))
+)
+
+# Add dummy (hidden) node to anchor "Not Recognized"
+nodes <- tibble(
+  value = c(stages$Condition,
+            stages$RecognitionCorrect,
+            stages$SourceCondition,
+            ""),  # hidden dummy
+  stage = c(
+    rep("Condition", length(stages$Condition)),
+    rep("RecognitionCorrect", length(stages$RecognitionCorrect)),
+    rep("SourceCondition", length(stages$SourceCondition)),
+    "Dummy"
+  )
+) |>
+  mutate(id = row_number() - 1,
+         x = case_when(
+           stage == "Condition" ~ 0,
+           stage == "RecognitionCorrect" ~ 0.5,
+           stage == "SourceCondition" ~ 1,
+           stage == "Dummy" ~ 1
+         ))
+
+# Normalise y so all stages share same vertical extent
+max_nodes <- nodes |>
+  count(stage) |>
+  summarise(max(n)) |>
+  pull()
+
+nodes <- nodes |>
+  group_by(stage) |>
+  mutate(y = seq(0, 1, length.out = max_nodes)[seq_len(n())]) |>
+  ungroup()
+
+# Helper
+get_id <- function(x) nodes$id[match(x, nodes$value)]
+
+# Links
+links <- bind_rows(
+  dat |> filter(!is.na(RecognitionCorrect)) |>
+    transmute(source = get_id(Condition),
+              target = get_id(RecognitionCorrect),
+              value = p),
+  dat |> filter(!is.na(SourceCondition)) |>
+    transmute(source = get_id(RecognitionCorrect),
+              target = get_id(SourceCondition),
+              value = p),
+  # Dummy tiny link (keeps Not Recognized in stage 2)
+  tibble(source = get_id("Not Recognized"),
+         target = get_id(""),
+         value = 0.0001)
+)
+
+# Sankey
+fig <- plot_ly(
+  type = "sankey",
+  arrangement = "snap",
+  node = list(
+    label = nodes$value,  # dummy label = ""
+    x = nodes$x,
+    y = nodes$y,
+    pad = 15,
+    thickness = 20
+  ),
+  link = list(
+    source = links$source,
+    target = links$target,
+    value  = links$value
+  )
+)
+
+fig
+```
+
+
+
+
+```{r}
+library(ggalluvial)
+
+blend_cmyk <- function(col1, col2, alpha = 0.5) {
+  # Hex -> RGB [0-1]
+  rgb1 <- col2rgb(col1) / 255
+  rgb2 <- col2rgb(col2) / 255
+  
+  # RGB -> CMY
+  to_cmyk <- function(rgb) {
+    cmy <- 1 - rgb
+    K <- min(cmy)
+    if (K == 1) return(c(0, 0, 0, 1))
+    C <- (cmy[1] - K) / (1 - K)
+    M <- (cmy[2] - K) / (1 - K)
+    Y <- (cmy[3] - K) / (1 - K)
+    c(C, M, Y, K)
+  }
+  
+  cmyk1 <- to_cmyk(rgb1)
+  cmyk2 <- to_cmyk(rgb2)
+  
+  # Blend in CMYK
+  cmyk_blend <- (1 - alpha) * cmyk1 + alpha * cmyk2
+  
+  # CMYK -> RGB -> hex
+  from_cmyk <- function(cmyk) {
+    C <- cmyk[1]; M <- cmyk[2]; Y <- cmyk[3]; K <- cmyk[4]
+    R <- 1 - (C * (1 - K) + K)
+    G <- 1 - (M * (1 - K) + K)
+    B <- 1 - (Y * (1 - K) + K)
+    rgb(R, G, B)
+  }
+  
+  from_cmyk(cmyk_blend)
+}
+
+
+dat <- df |> 
+  select(Condition, RecognitionAnswer, SourceCondition, SourceRecognitionCorrect) |> 
+  mutate(SourceRecognitionCorrect = case_when(
+           SourceRecognitionCorrect == 1 ~ "Correct",
+           SourceRecognitionCorrect == 0 ~ "Incorrect",
+           is.na(SourceRecognitionCorrect) ~ "N/A"
+         )) |>
+  summarize(p = n(), .by=c("Condition", "RecognitionAnswer", "SourceCondition", "SourceRecognitionCorrect")) |> 
+  mutate(SourceAnswer = ifelse(RecognitionAnswer == 0, "Not recognized", SourceCondition),
+         Condition = fct_relevel(Condition, "Human", "AI", "Forgery", "None"),
+         SourceAnswer = fct_relevel(SourceAnswer, "Original", "AI-Generated", "Human Forgery", "Not recognized"))
+
+
+
+p <- dat |> 
+  # filter(!(Condition == "None" & SourceAnswer == "Not recognized")) |> 
+  ggplot(aes(axis1 = Condition, axis2 = SourceAnswer,
+             y = p)) +
+  scale_x_discrete(limits = c("Condition", "Source Answer")) +
+  geom_alluvium(aes(fill=SourceAnswer)) +
+  geom_stratum() +
+  geom_text(stat = "stratum", aes(label = after_stat(stratum))) +
+  scale_fill_manual(values= c(
+    "Original" = "#F51D56",
+    "AI-Generated" = "#1D9AF5",
+    "Human Forgery" = "#F5A41D",
+    "NA" = "grey"), breaks = c("Original", "AI-Generated", "Human Forgery")) +
+  labs(fill = "Remembered as") +
+  theme_void()
+p
+```
+
+
+## Participant-level
+
+It corresponds to data from a recognition task, in which people were presented old and new items, and had to 1) answer if they recognize  it or not, and if so then remember the condition it was presented in as well as the memory of their own belief that they had about the item.
+
+I would like the code to compute the following participant-level indices.
+- Recognition performance: based on the yes/no "Recognition" answer and the old/new items "Types", compute the rate of false alarms, correct rejections, hits, and misses, and then compute SDT indices for each participant (discrimination, bias etc.). Pick a parametric or non-parametric approach and justify it.
+- Human bias for Condition: indices that quantify the tendency to remember that the condition of items was "Human Original" vs. the 2 other categories. 
+- Human bias for Belief: indices that quantify the tendency to remember that their own belief was "Human Original" vs. the 3 other categories, as Human (the 2 Human categories vs. the 2 AI ones), and a Copy (the forgery and copy categories vs. the two original ones)
+
+### Compute Indidces 
+
+
+```{r}
+# log-linear corrected rates to avoid 0/1 extremes
+ll_rate <- function(count, total) {
+  (count + 0.5) / (total + 1)
+}
+
+# parametric SDT: d' and c
+sdt_metrics <- function(hit_rate, fa_rate) {
+  # qnorm works with rates strictly in (0,1)
+  z_hit <- qnorm(hit_rate)
+  z_fa  <- qnorm(fa_rate)
+  dprime <- z_hit - z_fa
+  criterion_c <- -0.5 * (z_hit + z_fa)
+  tibble(dprime = dprime, c = criterion_c)
+}
+
+dffeatures <- df |>
+  summarise(
+    n_old  = sum(Type == "Old", na.rm = TRUE),
+    n_new  = sum(Type == "New", na.rm = TRUE),
+    hits   = sum(Recognition == "Yes" & Type == "Old", na.rm = TRUE),
+    misses = sum(Recognition == "No"  & Type == "Old", na.rm = TRUE),
+    fa     = sum(Recognition == "Yes" & Type == "New", na.rm = TRUE),
+    cr     = sum(Recognition == "No"  & Type == "New", na.rm = TRUE),
+    .by = "Participant"
+  ) |>
+  mutate(
+    p_hit = ll_rate(hits, n_old),
+    p_fa  = ll_rate(fa, n_new)
+  ) |>
+  mutate(
+    map2_dfr(p_hit, p_fa, sdt_metrics)
+  ) |> 
+  select(Participant, dprime, c)
+
+# Condition memory bias
+dffeatures <- df |>
+  summarise(n = n(), .by = c("Participant", "AnswerCondition")) |> 
+  complete(Participant, AnswerCondition, fill = list(n = 0)) |> 
+  filter(AnswerCondition != "Not recognized") |> 
+  mutate(Total = sum(n), .by = "Participant") |> 
+  mutate(p = n / Total) |> 
+  select(-n, -Total) |>
+  mutate(AnswerCondition = str_replace(AnswerCondition, "AI-Generated", "BiasCondition_AI"),
+         AnswerCondition = str_replace(AnswerCondition, "Human Original", "BiasCondition_Human"),
+         AnswerCondition = str_replace(AnswerCondition, "Human Forgery", "BiasCondition_Forgery")) |>
+  pivot_wider(names_from = AnswerCondition, values_from = p) |> 
+  full_join(dffeatures, by = "Participant")
+
+# Belief memory bias
+dffeatures <- df |>
+  summarise(n = n(), .by = c("Participant", "AnswerBelief")) |> 
+  complete(Participant, AnswerBelief, fill = list(n = 0)) |> 
+  filter(AnswerBelief != "Not recognized") |> 
+  mutate(Total = sum(n), .by = "Participant") |> 
+  mutate(p = n / Total) |> 
+  select(-n, -Total) |>
+  mutate(AnswerBelief = str_replace(AnswerBelief, "AI Original", "BiasBelief_AIOriginal"),
+         AnswerBelief = str_replace(AnswerBelief, "AI Copy", "BiasBelief_AICopy"),
+         AnswerBelief = str_replace(AnswerBelief, "Human Original", "BiasBelief_HumanOriginal"),
+         AnswerBelief = str_replace(AnswerBelief, "Human Forgery", "BiasBelief_HumanForgery")) |>
+  pivot_wider(names_from = AnswerBelief, values_from = p) |> 
+  mutate(BiasBelief_Human = BiasBelief_HumanOriginal + BiasBelief_HumanForgery,
+         BiasBelief_Authentic = BiasBelief_HumanOriginal + BiasBelief_AIOriginal) |>
+  full_join(dffeatures, by = "Participant")
+```
+
+
+### Correlation
+
+```{r}
+df2 <- dfsub |> 
+  select(Participant, Gender, Age, Art_Expertise, starts_with("BAIT_")) |> 
+  mutate(Gender = case_when(
+    Gender == "Male" ~ 0,
+    Gender == "Female" ~ 1,
+    .default =  NA
+  ),
+  BAIT_AI_Use = case_when(
+    BAIT_AI_Use == "Never" ~ 0,
+    BAIT_AI_Use == "A few times per month" ~ 1,
+    BAIT_AI_Use == "A few times per week" ~ 2,
+    BAIT_AI_Use == "Once a day" ~ 3,
+    BAIT_AI_Use == "A few times per day" ~ 4,
+    .default = NA
+  ))
+
+
+r <- dffeatures |> 
+  correlation::correlation(df2, p_adjust="none") |> 
+  correlation::cor_sort() |>
+  mutate(label = ifelse(p < .05, paste0(insight::format_value(r, lead_zero = FALSE, zap_small = TRUE)), ""),
+         # Parameter1 = cleanlabels(Parameter1, qname=qname_x),
+         # Parameter2 = cleanlabels(Parameter2, qname=qname_y))
+         Parameter1 = Parameter1)
+r[as.character(r$Parameter1) == as.character(r$Parameter2), "label"] <- ""
+
+xnames <- levels(r$Parameter1)
+ynames <- levels(r$Parameter2)
+
+xcol <- case_when(
+  str_detect(xnames, "MINT") ~ "#00838F",
+  str_detect(xnames, "MAIA") ~ "#EF6C00",
+  str_detect(xnames, "IAS") ~ "#C62828",
+  str_detect(xnames, "BPQ") ~ "#795548",
+  .default = "#424242"
+)
+ycol <- case_when(
+  str_detect(ynames, "MINT") ~ "#00838F",
+  str_detect(ynames, "MAIA") ~ "#EF6C00",
+  str_detect(ynames, "IAS") ~ "#C62828",
+  str_detect(ynames, "BPQ") ~ "#795548",
+  .default = "#424242"
+)
+xbold <- case_when(
+  xnames %in% c("Awareness", "MINT - Awareness") ~ "bold",
+  str_detect(xnames, "Visceroception") ~ "bold",
+  str_detect(xnames, "Deficit") ~ "bold",
+  .default = "plain"
+)
+ybold <- case_when(
+  ynames %in% c("Awareness", "MINT - Awareness") ~ "bold",
+  str_detect(ynames, "Visceroception") ~ "bold",
+  str_detect(ynames, "Deficit") ~ "bold",
+  .default = "plain"
+)
+
+r |> 
+  ggplot(aes(x=Parameter1, y=Parameter2, fill=r)) +
+  geom_tile() +
+  geom_text(aes(label=label), size=3) +
+  scale_fill_gradient2(low="blue", high="red", mid="white", midpoint=0, limits = c(-1, 1)) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust=1, color = xcol, face = xbold),
+        axis.text.y = element_text(color = ycol, face = ybold),
+        legend.position = "none",
+        axis.title = element_blank())
+```
+
