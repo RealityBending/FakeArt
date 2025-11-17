@@ -248,15 +248,47 @@ p_cond2b <- dat_cond2b |>
   ggplot(aes(x=Condition,  y = Median, color = Response)) +
   # geom_line(aes(group=group, alpha=Beauty), position = position_dodge(width=0.8), linewidth = 1) +
   geom_pointrange(aes(ymin = CI_low, ymax = CI_high, alpha=Beauty), position = position_dodge(width=0.8),
-                  show.legend = c(alpha = FALSE), key_glyph = "point") +
+                  key_glyph = "point") +
   scale_y_continuous(label = scales::percent, limits = c(0,1), expand = c(0, 0)) +
   scale_color_manual(values = cols) +
   scale_alpha_discrete(breaks = c("0%", "50%", "100%")) +
-  guides(alpha = "none", color = guide_legend(override.aes = list(size = 3))) +
+  guides(color = guide_legend(override.aes = list(size = 3)), alpha = guide_legend(override.aes = list(size = 3))) +
   labs(y="Proportion of answers", color = "Answer", x =  "Experimental Condition",
        title = "Effect of Beauty") +
   theme_minimal() 
 p_cond2b
+```
+
+### Syntheticness
+
+```{r}
+#| message: false
+
+m_cond_reality <- brm(AnswerCondition ~ Condition * poly(Reality, 2) + (1|Participant),
+    data = filter(df, !is.na(Reality)),
+    family = categorical(link = "logit"),
+    algorithm = "meanfield",
+    iter = 8000,
+    backend = "cmdstanr")
+```
+
+```{r}
+dat_cond_reality <- estimate_means(m_cond_reality, by=c("Condition", "Reality"), length = 7) |> 
+  mutate(group = make_group(Response, Reality),
+         Reality = fct_reorder(format_percent(Reality, digits = 0), Reality))
+
+p_cond_reality <- dat_cond_reality |> 
+  ggplot(aes(x=Condition,  y = Median, color = Response)) +
+  geom_pointrange(aes(ymin = CI_low, ymax = CI_high, alpha=Reality), position = position_dodge(width=0.8),
+                  key_glyph = "point") +
+  scale_y_continuous(label = scales::percent, limits = c(0,1), expand = c(0, 0)) +
+  scale_color_manual(values = cols) +
+  scale_alpha_discrete(breaks = c("0%", "50%", "100%")) +
+  guides(color = guide_legend(override.aes = list(size = 3)), alpha = guide_legend(override.aes = list(size = 3))) +
+  labs(y="Proportion of answers", color = "Answer", x =  "Experimental Condition",
+       title = "Effect of Reality Ratings") +
+  theme_minimal() 
+p_cond_reality
 ```
 
 ```{r}
@@ -308,7 +340,7 @@ make_contrasts(c, answer="Not recognized")
 make_contrasts(c, condition="Human Original")
 ```
 
-### Continuous
+### Syntheticness
 
 ```{r}
 #| message: false
