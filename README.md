@@ -10,3 +10,4 @@ This project is about reality and art. Artificial & Synthetic vs. Authenticity &
 
 - [**Data cleaning**](https://realitybending.github.io/FakeArt/analysis/1_cleaning.html)
 - [**Data analysis (Frequentist linear models)**](https://realitybending.github.io/FakeArt/analysis/2_analysis.html)
+- [**Data analysis (Memory)**](https://realitybending.github.io/FakeArt/analysis/4_memory.html)
