@@ -68,7 +68,7 @@ fig_stimselection
 make_plot  <- function(p, outcome = "Beauty", x_title = NULL, alpha_title=NULL) {
   p <- p + theme_minimal() 
   if (outcome %in%  c("Beauty", "Beauty2")) {
-    if(!is.null(x_title) && x_title == "Self-Relevance") {
+    if(!is.null(x_title) && x_title %in% c("Self-Relevance", "Image Complexity (Norms)", "Image Familiarity (Norms)")) {
       ybreaks <- c(0.4, 0.5, 0.6)
     } else if(!is.null(alpha_title) && alpha_title == "Emotion") {
       ybreaks <- c(0.3, 0.5, 0.7)
@@ -89,7 +89,7 @@ make_plot  <- function(p, outcome = "Beauty", x_title = NULL, alpha_title=NULL) 
       coord_cartesian(ylim = c(min(ybreaks) - by, max(ybreaks) + by)) +
       theme(axis.title.y = element_text(face = "italic"), plot.title = element_text(face = "bold"))
   } else if (outcome ==  "Valence") {
-    if(!is.null(x_title) && x_title == "Self-Relevance") {
+    if(!is.null(x_title) && x_title %in% c("Self-Relevance", "Image Complexity (Norms)", "Image Familiarity (Norms)")) {
       ybreaks <- c(0.4, 0.5, 0.6)
     } else if(!is.null(alpha_title) && alpha_title == "Emotion") {
       ybreaks <- c(0.3, 0.5, 0.7)
@@ -108,7 +108,7 @@ make_plot  <- function(p, outcome = "Beauty", x_title = NULL, alpha_title=NULL) 
       coord_cartesian(ylim = c(min(ybreaks) - by, max(ybreaks) + by)) +
       theme(axis.title.y = element_text(face = "italic"), plot.title = element_text(face = "bold"))
   } else if (outcome ==  "Meaning") {
-    if(!is.null(x_title) && x_title == "Self-Relevance") {
+    if(!is.null(x_title) && x_title %in% c("Self-Relevance", "Image Complexity (Norms)", "Image Familiarity (Norms)")) {
       ybreaks <- c(0.35, 0.45, 0.55)
     } else if(!is.null(alpha_title) && alpha_title == "Emotion") {
       ybreaks <- c(0.3, 0.4, 0.5)
@@ -136,7 +136,7 @@ make_plot  <- function(p, outcome = "Beauty", x_title = NULL, alpha_title=NULL) 
       coord_cartesian(ylim = ylim) +
       theme(axis.title.y = element_text(face = "italic"), plot.title = element_text(face = "bold"))
   } else if (outcome ==  "Reality") {
-    if(!is.null(x_title) && x_title == "Self-Relevance") {
+    if(!is.null(x_title) && x_title %in% c("Self-Relevance", "Image Complexity (Norms)", "Image Familiarity (Norms)")) {
       ybreaks <- c(0.4, 0.5, 0.6)
     } else if(!is.null(alpha_title) && alpha_title == "Emotion") {
       ybreaks <- c(0.4, 0.5, 0.6)
@@ -155,7 +155,7 @@ make_plot  <- function(p, outcome = "Beauty", x_title = NULL, alpha_title=NULL) 
       coord_cartesian(ylim = c(min(ybreaks) - by, max(ybreaks) + by)) +
       theme(axis.title.y = element_text(face = "italic"), plot.title = element_text(face = "bold"))
   } else if (outcome ==  "Authenticity") {
-    if(!is.null(x_title) && x_title == "Self-Relevance") {
+    if(!is.null(x_title) && x_title %in% c("Self-Relevance", "Image Complexity (Norms)", "Image Familiarity (Norms)")) {
       ybreaks <- c(0.5, 0.6, 0.7)
     } else if(!is.null(alpha_title) && alpha_title == "Emotion") {
       ybreaks <- c(0.5, 0.6, 0.7)
@@ -305,7 +305,31 @@ make_analysis <- function(dftask, outcome = "Beauty") {
                     key_glyph=draw_key_point) +
     scale_color_manual(values = cols) 
   
+  
+  # Complexity
+  formula <- as.formula(paste0(outcome, " ~ Condition * poly(Norms_Complexity, 2) + poly(Norms_Familiarity, 2) + (1|Participant) + (1|Item)"))
+  model <- lme4::lmer(formula, data = dftask)
 
+  p_complexity <- estimate_relation(model, by = c("Condition", "Norms_Complexity"), length=20, backend = "marginaleffects") |> 
+    ggplot(aes(x = Norms_Complexity, y = Predicted)) 
+  p_complexity <- make_plot(p_complexity, outcome = outcome, x_title = "Image Complexity (Norms)") +
+    geom_ribbon(aes(ymin = CI_low, ymax = CI_high, fill = Condition), alpha = 0.2, show.legend  = FALSE) +
+    geom_line(aes(group = Condition, color = Condition), linewidth = 1) +
+    scale_color_manual(values = cols) +
+    scale_fill_manual(values = cols) +
+    scale_x_continuous(labels = scales::percent_format()) 
+  p_complexity2 <- estimate_relation(model, by = c("Condition", "Norms_Familiarity"), length=20, backend = "marginaleffects") |> 
+    ggplot(aes(x = Norms_Familiarity, y = Predicted)) 
+  p_complexity2 <- make_plot(p_complexity2, outcome = outcome, x_title = "Image Familiarity (Norms)") +
+    geom_ribbon(aes(ymin = CI_low, ymax = CI_high, fill = Condition), alpha = 0.2, show.legend  = FALSE) +
+    geom_line(aes(group = Condition, color = Condition), linewidth = 1) +
+    scale_color_manual(values = cols) +
+    scale_fill_manual(values = cols) +
+    scale_x_continuous(labels = scales::percent_format()) +
+    theme(axis.title.y = element_blank(), axis.text.y = element_blank(), axis.ticks.y = element_blank(),
+          plot.title = element_blank(), plot.subtitle = element_blank())
+  p_complexity <- (p_complexity | p_complexity2) + plot_layout(guides = "collect")
+  
   # Self-Relevance
   if(outcome != "SelfRelevance") {
     formula <- as.formula(paste0(outcome, " ~ Condition * poly(SelfRelevance, 2) + (1|Participant) + (1|Item)"))
@@ -376,6 +400,7 @@ make_analysis <- function(dftask, outcome = "Beauty") {
        t_condition=t_cond, p_condition=p_condition, 
        t_style=t_style, p_style=p_style, 
        t_emotion=t_emotion, p_emotion=p_emotion,
+       p_complexity = p_complexity,
        t_trust=t_trust, p_trust=p_trust,
        t_selfrelevance=t_selfrelevance, t_selfrelevance2=t_selfrelevance2, p_selfrelevance=p_selfrelevance,
        t_beauty=t_beauty, t_beauty2=t_beauty2, p_beauty=p_beauty
@@ -410,6 +435,11 @@ rez_beauty$p_emotion
 rez_beauty$t_emotion
 ```
 
+#### Complexity and Familiarity
+
+```{r}
+rez_beauty$p_complexity
+```
 
 #### Manipulation Belief
 
@@ -464,6 +494,12 @@ rez_valence$t_emotion
 ```
 
 
+#### Complexity and Familiarity
+
+```{r}
+rez_valence$p_complexity
+```
+
 #### Manipulation Belief
 
 ```{r}
@@ -514,6 +550,12 @@ rez_meaning$t_style
 ```{r}
 rez_meaning$p_emotion
 rez_meaning$t_emotion
+```
+
+#### Complexity and Familiarity
+
+```{r}
+rez_meaning$p_complexity
 ```
 
 #### Manipulation Belief
@@ -568,6 +610,12 @@ rez_worth$p_emotion
 rez_worth$t_emotion
 ```
 
+#### Complexity and Familiarity
+
+```{r}
+rez_worth$p_complexity
+```
+
 #### Manipulation Belief
 
 ```{r}
@@ -620,6 +668,12 @@ rez_reality$t_style
 ```{r}
 rez_reality$p_emotion
 rez_reality$t_emotion
+```
+
+#### Complexity and Familiarity
+
+```{r}
+rez_reality$p_complexity
 ```
 
 #### Manipulation Belief
@@ -677,6 +731,12 @@ rez_authenticity$p_emotion
 rez_authenticity$t_emotion
 ```
 
+#### Complexity and Familiarity
+
+```{r}
+rez_authenticity$p_complexity
+```
+
 #### Manipulation Belief
 
 ```{r}
@@ -731,6 +791,12 @@ rez_selfrelevance$p_emotion
 rez_selfrelevance$t_emotion
 ```
 
+#### Complexity and Familiarity
+
+```{r}
+rez_selfrelevance$p_complexity
+```
+
 #### Manipulation Belief
 
 ```{r}
@@ -773,6 +839,12 @@ rez_beauty2$t_style
 ```{r}
 rez_beauty2$p_emotion
 rez_beauty2$t_emotion
+```
+
+#### Complexity and Familiarity
+
+```{r}
+rez_beauty2$p_complexity
 ```
 
 #### Manipulation Belief

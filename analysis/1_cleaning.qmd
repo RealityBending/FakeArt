@@ -1082,7 +1082,7 @@ sort(table(df$Country)) |>
 ## Save
 
 ```{r}
-dftask |> 
+dftask <- dftask |> 
   left_join(select(df, Participant, ManipulationDistrust), by = c("Participant")) |> 
   left_join(select(read.csv("../data/rawdata_memory_task.csv"), Participant, Item, SelfRelevance, Beauty2), by = c("Participant", "Item")) |> 
   mutate(Emotion = paste0(ifelse(Norms_Valence < median(Norms_Valence), "Negative", "Positive"), ifelse(Norms_Arousal < median(Norms_Arousal), " - Low intensity", " - High intensity")),
@@ -1095,8 +1095,9 @@ dftask |>
          Beauty2 = datawizard::rescale(Beauty2, to = c(0, 1), range = c(-3, 3)),
          SelfRelevance = datawizard::rescale(SelfRelevance, to = c(0, 1), range = c(0, 6))
          ) |>
-  datawizard::normalize(select = c("Norms_Liking", "Norms_Valence", "Norms_Arousal", "Norms_Complexity", "Norms_Familiarity")) |>
-  write.csv("../data/data_task.csv", row.names = FALSE)
+  datawizard::normalize(select = c("Norms_Liking", "Norms_Valence", "Norms_Arousal", "Norms_Complexity", "Norms_Familiarity")) 
+
+write.csv(dftask, "../data/data_task.csv", row.names = FALSE)
 
 
 
@@ -1105,7 +1106,8 @@ dfmem <- read.csv("../data/rawdata_memory_task.csv")
 # sum(!unique(dfmem$Participant) %in% df$Participant)
 dfmem <- dfmem |> 
   filter(Participant %in% df$Participant) |> 
-  left_join(select(dftask, Participant, Item, Condition, Reality, Authenticity), by = c("Participant", "Item")) |>
+  select(-SelfRelevance, -Beauty2) |> 
+  left_join(dftask, by = c("Participant", "Item")) |>
   rename(AnswerCondition = SourceCondition, AnswerBelief = SourceBelief) |> 
   mutate(Type = ifelse(is.na(Condition), "New", "Old"),
          Condition = ifelse(is.na(Condition), "New Items", as.character(Condition)),
