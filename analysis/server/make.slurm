@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=fakeart_models
-#SBATCH --array=1-2
+#SBATCH --array=1-8
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16

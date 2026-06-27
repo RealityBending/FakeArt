@@ -24,7 +24,7 @@ combine_and_save <- function(name) {
   m <- brms::combine_models(mlist = lapply(files, readRDS))
 
   # Add criterion and save
-  m <- brms::add_criterion(m, "waic", ndraws = 1500, file = name)
+  # m <- brms::add_criterion(m, "waic", ndraws = 1500, file = name)
 
   # Save combined model
   saveRDS(m, paste0(name, ".rds"))

@@ -5,8 +5,8 @@ library(cogmod)
 task_id <- as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID", unset = "1"))
 chains_per_task <- as.numeric(Sys.getenv("SLURM_CPUS_PER_TASK", unset = "2"))
 start_chain <- (task_id - 1) * chains_per_task + 1
-iter <- 600
-warmup <- iter / 2
+warmup <- 1200
+iter <- warmup + 600
 seed <- 1234 + start_chain
 
 
@@ -26,14 +26,14 @@ dftask$Condition <- factor(dftask$Condition, levels = c("Human Original", "Human
 
 
 formula <- brms::bf(
-  paste0("Beauty ~ Condition + (1|Participant)"),
-  confright ~ Condition,
-  confleft ~ Condition,
-  precright ~ 1,
-  precleft ~ 1,
-  pex ~ 1,
-  bex ~ 1,
-  pmid ~ 1,
+  Beauty ~ Condition + (1 | Participant) + (1 | Item),
+  confright ~ Condition + (1 | Participant) + (1 | Item),
+  confleft ~ Condition + (1 | Participant) + (1 | Item),
+  precright ~ Condition + (1 | Participant) + (1 | Item),
+  precleft ~ Condition + (1 | Participant) + (1 | Item),
+  pex ~ 1 + (1 | Participant),
+  bex ~ 1 + (1 | Participant),
+  pmid ~ 1 + (1 | Participant),
   family = choco()
 )
 
