@@ -4,7 +4,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
-#SBATCH --mem=16G
+#SBATCH --mem=32G
 #SBATCH --output=/mnt/lustre/scratch/psych/dmm56/FakeArt/models_%A_%a.out
 #SBATCH --error=/mnt/lustre/scratch/psych/dmm56/FakeArt/models_%A_%a.err
 #SBATCH --partition=long
