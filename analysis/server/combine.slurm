@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=fakeart_combine
-#SBATCH --array=1-2
+#SBATCH --array=1-4
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=32

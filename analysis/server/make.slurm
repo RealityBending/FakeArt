@@ -8,14 +8,9 @@
 #SBATCH --output=/mnt/lustre/scratch/psych/dmm56/FakeArt/models_%A_%a.out
 #SBATCH --error=/mnt/lustre/scratch/psych/dmm56/FakeArt/models_%A_%a.err
 #SBATCH --partition=long
-
-# Have slurm email your SUSSEX email
 #SBATCH --mail-user=dmm56@sussex.ac.uk
 #SBATCH --mail-type=END,FAIL
 
-
-# Set working directory
-# cd /mnt/lustre/users/psych/dmm56/FakeArt || exit 1
 
 echo "Running on $(hostname)"
 echo "Current directory: $(/bin/pwd)"

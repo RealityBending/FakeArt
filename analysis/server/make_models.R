@@ -5,7 +5,7 @@ library(cogmod)
 task_id <- as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID", unset = "1"))
 total_cores <- as.numeric(Sys.getenv("SLURM_CPUS_PER_TASK", unset = "2"))
 
-cat("================\nNode Info:")
+cat("================\nNode Info:\n")
 cat(paste0("** Task ID: ", task_id, "\n"))
 cat(paste0("** Total cores: ", total_cores, "\n"))
 cat("** GCC version: \n")
@@ -120,3 +120,75 @@ m_reality <- brm(formula,
 )
 
 print("!! REALITY DONE !!")
+
+
+# ----------------------------
+# Authenticity
+# ----------------------------
+
+
+formula <- brms::bf(
+  Authenticity ~ Condition + (Condition | Participant) + (Condition | Item),
+  confright ~ Condition + (Condition | Participant) + (Condition | Item),
+  confleft ~ Condition + (Condition | Participant) + (Condition | Item),
+  precright ~ Condition + (1 | Participant) + (1 | Item),
+  precleft ~ Condition + (1 | Participant) + (1 | Item),
+  pex ~ Condition + (1 | Participant),
+  bex ~ Condition + (1 | Participant),
+  pmid ~ Condition + (1 | Participant),
+  family = choco()
+)
+
+
+m_reality <- brm(formula,
+  data = dftask[!is.na(dftask$Authenticity), ],
+  family = choco(), stanvars = choco_stanvars(),
+  prior = brms::validate_prior(priors, formula, data = dftask[!is.na(dftask$Authenticity), ]),
+  init = 0,
+  chains = chains_per_node,
+  cores = chains_per_node,
+  threads = threading(threads_per_chain),
+  iter = iter,
+  warmup = warmup,
+  seed = seed,
+  backend = "cmdstanr",
+  file = paste0(path, "Authenticity_task_", task_id)
+)
+
+print("!! Authenticity DONE !!")
+
+
+# ----------------------------
+# Beauty2
+# ----------------------------
+
+
+formula <- brms::bf(
+  Beauty2 ~ Condition + (Condition | Participant) + (Condition | Item),
+  confright ~ Condition + (Condition | Participant) + (Condition | Item),
+  confleft ~ Condition + (Condition | Participant) + (Condition | Item),
+  precright ~ Condition + (1 | Participant) + (1 | Item),
+  precleft ~ Condition + (1 | Participant) + (1 | Item),
+  pex ~ Condition + (1 | Participant),
+  bex ~ Condition + (1 | Participant),
+  pmid ~ Condition + (1 | Participant),
+  family = choco()
+)
+
+
+m_beauty2 <- brm(formula,
+  data = dftask[!is.na(dftask$Beauty2), ],
+  family = choco(), stanvars = choco_stanvars(),
+  prior = brms::validate_prior(priors, formula, data = dftask),
+  init = 0,
+  chains = chains_per_node,
+  cores = chains_per_node,
+  threads = threading(threads_per_chain),
+  iter = iter,
+  warmup = warmup,
+  seed = seed,
+  backend = "cmdstanr",
+  file = paste0(path, "Beauty2_task_", task_id)
+)
+
+print("!! BEAUTY2 DONE !!")
