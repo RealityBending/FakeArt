@@ -20,6 +20,10 @@ name <- model_names[task_id]
 combine_and_save <- function(name) {
   print(paste0(" **", name, ": ", Sys.time()))
   files <- list.files("models/", pattern = paste0(name, "_.*rds$"), full.names = TRUE)
+  if (length(files) == 0) {
+    print(paste0("No files found for model: ", name))
+    return("")
+  }
   print(paste0("** Found ", length(files), " files for model: ", name))
   m <- brms::combine_models(mlist = lapply(files, readRDS))
 
