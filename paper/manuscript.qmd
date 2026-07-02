@@ -1,0 +1,119 @@
+---
+title: "Framing the Fake: The Psychological Impact of Forgery and AI Labels on Aesthetic Experience"
+shorttitle: "Framing the Fake"
+author:
+  - name: Dominique Makowski
+    orcid: 0000-0001-5375-9967
+    email: D.Makowski@sussex.ac.uk
+    url: https://realitybending.github.io/
+    corresponding: true
+    roles:
+      - Project administration
+      - Data curation
+      - Formal Analysis
+      - Investigation
+      - Visualization
+      - Writing – original draft
+      - Writing – review & editing
+    affiliations:
+      - id: "id1"
+        name: "University of Sussex"
+        department: "School of Psychology"
+        city: "Brighton"
+        country: "UK"
+        postal-code: "BN1 9RH"
+      - id: "id2"
+        name: "University of Sussex"
+        department:  "Sussex Centre for Consciousness Science"
+  - name: Ana Neves
+    orcid: 0009-0006-0020-7599
+    email: A.Neves@sussex.ac.uk
+    roles:
+      - Project administration
+      - Writing – review & editing
+    affiliations:
+      - ref: id1
+  - name: Marco Sperduti
+    orcid: ""
+    email: D.Makowski@sussex.ac.uk
+    url: https://realitybending.github.io/
+    roles:
+      - Project administration
+      - Writing – original draft
+      - Writing – review & editing
+    affiliations:
+      - name: "University of Tor Vergata"
+        department:  "Department of Medicine"
+        city: "Rome"
+        country: "Italy"
+author-note:
+  disclosures:
+    gratitude: |
+      [![](rebel_logo.png){width="60%"}](https://realitybending.github.io/)\
+    study-registration: null
+    data-sharing: null
+    related-report: null
+    conflict-of-interest: null
+    financial-support: null
+    authorship-agreements: null
+abstract: | 
+  TODO
+keywords: 
+  - TODO
+  - TODO2
+floatsintext: true
+numbered-lines: true
+bibliography: bibliography.bib
+suppress-title-page: false
+mask: false
+# Language options. See https://quarto.org/docs/authoring/language.html
+lang: en
+language:
+  title-block-correspondence-note: "Correspondence concerning this article should be addressed to"
+  title-block-role-introduction: "Author roles were classified using the Contributor Role Taxonomy (CRediT; https://credit.niso.org/) as follows:"
+  references-meta-analysis:
+format:
+  apaquarto-pdf:
+    # Can be jou (journal), man (manuscript), stu (student), or doc (document)
+    documentmode: jou
+  apaquarto-docx: default
+  apaquarto-html: default
+editor_options:
+  chunk_output_type: console
+---
+
+Title ideas: 
+
+- Framing the Fake: The Psychological Impact of Forgery and AI Beliefs on Aesthetic Experience
+- Art-ificial Beauty
+- The Ghost in the Canvas
+
+
+
+# Introduction
+
+# Methods
+
+## Procedure
+
+
+Participants were first introduced to a cover story framing the experiment as... TODO.
+
+During the first phase of the experiment, participants viewed a series of artworks, each preceded by a randomly presented cue indicating its type: an Original human painting, a Human Forgery, an AI-Generated image. Following the presentation of each artwork, participants reported their aesthetic experience across four core dimensions: *beauty* (aesthetic quality, composition, and execution), emotional *valence* (the intensity of positive or negative feelings evoked), *meaningfulness* (conceptual richness, symbolism, and profundity), and monetary *worth* (maximum willingness to pay). To prevent measure blurriness, each dimension was assessed with a bespoke scale, respectively an analog slider... TODO.
+To ensure sustained engagement with the contextual cues, random catch trials were interleaved throughout the block, prompting participants to recall the immediately preceding label.
+
+At the start of the second phase, the cover story was *partially* revealed^[this pseudo-reveal paradigm was developed as an improvement over other designs, see **FICTIONERO PREPRINT REF** for discussion]. Participants were informed that the Phase 1 labels had been intentionally randomized and were tasked with identifying the true nature of the artworks based on their own judgment (but still suggesting that originals, forgeries and AI-generated stimuli were present). For each briefly re-presented image, participants provided two continuous, gut-feeling judgments regarding the artwork's origin: perceived reality (anchored from strictly AI-generated to human-created) and perceived authenticity (anchored from a copy/forgery to a unique original creation). This two-phase design allowed us to effectively isolate the top-down influence of semantic labels on aesthetic experience from the bottom-up perceptual detection of synthetic or forged art.
+
+
+## Data Analysis
+
+- First step: Linear Mixed Models. apply linear mixed effect models to iterate through a number of various features and comprehensively assess important and relevant predictors.
+- However, while linear models model the expected mean of the outcome, it is to note that they are not the model class the most suited for our data. On a theoretical level, the outcomes were recorded on scales with particular characteristics (bounded at extremities, some had discrete choices, etc.). Critically, at an empirical level, most display distributions that are better accounted for by other models. For instance, Meaning and Worth displayed characteristic zero-inflation, had Beauty, Syntheticness and Authenticity displayed bimodal distributions with zero, one and mid-point inflations. The latter type of distributions have been recently described as a Choice-Confidence distribution, where the response reflect a conflated process of a discrete choice - e.g., Beautiful vs. Ugly - and a continuous evaluation of degree or confidence. These distributions are better modeled using the Choice-Confidence models, a mixture model of two Beta distributions that provides a much better fit than linear models as well as deeper insights, with parameters reflecting the probability of each discrete choice, as well as the mean and spread of each choice separately.
+
+
+
+
+# References
+
+::: {#refs}
+:::
