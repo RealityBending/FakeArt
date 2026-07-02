@@ -16,7 +16,7 @@ chains_per_node <- 2
 threads_per_chain <- total_cores / chains_per_node # 16 cores / 2 chains = 8 threads per chain
 
 warmup <- 5000
-iter <- warmup + 2000
+iter <- warmup + 1000
 thin <- 2 # Thinning saves only every n-th draw. If 400 iterations only 200 will be saved.
 seed <- 1234 + task_id
 
@@ -237,3 +237,56 @@ m_beauty2 <- brm(formula,
 )
 
 print("!! BEAUTY2 DONE !!")
+
+
+# ----------------------------
+# Worth
+# ----------------------------
+
+# Predict both the monetary tier choice and the probability of paying $0
+formula_3 <- bf(
+  y ~ x1 + x2, # Predicts which monetary bucket they fall into (if > $0)
+  hu ~ x1 + x2 # Predicts the probability of choosing exactly $0
+)
+
+fit_3 <- brm(
+  formula = formula_3,
+  data = your_data,
+  family = hurdle_cumulative(link = "logit", link_hu = "logit"),
+  cores = 4
+)
+
+
+
+# ----------------------------
+# Meaning
+# ----------------------------
+
+
+# # Option 2 (Recommended): Predict BOTH mean and precision (agreement)
+# # Outcome must be 0–6 scale
+# formula_1_dist <- bf(
+#   y | trials(6) ~ x1 + x2,
+#   phi ~ x1 + x2
+# )
+#
+# fit_1 <- brm(
+#   formula = formula_1_dist,
+#   data = your_data,
+#   family = beta_binomial(link = "logit", link_phi = "log"),
+#   cores = 4
+# )
+#
+# # Predict the mean, precision, AND the probability of a zero response
+# formula_2 <- bf(
+#   y | trials(6) ~ x1 + x2, # Predicts intensity (1-6)
+#   phi ~ x1 + x2, # Predicts agreement
+#   zi ~ x1 + x2 # Predicts the hurdle (probability of answering 0)
+# )
+#
+# fit_2 <- brm(
+#   formula = formula_2,
+#   data = your_data,
+#   family = zero_inflated_beta_binomial(link = "logit", link_phi = "log", link_zi = "logit"),
+#   cores = 4
+# )

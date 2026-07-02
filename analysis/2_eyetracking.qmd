@@ -9,7 +9,7 @@ format:
     self-contained: false
     toc: true
 execute: 
-  cache: true
+  cache: false
 ---
 
 
@@ -133,7 +133,7 @@ df <- df |>
 #### Velocity
 
 ```{r}
-vel_threshold <- 5  # 5 stimulus-widths/sec ≈ upper bound of real saccade
+vel_threshold <- 6  # 6 stimulus-widths/sec ≈ upper bound of real saccade
 
 # Compute velocity on the full df (pre-filter)
 df_vel <- df |>
@@ -151,7 +151,7 @@ prop_vel_dropped <- mean(df_vel$velocity >= vel_threshold, na.rm = TRUE)
 
 df_vel |>
   mutate(Dropped = velocity >= vel_threshold) |>
-  ggplot(aes(x = pmin(velocity, 15), fill = Dropped)) +   # cap at 15 for readability
+  ggplot(aes(x = pmin(velocity, 12), fill = Dropped)) +   # cap at 12 for readability
   geom_histogram(bins = 200, alpha = 0.8, position = "stack") +
   geom_vline(xintercept = vel_threshold,
              linetype = "dashed", color = "black", linewidth = 0.8) +
@@ -161,11 +161,11 @@ df_vel |>
            vjust = 1.5, hjust = -0.1, size = 3, color = "black") +
   scale_fill_manual(values = c("FALSE" = "#4CAF50", "TRUE" = "firebrick"),
                     labels = c("Kept", "Dropped")) +
-  scale_x_continuous(breaks = seq(0, 15, 2.5)) +
+  scale_x_continuous(breaks = seq(0, 12, 2.5)) +
   theme_minimal() +
   labs(title = "Sample velocity",
        subtitle = "Implausibly fast transitions = blinks / face loss",
-       x = "Velocity (stim-widths / sec; capped at 15)", y = "Count", fill = NULL)
+       x = "Velocity (stim-widths / sec; capped at 12)", y = "Count", fill = NULL)
 
 df <- df |>
   arrange(Participant, Item, Stimulus, t) |>
@@ -500,6 +500,7 @@ df_features <- df |>
 ```
 
 #### Quality Control
+
 ```{r}
 # ---- Quality-control thresholds --------------------------------------------
 
@@ -508,8 +509,7 @@ thresh_sd_min      <- 0.02
 thresh_sd_max      <- 0.60
 thresh_prop_within <- 0.50
 thresh_drift       <- 1.0  # stim-widths of total linear displacement
-thresh_entropy     <- 0.95   
-thresh_gini        <- 0.20   # below = suspiciously flat KDE
+thresh_entropy     <- c(0.5, 0.975)   
 
 
 # ---- Trial-level QC classification -----------------------------------------
@@ -534,8 +534,7 @@ df_features <- df_features |>
 
       drift_magnitude > thresh_drift ~ "Dropped (severe drift)",
 
-      gini_kde < thresh_gini |
-        entropy5 > thresh_entropy ~
+      entropy5 > thresh_entropy[2] | entropy5 < thresh_entropy[1] ~
         "Dropped (random scatter)",
 
       TRUE ~ "Kept"
@@ -784,21 +783,12 @@ p_gini <- df_features |>
   mutate(Dropped = Status != "Kept") |>
   ggplot(aes(x = gini_kde, fill = Dropped)) +
   geom_histogram(bins = 40, alpha = 0.8, position = "stack") +
-  geom_vline(xintercept = thresh_gini,
-             linetype = "dashed", color = "black", linewidth = 0.8) +
-  annotate("text", x = thresh_gini, y = Inf,
-           label = paste0("threshold = ", thresh_gini),
-           vjust = 1.5, hjust = -0.1, size = 3) +
   scale_fill_manual(values = c("FALSE" = "#4CAF50", "TRUE" = "firebrick"),
                     labels = c("Kept", "Dropped")) +
   theme_minimal() +
   labs(title = "Gini coefficient of 2D KDE",
        subtitle = "~1 = sharp peaks / clustered (good); ~0 = flat / random (bad)",
        x = "Gini (KDE)", y = "N trials", fill = NULL)
-
-
-
-
 
 
 (p_bcea | p_hull) / (p_entropy | p_gini) +
@@ -888,16 +878,15 @@ p_bcea_vs_hull <- df_features |>
        x = "BCEA", y = "Hull area")
 
 p_hull_entropy <- df_features |>
-  ggplot(aes(hull_area, entropy, colour = Status)) +
+  ggplot(aes(hull_area, entropy5, colour = Status)) +
   geom_point(alpha=.35) +
   theme_minimal() +
   labs(title="Hull area vs Entropy", subtitle="Large hull + high entropy = random exploration")
 
 p_gini_vs_entropy <- df_features |>
-  ggplot(aes(x = entropy, y = gini_kde, color = Status)) +
+  ggplot(aes(x = entropy5, y = gini_kde, color = Status)) +
   geom_point(alpha = 0.35, size = 1.2) +
   geom_vline(xintercept = thresh_entropy, linetype = "dashed", color = "gray30", linewidth = 0.7) +
-  geom_hline(yintercept = thresh_gini, linetype = "dashed", color = "gray30", linewidth = 0.7) +
   theme_minimal() +
   labs(title = "Entropy vs. Gini KDE", subtitle = "Should be anti-correlated",
        x = "Spatial entropy (higher = more uniform)", y = "Gini KDE (higher = more clustered)", color = "Status") +
@@ -907,7 +896,6 @@ p_bcea_vs_gini <- df_features |>
   mutate(bcea_clipped = pmin(bcea, 1.5)) |>
   ggplot(aes(x = bcea_clipped, y = gini_kde, color = Status)) +
   geom_point(alpha = 0.35, size = 1.2) +
-  geom_hline(yintercept = thresh_gini, linetype = "dashed", color = "gray30", linewidth = 0.7) +
   theme_minimal() +
   labs(title = "BCEA vs. Gini KDE", subtitle = "Large BCEA + low Gini = diffuse random scatter",
        x = "BCEA (clipped at 1.5)", y = "Gini KDE", color = "Status") +
@@ -992,7 +980,7 @@ features_ppt <- df_features |>
     n_samples_total = sum(n_samples, na.rm=TRUE),
     n_samples_median = mean(n_samples, na.rm=TRUE),
     mean_bcea = mean(bcea, na.rm=TRUE),
-    mean_entropy = mean(entropy, na.rm=TRUE),
+    mean_entropy = mean(entropy5, na.rm=TRUE),
     mean_gini_kde = mean(gini_kde, na.rm=TRUE),
     mean_path_length = mean(path_length, na.rm=TRUE),
     mean_straightness = mean(straightness, na.rm=TRUE),
@@ -1030,7 +1018,7 @@ We excluded `r length(exclude)` participants with fewer than 2000 valid gaze sam
 
 # 1. Select the core numeric features (drop quality-control features)
 df_num <- df_features |>
-  select(-Participant, -Item, -entropy) |>
+  select(-Participant, -Item) |>
   drop_na() # Require complete cases for hierarchical clustering
 
 # plot(n_factors(df_num, n_max = 10))
@@ -1213,7 +1201,9 @@ correlation(df_final, redundant = TRUE) |>
 
 
 ```{r}
-dftask <- read.csv("../data/data_task.csv")
+dftask <- read.csv("../data/data_task.csv") |> 
+  mutate(Condition = fct_relevel(Condition, "Human Original", "Human Forgery", "AI-Generated"),
+         Emotion = fct_relevel(Emotion, "Positive - Low intensity", "Negative - Low intensity", "Positive - High intensity", "Negative - High intensity")) 
 dftask <- dplyr::left_join(df_final, dftask, by = c("Participant", "Item"))
 
 rez_cor <- data.frame()
@@ -1235,6 +1225,19 @@ rez_cor |>
   arrange(p) |> 
   format_table() |> 
   gt::gt()
+
+# rez <- data.frame()
+# for(feature in names(select(df_final, -Participant, -Item))) {
+#   f <- paste0(feature, " ~ Condition + (1|Participant) + (1|Item)")
+#   m <- glmmTMB::glmmTMB(as.formula(f), data = dftask) 
+#   rez <- rbind(rez, parameters::parameters(m, effects = "fixed") |> 
+#                      mutate(Feature = feature))
+# }
+# 
+# rez |> 
+#   arrange(p) |> 
+#   format_table() |> 
+#   gt::gt()
 ```
 
 

@@ -395,6 +395,7 @@ make_analysis <- function(dftask, outcome = "Beauty") {
     t_beauty2 <- "N/A"
     p_beauty <- "N/A"
   }
+  
 
   list(p_desc=p_desc, 
        t_condition=t_cond, p_condition=p_condition, 

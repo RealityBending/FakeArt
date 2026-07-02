@@ -333,6 +333,8 @@ df |>
 df <- select(df, -matches("BAIT_[0-9]+_"))
 ```
 
+TODO: check why we have missing values.
+
 ### PHQ-4
 
 ```{r}
@@ -395,6 +397,7 @@ dfchecks <- data.frame(
 summary(correlation(dfchecks))
 
 dfchecks |>
+  filter(!is.na(A_TASK)) |> 
   mutate(Total = round(A_TASK, 2)) |> 
   ggplot(aes(x = Total)) +
   geom_bar(aes(fill = as.factor(Total))) +
@@ -414,13 +417,13 @@ exclude$checks <- as.character(na.omit(dfchecks[dfchecks$A_TASK >= 0.5, "Partici
 ```
 
 
-We removed `r length(exclude$checks)` (`r insight::format_percent(length(exclude$checks) / nrow(df))`) participants for having failed at least 50% of attention checks.
-
 
 
 ### Experiment Duration
 
 ```{r}
+#| warning: false
+
 dfchecks$Duration_Experiment <- df |> 
   mutate(Version = ifelse(Recruitment == "prolific", "long", "short")) |> 
   mutate(Experiment_Duration = as.numeric(standardize(log(Experiment_Duration))), .by = "Version") |>
@@ -529,15 +532,14 @@ estimate_relation(m, length=100) |>
        x = "Anomaly Score",
        y = "Probability of failing attention checks") +
   ggside::geom_xsidehistogram(data=dfchecks, alpha=0.3, bins = 60) +
-  ggside::geom_ysidedensity(data=dfchecks, aes(y=A_TASK), alpha=0.3) +
+  # ggside::geom_ysidehistogram(data=filter(dfchecks, !is.na(A_TASK)), aes(y=A_TASK), alpha=0.3) +
   ggside::theme_ggside_void() 
 ```
 
 
 ```{r}
 exclude$anomaly <- as.character(dfchecks[dfchecks$AnomalyScore > quantile(dfchecks$AnomalyScore, 0.95), "Participant"])
-exclude$anomaly <- exclude$anomaly[!exclude$anomaly %in% exclude$duration]
-exclude$anomaly <- exclude$anomaly[!exclude$anomaly %in% exclude$checks]
+exclude$anomaly <- exclude$anomaly[!exclude$anomaly %in% c(exclude$duration, exclude$checks)]
 
 length(c(exclude$anomaly, exclude$duration, exclude$checks))
 ```
@@ -689,6 +691,8 @@ dfchecks |>
 
 ### Effect of Exclusion
 
+To transparently quantify the effect of participants exclusion, and validate our exclusion criteria, we provide an approximation of the main results with and without the excluded participants, which helps ensuring that the exclusion criteria do not bias the results.
+
 ```{r}
 dftask |> 
   select(Participant, Beauty, Valence, Meaning, Worth, Reality, Authenticity) |> 
@@ -703,7 +707,7 @@ library(glmmTMB)
 
 dftask <- mutate(dftask, Condition = fct_relevel(Condition, "Human Original", "Human Forgery", "AI-Generated"))
 
-quick_test <- function(what = "Beauty", family = "gaussian", exclude = c()){
+quick_test <- function(what = "Beauty", family = "gaussian", exclude = exclude){
   f <- as.formula(paste0(what, " ~ Condition + (1 + Condition|Participant)"))
   if(family == "ordbeta") {
     dat <- normalize(dftask, select = what)
@@ -711,30 +715,76 @@ quick_test <- function(what = "Beauty", family = "gaussian", exclude = c()){
     dat <- dftask
   }
   
-  m <- glmmTMB::glmmTMB(f, data = dat, family = family)
-  params <-  parameters::parameters(m, effects = "fixed")
+  # Models
+  m_all <- glmmTMB::glmmTMB(f, data = dat, family = family)
+  params <-  parameters::parameters(m_all, effects = "fixed")
   
-  m2 <- glmmTMB::glmmTMB(f, data = filter(dat, !Participant %in% exclude), family = family)
-  params2 <-  parameters::parameters(m2, effects = "fixed")
+  m_checks <- glmmTMB::glmmTMB(f, data = filter(dat, !Participant %in% exclude$checks), family = family)
+  params2 <-  parameters::parameters(m_checks, effects = "fixed")
   
-  params$Coefficient_Excluded <- params2$Coefficient
-  params$p_Excluded <- format_p(params2$p, name = NULL)
-  params$Result <- ifelse(params$p_Excluded < params$p, "Exclude", "Original")
+  m_dura <- glmmTMB::glmmTMB(f, data = filter(dat, !Participant %in% c(exclude$checks, exclude$duration)), family = family)
+  params3 <-  parameters::parameters(m_dura, effects = "fixed")
   
-  p <- estimate_means(m, by = "Condition") |> 
+  m_ano <- glmmTMB::glmmTMB(f, data = filter(dat, !Participant %in% c(exclude$checks, exclude$duration, exclude$anomaly)), family = family)
+  params4 <-  parameters::parameters(m_ano, effects = "fixed")
+  
+  # Plot
+  p <- estimate_means(m_all, by = "Condition") |> 
     mutate(Exclusion = "Whole sample") |> 
-    rbind(estimate_means(m2, by = "Condition") |> 
-            mutate(Exclusion = "Excluded")) 
-  
+    rbind(estimate_means(m_checks, by = "Condition") |> 
+            mutate(Exclusion = "Failed Attention Checks"),
+          estimate_means(m_dura, by = "Condition") |> 
+            mutate(Exclusion = "Failed Attention Checks + Duration"),
+          estimate_means(m_ano, by = "Condition") |> 
+            mutate(Exclusion = "Failed Attention Checks + Duration + Anomaly score")) 
+
   if("Proportion" %in% names(p)) p <- datawizard::data_rename(p, "Proportion", "Mean")
   
   p <- p |>
     ggplot(aes(x = Condition, y = Mean, color = Exclusion, group = Exclusion)) +
     geom_line(position = position_dodge(width = 0.1)) +
-    geom_pointrange(aes(ymin = CI_low, ymax = CI_high), position = position_dodge(width = 0.1), size = 1) 
+    geom_pointrange(aes(ymin = CI_low, ymax = CI_high), position = position_dodge(width = 0.1), size = 1) +
+    theme_minimal()
+  
+  # table
+  rez <- data.frame(Parameter = params$Parameter, z_all = params$z, z_checks = params2$z, z_duration = params3$z, z_anomaly = params4$z)
+  ramp   <- colorRamp(c("white", "#4CAF50"))
+  to_hex <- \(x) rgb(ramp(x), maxColorValue = 255)
+  
+  z_cols <- grep("^z_", names(rez), value = TRUE)
+  
+  # Per-row colour matrix for rows 2..n
+  color_mat <- rez |>
+    slice(-1) |>
+    select(all_of(z_cols)) |>
+    apply(1, \(row) {
+      av  <- abs(row)
+      rng <- range(av, na.rm = TRUE)
+      s   <- if (diff(rng) == 0) rep(1, length(av)) else (av - rng[1]) / diff(rng)
+      to_hex(s)
+    }) |>
+    t() 
+  
+  # All (row, col) index pairs
+  idx <- expand.grid(i = seq_len(nrow(color_mat)), j = seq_along(z_cols))
+  
+  # Base table: row 1 uniformly grey
+  base <- rez |>
+    gt::gt() |>
+    gt::fmt_number(starts_with("z_"), decimals = 1) |>
+    gt::tab_style(gt::cell_fill("lightgrey"),gt:: cells_body(all_of(z_cols), rows = 1))
+  
+  # Fold one tab_style per cell
+  tab <- Reduce(
+    \(tbl, k) gt::tab_style(tbl,
+      gt::cell_fill(color_mat[idx$i[k], idx$j[k]]),
+      gt::cells_body(z_cols[idx$j[k]], rows = idx$i[k] + 1L)),
+    seq_len(nrow(idx)),
+    init = base
+  )
 
-  list(params = display(select(params, Parameter, Coefficient, Coefficient_Excluded, p, p_Excluded, Result)),
-       plot = p)
+
+  list(params = tab, plot = p)
 }
 ```
 
@@ -743,11 +793,11 @@ quick_test <- function(what = "Beauty", family = "gaussian", exclude = c()){
 #### Beauty
 
 ```{r}
-rez <- quick_test(what = "Beauty", family = "gaussian", exclude = c(exclude$anomaly, exclude$duration, exclude$checks))
+rez <- quick_test(what = "Beauty", family = "gaussian", exclude = exclude)
 rez$params
 rez$plot  
 
-rez <- quick_test(what = "Beauty", family = "ordbeta", exclude = c(exclude$anomaly, exclude$duration, exclude$checks))
+rez <- quick_test(what = "Beauty", family = "ordbeta", exclude = exclude)
 rez$params
 rez$plot  
 ```
@@ -755,11 +805,11 @@ rez$plot
 #### Valence
 
 ```{r}
-rez <- quick_test(what = "Valence", family = "gaussian", exclude = c(exclude$anomaly, exclude$duration, exclude$checks))
+rez <- quick_test(what = "Valence", family = "gaussian", exclude = exclude)
 rez$params
 rez$plot  
 
-rez <- quick_test(what = "Valence", family = "ordbeta", exclude = c(exclude$anomaly, exclude$duration, exclude$checks))
+rez <- quick_test(what = "Valence", family = "ordbeta", exclude = exclude)
 rez$params
 rez$plot  
 ```
@@ -767,11 +817,11 @@ rez$plot
 #### Meaning
 
 ```{r}
-rez <- quick_test(what = "Meaning", family = "gaussian", exclude = c(exclude$anomaly, exclude$duration, exclude$checks))
+rez <- quick_test(what = "Meaning", family = "gaussian", exclude = exclude)
 rez$params
 rez$plot  
 
-rez <- quick_test(what = "Meaning", family = "ordbeta", exclude = c(exclude$anomaly, exclude$duration, exclude$checks))
+rez <- quick_test(what = "Meaning", family = "ordbeta", exclude = exclude)
 rez$params
 rez$plot  
 ```
@@ -779,19 +829,19 @@ rez$plot
 #### Worth
 
 ```{r}
-rez <- quick_test(what = "Worth", family = "poisson", exclude = c(exclude$anomaly, exclude$duration, exclude$checks))
+rez <- quick_test(what = "Worth", family = "poisson", exclude = exclude)
 rez$params
-rez$plot  
+rez$plot
 ```
 
 #### Reality
 
 ```{r}
-rez <- quick_test(what = "Reality", family = "gaussian", exclude = c(exclude$anomaly, exclude$duration, exclude$checks))
+rez <- quick_test(what = "Reality", family = "gaussian", exclude = exclude)
 rez$params
 rez$plot
 
-rez <- quick_test(what = "Reality", family = "ordbeta", exclude = c(exclude$anomaly, exclude$duration, exclude$checks))
+rez <- quick_test(what = "Reality", family = "ordbeta", exclude = exclude)
 rez$params
 rez$plot
 ```
@@ -799,11 +849,11 @@ rez$plot
 #### Authenticity
 
 ```{r}
-rez <- quick_test(what = "Authenticity", family = "gaussian", exclude = c(exclude$anomaly, exclude$duration, exclude$checks))
+rez <- quick_test(what = "Authenticity", family = "gaussian", exclude = exclude)
 rez$params
 rez$plot
 
-rez <- quick_test(what = "Authenticity", family = "ordbeta", exclude = c(exclude$anomaly, exclude$duration, exclude$checks))
+rez <- quick_test(what = "Authenticity", family = "ordbeta", exclude = exclude)
 rez$params
 rez$plot
 ```
@@ -815,10 +865,12 @@ rez$plot
 ```{r}
 #| code-fold: false
 
-df <- filter(df, !Participant %in% c(exclude$anomaly, exclude$duration, exclude$checks))
-dftask <- filter(dftask, !Participant %in% c(exclude$anomaly, exclude$duration, exclude$checks))
+df <- filter(df, !Participant %in% c(exclude$checks))
+dftask <- filter(dftask, !Participant %in% c(exclude$checks))
 ```
 
+
+We removed `r length(exclude$checks)` (`r insight::format_percent(length(exclude$checks) / nrow(df))`) participants for having failed at least 50% of attention checks.
 
 
 ## Manipulation Check
@@ -828,8 +880,8 @@ Did participant doubt the cover story?
 ### Post-task Check
 
 ```{r}
-#| fig-width: 15
-#| fig-height: 15
+#| fig-width: 10
+#| fig-height: 10
 
 manipcheck <- df |> 
   select(Participant, Feedback_ConfidenceReal, Feedback_ConfidenceAI) |> 
@@ -934,7 +986,7 @@ phase2congruence |>
 ```
 
 ```{r}
-exclude$phase2
+# exclude$phase2
 # exclude$phase2_cong <- filter(phase2congruence, Reality_Human == 1 | Authenticity_Human == 1)$Participant
 exclude$phase2_cong <- filter(phase2congruence, Mean_Congruence > 0.7 & !Participant %in% exclude$phase2)$Participant
 
@@ -944,6 +996,32 @@ dftask[dftask$Participant %in% c(exclude$phase2, exclude$phase2_cong), "Authenti
 
 
 Based on the distribution of congruency scores (i.e., the proportion of items presented as "Human Originals" rated as "Real" and items presented as "Forgeries" rated as "Copies"), we excluded `r length(exclude$phase2_cong)` outlying participants' data of phase 2.
+
+
+<!-- ## Outcomes  -->
+
+<!-- ```{r} -->
+<!-- #| warning: false -->
+
+<!-- df <- dftask |>  -->
+<!--   summarize( -->
+<!--     cor_BeautyValence = cor(Beauty, Valence), -->
+<!--     cor_BeautyMeaning = cor(Beauty, Meaning), -->
+<!--     cor_MeaningWorth = cor(Meaning, Worth), -->
+<!--     cor_MeaningValence = cor(Meaning, Valence), -->
+<!--     .by = "Participant" -->
+<!--   ) |>  -->
+<!--   full_join(df, by = "Participant") -->
+
+<!-- df |>  -->
+<!--   select(starts_with("cor_")) |>  -->
+<!--   GGally::ggscatmat() + -->
+<!--   coord_cartesian(xlim = c(-1, 1), ylim = c(-1, 1)) + -->
+<!--   theme_minimal() -->
+<!-- ``` -->
+
+
+
 
 ## Final Sample
 

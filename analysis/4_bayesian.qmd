@@ -1,0 +1,965 @@
+---
+title: "FakeArt - Data Analysis"
+editor: source
+editor_options: 
+  chunk_output_type: console
+format:
+  html:
+    code-fold: true
+    self-contained: false
+    toc: true
+execute:
+  cache: true
+---
+
+## Data Preparation
+
+```{r}
+#| warning: false
+#| error: false
+
+library(tidyverse)
+library(easystats)
+library(patchwork)
+library(ggside)
+library(ggdist)
+library(brms)
+library(cogmod)
+
+options(mc.cores = parallel::detectCores() - 2)
+
+df <- read.csv("../data/data_participants.csv")
+dftask <- read.csv("../data/data_task.csv") |> 
+  mutate(Condition = fct_relevel(Condition, "Human Original", "Human Forgery", "AI-Generated"),
+         Emotion = fct_relevel(Emotion, "Positive - Low intensity", "Negative - Low intensity", "Positive - High intensity", "Negative - High intensity")) 
+
+cols <- c(
+  # Condition
+  "Human Original" = "#F51D56",
+  "Human Forgery" = "#F5A41D",
+  "AI-Generated" = "#1D9AF5",
+  "AI Original" = "#1D9AF5",
+  "AI Copy" = "#4CAF50",
+  "Not recognized" = "#607D8B")
+```
+
+
+## Models
+
+::: {.panel-tabset}
+
+### Beauty
+
+```{r}
+m_beauty <- readRDS("models/Beauty.rds")
+```
+
+
+
+#### Figure
+
+```{r}
+get_marginal_parameters <- function(m, by = "Condition") {
+  # 1. Get predicted averages
+  dat_par <- estimate_means(m, by = by, predict = "response", backend = "emmeans", test = NULL) |>
+    datawizard::data_rename(
+      select = c("Probability", "CI_low", "CI_high"),
+      replacement = c("Mean", "Mean_low", "Mean_high")
+    ) 
+  
+  # 2. Get predicted parameters
+  for (par in c("mu", "confright", "confleft", "precright", "precleft", "pex", "bex", "pmid")) {
+    # cat(par, " * ")
+    if(par %in% c("pex", "bex", "pmid")) by <- "Condition" # Overwrite for last params
+      dat_par <- estimate_means(m, by = by, predict = par, backend = "emmeans", test = NULL) |>
+      datawizard::data_rename(
+        select = c("CI_low", "CI_high"),
+        replacement = paste0(tools::toTitleCase(par), c("_low", "_high"))
+      ) |>
+      full_join(dat_par, by = by)
+    }
+  dat_par
+}
+
+
+get_marginal_densities <- function(dat_par, adjust = 2) {
+  
+  # 3. Get corresponding densities
+  dat_dens <- data.frame()
+  dat_annot <- data.frame()
+  for (row in 1:nrow(dat_par)) {
+    x <- seq(0, 1, length.out = 201)
+    # Compute density line
+    y <- dchoco(
+      x = x, p = dat_par$Mu[row], confleft = dat_par$Confleft[row], confright = dat_par$Confright[row],
+      precleft = dat_par$Precleft[row], precright = dat_par$Precright[row],
+      pmid = dat_par$Pmid[row], pex = dat_par$Pex[row], bex = dat_par$Bex[row]
+    ) 
+    y <- y * adjust # Aesthetic adjustment for the plot so that it matches the histogram
+    dat_dens <- rbind(dat_dens, data.frame(Condition = dat_par$Condition[row], x = x, y = y))
+  
+    # Find particular points coordinates
+    dat_annot <- rbind(dat_annot, data.frame(
+      Condition = dat_par$Condition[row],
+      right_y = max(y[x > 0.5]), left_y = max(y[x < 0.5]),
+      right_x = 0.5 + x[which.max(y[x > 0.5])], left_x = x[which.max(y[x < 0.5])],
+      right_size = dat_par$Mu[row], left_size = 1 - dat_par$Mu[row]
+    ))
+  }
+  
+  
+  offset <- 1 - (rev(as.numeric(dat_par$Condition)) / 3)
+  max_y <- max(dat_dens$y)
+  dat_par$Mean_y <- 1.2 * max_y - offset * (1.2 * max_y - max_y)
+  
+  list(par=dat_par, dens=dat_dens, annot=dat_annot)
+}
+
+
+get_choco_plot <- function(dat, title = "Beauty", observed = title, xlabs = c("0% - Ugly", "100% - Beautiful"), facet = NULL, ...) {
+   dat_obs <- dftask
+   dat_obs$obs <- dat_obs[[observed]]
+   dat_obs <- dat_obs[!is.na(dat_obs$obs), ]
+  
+  p <- dat$dens |>
+    ggplot(aes(x = x, y = y)) +
+    geom_histogram(data = dat_obs, aes(x = obs, y = after_stat(density)), alpha = 0.1, bins = 47) +
+    geom_segment(data = dat$annot, aes(
+      x = right_x, xend = right_x,
+      y = 0, yend = right_y, color = Condition
+    ), linewidth = 0.5, linetype = "dashed") +
+    geom_segment(data = dat$annot, aes(
+      x = left_x, xend = left_x,
+      y = 0, yend = left_y, color = Condition
+    ), linewidth = 0.5, linetype = "dashed") +
+    geom_point(data = dat$annot, aes(x = right_x, y = 0, color = Condition, size = right_size * 6)) +
+    geom_point(data = dat$annot, aes(x = left_x, y = 0, color = Condition, size = left_size * 6)) +
+    geom_pointrange(data = dat$par, aes(x = Mean, y = Mean_y, xmin = Mean_low, xmax = Mean_high, color = Condition), linewidth = 0.5) +
+    geom_line(aes(color = Condition), linewidth = 1) +
+    labs(y = "Likelihood of Response", title = title) +
+    scale_size_identity() +
+    scale_color_manual(values = cols) +
+    scale_x_continuous(breaks = c(0, 0.25, 0.5, 0.75, 1), 
+                       labels = c(xlabs[1], "25%", "50%",  "75%", xlabs[2])) +
+    theme_minimal() +
+    theme(axis.text.y = element_blank(),
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank(),
+          plot.title = element_text(face = "bold"))
+  
+  if(!is.null(facet)) p <- p + facet_wrap(facet, ...)
+  p
+}
+```
+
+
+```{r}
+#| fig-width: 10
+#| fig-height: 7
+
+par_beauty <- get_marginal_parameters(m_beauty)
+dens_beauty <- get_marginal_densities(par_beauty, adjust = 0.8)
+p_beauty <- get_choco_plot(dens_beauty, title = "Beauty", xlabs = c("0%\nUgly", "100%\nBeautiful"))
+p_beauty
+```
+
+```{r}
+par_beauty_condemo <- get_marginal_parameters(m_beauty, by = c("Condition", "Emotion"))
+
+dens_beauty_condemo <- list(par = data.frame(), dens = data.frame(), annot = data.frame())
+for(emo in unique(par_beauty_condemo$Emotion)) {
+  dat <- get_marginal_densities(par_beauty_condemo[par_beauty_condemo$Emotion == emo, ], adjust = 0.8)
+  dat[["dens"]]$Emotion <- emo 
+  dat[["annot"]]$Emotion <- emo
+  dens_beauty_condemo[["par"]] <- rbind(dens_beauty_condemo[["par"]], dat[["par"]])
+  dens_beauty_condemo[["dens"]] <- rbind(dens_beauty_condemo[["dens"]], dat[["dens"]])
+  dens_beauty_condemo[["annot"]] <- rbind(dens_beauty_condemo[["annot"]], dat[["annot"]])
+}
+dens_beauty_condemo$dens$Emotion <- fct_relevel(dens_beauty_condemo$dens$Emotion, rev(levels(dftask$Emotion)))
+dens_beauty_condemo$annot$Emotion <- fct_relevel(dens_beauty_condemo$annot$Emotion, rev(levels(dftask$Emotion)))
+p_beauty_emo <- get_choco_plot(dens_beauty_condemo, title = "Beauty", 
+                               xlabs = c("0%\nUgly", "100%\nBeautiful"), facet = ~Emotion)
+p_beauty_emo
+```
+
+
+#### Contrasts
+
+```{r}
+get_contrasts <- function(m, outcome = "Beauty", contrast = "Condition", by = NULL) {
+  dat_con <- data.frame()
+  for(par in c("response", "mu", "confright", "confleft", "precright", "precleft", "pmid", "pex", "bex")) {
+    if(!is.null(by) && par %in% c("pmid", "pex", "bex")) next
+    cat(par, " * ")
+    
+    dat_con <- rbind(
+      dat_con,
+      mutate(estimate_contrasts(m, contrast = contrast, by = by, predict = par, backend = "emmeans", test = "pd"), Parameter = par)
+      )
+  }
+  dat_con$Outcome <- outcome
+  dat_con$Contrast <- paste(dat_con$Level1, "-", str_remove(str_remove(dat_con$Level2, "\\("), "\\)")) 
+  
+  rez_con <- dat_con |> 
+    filter(pd > .99) |> 
+    format_table(zap_small = TRUE) |> 
+    mutate(param_string = paste0(Parameter, " (", Difference, ", ", CI, ", ", pd, ")")) |> 
+    summarise(Parameters = paste(param_string, collapse = "; "), .by = "Contrast")
+  
+  list(rez_con = rez_con, dat_con = dat_con)
+}
+
+rez_beauty <- get_contrasts(m_beauty, outcome = "Beauty", contrast = "Condition")
+gt::gt(rez_beauty$rez_con)
+```
+
+```{r}
+rez_beauty_emo <- get_contrasts(m_beauty, outcome = "Beauty", contrast = "Condition", by = "Emotion")
+```
+
+
+
+### Syntheticness
+
+
+```{r}
+m_reality <- readRDS("models/Reality.rds")
+```
+
+#### Figure
+
+```{r}
+#| fig-width: 10
+#| fig-height: 7
+
+par_reality <- get_marginal_parameters(m_reality)
+dens_reality <- get_marginal_densities(par_reality, adjust = 0.5)
+p_reality <- get_choco_plot(dens_reality, title = "Syntheticness", observed = "Reality", xlabs = c("0%\nAI-Generated", "100%\nHuman-Creation"))
+p_reality
+```
+
+#### Contrasts
+
+```{r}
+rez_reality <- get_contrasts(m_reality, outcome = "Reality", contrast = "Condition")
+gt::gt(rez_reality$rez_con)
+```
+
+```{r}
+rez_reality_emo <- get_contrasts(m_reality, outcome = "Reality", contrast = "Condition", by = "Emotion")
+```
+
+
+### Beauty2
+
+
+```{r}
+m_beauty2 <- readRDS("models/Beauty2.rds")
+```
+
+#### Figure
+
+```{r}
+#| fig-width: 10
+#| fig-height: 7
+
+par_beauty2 <- get_marginal_parameters(m_beauty2)
+dens_beauty2 <- get_marginal_densities(par_beauty2, adjust = 0.5)
+p_beauty2 <- get_choco_plot(dens_beauty2, title = "Beauty (Follow-up)", 
+                            observed = "Beauty2", 
+                            xlabs = c("0%\nUgly", "100%\nBeautiful"))
+p_beauty2
+```
+
+#### Contrasts
+
+```{r}
+rez_beauty2 <- get_contrasts(m_beauty2, outcome = "Beauty2", contrast = "Condition")
+gt::gt(rez_reality$rez_con)
+```
+
+
+:::
+
+## Summary
+
+```{r}
+#| fig-width: 10
+#| fig-height: 7
+
+(p_beauty | p_reality) +
+  plot_layout(guides = "collect")
+```
+
+```{r}
+rez_con <- rbind(
+  rez_beauty$dat_con, 
+  rez_reality$dat_con
+  ) |> 
+  mutate(Emotion = "Overall") |> 
+  rbind(
+    rez_beauty_emo$dat_con, 
+    rez_reality_emo$dat_con
+  ) |> 
+  filter(Parameter %in% c("response", "mu", "confright", "confleft")) |> 
+  select(-Level1, -Level2) |> 
+  as.data.frame() |> 
+  mutate(Significant = ifelse(sign(CI_low) == sign(CI_high), "Yes", "No"),
+         Effect = case_when(Significant == "No" ~ "n.s.", Difference < 0 ~ "Negative", .default = "Positive"),
+         Effect = fct_relevel(Effect, "Negative", "n.s.", "Positive"),
+         Contrast = fct_relevel(Contrast, "Human Original - AI-Generated", "Human Original - Human Forgery", "Human Forgery - AI-Generated"))
+
+
+rez_con |>
+  filter(Emotion == "Overall") |> 
+  ggplot(aes(x = Difference, y = Parameter, color = Effect)) +
+  geom_point(size = 2) +
+  geom_errorbar(aes(xmin = CI_low, xmax = CI_high), width = 0.2) +
+  geom_point(data = filter(rez_con, Emotion != "Overall"), aes(shape = Emotion), size = 2, position = position_nudge(y = 0.18)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+  facet_grid(
+  Contrast ~ Outcome,
+  scales = "free_y",
+  switch = "y"
+) +
+  scale_shape_manual(values = c("Positive - High intensity" = "square plus", "Positive - Low intensity" = "square",
+                                "Negative - Low intensity" = "circle", "Negative - High intensity" = "circle cross")) +
+  scale_y_discrete(position = "right") +
+  scale_color_manual(values = c("Negative" = "#F44336", "n.s." = "#FF9800", "Positive" = "#4CAF50")) +
+  theme_bw() +
+  labs(
+    title = "Effect Sizes by Contrast and Outcome",
+    x = "Difference (with 95% CI)",
+    y = "Model Parameter"
+  ) +
+  theme(
+  strip.placement = "outside",
+  strip.background = element_rect(fill = "grey90"),
+  strip.text.y.left = element_text(angle = 0),
+  legend.position = "bottom"
+)
+```
+
+
+
+<!-- ## Individual Parameters -->
+
+<!-- ```{r} -->
+<!-- ppt_beauty_con <- estimate_contrasts(m_beauty, contrast = "Condition", by = c("Participant"), backend = "marginaleffects", iter = 20) -->
+
+<!-- # Extract pairwise contrasts for each participant -->
+<!-- ppt_beauty_con <- marginaleffects::avg_comparisons( -->
+<!--   m_beauty, -->
+<!--   newdata = dftask[1:100,], -->
+<!--   draws = 50, -->
+<!--   variables = list(Condition = "pairwise"), -->
+<!--   by = "Participant", -->
+<!--   re_formula = NULL # Crucial: tells brms to include the random effects -->
+<!-- ) -->
+
+<!-- ppt_beauty <- estimate_grouplevel(m_beauty, type = "total") -->
+<!-- # plot(ppt_beauty) -->
+<!-- ppt_reality <- estimate_grouplevel(m_reality, type = "total") -->
+<!-- ``` -->
+
+
+
+<!-- ### Reliability -->
+
+<!-- ### Structure -->
+
+<!-- ```{r} -->
+<!-- df_grouplevel <- ppt_beauty |> -->
+<!--   reshape_grouplevel(group = "Participant", indices = "Median") |> -->
+<!--   data_addprefix("Beauty_", exclude = "Participant") |> -->
+<!--   full_join( -->
+<!--       reshape_grouplevel(ppt_reality, group = "Participant", indices = "Median") |> -->
+<!--       data_addprefix("Reality_", exclude = "Participant"), -->
+<!--     by = "Participant") -->
+
+<!-- correlation::correlation(df_grouplevel, redundant = TRUE) |> -->
+<!--   cor_sort() |> -->
+<!--   summary() |> -->
+<!--   plot() -->
+
+<!-- # n_factors(df_grouplevel, n = 9) -->
+<!-- fa <- factor_analysis(select(df_grouplevel, -Participant), n = 3) -->
+<!-- df_grouplevel <- cbind(df_grouplevel, predict(fa)) -->
+<!-- plot(fa) -->
+<!-- ``` -->
+
+<!-- ### Correlations -->
+
+<!-- ```{r} -->
+<!-- select(df, ManipulationDistrust, -->
+<!--        BAIT_ArtRealistic, BAIT_Positive, BAIT_Negative, BAIT_Total, -->
+<!--        starts_with("MINT"), -MINT_AttentionCheck) |> -->
+<!--   correlation(data2 = df_grouplevel, p_adjust = "none") |> -->
+<!--   cor_sort() |> -->
+<!--   mutate(Sig = ifelse(p < .05, "Significant", "N.S.")) |> -->
+<!--   ggplot(aes(x=Parameter1, y=Parameter2)) + -->
+<!--   geom_tile(aes(fill = r, alpha = Sig)) + -->
+<!--   scale_fill_gradient2(low = "#1D9AF5", mid = "white", high = "#F51D56", midpoint = 0, limits = c(-1, 1)) + -->
+<!--   scale_alpha_manual(values = c("Significant" = 1, "N.S." = 0.2)) + -->
+<!--   theme(axis.text.x = element_text(angle = 45, hjust = 1)) -->
+<!-- ``` -->
+
+
+## Animations
+
+### Beauty
+
+```{python}
+#| warning: false
+#| message: false
+#| eval: false
+
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+import pandas as pd
+import numpy as np
+
+
+# ─── Data from R ──────────────────────────────────────────────────────────────
+df_dens  = r.dens_beauty["dens"]
+df_annot = r.dens_beauty["annot"]
+df_par   = r.dens_beauty["par"]
+df_task  = r.dftask
+
+conditions = ["Human Original", "Human Forgery", "AI-Generated"]
+colors = {
+    "Human Original": "#F51D56",
+    "Human Forgery":  "#F5A41D",
+    "AI-Generated":   "#1D9AF5",
+}
+
+# ─── Figure — match minimal R aesthetic ───────────────────────────────────────
+fig, ax = plt.subplots(figsize=(12, 8), dpi=150)
+fig.patch.set_facecolor("white")
+ax.set_facecolor("white")
+
+max_y = df_dens["y"].max()
+
+# Slider-scale band below y = 0 — tightened up vs. before.
+slider_y = -max_y * 0.20     # vertical position of the slider track
+pct_y    = slider_y - max_y * 0.09   # live % readout, just under the pill
+anchor_y = slider_y - max_y * 0.20   # "Ugly" / "Beautiful" anchor labels
+y_bottom = -max_y * 0.32             # margin below the anchor labels
+ax.set_xlim(0, 1)
+ax.set_ylim(y_bottom, max_y * 1.55)
+
+for spine in ["top", "right", "bottom"]:
+    ax.spines[spine].set_visible(False)
+ax.spines["left"].set_color("#cccccc")
+ax.spines["left"].set_linewidth(0.8)
+ax.spines["left"].set_bounds(0, max_y * 1.55)
+
+ax.tick_params(length=0, labelbottom=False)
+ax.set_yticks([])
+ax.set_xticks([0, 0.25, 0.50, 0.75, 1.0])
+ax.set_ylabel("Likelihood of Response", fontsize=11, color="#333333", labelpad=8)
+ax.grid(True, alpha=0.2, linestyle="-", color="#aaaaaa", linewidth=0.5, zorder=0)
+ax.set_axisbelow(True)
+
+ax.hist(df_task["Beauty"].dropna(), bins=47, density=True,
+        alpha=0.1, color="gray", zorder=1)
+
+# ─── Slider track + static anchors (the handle + % readout are animated, set up below) ─
+ax.plot([0, 1], [slider_y, slider_y], color="#cccccc", linewidth=3,
+        solid_capstyle="round", zorder=2, clip_on=False)
+ax.plot([0, 1], [slider_y, slider_y], "o", markersize=6,
+        color="#bbbbbb", zorder=3, clip_on=False)
+ax.text(0, anchor_y, "Ugly", ha="center", va="top",
+        fontsize=10.5, color="#666666", style="italic", clip_on=False)
+ax.text(1, anchor_y, "Beautiful", ha="center", va="top",
+        fontsize=10.5, color="#666666", style="italic", clip_on=False)
+
+# ─── Frame plan ───────────────────────────────────────────────────────────────
+F_LINE  = 55   # frames per density line
+PAUSE   = 10   # quiet gap between phases
+F_SLIDE = 40   # pointranges slide in
+F_DROP  = 40   # vertical lines fall
+F_DOT   = 18   # bottom dots grow in
+TAIL    = 30   # hold at end
+
+p1_end   = 3 * F_LINE                  # 165
+p2_start = p1_end   + PAUSE            # 175
+p2_end   = p2_start + F_SLIDE          # 215
+p3_start = p2_end   + PAUSE            # 225
+p3_end   = p3_start + F_DROP           # 265
+p4_start = p3_end                      # 265  (dots pop as lines finish)
+p4_end   = p4_start + F_DOT            # 283
+N_FRAMES = p4_end   + TAIL             # 313
+
+# Slider-handle intro: middle → wait → slow drag left → brief pause → drag
+# right to settle on the Human Original mean.
+HANDLE_START = 0.5
+HANDLE_LEFT  = 0.15     # how far left it explores before committing
+F_WAIT       = 40
+F_DRAG_LEFT  = 80       # the first drag left
+F_PAUSE_LEFT = 10
+F_DRAG_RIGHT = 90       # On the way to the answer
+h_wait_end  = F_WAIT
+h_left_end  = h_wait_end  + F_DRAG_LEFT
+h_pause_end = h_left_end  + F_PAUSE_LEFT
+h_end       = h_pause_end + F_DRAG_RIGHT   
+assert h_end <= N_FRAMES
+
+# ─── Pre-process data per condition ───────────────────────────────────────────
+dens  = {c: df_dens [df_dens ["Condition"] == c].sort_values("x").reset_index(drop=True) for c in conditions}
+annot = {c: df_annot[df_annot["Condition"] == c].iloc[0]  for c in conditions}
+par   = {c: df_par  [df_par  ["Condition"] == c].iloc[0]  for c in conditions}
+
+# ─── Artists ──────────────────────────────────────────────────────────────────
+# Phase 1: smooth density curves
+dens_lines = {}
+for cond in conditions:
+    (l,) = ax.plot([], [], lw=2, color=colors[cond], zorder=3,
+                   solid_capstyle="round", label=cond)
+    dens_lines[cond] = l
+
+# Phase 2: horizontal pointranges (line + centre dot)
+pr_segs = {}
+pr_dots = {}
+for cond in conditions:
+    (s,) = ax.plot([], [], lw=1.2, color=colors[cond], zorder=5, solid_capstyle="round")
+    (d,) = ax.plot([], [], "o",    ms=0,  color=colors[cond], zorder=6)
+    pr_segs[cond] = s
+    pr_dots[cond] = d
+
+# Phase 3: vertical dashed lines (left & right per condition)
+vl_left  = {}
+vl_right = {}
+for cond in conditions:
+    (ll,) = ax.plot([], [], "--", lw=0.9, color=colors[cond], alpha=0.75, zorder=4)
+    (lr,) = ax.plot([], [], "--", lw=0.9, color=colors[cond], alpha=0.75, zorder=4)
+    vl_left[cond]  = ll
+    vl_right[cond] = lr
+
+# Phase 4: bottom dots — clip_on=False so they're not half-swallowed by the axis
+bdot_left  = {}
+bdot_right = {}
+for cond in conditions:
+    (dl,) = ax.plot([], [], "o", color=colors[cond], zorder=7, clip_on=False)
+    (dr,) = ax.plot([], [], "o", color=colors[cond], zorder=7, clip_on=False)
+    bdot_left[cond]  = dl
+    bdot_right[cond] = dr
+
+ax.legend(
+    handles=[dens_lines[c] for c in conditions],
+    labels=conditions,
+    frameon=False, loc="upper right",
+    fontsize=9, title="Condition", title_fontsize=9.5,
+)
+
+handle_text = ax.text(HANDLE_START, slider_y, "Beauty", ha="center", va="center",
+                       fontsize=9.5, color="white", fontweight="bold", zorder=5,
+                       clip_on=False,
+                       bbox=dict(boxstyle="round,pad=0.55", facecolor="#555555", edgecolor="none"))
+pct_text = ax.text(HANDLE_START, pct_y, "50%", ha="center", va="top",
+                    fontsize=9, color="#888888", clip_on=False)
+
+# ─── Easing ───────────────────────────────────────────────────────────────────
+def ease_out(t: float) -> float:
+    t = max(0.0, min(1.0, t))
+    return 1 - (1 - t) ** 2
+
+def ease_in_out(t: float) -> float:
+    t = max(0.0, min(1.0, t))
+    return t * t * (3 - 2 * t)
+  
+# ─── Update ───────────────────────────────────────────────────────────────────
+def update(frame: int):
+
+    # ── Phase 1: draw density lines one by one, left→right ────────────────────
+    for i, cond in enumerate(conditions):
+        fs, fe = i * F_LINE, (i + 1) * F_LINE
+        d = dens[cond]
+        if frame >= fe:
+            dens_lines[cond].set_data(d["x"], d["y"])
+        elif frame >= fs:
+            t = ease_out((frame - fs) / F_LINE)
+            n = max(1, int(t * len(d)))
+            dens_lines[cond].set_data(d["x"].iloc[:n], d["y"].iloc[:n])
+
+    # ── Phase 2: all three pointranges slide in from the left simultaneously ───
+    if frame >= p2_start:
+        t = ease_out((frame - p2_start) / F_SLIDE)
+        for cond in conditions:
+            p = par[cond]
+            low, high, mean, y_pr = p["Mean_low"], p["Mean_high"], p["Mean"], p["Mean_y"]
+            cur_hi = low + t * (high - low)
+            pr_segs[cond].set_data([low, cur_hi], [y_pr, y_pr])
+            # Centre dot appears once the sliding front reaches the mean position
+            frac = (mean - low) / max(high - low, 1e-9)
+            if t >= frac:
+                dot_t = ease_out((t - frac) / max(1.0 - frac, 1e-9))
+                pr_dots[cond].set_data([mean], [y_pr])
+                pr_dots[cond].set_markersize(5.5 * dot_t)
+            else:
+                pr_dots[cond].set_data([], [])
+
+    # ── Phase 3: vertical lines fall downward from the density peak ────────────
+    # Top stays pinned at the curve; bottom drops from peak → 0
+    if frame >= p3_start:
+        t = ease_out((frame - p3_start) / F_DROP)
+        for cond in conditions:
+            a = annot[cond]
+            bot_r = a["right_y"] * (1 - t)   # bottom falls from right_y to 0
+            bot_l = a["left_y"]  * (1 - t)
+            vl_right[cond].set_data([a["right_x"], a["right_x"]], [bot_r, a["right_y"]])
+            vl_left[cond].set_data( [a["left_x"],  a["left_x"] ], [bot_l, a["left_y"] ])
+
+    # ── Phase 4: bottom dots grow in at y = 0 ─────────────────────────────────
+    # Sizes mirror R's geom_point(aes(size = right_size * 6)) with scale_size_identity()
+    # ggplot size in mm → matplotlib markersize in pts: × 2.835
+    if frame >= p4_start:
+        t = ease_out((frame - p4_start) / F_DOT)
+        for cond in conditions:
+            a = annot[cond]
+            ms_r = a["right_size"] * 6 * 2.835 * t
+            ms_l = a["left_size"]  * 6 * 2.835 * t
+            bdot_right[cond].set_data([a["right_x"]], [0])
+            bdot_right[cond].set_markersize(max(0.1, ms_r))
+            bdot_left[cond].set_data( [a["left_x"]],  [0])
+            bdot_left[cond].set_markersize(max(0.1, ms_l))
+            
+    # ── Slider handle: middle → wait → drag left → drag right to the mean ─────
+    target_x = par["Human Original"]["Mean"]
+    if frame <= h_wait_end:
+        x = HANDLE_START
+    elif frame <= h_left_end:
+        t = ease_in_out((frame - h_wait_end) / F_DRAG_LEFT)
+        x = HANDLE_START + t * (HANDLE_LEFT - HANDLE_START)
+    elif frame <= h_pause_end:
+        x = HANDLE_LEFT
+    elif frame <= h_end:
+        t = ease_in_out((frame - h_pause_end) / F_DRAG_RIGHT)
+        x = HANDLE_LEFT + t * (target_x - HANDLE_LEFT)
+    else:
+        x = target_x
+
+    handle_text.set_x(x)
+    pct_text.set_x(x)
+    pct_text.set_text(f"{x * 100:.0f}%")
+
+    return (
+        list(dens_lines.values())
+        + list(pr_segs.values())
+        + list(pr_dots.values())
+        + list(vl_left.values())
+        + list(vl_right.values())
+        + list(bdot_left.values())
+        + list(bdot_right.values())
+        + [handle_text, pct_text]
+    )
+
+# ─── Build & save ─────────────────────────────────────────────────────────────
+ani = animation.FuncAnimation(
+    fig, update,
+    frames=N_FRAMES,
+    interval=40,
+    blit=False,   # False is safer with clip_on=False artists
+    repeat=False,
+)
+
+ani.save("figures/anim_beauty.gif", writer="pillow", fps=30, dpi=150)
+plt.close()
+print("✓ Saved distribution_animation.gif")
+```
+
+### Beauty by Emotion
+
+
+```{python}
+#| warning: false
+#| message: false
+#| eval: false
+
+import matplotlib.pyplot as plt
+from matplotlib.patches import Polygon
+from matplotlib.colors import to_rgb
+from PIL import Image
+import pandas as pd
+import numpy as np
+
+# ─── Data from R ──────────────────────────────────────────────────────────────
+df_dens_neutral  = r.dens_beauty["dens"]
+df_annot_neutral = r.dens_beauty["annot"]
+df_par_neutral   = r.dens_beauty["par"]
+
+df_dens_emo  = r.dens_beauty_condemo["dens"]
+df_annot_emo = r.dens_beauty_condemo["annot"]
+df_par_emo   = r.dens_beauty_condemo["par"]
+
+df_task = r.dftask
+
+conditions = ["Human Original", "Human Forgery", "AI-Generated"]
+colors = {
+    "Human Original": "#F51D56",
+    "Human Forgery":  "#F5A41D",
+    "AI-Generated":   "#1D9AF5",
+}
+
+# ─── Cycle order (loops back to Neutral) ──────────────────────────────────────
+state_order = [
+    "Neutral",
+    "Positive - High intensity",
+    "Positive - Low intensity",
+    "Negative - Low intensity",
+    "Negative - High intensity",
+]
+N_STATES = len(state_order)
+
+quadrant_coords = {
+    "Neutral":                    (0.0,   0.0),
+    "Positive - High intensity":  (0.65,  0.65),
+    "Positive - Low intensity":   (0.65, -0.65),
+    "Negative - Low intensity":   (-0.65, -0.65),
+    "Negative - High intensity":  (-0.65,  0.65),
+}
+
+quad_colors = {
+    "Neutral":                    "#1a1a1a",
+    "Positive - High intensity":  "#2E9E4F",
+    "Positive - Low intensity":   "#2E9E4F",
+    "Negative - Low intensity":   "#D1453D",
+    "Negative - High intensity":  "#D1453D",
+}
+
+# ─── Build per-state, per-condition lookups ───────────────────────────────────
+def build_state_dict(dens_df, annot_df, par_df, emotion=None):
+    out = {}
+    for cond in conditions:
+        if emotion is None:
+            d = dens_df[dens_df["Condition"] == cond].sort_values("x").reset_index(drop=True)
+            a = annot_df[annot_df["Condition"] == cond].iloc[0]
+            p = par_df[par_df["Condition"] == cond].iloc[0]
+        else:
+            d = dens_df[(dens_df["Condition"] == cond) & (dens_df["Emotion"] == emotion)] \
+                    .sort_values("x").reset_index(drop=True)
+            a = annot_df[(annot_df["Condition"] == cond) & (annot_df["Emotion"] == emotion)].iloc[0]
+            p = par_df[(par_df["Condition"] == cond) & (par_df["Emotion"] == emotion)].iloc[0]
+        out[cond] = {"x": d["x"].to_numpy(), "y": d["y"].to_numpy(), "annot": a, "par": p}
+    return out
+
+states = {"Neutral": build_state_dict(df_dens_neutral, df_annot_neutral, df_par_neutral, emotion=None)}
+for emo in state_order[1:]:
+    states[emo] = build_state_dict(df_dens_emo, df_annot_emo, df_par_emo, emotion=emo)
+
+# ─── Global axis scaling ────────────────────────────────────────────────────
+max_y = max(df_dens_neutral["y"].max(), df_dens_emo["y"].max())
+all_par = pd.concat([df_par_neutral, df_par_emo], ignore_index=True, sort=False)
+y_top = max(max_y * 1.35, all_par["Mean_y"].max() * 1.15)
+y_bottom = -max_y * 0.12
+
+# ─── Figure ────────────────────────────────────────────────────────────────────
+fig, ax = plt.subplots(figsize=(11, 8), dpi=150)
+fig.patch.set_facecolor("white")
+ax.set_facecolor("white")
+
+# reserve headroom above the axes so the raised legend/quadrant never clip
+fig.subplots_adjust(top=0.97, bottom=0.10, left=0.07, right=0.95)
+
+ax.set_xlim(0, 1)
+ax.set_ylim(y_bottom, y_top)
+for spine in ["top", "right", "bottom"]:
+    ax.spines[spine].set_visible(False)
+ax.spines["left"].set_color("#cccccc")
+ax.spines["left"].set_linewidth(0.8)
+ax.spines["left"].set_bounds(0, y_top)
+ax.tick_params(length=0, labelbottom=True)
+ax.set_yticks([])
+ax.set_xticks([0, 0.25, 0.50, 0.75, 1.0])
+ax.set_xticklabels(["0%\nUgly", "25%", "50%", "75%", "100%\nBeautiful"], fontsize=9.5)
+ax.set_ylabel("Likelihood of Response", fontsize=11, color="#333333", labelpad=8, fontweight='bold')
+ax.set_xlabel("Beauty Rating", fontsize=11, color="#333333", labelpad=10, fontweight='bold')
+ax.grid(True, alpha=0.2, linestyle="-", color="#aaaaaa", linewidth=0.5, zorder=0)
+ax.set_axisbelow(True)
+
+if "Beauty" in df_task.columns:
+    ax.hist(df_task["Beauty"].dropna(), bins=47, density=True,
+            alpha=0.1, color="gray", zorder=1)
+
+# ─── Artists: density curves, pointranges, vertical lines, bottom dots ────────
+dens_lines, pr_segs, pr_dots = {}, {}, {}
+vl_left, vl_right, bdot_left, bdot_right = {}, {}, {}, {}
+for cond in conditions:
+    (l,)  = ax.plot([], [], lw=2, color=colors[cond], zorder=3, solid_capstyle="round", label=cond)
+    (s,)  = ax.plot([], [], lw=1.2, color=colors[cond], zorder=5, solid_capstyle="round")
+    (d,)  = ax.plot([], [], "o", ms=5.5, color=colors[cond], zorder=6)
+    (ll,) = ax.plot([], [], "--", lw=0.9, color=colors[cond], alpha=0.75, zorder=4)
+    (lr,) = ax.plot([], [], "--", lw=0.9, color=colors[cond], alpha=0.75, zorder=4)
+    (dl,) = ax.plot([], [], "o", color=colors[cond], zorder=7, clip_on=False)
+    (dr,) = ax.plot([], [], "o", color=colors[cond], zorder=7, clip_on=False)
+    dens_lines[cond] = l
+    pr_segs[cond]    = s
+    pr_dots[cond]    = d
+    vl_left[cond]    = ll
+    vl_right[cond]   = lr
+    bdot_left[cond]  = dl
+    bdot_right[cond] = dr
+
+leg = ax.legend(
+    handles=[dens_lines[c] for c in conditions], labels=conditions,
+    frameon=False, loc="upper right", bbox_to_anchor=(0.995, 0.9),
+    fontsize=9, title="Condition", title_fontsize=9.5,
+)
+leg.get_title().set_fontweight("bold")
+leg.get_title().set_color("#333333")
+
+# ─── Valence × Intensity quadrant inset ───────────────────────────────────────
+QUAD_SIZE = 0.33
+ax_quad = ax.inset_axes([-0.04, 0.86 - QUAD_SIZE, QUAD_SIZE, QUAD_SIZE])
+ax_quad.set_xlim(-1.6, 1.6)
+ax_quad.set_ylim(-1.6, 1.6)
+ax_quad.set_aspect("equal")
+ax_quad.set_facecolor("white")
+ax_quad.patch.set_alpha(0.85)
+for spine in ax_quad.spines.values():
+    spine.set_visible(False)
+ax_quad.set_xticks([])
+ax_quad.set_yticks([])
+
+ax_quad.set_title("Emotion", fontsize=9.5, fontweight="bold", color="#333333", pad=6)
+
+ax_quad.annotate("", xy=(1.3, 0), xytext=(-1.3, 0),
+                  arrowprops=dict(arrowstyle="-|>", color="#cccccc", lw=0.8,
+                                   shrinkA=0, shrinkB=0))
+ax_quad.annotate("", xy=(0, 1.3), xytext=(0, -1.3),
+                  arrowprops=dict(arrowstyle="-|>", color="#cccccc", lw=0.8,
+                                   shrinkA=0, shrinkB=0))
+
+ax_quad.text(-1.4, 0.12, "Negative", ha="left", va="bottom", fontsize=7.6, color="#888888")
+ax_quad.text(1.4, 0.12, "Positive", ha="right", va="bottom", fontsize=7.6, color="#888888")
+ax_quad.text(0.12, 1.32, "High", ha="left", va="center", fontsize=7.6, color="#888888")
+ax_quad.text(0.12, -1.32, "Low", ha="left", va="center", fontsize=7.6, color="#888888")
+
+def star_vertices(cx, cy, outer_r, spikiness, n_points=5, rotation=np.pi / 2):
+    spikiness = np.clip(spikiness, 0.0, 1.0)
+    inner_r = outer_r * (1 - spikiness * 0.62)
+    n = n_points * 2
+    angles = rotation + np.arange(n) * (2 * np.pi / n)
+    radii = np.where(np.arange(n) % 2 == 0, outer_r, inner_r)
+    return np.column_stack([cx + radii * np.cos(angles), cy + radii * np.sin(angles)])
+
+quad_dot = Polygon(star_vertices(0, 0, 0.20, 0.0), closed=True,
+                    facecolor=quad_colors["Neutral"], edgecolor="white",
+                    linewidth=0.7, zorder=6)
+ax_quad.add_patch(quad_dot)
+
+# ─── Easing / interpolation helpers ───────────────────────────────────────────
+def ease_in_out(t: float) -> float:
+    t = max(0.0, min(1.0, t))
+    return t * t * (3 - 2 * t)
+
+def lerp(a, b, t):
+    return a + t * (b - a)
+
+def lerp_color(c0, c1, t):
+    rgb0, rgb1 = np.array(to_rgb(c0)), np.array(to_rgb(c1))
+    return tuple(lerp(rgb0, rgb1, t))
+
+# ─── Frame plan ───────────────────────────────────────────────────────────────
+F_HOLD  = 45
+F_TRANS = 55
+SEG = F_HOLD + F_TRANS
+N_FRAMES = N_STATES * SEG  # last morph lands back on Neutral -> seamless loop
+
+# ─── Update (mutates all artists for a given frame) ───────────────────────────
+def update(frame: int):
+    s = frame // SEG
+    local = frame % SEG
+    cur_state = state_order[s]
+    nxt_state = state_order[(s + 1) % N_STATES]
+    t = 0.0 if local < F_HOLD else ease_in_out((local - F_HOLD) / F_TRANS)
+
+    cur = states[cur_state]
+    nxt = states[nxt_state]
+
+    for cond in conditions:
+        c0, c1 = cur[cond], nxt[cond]
+        y = lerp(c0["y"], c1["y"], t)
+        dens_lines[cond].set_data(c0["x"], y)
+
+        a0, a1 = c0["annot"], c1["annot"]
+        p0, p1 = c0["par"], c1["par"]
+
+        rx = lerp(a0["right_x"], a1["right_x"], t)
+        ry = lerp(a0["right_y"], a1["right_y"], t)
+        lx = lerp(a0["left_x"],  a1["left_x"],  t)
+        ly = lerp(a0["left_y"],  a1["left_y"],  t)
+        r_size = lerp(a0["right_size"], a1["right_size"], t)
+        l_size = lerp(a0["left_size"],  a1["left_size"],  t)
+
+        vl_right[cond].set_data([rx, rx], [0, ry])
+        vl_left[cond].set_data([lx, lx], [0, ly])
+        bdot_right[cond].set_data([rx], [0])
+        bdot_right[cond].set_markersize(max(0.1, r_size * 6 * 2.835))
+        bdot_left[cond].set_data([lx], [0])
+        bdot_left[cond].set_markersize(max(0.1, l_size * 6 * 2.835))
+
+        mean   = lerp(p0["Mean"], p1["Mean"], t)
+        m_low  = lerp(p0["Mean_low"], p1["Mean_low"], t)
+        m_high = lerp(p0["Mean_high"], p1["Mean_high"], t)
+        m_y    = lerp(p0["Mean_y"], p1["Mean_y"], t)
+
+        pr_segs[cond].set_data([m_low, m_high], [m_y, m_y])
+        pr_dots[cond].set_data([mean], [m_y])
+
+    qx0, qy0 = quadrant_coords[cur_state]
+    qx1, qy1 = quadrant_coords[nxt_state]
+    qx, qy = lerp(qx0, qx1, t), lerp(qy0, qy1, t)
+
+    col = lerp_color(quad_colors[cur_state], quad_colors[nxt_state], t)
+    spikiness = np.clip(qy / 0.65, 0.0, 1.0)
+    quad_dot.set_xy(star_vertices(qx, qy, 0.20, spikiness))
+    quad_dot.set_facecolor(col)
+
+# Manual render loop with a fixed global GIF palette 
+def render_frame_image():
+    fig.canvas.draw()
+    buf = np.asarray(fig.canvas.buffer_rgba())
+    return Image.fromarray(buf).convert("RGB")
+
+# Sample a handful of frames spanning every hold + transition, so the shared
+# palette actually contains black, green, red, and the in-between hues.
+calibration_frames = sorted(set(
+    [0, N_FRAMES - 1] +
+    [i * SEG for i in range(N_STATES)] +
+    [i * SEG + F_HOLD // 2 for i in range(N_STATES)] +
+    [i * SEG + F_HOLD + F_TRANS // 2 for i in range(N_STATES)]
+))
+calib_imgs = []
+for f in calibration_frames:
+    update(f)
+    calib_imgs.append(render_frame_image())
+
+calib_strip = Image.new("RGB", (calib_imgs[0].width, calib_imgs[0].height * len(calib_imgs)))
+for i, im_ in enumerate(calib_imgs):
+    calib_strip.paste(im_, (0, i * im_.height))
+base_palette_img = calib_strip.quantize(colors=256, method=Image.MEDIANCUT)
+
+# Now render every real frame and quantize it against that ONE shared palette.
+# dither=Image.NONE keeps flat color regions (backgrounds, lines) perfectly
+# stable frame-to-frame -- this is what actually removes the flicker.
+quantized_frames = []
+for frame in range(N_FRAMES):
+    update(frame)
+    img = render_frame_image()
+    quantized_frames.append(img.quantize(palette=base_palette_img, dither=Image.NONE))
+
+# NOTE: do NOT pass optimize=True below -- it can silently re-quantize frames
+# per-frame and reintroduce the exact flicker we just fixed.
+quantized_frames[0].save(
+    "figures/anim_beauty_emotion.gif",
+    save_all=True,
+    append_images=quantized_frames[1:],
+    duration=33,   # ~30fps
+    loop=0,
+    disposal=2,
+)
+plt.close()
+print("✓ Saved anim_beauty_emotion.gif")
+```
+
