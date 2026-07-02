@@ -1,0 +1,456 @@
+---
+title: "FictionArt - Eyetracking"
+editor: source
+editor_options: 
+  chunk_output_type: console
+format:
+  html:
+    code-fold: true
+    self-contained: false
+    toc: true
+execute: 
+  cache: true
+---
+
+
+```{r}
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(easystats)
+library(patchwork)
+library(magick)
+library(ggside)
+
+source("funs_eyetracking.R")
+```
+
+
+
+
+
+```{r}
+#| code-fold: false
+
+df <- rbind(read.csv("../data/rawdata_eyetracking1.csv"),
+               read.csv("../data/rawdata_eyetracking2.csv"))|>
+  mutate(Stimulus_right = Stimulus_left + Stimulus_width,
+         Stimulus_bottom = Stimulus_top + Stimulus_height,
+         GazeWithin = ifelse(
+    x >= Stimulus_left & x <= Stimulus_right & y >= Stimulus_top & y <= Stimulus_bottom, TRUE, FALSE
+  )) 
+
+df_ppt <- read.csv("../data/data_participants.csv") |>
+  select(Participant, starts_with("Eyetracking_")) |>
+  pivot_longer(-Participant, names_to="Index", values_to="Value") |>
+  filter(!is.na(Value)) |>
+  mutate(Participant = fct_reorder(Participant, Value)) |>
+  mutate(Index = str_remove(Index, "Eyetracking_Validation"),
+         Index = ifelse(Index == "1", "Initial",  "Midtask"))
+
+# Keep only participants that were not rejected as outliers
+df <- df[df$Participant %in% df_ppt$Participant,]
+```
+
+
+
+## Exclusions
+
+::: {.panel-tabset}
+
+### Calibration Scores
+
+Calibration scores relate to the % of gaze in the target areas during the calibration phase. One of themtook place at the beginning, and the second one in the middle.
+
+
+```{r}
+#| fig-width: 12
+#| fig-height: 8
+#| warning: false
+
+p_val1 <- df_ppt |>
+  ggplot(aes(x=Value, y=Participant)) +
+  geom_bar(stat="identity", aes(fill=Index), position = position_dodge2(reverse=TRUE)) +
+  theme_minimal() +
+  labs(title="Calibration Scores", fill="Calibration Phase", color="Calibration Phase", x="Calibration Score", y=NULL) +
+  theme(legend.position = "inside", legend.position.inside = c(0.9, 0.1),
+        axis.text.y = element_blank()) +
+  ggside::geom_xsidedensity(aes(fill=Index, color=Index), alpha=0.3) +
+  ggside::theme_ggside_void() +
+  scale_fill_manual(values=c("forestgreen", "orange")) +
+  scale_color_manual(values=c("forestgreen", "orange"))
+
+p_val2 <- df_ppt |> 
+  pivot_wider(names_from="Index", values_from="Value") |>
+  ggplot(aes(x=Initial, y=Midtask)) +
+  geom_abline(intercept=0, slope=1, linetype="dashed") +
+  geom_point2(size=3, alpha=0.5, color="forestgreen") +
+  geom_smooth(method="lm", formula = 'y ~ x', color="forestgreen") +
+  theme_minimal() +
+  labs(title="Initial vs. Midtask Calibration Scores")
+
+p_val1 | p_val2
+```
+
+
+### Fixation Cross Pattern
+
+We assessed the gaze patterns over the fixation cross preceding every stimulus.
+
+
+```{r}
+#| fig-width: 14
+#| fig-height: 40
+#| warning: false
+
+scores <- df_ppt |> 
+  pivot_wider(names_from="Index", values_from="Value") |>  
+  mutate(Label = paste0("Score: ", 
+                        format_value(Initial, digits=0, zap_small = TRUE),
+                        ", ",
+                        format_value(Midtask, digits=0, zap_small = TRUE)))
+
+
+
+p_fix <- df |>
+  filter(Stimulus == "Fixation") |>
+  mutate(
+    Participant = fct_relevel(Participant, rev(levels(df_ppt$Participant))),
+    x = x / ScreenWidth,
+    y = 1 - y / ScreenHeight
+  ) |>
+  ggplot(aes(x=x, y=y)) +
+  geom_path(aes(group=interaction(Participant, Stimulus), color=Participant, linewidth=Time),
+            alpha=0.7, linewidth=0.2) +
+  geom_hline(yintercept = 0.5, linetype="dashed", color="black") +
+  geom_vline(xintercept = 0.5, linetype="dashed", color="black") +
+  geom_rect(xmin=0, ymin=0, xmax=1, ymax=1, alpha=0, color="black") +
+  geom_text(data = scores, color = "darkred",
+            aes(x=-0.25, y=-0.25, label=Label), hjust=0, vjust=0) +
+  see::scale_color_material_d(guide="none") +
+  scale_linewidth_continuous(range=c(1, 0.1), guide="none") +
+  scale_x_continuous(labels=scales::percent) +
+  scale_y_continuous(labels=scales::percent) +
+  coord_cartesian(xlim=c(-0.3, 1.3), ylim=c(-0.3, 1.3)) +
+  theme_minimal() +
+  facet_wrap(~Participant, scales="free", ncol = 10) +
+  labs(title="Fixation Cross Pattern", x=NULL, y=NULL)
+p_fix
+```
+
+
+
+### Bad Trials
+
+We computed the proportion of gaze within the target (the stimulus).
+
+```{r}
+#| fig-width: 12
+#| fig-height: 8
+#| warning: false
+
+# By trials
+invalid <- df |>
+  filter(Stimulus != "Fixation") |>
+  summarize(GazeWithin = sum(GazeWithin), # Sum of datapoints on target
+            Proportion = sum(GazeWithin) / n(), 
+            .by=c("Participant", "Item"))
+
+p_bad1 <- invalid |> 
+  ggplot(aes(x=GazeWithin)) +
+  stat_density(aes(group = Participant, y = after_stat(density), color = Participant), geom = "line", position = "identity") +
+  scale_y_sqrt() +
+  theme_minimal() +
+  theme(legend.position = "none")  
+p_bad1
+  
+p_bad2 <- invalid |> 
+  ggplot(aes(x=Proportion)) +
+  geom_histogram(bins=100, aes(y=after_stat(density)), fill="darkgrey") +
+  stat_density(aes(group = Participant, y = after_stat(density), color = Participant), 
+               geom = "line", position = "identity", alpha = 0.2) +
+  labs(x = "% of Gaze on Target", y = "") +
+  scale_y_sqrt() +
+  scale_x_continuous(labels=scales::percent) +
+  theme_minimal() +
+  theme(legend.position = "none") 
+p_bad2
+```
+
+
+
+
+```{r}
+#| fig-width: 12
+#| fig-height: 8
+#| warning: false
+
+
+# By participants
+dfsub_bad <- invalid |>
+  summarize(Bad = sum(Proportion < 1/2) / n(), .by=c("Participant"))
+
+p_bad2 <- dfsub_bad |>
+  mutate(
+    Participant = fct_reorder(Participant, Bad)
+    # Participant = fct_relevel(Participant, levels(df_ppt$Participant))
+    ) |>
+  ggplot(aes(y=Participant, x=Bad)) +
+  geom_bar(stat="identity", fill="darkred") +
+  scale_x_continuous(labels=scales::percent) +
+  theme_minimal() +
+  theme(legend.position="none",
+        axis.text.y = element_blank()) +
+  labs(x=NULL, y=NULL, title="% of Bad Trials") +
+  ggside::geom_xsidedensity(fill="darkred", color="darkred", alpha=0.7) +
+  ggside::theme_ggside_void()
+
+p_bad3 <- merge(dfsub_bad, df_ppt, by="Participant") |> 
+  ggplot(aes(x=Value, y=Bad)) +
+  geom_point2(aes(color=Index), size=3, alpha=0.5) +
+  geom_smooth(aes(color=Index, fill=Index), method="lm", formula = 'y ~ x', alpha=0.1) +
+  coord_cartesian(ylim=c(0, 1)) +
+  scale_y_continuous(labels=scales::percent) +
+  scale_color_manual(values=c("forestgreen", "orange")) +
+  scale_fill_manual(values=c("forestgreen", "orange")) +
+  theme_minimal() +
+  theme(legend.position = "inside", legend.position.inside = c(0.8, 0.5)) +
+  labs(color = "Validation Phase", fill = "Validation Phase", y = "% Bad Trials", title="Validation Scores vs. Bad Trials", x="Validation Score")
+
+p_bad2 | p_bad3
+```
+
+
+```{r}
+#| code-fold: false
+
+bad_trials <- invalid[invalid$Proportion < 1/2, c("Participant", "Item")]
+n_ori <- nrow(filter(df, Stimulus != "Fixation"))
+
+df <- df |>
+  filter(Stimulus != "Fixation") |>
+  filter(!paste(Participant, Item) %in% paste(bad_trials$Participant, bad_trials$Item)) |>
+  filter(is.finite(x), is.finite(y)) |> 
+  select(-GazeWithin)
+```
+
+We removed `r insight::format_percent((n_ori - nrow(df)) / n_ori)` "bad" trials (trials with less than 50% of gaze data points on stimulus).
+
+
+
+### Bad Participants
+
+#### Sampling Rate
+
+```{r}
+sr <- df |> 
+  mutate(Delay = c(NA, diff(t)), .by = c("Participant", "Item")) |> 
+  filter(t >= 0, Delay > 0, Delay < 0.20) |> 
+  mutate(sampling_rate = 1 / Delay) 
+
+sr_ppt <- summarize(sr, 
+                    sampling_rate_mad = mad(sampling_rate, na.rm = TRUE),
+                    sampling_rate = median(sampling_rate, na.rm = TRUE), 
+                    .by = "Participant")
+
+sr_ppt |> 
+  ggplot(aes(x = sampling_rate, y = Participant)) +
+  geom_pointrange(aes(xmin = sampling_rate - sampling_rate_mad, xmax = sampling_rate + sampling_rate_mad), color="darkred") +
+  geom_vline(xintercept = c(15, 35), linetype="dashed", color="black") +
+  theme_minimal() +
+  theme(axis.text.y = element_blank()) +
+  ggside::geom_xsidedensity(aes(y = after_stat(density)), fill="darkred", color="darkred", alpha=0.7) +
+  ggside::theme_ggside_void() 
+```
+
+
+```{r}
+exclude <- list(slow_framerate = filter(sr_ppt, sampling_rate < 15)$Participant)
+df <- filter(df, !Participant %in% exclude$slow_framerate)
+```
+
+We excluded `r length(exclude$slow_framerate)` participants with a slow sampling rate (< 15 Hz).
+
+#### Movement
+
+```{r}
+vel <- df |> 
+  mutate(velocity = sqrt((x - lag(x))^2 + (y - lag(y))^2) / (t - lag(t)), 
+         .by = c("Participant", "Item")) |> 
+  summarize(
+    MeanVelocity = mean(velocity, na.rm = TRUE),
+    MedianVelocity = median(velocity, na.rm = TRUE),
+    MaxVelocity = max(velocity, na.rm = TRUE),
+    .by = "Participant"
+  )
+
+ggplot(vel, aes(x=MedianVelocity)) +
+  geom_histogram(bins=100) +
+  geom_vline(xintercept = c(150, 3000), linetype="dashed", color="darkred") 
+```
+
+```{r}
+exclude$Velocity <- filter(vel, MedianVelocity < 150 | MedianVelocity > 3000)$Participant
+df <- filter(df, !Participant %in% exclude$Velocity)
+```
+
+We excluded `r length(exclude$Velocity)` participants with a very low (< 150 px/ms) or very high (> 30000 px/ms) median velocity.
+
+:::
+
+
+
+## Preprocessing
+
+### Resampling
+
+```{r}
+progbar <- progress::progress_bar$new(total = length(unique(df$Participant)))
+dfeye <- list()
+for(ppt in unique(df$Participant)) {
+  progbar$tick()
+  for(item in unique(df[df$Participant == ppt, "Item"])) {
+    dat <- filter(df, Participant == ppt, Item == item) 
+    
+    dat_interp <- interpolate_xy(dat, screenwidth = unique(dat$ScreenWidth))
+    dat_interp$Participant <- ppt
+    dat_interp$Item <- item
+    dat_interp$ScreenWidth <- unique(dat$ScreenWidth)
+    dat_interp$ScreenHeight <- unique(dat$ScreenHeight)
+    dat_interp$Stimulus_left <- unique(dat$Stimulus_left)
+    dat_interp$Stimulus_top <- unique(dat$Stimulus_top)
+    dat_interp$Stimulus_height <- unique(dat$Stimulus_height)
+    dat_interp$Stimulus_width <- unique(dat$Stimulus_width)
+    dat_interp$Stimulus_right <- unique(dat$Stimulus_right)
+    dat_interp$Stimulus_bottom <- unique(dat$Stimulus_bottom)
+    dfeye[[paste0(ppt, item)]] <- dat_interp
+  }
+}
+dfeye <- dplyr::bind_rows(dfeye) |> 
+  filter(t >= 0, !is.na(velocity))
+
+  
+dfeye |> 
+  filter(velocity < 5) |> 
+  ggplot(aes(x=velocity)) +
+  geom_histogram(bins=100, aes(y=after_stat(density))) +
+  stat_density(aes(group=Participant, y=after_stat(density), color = Participant), geom="line", position="identity",
+               alpha = 0.2) +
+  coord_cartesian(xlim=c(0, 5)) +
+  scale_y_sqrt() +
+  theme_minimal() +
+  theme(legend.position = "none") 
+```
+
+
+### Fixation Detection
+
+```{r}
+get_fixations <- function(dfeye, dispersion_threshold = 0.1, min_duration = 0.1, verbose = TRUE) {
+  # Detect fixations
+  dffixations <- dfeye  |> 
+    mutate(event = detect_fixations_idt(
+      t, x, y, screenwidth = ScreenWidth,
+      dispersion_threshold = dispersion_threshold, min_duration = min_duration),
+      .by = c("Participant", "Item")) |>
+    filter(event != "Saccade") |>
+    mutate(gaze_within = x >= Stimulus_left & x <= Stimulus_right & y >= Stimulus_top & y <= Stimulus_bottom)
+  
+  # Compute fixation centroids
+  dffixations <- dffixations |>
+    summarise(
+      x = mean(x, na.rm = TRUE),
+      y = mean(y, na.rm = TRUE),
+      duration = max(t, na.rm = TRUE) - min(t, na.rm = TRUE),
+      p_within = mean(gaze_within, na.rm = TRUE),
+      Stimulus_left = first(Stimulus_left),
+      Stimulus_right = first(Stimulus_right),
+      Stimulus_top = first(Stimulus_top),
+      Stimulus_bottom = first(Stimulus_bottom),
+      ScreenWidth = first(ScreenWidth),
+      ScreenHeight = first(ScreenHeight),
+      .by = c("Participant", "Item", "event")
+    ) 
+  
+  # Remove extra long fixations (more than 2 s)
+  if(verbose) {
+    print(paste0("Proportion of fixations longer than 2s: ", 
+               format_percent(mean(dffixations$duration > 2, na.rm = TRUE))))
+  }
+  dffixations <- filter(dffixations, duration <= 2)
+  
+  # Remove fixations that are not on the target area
+  if(verbose) {
+    print(paste0("Proportion of fixations outside the target area: ", 
+                 format_percent(mean(dffixations$p_within < 0.5, na.rm = TRUE))))
+  }
+  
+  filter(dffixations, p_within >= 0.5) 
+}
+```
+
+#### Grid Search
+
+```{r}
+dftask <- read.csv("../data/data_task.csv")
+
+feat_list <- c("Fixations_N", "Fixations_DurationMean", "N_Glances", "N_Sustained")
+outcome_list <- c("Beauty", "Valence", "Meaning", "Worth", "Reality", "Authenticity")
+
+ps <- list()
+params <- data.frame()
+for(disp in c(0.02, 0.04, 0.06, 0.08, 0.1, 0.15, 0.2, 0.3)) {
+  # cat(".")
+  
+  dffixations <- get_fixations(dfeye, dispersion_threshold = disp, min_duration = 0.08, verbose = FALSE)
+
+  ps[[paste0("d", disp)]] <- dffixations |>
+    filter(duration < 1) |> 
+    ggplot(aes(x = duration)) +
+    stat_density(aes(group = Participant, y = after_stat(density), color = Participant), geom = "line", position = "identity",
+                 alpha = 0.5) +
+    stat_density(aes(y = after_stat(density)), geom = "line", position = "identity", linewidth = 1) +
+    guides(color = "none") +
+    scale_x_sqrt(expand = c(0, 0)) + 
+    scale_y_sqrt() +
+    coord_cartesian(xlim = c(0.08, NA)) +
+    labs(title = paste0("Dispersion Threshold: ", disp),
+         x = "Fixation Duration (s)", y = NULL)
+  
+  features <- dffixations |> 
+    mutate(Type = ifelse(duration < 0.2, "Glance", "Sustained")) |> 
+    summarize(
+      Fixations_N = n(),
+      Fixations_DurationMean = mean(duration, na.rm = TRUE),
+      N_Glances = sum(Type == "Glance"),
+      N_Sustained = sum(Type == "Sustained"),
+      .by = c("Participant", "Item", "Type")
+    ) |>
+      dplyr::left_join(dftask, by = c("Participant", "Item"))
+  
+  for(feat in feat_list) {
+    for(outcome in outcome_list) {
+      m <- lme4::lmer(as.formula(paste0(outcome, " ~ ", feat, " + (1|Participant)")), 
+                      data=features)
+      params <- parameters::parameters(m, effects="fixed")[2,] |>
+        dplyr::select(t, p) |>
+        dplyr::mutate(Feature = feat, Outcome = outcome, Dispersion = disp) |> 
+        rbind(params)
+    }
+  }
+}
+
+patchwork::wrap_plots(ps)
+
+params |> 
+  ggplot(aes(x=Feature, y=Outcome, fill=p)) +
+  geom_tile() +
+  scale_fill_gradientn(colors=c("#2196F3", "#00BCD4", "#4CAF50", "#CDDC39", "#FFEB3B", "white", "white"), 
+                       values = c(0, 0.05, 0.1, 0.2, 0.5, 1),
+                       breaks = c(0.05, 0.25, 0.5, 0.75)) +
+  facet_wrap(~Dispersion) +
+  theme(axis.text.x = element_text(angle=45, hjust=1)) 
+```
+
+
