@@ -480,10 +480,20 @@ extract_gaze_features <- function(data) {
     half_shift       = compute_half_shift(x, y, t),
     dispersion_ratio = compute_dispersion_ratio(x, y, t),
     max_shift5        = compute_max_shift(x, y, t, min_samples = 5),
+    max_shift10        = compute_max_shift(x, y, t, min_samples = 10),
     max_shift15        = compute_max_shift(x, y, t, min_samples = 15),
+    max_shift20        = compute_max_shift(x, y, t, min_samples = 20),
+    max_shift25        = compute_max_shift(x, y, t, min_samples = 25),
     max_shift30        = compute_max_shift(x, y, t, min_samples = 30),
+    macro_wandering2   = compute_macro_wandering(x, y, t, window_size = 2),
+    macro_wandering3   = compute_macro_wandering(x, y, t, window_size = 3),
     macro_wandering5   = compute_macro_wandering(x, y, t, window_size = 5),
+    macro_wandering7   = compute_macro_wandering(x, y, t, window_size = 7),
+    macro_wandering8   = compute_macro_wandering(x, y, t, window_size = 8),
     macro_wandering10   = compute_macro_wandering(x, y, t, window_size = 10),
+    macro_wandering15   = compute_macro_wandering(x, y, t, window_size = 15),
+    macro_wandering20   = compute_macro_wandering(x, y, t, window_size = 20),
+    macro_wandering25   = compute_macro_wandering(x, y, t, window_size = 25),
     macro_wandering30   = compute_macro_wandering(x, y, t, window_size = 30),
     drift_magnitude  = compute_drift_magnitude(x, y, t)
   )
@@ -1092,7 +1102,7 @@ patch_cor
 
 
 
-<!-- ## Validation -->
+<!-- ## Sensitivity Test -->
 
 <!-- ```{r} -->
 <!-- #| warning: false -->
@@ -1102,9 +1112,10 @@ patch_cor
 <!-- dftask <- dplyr::left_join(df_features, dftask, by = c("Participant", "Item")) -->
 
 <!-- rez <- data.frame() -->
-<!-- for (feature in names(select(df_features, -Participant, -Item, -entropy))) { -->
-<!--   # cat(".") -->
-<!--   for (adj in c("", "(n_samples adjusted)")) { -->
+<!-- for (feature in names(select(df_features, -Participant, -Item))) { -->
+<!--   cat(".") -->
+<!--   # for (adj in c("", "(n_samples adjusted)")) { -->
+<!--   adj <- "(n_samples adjusted)" -->
 <!--     for (outcome in c("Beauty", "Meaning", "Valence", "Worth", "Authenticity", "Reality", "SelfRelevance")) { -->
 <!--       if (adj == "") { -->
 <!--         f <- paste0(outcome, " ~ ", feature, " + (1|Participant) + (1|Item)") -->
@@ -1126,12 +1137,12 @@ patch_cor
 <!--       f <- paste0(feature, " ~ Condition + n_samples + (1|Participant) + (1|Item)") -->
 <!--     } -->
 <!--     m <- glmmTMB::glmmTMB(as.formula(f), data = dftask) |> -->
-<!--       parameters::parameters(effects = "fixed")  -->
+<!--       parameters::parameters(effects = "fixed") -->
 
-<!--     rez <- m[2:3, ] |>  -->
+<!--     rez <- m[2:3, ] |> -->
 <!--       dplyr::mutate(Feature = feature, Outcome = paste("Eyetracking Feature ~ ", Parameter, adj)) |> -->
 <!--       rbind(rez) -->
-<!--   } -->
+<!--   # } -->
 <!-- } -->
 
 <!-- ``` -->
@@ -1143,19 +1154,19 @@ patch_cor
 <!-- #| fig-height: 7 -->
 
 
-<!-- # rez |>  -->
-<!-- #   filter(p < .1) |>   -->
-<!-- #   summarize(N = n(), .by = c("Feature")) |>  -->
+<!-- # rez |> -->
+<!-- #   filter(p < .1) |> -->
+<!-- #   summarize(N = n(), .by = c("Feature")) |> -->
 <!-- #   arrange(desc(N)) -->
 
-<!-- rez |>  -->
-<!--   filter(!is.na(p)) |>  -->
+<!-- rez |> -->
+<!--   filter(!is.na(p)) |> -->
 <!--   mutate(Sig = ifelse(p < .05, "Sig", "Non-Sig"), -->
-<!--          Feature = factor(Feature, levels = levels(cor_df$Var1))) |>  -->
+<!--          Feature = factor(Feature, levels = levels(cor_df$Var1))) |> -->
 <!--   ggplot(aes(x = Feature, y = Outcome, fill = 1 - p)) + -->
 <!--   geom_tile(aes(alpha = Sig)) + -->
 <!--   scale_fill_gradientn(colors = c(rep_len("white", 40), "#2196F3", "#3F51B5", "#673AB7", "#9C27B0", "#E91E63"), limits = c(0, 1)) + -->
-<!--   theme(axis.text.x = element_text(angle = 45, hjust = 1))  -->
+<!--   theme(axis.text.x = element_text(angle = 45, hjust = 1)) -->
 
 <!-- ``` -->
 
@@ -1169,7 +1180,8 @@ df_final <- df_features |>
          # Gaze_Entropy20 = entropy20, 
          Gaze_Entropy = entropy5, 
          # Gaze_Gini = gini_kde,  # Correlates less with nsamples
-         Gaze_Drift = drift_magnitude,  
+         # Gaze_Drift = drift_magnitude, 
+         Gaze_Shift = max_shift30,
          # Gaze_Hull = hull_area,
          Gaze_pLeft = prop_left,
          Gaze_pCenter = prop_center,
@@ -1177,6 +1189,7 @@ df_final <- df_features |>
          Gaze_nSamples = n_samples
          )
 
+report(df_final)
 
 write.csv(df_final, "../data/data_eyetracking.csv", row.names = FALSE)
 ```
@@ -1207,7 +1220,7 @@ dftask <- read.csv("../data/data_task.csv") |>
 dftask <- dplyr::left_join(df_final, dftask, by = c("Participant", "Item"))
 
 rez_cor <- data.frame()
-for(outcome in c("Beauty", "Meaning", "Valence", "Worth")) {
+for(outcome in c("Beauty", "Meaning", "Valence", "Worth", "Beauty2", "SelfRelevance", "Authenticity", "Reality")) {
   for(feature in names(select(df_final, -Participant, -Item, -Gaze_nSamples))) {
     f <- paste0(outcome, " ~ ", feature, " + Gaze_nSamples + (1|Participant) + (1|Item)")
     m <- glmmTMB::glmmTMB(as.formula(f), data = dftask) 
@@ -1332,15 +1345,16 @@ feature_meta <- tribble(
   # "hull_area",       "Gaze Hull",      "Compact scanpath",         "Wide exploration",
   "prop_left",       "P(Left)",     "Right-biased gaze",        "Left-biased gaze",
   "prop_center",     "P(Center)",   "Peripheral gaze",          "Centre-biased gaze",
-  "prop_top",        "P(Top)",      "Bottom-biased gaze",       "Top-biased gaze",
-   "entropy20",       "Entropy",   "Structured / clustered",   "Uniform scatter"
+  # "prop_top",        "P(Top)",      "Bottom-biased gaze",       "Top-biased gaze",
+  "entropy20",       "Entropy",   "Structured / clustered",   "Uniform scatter",
+  "max_shift30",       "Max. Shift",   "Continuous",   "Switching"
 )
 
 img_dir <- "../experiment/stimuli/stimuli/"
 
 # ── Item selector ─────────────────────────────────────────────────────────────
 # `excluded` accumulates across features so each gets a distinct stimulus.
-find_best_item <- function(feature_col, excluded = character(0), min_n_each = 5) {
+find_best_item <- function(feature_col, excluded = c(), min_n_each = 5) {
   items_ranked <- df_features |>
     count(Item, sort = TRUE) |>
     filter(!Item %in% excluded) |>
@@ -1359,7 +1373,7 @@ find_best_item <- function(feature_col, excluded = character(0), min_n_each = 5)
 }
 
 # Pre-assign one distinct item per feature before rendering anything
-used_items <- character(0)
+used_items <- c("11126.jpg")
 assigned   <- character(nrow(feature_meta))
 for (i in seq_len(nrow(feature_meta))) {
   it          <- find_best_item(feature_meta$col[i], excluded = used_items)
