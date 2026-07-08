@@ -64,7 +64,7 @@ df |>
 
 ## Summary
 
-To ensure a diverse and balanced set of emotional stimuli across artistic styles, we first reclassified the original painting styles into four broader and more evenly distributed categories - "Abstract and Avant-garde", "Impressionist and Expressionist", "Classical", and "Romantic and Realism" - based on shared historical and aesthetic characteristics. We then restricted selection to unfamiliar items (i.e., those rated below the median familiarity score of 1.65/7). To maximize orthogonal variability across arousal and valence, we stratified the paintings within each style into four quadrants defined by tertiles of arousal and valence, and selected the four paintings most distant from the median point (using Manhattan distance) within each quadrant. This resulted in a final set of 64 paintings (16 per style).
+To ensure a diverse and balanced set of emotional stimuli across artistic styles, we first reclassified the original painting styles into four broader and more evenly distributed categories - "Abstract and Avant-garde", "Impressionist and Expressionist", "Classical", and "Romantic and Realism" - based on shared historical and aesthetic characteristics. We then restricted selection to unfamiliar items (i.e., those rated below the median familiarity score of 1.65/7). To maximize orthogonal variability across arousal and valence, we stratified the paintings within each style into four quadrants defined by tertiles of arousal and valence, and selected the four paintings most distant from the median point (using Manhattan distance) within each quadrant. This resulted in a final set of 48 paintings (12 per style).
 
 ## Style Reclassification
 
@@ -304,9 +304,16 @@ p <- dat |>
   ggside::theme_ggside_void() +
   scale_color_manual(values = c("#E41A1C", "#377EB8", "#4DAF4A", "#FF7F00")) +
   scale_size(range = c(0.5, 5), guide = "none") +
-  theme(axis.title = element_text(face = "bold", size = rel(1.2)),
-        legend.title = element_text(face = "bold", size = rel(1.2)))
+  labs(x = "Valence (Norms)", y = "Arousal (Norms)") +
+  theme(axis.title = element_text(face = "bold", size = rel(1.5)),
+        legend.title = element_text(face = "bold", size = rel(1.5))) 
 p
+```
+
+```{r}
+#| eval: false
+
+ggsave(p, filename = "../../../analysis/figures/stim_selection.png", width = 14, height = 12, dpi = 300)
 ```
 
 ## Final Selection

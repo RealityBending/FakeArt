@@ -1,5 +1,5 @@
 ---
-title: "Framing the Fake: The Psychological Impact of Forgery and AI Labels on Aesthetic Experience"
+title: "Framing the Fake: The Differential Effect of Forgery vs. AI Labels on Aesthetic Experience"
 shorttitle: "Framing the Fake"
 author:
   - name: Dominique Makowski
@@ -33,6 +33,10 @@ author:
       - Writing – review & editing
     affiliations:
       - ref: id1
+  - name: Giulia Cabbai
+    orcid: ""
+    affiliations:
+      - name: "UCL"
   - name: Marco Sperduti
     orcid: ""
     email: D.Makowski@sussex.ac.uk
@@ -94,23 +98,79 @@ Title ideas:
 
 # Methods
 
+## Participants
+
+TODO.
+
 ## Procedure
 
+```{r}
+#| warning: false
+#| label: fig-1
+#| apa-twocolumn: true  # A Figure Spanning Two Columns When in Journal Mode
+#| out-width: "100%"
+#| fig-cap: "TODO."
 
-Participants were first introduced to a cover story framing the experiment as... TODO.
 
-During the first phase of the experiment, participants viewed a series of artworks, each preceded by a randomly presented cue indicating its type: an Original human painting, a Human Forgery, an AI-Generated image. Following the presentation of each artwork, participants reported their aesthetic experience across four core dimensions: *beauty* (aesthetic quality, composition, and execution), emotional *valence* (the intensity of positive or negative feelings evoked), *meaningfulness* (conceptual richness, symbolism, and profundity), and monetary *worth* (maximum willingness to pay). To prevent measure blurriness, each dimension was assessed with a bespoke scale, respectively an analog slider... TODO.
+knitr::include_graphics("../analysis/figures/figure1.png")
+```
+
+The experiment was implemented with  *JsPsych* [@de2015jspsych] and all materials, including its code, the items, instructions and exact procedure, is available in open-access at https://github.com/RealityBending/FakeArt, where the experiment can also be tested live.
+
+### Artwork Judgment Task
+
+
+Participants were first introduced to a cover story framing the experiment as a collaboration between neuroscientists and artists investigating how people visually explore and evaluate artworks (a framing that also justified the use of webcam-based eye-tracking). They were told they would view three categories of images: Original Human paintings (sourced from public art databases), AI-Generated images (produced using generative platforms such as Midjourney and Stable Diffusion, either in a new style or inspired by existing artists or artworks^[This intentionally equivocal description, that leaves open whether AI images were generated with the goal of being new or artist-inspired, was carefully considered and included to preempt the risk that a participant recognizing a genuine painting presented as AI-generated would undermine belief in the whole manipulation.]), and Human Forgeries (copies or stylistic imitations of existing artworks, historically produced by Humans with intent to deceive). Critically, only the participants' *beliefs* were manipulated - all stimuli were, in reality, genuine man-made artworks.
+
+Stimuli from the Vienna Art Picture System [VAPS, @fekete2023vienna] were first grouped into four broad stylistic categories (Abstract and Avant-garde; Impressionist and Expressionist; Romantic and Realism; and Classical). To minimize the influence of prior exposure, only unfamiliar paintings (familiarity ratings below the sample median) were retained. Within each style, the remaining paintings were stratified into four quadrants defined by the upper and lower tertiles of normative arousal and valence, and the three paintings farthest from the style's median arousal/valence were selected from each quadrant. This procedure yielded a final set of 48 paintings - 12 per style, evenly split across the four arousal-valence quadrants (Positive - High Intensity; Positive - Low Intenstiy; Negative - High Intensity, Negative - Low Intensity).
+
+During the first phase of the experiment, participants viewed the 48 artworks (see @fig-1), each preceded by a randomly presented label indicating its purported type ("Original", "Human Forgery" or "AI-Generated"). Following the presentation of each artwork (5 s), participants reported their aesthetic experience across four dimensions encompassing cognitive appraisal, emotional response, semantic processing, and valuation [@leder2004model; @leder2014ten; @kirk2009modulation]: *beauty* (aesthetic quality, composition, and execution), emotional *valence* (the intensity of positive or negative feelings evoked), *meaningfulness* (conceptual richness, symbolism, and profundity), and monetary *worth* (maximum willingness to pay). 
+To mitigate common method bias [@podsakoff2003common] and minimize construct overlap, each dimension was assessed with a bespoke scale: an analog slider (Ugly - Beautiful), a 7-point pictorial scale (Negative - Positive), a 7-point numerical scale from 0 (Not at all) to 6 (Very much), and a 6-point discrete logarithmic monetary scale offering choices from \$0 to \$100,000^[The selection, description, wording and presentation of these measures were refined through extensive pilot testing and expert feedback.].
 To ensure sustained engagement with the contextual cues, random catch trials were interleaved throughout the block, prompting participants to recall the immediately preceding label.
 
-At the start of the second phase, the cover story was *partially* revealed^[this pseudo-reveal paradigm was developed as an improvement over other designs, see **FICTIONERO PREPRINT REF** for discussion]. Participants were informed that the Phase 1 labels had been intentionally randomized and were tasked with identifying the true nature of the artworks based on their own judgment (but still suggesting that originals, forgeries and AI-generated stimuli were present). For each briefly re-presented image, participants provided two continuous, gut-feeling judgments regarding the artwork's origin: perceived reality (anchored from strictly AI-generated to human-created) and perceived authenticity (anchored from a copy/forgery to a unique original creation). This two-phase design allowed us to effectively isolate the top-down influence of semantic labels on aesthetic experience from the bottom-up perceptual detection of synthetic or forged art.
+TODO: Mention the "feedback" phase at the end of phase 1 where we measured manipulation disbelief etc.
+
+
+At the start of the second phase, the cover story was *partially* revealed^[This pseudo-reveal paradigm was developed as an improvement over other designs in related experiments, see **FICTIONERO PREPRINT REF** for discussion]. Participants were informed that some of the Phase 1 labels had been intentionally randomized and were tasked with identifying the true nature of the artworks based on their own judgment (preserving the belief that originals, forgeries and AI-generated stimuli were present). For each briefly re-presented image (1.5 s), participants made two continuous, gut-feeling judgments regarding the artwork's nature: *syntheticness* ("AI-generated" vs. "Human Creation") and *authenticity* ("Copy/forgery" vs. "Original Creation"). This two-phase design allowed us to effectively isolate the top-down influence of semantic labels on aesthetic experience from the bottom-up perceptual detection of synthetic or forged art.
+
+
+
+
+### Questionnaires
+
+MINT
+BAIT
+
+### Memory Task
+
+Participants were invited after $\pm$X days to a follow-up session [Explain follow-up procedure and memory test].
 
 
 ## Data Analysis
+
+### Preprocessing
+
+Outlier rejection.
+
+### Eye Tracking
+
+Gaze position was sampled continuously via webcam-based eye-tracking (WebGazer.js) throughout each trial and re-expressed in coordinates centered on the stimulus and normalized by stimulus width, preserving the image's aspect ratio and allowing comparison across images of different sizes. Given the noisy and variable nature of webcam-based data, a strict quality control workflow was applied. **X** participants were excluded due to invalid data (>25% consecutive duplicate samples). Off-screen coordinates and samples reflecting implausibly fast transitions (>6 stimulus-widths/second, indicative of blinks or artifacts) were removed. Finally, trials were excluded if they contained fewer than 20 valid samples, showed frozen (SD < 0.02) or excessively noisy (SD > 0.60) gaze on either axis, had less than 50% of samples falling within the stimulus bounds, exhibited severe linear drift (>1 stimulus-width of total displacement), or showed near-uniform spatial scatter consistent with untracked gaze. Finally, **X** participants were excluded for yielding fewer than 2,000 valid samples across the full experiment.
+
+Four simple, robust and interpretable gaze features were computed per trial. *Laterality* was the proportion of samples falling in the left half of the image (vs. the right), and *Centeredness* was the proportion of samples falling within the center portion of the image. *Entropy* quantified the spatial dispersion of gaze: samples were binned into a 5×5 grid, Shannon entropy was computed and normalized by the maximum entropy achievable given the number of valid samples (avoiding artificial deflation on sparse trials). *Max. Shift* captured the single largest reorganization of gaze focus within a trial: for every possible partition of the chronologically ordered samples into an initial and final segment (each with at least 30 samples), the Euclidean distance between the two segments' centroids was computed, and the maximum across all partitions was retained; large values indicate a discrete relocation of attention to a different image region partway through viewing, near-zero values indicate a single stable focus throughout.
+
+
+### Statistical Models
 
 - First step: Linear Mixed Models. apply linear mixed effect models to iterate through a number of various features and comprehensively assess important and relevant predictors.
 - However, while linear models model the expected mean of the outcome, it is to note that they are not the model class the most suited for our data. On a theoretical level, the outcomes were recorded on scales with particular characteristics (bounded at extremities, some had discrete choices, etc.). Critically, at an empirical level, most display distributions that are better accounted for by other models. For instance, Meaning and Worth displayed characteristic zero-inflation, had Beauty, Syntheticness and Authenticity displayed bimodal distributions with zero, one and mid-point inflations. The latter type of distributions have been recently described as a Choice-Confidence distribution, where the response reflect a conflated process of a discrete choice - e.g., Beautiful vs. Ugly - and a continuous evaluation of degree or confidence. These distributions are better modeled using the Choice-Confidence models, a mixture model of two Beta distributions that provides a much better fit than linear models as well as deeper insights, with parameters reflecting the probability of each discrete choice, as well as the mean and spread of each choice separately.
 
 
+# Discussion
+
+<!-- Outcome Distribution -->
+
+While empirical aesthetics research frequently observes high correlations among subjective dimensions - often prompting the extraction of a single latent "aesthetic appreciation" factor to mitigate multicollinearity, the present data strongly support preserving the independence of these constructs.
+Theoretically, beauty, valence, meaning, and worth map onto distinct cognitive and neural substrates, spanning sensory evaluation, affective response, semantic processing, and reward. Crucially, the empirical distributions of the collected data substantiate this theoretical divergence. Rather than sharing a uniform shape, each dimension exhibited a distinct distributional signature indicative of separate underlying generative processes. Specifically, emotional valence displayed a symmetric unimodal distribution, reflecting a normative, continuous gradient of affective responses. In contrast, meaningfulness demonstrated pronounced zero-inflation, suggesting a partially dichotomous cognitive mechanism whereby artworks are initially gated as either possessing semantic weight or lacking it entirely. Monetary worth followed a monotonically decaying, right-skewed shape highly characteristic of behavioral economic valuation paradigms, where high subjective reward is exceptionally rare. Finally, beauty judgments yielded a complex, bimodal distribution, likely capturing a combination of polarized aesthetic processing and the specific anchoring behaviors elicited by analog sliders. These pronounced morphological differences, while helped by our usage of distinct response formats, suggest that the four scales are not merely redundant probes of a generalized aesthetic halo effect, but capture distinct aspect of the aesthetic experience.
 
 
 # References

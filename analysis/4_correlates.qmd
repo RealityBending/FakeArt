@@ -1,0 +1,180 @@
+---
+title: "FakeArt - Data Analysis"
+editor: source
+editor_options: 
+  chunk_output_type: console
+format:
+  html:
+    code-fold: true
+    self-contained: false
+    toc: true
+execute:
+  cache: true
+---
+
+## Data Preparation
+
+```{r}
+#| warning: false
+#| error: false
+
+library(tidyverse)
+library(easystats)
+library(patchwork)
+library(ggside)
+library(ggdist)
+library(brms)
+library(cogmod)
+
+options(mc.cores = parallel::detectCores() - 2)
+
+df <- read.csv("../data/data_participants.csv")
+```
+
+
+```{r}
+m_beauty <- readRDS("models/Beauty.rds")
+```
+
+
+
+
+## Individual Parameters
+
+```{r}
+
+m <- m_beauty
+data <- get_data(m)
+
+get_grouplevel <- function(m, outcome = "Beauty") {
+  df_individual <- data.frame()
+  batches <- split(unique(data$Participant),  ceiling(seq_along(unique(data$Participant)) / 50))
+  for(batch in 1:length(batches)) {
+    cat("\nProcessing batch ", batch, " of ", length(batches), "...\n")
+    data_subset <- data[data$Participant %in% batches[[batch]], ]
+    
+    params <- c("response", "mu", insight::find_auxiliary(m))
+    params <- params[!params %in% c("pex", "bex", "pmid")]
+    
+    for(p in params) {
+      cat(".")
+      c_baseline <- estimate_means(m, by = c("Participant", "Condition"), 
+                                   backend = "marginaleffects", iterations = 100,  
+                                   data = data_subset, test = NULL, ci = NULL, 
+                                   dispersion = TRUE, predict = p) |>
+        filter(Condition == "Human Original") |>
+        mutate(Parameter = paste0("Baseline_", str_replace(p, "response", "resp"))) |>
+        select(Participant, Parameter, Median, MAD)
+      
+      
+      c_condition <- estimate_contrasts(m, contrast = "Condition", by = c("Participant"), 
+                                        backend = "marginaleffects", iterations = 100, 
+                                        data = data_subset, test = NULL, ci = NULL,
+                                        dispersion = TRUE, predict = p) |>
+      mutate(Level1 = case_when(Level1 == "AI-Generated" ~ "AI",
+                                Level1 == "Human Original" ~ "Ori",
+                                .default = "Forg"),
+             Level2 = case_when(Level2== "AI-Generated" ~ "AI",
+                                Level2 == "Human Original" ~ "Ori",
+                                .default = "Forg"), 
+             Parameter = paste0(Level1, Level2, "_", str_replace(p, "response", "resp"))) |> 
+      select(Participant, Parameter, Median, MAD)
+      
+      df_individual <- bind_rows(df_individual, c_baseline, c_condition)
+    }
+  }
+  df_individual$Outcome <- outcome
+}
+
+
+
+
+```
+
+
+### Feature Reduction
+
+```{r}
+df_wide <- df_individual |> 
+  select(-MAD) |>
+  pivot_wider(names_from = "Parameter", values_from = c("Median"))
+
+nfac <- n_factors(select(df_wide, -Participant))
+plot(nfac)
+
+rez <- factor_analysis(select(df_wide, -Participant), n = 4)
+plot(rez)
+```
+
+```{r}
+df_wide |>
+  correlation(p_adjust = "none", redundant = TRUE) |>
+  cor_sort() |>
+  mutate(Sig = ifelse(p < .05, "Significant", "N.S.")) |>
+  ggplot(aes(x=Parameter1, y=Parameter2)) +
+  geom_tile(aes(fill = r, alpha = Sig)) +
+  scale_fill_gradient2(low = "#1D9AF5", mid = "white", high = "#F51D56", midpoint = 0, limits = c(-1, 1)) +
+  scale_alpha_manual(values = c("Significant" = 1, "N.S." = 1)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+<!-- ### Reliability -->
+
+<!-- ### Structure -->
+
+<!-- ```{r} -->
+<!-- df_grouplevel <- ppt_beauty |> -->
+<!--   reshape_grouplevel(group = "Participant", indices = "Median") |> -->
+<!--   data_addprefix("Beauty_", exclude = "Participant") |> -->
+<!--   full_join( -->
+<!--       reshape_grouplevel(ppt_reality, group = "Participant", indices = "Median") |> -->
+<!--       data_addprefix("Reality_", exclude = "Participant"), -->
+<!--     by = "Participant") -->
+
+<!-- correlation::correlation(df_grouplevel, redundant = TRUE) |> -->
+<!--   cor_sort() |> -->
+<!--   summary() |> -->
+<!--   plot() -->
+
+<!-- # n_factors(df_grouplevel, n = 9) -->
+<!-- fa <- factor_analysis(select(df_grouplevel, -Participant), n = 3) -->
+<!-- df_grouplevel <- cbind(df_grouplevel, predict(fa)) -->
+<!-- plot(fa) -->
+<!-- ``` -->
+
+<!-- ### Correlations -->
+
+<!-- ```{r} -->
+<!-- select(df, ManipulationDistrust, -->
+<!--        BAIT_ArtRealistic, BAIT_Positive, BAIT_Negative, BAIT_Total, -->
+<!--        starts_with("MINT"), -MINT_AttentionCheck) |> -->
+<!--   correlation(data2 = df_grouplevel, p_adjust = "none") |> -->
+<!--   cor_sort() |> -->
+<!--   mutate(Sig = ifelse(p < .05, "Significant", "N.S.")) |> -->
+<!--   ggplot(aes(x=Parameter1, y=Parameter2)) + -->
+<!--   geom_tile(aes(fill = r, alpha = Sig)) + -->
+<!--   scale_fill_gradient2(low = "#1D9AF5", mid = "white", high = "#F51D56", midpoint = 0, limits = c(-1, 1)) + -->
+<!--   scale_alpha_manual(values = c("Significant" = 1, "N.S." = 0.2)) + -->
+<!--   theme(axis.text.x = element_text(angle = 45, hjust = 1)) -->
+<!-- ``` -->
+
+## Correlates
+
+```{r}
+df_all <- full_join(df, df_wide, by = "Participant")
+
+```
+
+```{r}
+select(df, ManipulationDistrust,
+       BAIT_ArtRealistic, BAIT_Positive, BAIT_Negative, BAIT_Total,
+       starts_with("MINT"), -MINT_AttentionCheck) |>
+  correlation(data2 = df_wide, p_adjust = "none") |>
+  cor_sort() |>
+  mutate(Sig = ifelse(p < .05, "Significant", "N.S.")) |>
+  ggplot(aes(x=Parameter1, y=Parameter2)) +
+  geom_tile(aes(fill = r, alpha = Sig)) +
+  scale_fill_gradient2(low = "#1D9AF5", mid = "white", high = "#F51D56", midpoint = 0, limits = c(-1, 1)) +
+  scale_alpha_manual(values = c("Significant" = 1, "N.S." = 0.2)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```

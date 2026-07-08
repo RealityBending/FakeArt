@@ -29,9 +29,12 @@ library(cogmod)
 options(mc.cores = parallel::detectCores() - 2)
 
 df <- read.csv("../data/data_participants.csv")
-dftask <- read.csv("../data/data_task.csv") |> 
+dftask <- read.csv("https://raw.githubusercontent.com/RealityBending/FakeArt/refs/heads/main/data/data_task.csv") |>
+  merge(read.csv("https://raw.githubusercontent.com/RealityBending/FakeArt/refs/heads/main/data/data_eyetracking.csv"), all.x = TRUE) |>
   mutate(Condition = fct_relevel(Condition, "Human Original", "Human Forgery", "AI-Generated"),
-         Emotion = fct_relevel(Emotion, "Positive - Low intensity", "Negative - Low intensity", "Positive - High intensity", "Negative - High intensity")) 
+         Emotion = fct_relevel(Emotion, "Positive - Low intensity", "Negative - Low intensity", "Positive - High intensity", "Negative - High intensity"),
+         Meaning = Meaning * 6,
+         Valence = Valence * 6 + 1) 
 
 cols <- c(
   # Condition
@@ -41,6 +44,78 @@ cols <- c(
   "AI Original" = "#1D9AF5",
   "AI Copy" = "#4CAF50",
   "Not recognized" = "#607D8B")
+```
+
+## Distributions
+
+```{r}
+p_dist_beauty <- dftask |> 
+  ggplot(aes(x=Beauty)) +
+  geom_histogram(aes(y=after_stat(density)), bins = 47, fill = colorRampPalette(c("#1976D2", "#0D47A1"))(47))
+
+p_dist_valence <- dftask |> 
+  ggplot(aes(x=Valence)) +
+  geom_bar(fill = colorRampPalette(c("#388E3C", "#1B5E20"))(7)) 
+  
+p_dist_meaning <- dftask |> 
+  ggplot(aes(x=Meaning)) +
+  geom_bar(fill = colorRampPalette(c("#512DA8", "#311B92"))(7))
+p_dist_worth <- dftask |> 
+  ggplot(aes(x=Worth)) +
+  geom_bar(fill = colorRampPalette(c("#FBC02D", "#F57F17"))(6)) 
+
+p_dist_entropy <- dftask |> 
+  ggplot(aes(x=Gaze_Entropy)) +
+  geom_histogram(aes(y=after_stat(density)), bins = 100, fill = colorRampPalette(c("#455A64", "#263238"))(100)) 
+
+p_dist_shift <- dftask |> 
+  ggplot(aes(x=Gaze_Shift)) +
+  geom_histogram(aes(y=after_stat(density)), bins = 100, fill = colorRampPalette(c("#455A64", "#263238"))(100)) 
+
+p_dist_pleft <- dftask |> 
+  ggplot(aes(x=Gaze_pLeft)) +
+  geom_histogram(aes(y=after_stat(density)), bins = 51, fill = colorRampPalette(c("#455A64", "#263238"))(51)) 
+
+p_dist_pcenter <- dftask |> 
+  ggplot(aes(x=Gaze_pCenter)) +
+  geom_histogram(aes(y=after_stat(density)), bins = 51, fill = colorRampPalette(c("#455A64", "#263238"))(51))
+
+wrap_plots(
+  (p_dist_beauty + labs(title = "Beauty")), 
+    (p_dist_valence + labs(title = "Valence")),
+    (p_dist_meaning + labs(title = "Meaning")), 
+    (p_dist_worth + labs(title = "Worth")),
+    (p_dist_entropy + labs(title = "Entropy")),
+    (p_dist_shift + labs(title = "Shift")),
+    (p_dist_pleft + labs(title = "pLeft")),
+    (p_dist_pcenter + labs(title = "pCenter")),
+  ncol = 4
+)
+```
+
+```{r}
+#| eval: false
+
+dist_theme <- list(
+  scale_x_continuous(expand = c(0, 0)),
+  scale_y_continuous(expand = c(0, 0)),
+  theme_void(),
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        plot.title = element_text(face = "bold"))
+)
+
+
+ggsave(p_dist_beauty + dist_theme, filename = "figures/dist_beauty.png", width = 6, height = 4, dpi = 300)
+ggsave(p_dist_valence + dist_theme, filename = "figures/dist_valence.png", width = 6, height = 4, dpi = 300)
+ggsave(p_dist_meaning + dist_theme, filename = "figures/dist_meaning.png", width = 6, height = 4, dpi = 300)
+ggsave(p_dist_worth + dist_theme, filename = "figures/dist_worth.png", width = 6, height = 4, dpi = 300)
+ggsave(p_dist_entropy + dist_theme, filename = "figures/dist_entropy.png", width = 6, height = 1.5, dpi = 300)
+ggsave(p_dist_shift + dist_theme, filename = "figures/dist_shift.png", width = 6, height = 1.5, dpi = 300)
+ggsave(p_dist_pleft + dist_theme, filename = "figures/dist_pleft.png", width = 6, height = 1.5, dpi = 300)
+ggsave(p_dist_pcenter + dist_theme, filename = "figures/dist_pcenter.png", width = 6, height = 1.5, dpi = 300)
 ```
 
 
@@ -194,7 +269,9 @@ get_contrasts <- function(m, outcome = "Beauty", contrast = "Condition", by = NU
     
     dat_con <- rbind(
       dat_con,
-      mutate(estimate_contrasts(m, contrast = contrast, by = by, predict = par, backend = "emmeans", test = "pd"), Parameter = par)
+      estimate_contrasts(m, contrast = contrast, by = by, predict = par, 
+                         backend = "emmeans", test = "pd", iterations = 500) |> 
+        mutate(Parameter = par)
       )
   }
   dat_con$Outcome <- outcome
@@ -249,6 +326,33 @@ gt::gt(rez_reality$rez_con)
 rez_reality_emo <- get_contrasts(m_reality, outcome = "Reality", contrast = "Condition", by = "Emotion")
 ```
 
+### Valence
+
+
+```{r}
+dftask |> 
+  ggplot(aes(x=Valence)) +
+  geom_bar()
+```
+
+
+### Meaning
+
+
+```{r}
+dftask |> 
+  ggplot(aes(x=Meaning)) +
+  geom_bar()
+```
+
+
+### Worth
+
+
+```{r}
+m_worth <- readRDS("models/Worth.rds")
+```
+
 
 ### Beauty2
 
@@ -257,27 +361,106 @@ rez_reality_emo <- get_contrasts(m_reality, outcome = "Reality", contrast = "Con
 m_beauty2 <- readRDS("models/Beauty2.rds")
 ```
 
-#### Figure
+### Eye-Tracking
+
+:::: {.panel-tabset}
+
+#### Entropy
+
 
 ```{r}
-#| fig-width: 10
-#| fig-height: 7
+m_entropy <- readRDS("models/Entropy.rds")
 
-par_beauty2 <- get_marginal_parameters(m_beauty2)
-dens_beauty2 <- get_marginal_densities(par_beauty2, adjust = 0.5)
-p_beauty2 <- get_choco_plot(dens_beauty2, title = "Beauty (Follow-up)", 
-                            observed = "Beauty2", 
-                            xlabs = c("0%\nUgly", "100%\nBeautiful"))
-p_beauty2
+pred <- estimate_prediction(m_entropy, ci = NULL, iterations = 50, keep_iterations = TRUE) |> 
+  reshape_iterations()
+
+dftask |> 
+  ggplot(aes(x=Gaze_Entropy)) +
+  geom_histogram(aes(y=after_stat(density)), bins = 40) +
+  geom_line(data = pred, stat = "density", alpha = 0.5,
+            aes(x = iter_value, group = interaction(Condition, iter_group), color = Condition))
+
+estimate_contrasts(m_entropy, contrast = "Condition", by = NULL, predict = "response", 
+                   backend = "emmeans", test = "pd", iterations = 500) 
+estimate_contrasts(m_entropy, contrast = "Emotion", by = NULL, predict = "response", 
+                   backend = "emmeans", test = "pd", iterations = 500) 
+estimate_contrasts(m_entropy, contrast = "Condition", by = "Emotion", predict = "response", 
+                   backend = "emmeans", test = "pd", iterations = 500) 
 ```
 
-#### Contrasts
+#### pLeft
+
 
 ```{r}
-rez_beauty2 <- get_contrasts(m_beauty2, outcome = "Beauty2", contrast = "Condition")
-gt::gt(rez_reality$rez_con)
+m_pleft <- readRDS("models/pLeft.rds")
+
+pred <- estimate_prediction(m_pleft, ci = NULL, iterations = 50, keep_iterations = TRUE) |> 
+  reshape_iterations()
+
+dftask |> 
+  ggplot(aes(x=Gaze_pLeft)) +
+  geom_histogram(aes(y=after_stat(density)), bins = 40) +
+  geom_line(data = pred, stat = "density", alpha = 0.5,
+            aes(x = iter_value, group = interaction(Condition, iter_group), color = Condition))
+
+estimate_contrasts(m_pleft, contrast = "Condition", by = NULL, predict = "response", 
+                   backend = "emmeans", test = "pd", iterations = 500) 
+estimate_contrasts(m_pleft, contrast = "Emotion", by = NULL, predict = "response", 
+                   backend = "emmeans", test = "pd", iterations = 500) 
+estimate_contrasts(m_pleft, contrast = "Condition", by = "Emotion", predict = "response", 
+                   backend = "emmeans", test = "pd", iterations = 500) 
 ```
 
+#### pLeft
+
+
+```{r}
+m_pcenter <- readRDS("models/pCenter.rds")
+
+pred <- estimate_prediction(m_pcenter, ci = NULL, iterations = 50, keep_iterations = TRUE) |> 
+  reshape_iterations()
+
+dftask |> 
+  ggplot(aes(x=Gaze_pCenter)) +
+  geom_histogram(aes(y=after_stat(density)), bins = 40) +
+  geom_line(data = pred, stat = "density", alpha = 0.5,
+            aes(x = iter_value, group = interaction(Condition, iter_group), color = Condition))
+
+estimate_contrasts(m_pcenter, contrast = "Condition", by = NULL, predict = "response", 
+                   backend = "emmeans", test = "pd", iterations = 500) 
+estimate_contrasts(m_pcenter, contrast = "Emotion", by = NULL, predict = "response", 
+                   backend = "emmeans", test = "pd", iterations = 500) 
+estimate_contrasts(m_pcenter, contrast = "Condition", by = "Emotion", predict = "response", 
+                   backend = "emmeans", test = "pd", iterations = 500) 
+```
+
+#### Shift
+
+
+```{r}
+m_shift <- readRDS("models/Shift.rds")
+
+pred <- estimate_prediction(m_shift, ci = NULL, iterations = 500, keep_iterations = TRUE) |> 
+  reshape_iterations()
+
+dftask |> 
+  # filter(Emotion == "Positiev - Low intensity") |> 
+  ggplot(aes(x=Gaze_Shift)) +
+  geom_histogram(aes(y=after_stat(density)), bins = 100) +
+  geom_line(data = pred, stat = "density", alpha = 0.05,
+            aes(x = iter_value, group = interaction(Condition, iter_group), color = Condition)) +
+  coord_cartesian(xlim = c(0, 1)) +
+  facet_wrap(~Emotion)
+
+estimate_contrasts(m_shift, contrast = "Condition", by = NULL, predict = "response", 
+                   backend = "emmeans", test = "pd", iterations = 500) 
+estimate_contrasts(m_shift, contrast = "Emotion", by = NULL, predict = "response", 
+                   backend = "emmeans", test = "pd", iterations = 500) 
+estimate_contrasts(m_shift, contrast = "Condition", by = "Emotion", predict = "response", 
+                   backend = "emmeans", test = "pd", iterations = 500) 
+```
+
+::::
 
 :::
 
@@ -342,25 +525,25 @@ rez_con |>
 
 
 
-<!-- ## Individual Parameters -->
+## Individual Parameters
 
-<!-- ```{r} -->
-<!-- ppt_beauty_con <- estimate_contrasts(m_beauty, contrast = "Condition", by = c("Participant"), backend = "marginaleffects", iter = 20) -->
+```{r}
+ppt_beauty_con <- estimate_contrasts(m_beauty, contrast = "Condition", by = c("Participant"), backend = "marginaleffects", iter = 20)
 
-<!-- # Extract pairwise contrasts for each participant -->
-<!-- ppt_beauty_con <- marginaleffects::avg_comparisons( -->
-<!--   m_beauty, -->
-<!--   newdata = dftask[1:100,], -->
-<!--   draws = 50, -->
-<!--   variables = list(Condition = "pairwise"), -->
-<!--   by = "Participant", -->
-<!--   re_formula = NULL # Crucial: tells brms to include the random effects -->
-<!-- ) -->
+# Extract pairwise contrasts for each participant
+ppt_beauty_con <- marginaleffects::avg_comparisons(
+  m_beauty,
+  newdata = dftask[1:100,],
+  draws = 50,
+  variables = list(Condition = "pairwise"),
+  by = "Participant",
+  re_formula = NULL # Crucial: tells brms to include the random effects
+)
 
-<!-- ppt_beauty <- estimate_grouplevel(m_beauty, type = "total") -->
-<!-- # plot(ppt_beauty) -->
-<!-- ppt_reality <- estimate_grouplevel(m_reality, type = "total") -->
-<!-- ``` -->
+ppt_beauty <- estimate_grouplevel(m_beauty, type = "total")
+# plot(ppt_beauty)
+ppt_reality <- estimate_grouplevel(m_reality, type = "total")
+```
 
 
 

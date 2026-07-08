@@ -12,7 +12,11 @@ task_id <- as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID", unset = "1"))
 setwd("/mnt/lustre/scratch/psych/dmm56/FakeArt/")
 
 # List of models
-model_names <- c("Beauty", "Reality", "Authenticity", "Beauty2")
+model_names <- c(
+  "Beauty", "Reality", "Authenticity", "Beauty2",
+  # "Worth",
+  "Entropy", "pLeft", "pCenter", "Shift"
+)
 
 # Select the model name based on the task ID
 name <- model_names[task_id]
@@ -28,7 +32,7 @@ combine_and_save <- function(name) {
   m <- brms::combine_models(mlist = lapply(files, readRDS))
 
   # Add criterion and save
-  # m <- brms::add_criterion(m, "waic", ndraws = 1500, file = name)
+  m <- brms::add_criterion(m, "waic", ndraws = 1500)
 
   # Save combined model
   saveRDS(m, paste0(name, ".rds"))

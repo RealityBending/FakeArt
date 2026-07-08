@@ -91,7 +91,7 @@ participant_dup <- df |>
   summarise(prop_dup = mean(dup, na.rm = TRUE), .groups = "drop")
 
 # Candidates for full removal from eyetracking module
-broken_ppts <- participant_dup |> filter(prop_dup > 0.05) |> pull(Participant)
+broken_ppts <- participant_dup |> filter(prop_dup > 0.25) |> pull(Participant)
 length(broken_ppts)  # expect ~14
 
 
@@ -100,7 +100,7 @@ participant_dup |>
          Participant = fct_reorder(Participant, prop_dup)) |>
   ggplot(aes(x = prop_dup, y = Participant, fill = Flagged)) +
   geom_bar(stat = "identity", position = "stack") +
-  geom_vline(xintercept = 0.05, linetype = "dashed", color = "black", linewidth = 0.8) +
+  geom_vline(xintercept = 0.25, linetype = "dashed", color = "black", linewidth = 0.8) +
   scale_fill_manual(values = c("FALSE" = "#4CAF50", "TRUE" = "firebrick")) +
   theme_minimal() +
   theme(axis.text.y = element_blank()) +
