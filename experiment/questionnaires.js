@@ -23,8 +23,8 @@ function shuffleObject(obj) {
 // The 4 item patient health questionnaire for anxiety and depression (Kroenke et al., 2009)
 // total score, sum of all items: scores are rated as normal (0-2), mild (3-5), moderate (6-8), severe (9-12)
 // total score >= 3 for first two items suggests anxiety, total score >= 3 for last two items suggests depression
-// Note: We used the refined version of the PHQ-4 (KrMakowski et a., under review) with an additinal response option
-// Also includes the Life Satisfaction Scale
+// Note: We used the refined version of the PHQ-4 (Makowski et al., under review) with an additinal response option
+// Also includes the Life Satisfaction Scale (Cheung, 2014)
 
 const items_phq4 = {
     PHQ4_Anxiety_1: "Feeling nervous, anxious or on edge",

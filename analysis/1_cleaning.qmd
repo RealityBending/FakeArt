@@ -1162,7 +1162,7 @@ sort(table(df$Country)) |>
 ```{r}
 dftask <- dftask |> 
   left_join(select(df, Participant, ManipulationDistrust), by = c("Participant")) |> 
-  left_join(select(read.csv("../data/rawdata_memory_task.csv"), Participant, Item, SelfRelevance, Beauty2), by = c("Participant", "Item")) |> 
+  left_join(select(read.csv("../data/rawdata_memory_task.csv"), Participant, Item, SelfRelevance, Beauty2, PerceivedArtificiality), by = c("Participant", "Item")) |> 
   mutate(Emotion = paste0(ifelse(Norms_Valence < median(Norms_Valence), "Negative", "Positive"), ifelse(Norms_Arousal < median(Norms_Arousal), " - Low intensity", " - High intensity")),
          Beauty = datawizard::rescale(Beauty, to = c(0, 1), range = c(-3, 3)),
          Valence = datawizard::rescale(Valence, to = c(0, 1), range = c(-3, 3)),
@@ -1171,7 +1171,8 @@ dftask <- dftask |>
          Reality = datawizard::rescale(Reality, to = c(0, 1), range = c(-100, 100)),
          Authenticity = datawizard::rescale(Authenticity, to = c(0, 1), range = c(-100, 100)),
          Beauty2 = datawizard::rescale(Beauty2, to = c(0, 1), range = c(-3, 3)),
-         SelfRelevance = datawizard::rescale(SelfRelevance, to = c(0, 1), range = c(0, 6))
+         SelfRelevance = datawizard::rescale(SelfRelevance, to = c(0, 1), range = c(0, 6)),
+         PerceivedArtificiality = datawizard::rescale(PerceivedArtificiality, to = c(0, 1), range = c(-1, 1))
          ) |>
   datawizard::normalize(select = c("Norms_Liking", "Norms_Valence", "Norms_Arousal", "Norms_Complexity", "Norms_Familiarity")) 
 
@@ -1183,9 +1184,11 @@ write.csv(dftask, "../data/data_task.csv", row.names = FALSE)
 dfmem <- read.csv("../data/rawdata_memory_task.csv") 
 # sum(!unique(dfmem$Participant) %in% df$Participant)
 dfmem <- dfmem |> 
+  mutate(Beauty2 = datawizard::rescale(Beauty2, to = c(0, 1), range = c(-3, 3)),
+         SelfRelevance = datawizard::rescale(SelfRelevance, to = c(0, 1), range = c(0, 6)),
+         PerceivedArtificiality = datawizard::rescale(PerceivedArtificiality, to = c(0, 1), range = c(-1, 1))) |> 
   filter(Participant %in% df$Participant) |> 
-  select(-SelfRelevance, -Beauty2) |> 
-  left_join(dftask, by = c("Participant", "Item")) |>
+  left_join(select(dftask, -SelfRelevance, -Beauty2, -PerceivedArtificiality), by = c("Participant", "Item")) |>
   rename(AnswerCondition = SourceCondition, AnswerBelief = SourceBelief) |> 
   mutate(Type = ifelse(is.na(Condition), "New", "Old"),
          Condition = ifelse(is.na(Condition), "New Items", as.character(Condition)),
