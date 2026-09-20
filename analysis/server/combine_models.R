@@ -13,9 +13,10 @@ setwd("/mnt/lustre/scratch/psych/dmm56/FakeArt/")
 
 # List of models
 model_names <- c(
-  "Beauty", "Reality", "Authenticity", "Beauty2",
-  # "Worth",
-  "Entropy", "pLeft", "pCenter", "Shift"
+  # "Beauty", "Valence", "Meaning", "Worth"
+  "Reality", "Authenticity", # "Beauty2",
+  "SelfRelevance", "Artificiality"
+  # "Entropy", "pLeft", "pCenter", "Shift"
 )
 
 # Select the model name based on the task ID

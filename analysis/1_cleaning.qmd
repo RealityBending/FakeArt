@@ -487,7 +487,8 @@ dfchecks <- dftask |>
             .by = c("Participant")) |> 
   mutate(cor_BeautyValence = ifelse(is.na(cor_BeautyValence), -1, cor_BeautyValence),
          cor_MeaningWorth = ifelse(is.na(cor_MeaningWorth), -1, cor_MeaningWorth),
-         cor_BeautyNorm = ifelse(is.na(cor_BeautyNorm), -1, cor_BeautyNorm)) |>
+         cor_BeautyNorm = ifelse(is.na(cor_BeautyNorm), -1, cor_BeautyNorm),
+         cor_ValenceNorm = ifelse(is.na(cor_ValenceNorm), -1, cor_ValenceNorm)) |>  # NA when a participant gives a constant rating (zero variance)
   full_join(dfchecks, by = "Participant", keep = FALSE)
 ```
 

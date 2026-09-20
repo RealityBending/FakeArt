@@ -44,8 +44,14 @@ for (file in files) {
     next
   }
 
-  if (dat$researcher %in% c("testp", "test", "README")) {
+  if (tolower(dat$researcher) %in% c("testp", "test", "readme")) {
     next # Skip test participants
+  }
+
+  # Known test runs that were not tagged as such (e.g., experimenter running the task on themselves)
+  # - jw8ypf0gtj: 'mia' (Aug 2026), Age = 99, 26 min, constant Valence ratings, failed all attention checks
+  if (participant %in% c("jw8ypf0gtj")) {
+    next
   }
 
   data_ppt <- data.frame(
@@ -89,6 +95,7 @@ for (file in files) {
     resp$Education
   )
   data_ppt$Education <- ifelse(data_ppt$Education %in% c("Nvq level 3", "College", "some college,no degree", "Vocational", "Associate Degree", "associate"), "High school", data_ppt$Education)
+  data_ppt$Education <- ifelse(data_ppt$Education %in% c("PGDip"), "Master", data_ppt$Education) # Postgraduate diploma
 
   data_ppt$Student <- ifelse(!is.null(resp$Student), resp$Student, NA)
   data_ppt$Country <- ifelse(!is.null(resp$Country), resp$Country, NA)
@@ -386,6 +393,7 @@ for (file in files) {
   # Eye tracking
   data_ppt$Eyetracking_Validation1 <- NA
   data_ppt$Eyetracking_Validation2 <- NA
+  data_gaze <- data.frame() # Reset here (not inside the if) so participants without eye-tracking don't inherit the previous participant's gaze
 
   calibration <- rawdata[rawdata$screen == "eyetracking_validation_run", ]
   if (nrow(calibration) > 0) {
@@ -418,7 +426,6 @@ for (file in files) {
     # standard web coordinate systems. Research suggests x increases to the
     # right and y increases downward.
 
-    data_gaze <- data.frame()
     for (i in 1:nrow(data_task)) {
       if (nrow(gaze_isi[[i]]) > 0) {
         gaze_isi[[i]]$Item <- data_task[i, "Item"]
@@ -595,7 +602,7 @@ for (file in files) {
     next
   }
 
-  if (dat$researcher %in% c("test", "README")) {
+  if (tolower(dat$researcher) %in% c("test", "readme")) {
     next # Skip test participants
   }
 

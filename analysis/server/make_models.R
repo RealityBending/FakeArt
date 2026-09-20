@@ -34,7 +34,7 @@ dftask$Valence <- round(dftask$Valence * 6 + 1)
 dftask$Meaning <- round(dftask$Meaning * 6)
 dftask$Worth <- factor(dftask$Worth, ordered = TRUE)
 levels(dftask$Worth) <- c("0", "10", "100", "1000", "10000", "100000")
-
+dftask$SelfRelevance <- factor(round(dftask$SelfRelevance * 6), ordered = TRUE)
 
 # PHASE 1 ======================================================================
 
@@ -94,7 +94,7 @@ priors <- c(
 #   threads = threading(threads_per_chain),
 #   iter = iter,
 #   warmup = warmup,
-#   thin = thin,
+#   thin = thin, control = list(adapt_delta = 0.90),
 #   seed = seed,
 #   backend = "cmdstanr",
 #   file = paste0(path, "Beauty_task_", task_id)
@@ -104,129 +104,129 @@ priors <- c(
 
 # Valence ----------------------------
 
-
-formula <- brms::bf(
-  Valence | vint(7) ~ Condition * Emotion + (Condition * Emotion | Participant) + (Condition | Item),
-  phi ~ Condition * Emotion + (Condition * Emotion | Participant) + (Condition | Item),
-  pzero = 0,
-  family = cogmod::betadiscrete()
-)
-
-# Tighter priors for interactions
-priors_valence <- c(
-  brms::set_prior("normal(0, 2)", class = "b", coef = "", dpar = ""),
-  brms::set_prior("normal(0, 2)", class = "b", coef = "", dpar = "phi")
-)
-default_priors <- as.data.frame(brms::get_prior(formula, data = dftask))
-interactions <- default_priors[grepl("\\:", default_priors$coef) & default_priors$class == "b", ]
-for (i in 1:nrow(interactions)) {
-  priors_valence <- rbind(
-    priors_valence,
-    brms::set_prior("normal(0, 1)", class = interactions$class[i], coef = interactions$coef[i], dpar = interactions$dpar[i])
-  )
-}
-
-m_valence <- brm(formula,
-  data = dftask,
-  family = betadiscrete(), stanvars = betadiscrete_stanvars(),
-  prior = brms::validate_prior(priors_valence, formula, data = dftask),
-  init = 0,
-  chains = chains_per_node,
-  cores = chains_per_node,
-  threads = threading(threads_per_chain),
-  iter = iter,
-  warmup = warmup,
-  thin = thin,
-  seed = seed,
-  backend = "cmdstanr",
-  file = paste0(path, "Valence_task_", task_id)
-)
-
-print("!! VALENCE DONE !!")
+#
+# formula <- brms::bf(
+#   Valence | vint(7) ~ Condition * Emotion + (Condition * Emotion | Participant) + (Condition | Item),
+#   phi ~ Condition * Emotion + (Condition * Emotion | Participant) + (Condition | Item),
+#   pzero = 0,
+#   family = cogmod::betadiscrete()
+# )
+#
+# # Tighter priors for interactions
+# priors_valence <- c(
+#   brms::set_prior("normal(0, 2)", class = "b", coef = "", dpar = ""),
+#   brms::set_prior("normal(0, 2)", class = "b", coef = "", dpar = "phi")
+# )
+# default_priors <- as.data.frame(brms::get_prior(formula, data = dftask))
+# interactions <- default_priors[grepl("\\:", default_priors$coef) & default_priors$class == "b", ]
+# for (i in 1:nrow(interactions)) {
+#   priors_valence <- rbind(
+#     priors_valence,
+#     brms::set_prior("normal(0, 1)", class = interactions$class[i], coef = interactions$coef[i], dpar = interactions$dpar[i])
+#   )
+# }
+#
+# m_valence <- brm(formula,
+#   data = dftask,
+#   family = betadiscrete(), stanvars = betadiscrete_stanvars(),
+#   prior = brms::validate_prior(priors_valence, formula, data = dftask),
+#   init = 0,
+#   chains = chains_per_node,
+#   cores = chains_per_node,
+#   threads = threading(threads_per_chain),
+#   iter = iter,
+#   warmup = warmup,
+#   thin = thin, control = list(adapt_delta = 0.90),
+#   seed = seed,
+#   backend = "cmdstanr",
+#   file = paste0(path, "Valence_task_", task_id)
+# )
+#
+# print("!! VALENCE DONE !!")
 
 # Meaning ----------------------------
 
 
-formula <- brms::bf(
-  Meaning | vint(6) ~ Condition * Emotion + (Condition * Emotion | Participant) + (Condition | Item),
-  phi ~ Condition * Emotion + (Condition * Emotion | Participant) + (Condition | Item),
-  pzero ~ Condition * Emotion + (Condition * Emotion | Participant) + (Condition | Item),
-  family = cogmod::betadiscrete()
-)
-
-# Tighter priors for interactions
-priors_meaning <- c(
-  brms::set_prior("normal(0, 2)", class = "b", coef = "", dpar = ""),
-  brms::set_prior("normal(0, 2)", class = "b", coef = "", dpar = "phi"),
-  brms::set_prior("normal(0, 2)", class = "b", coef = "", dpar = "przero")
-)
-default_priors <- as.data.frame(brms::get_prior(formula, data = dftask))
-interactions <- default_priors[grepl("\\:", default_priors$coef) & default_priors$class == "b", ]
-for (i in 1:nrow(interactions)) {
-  priors_meaning <- rbind(
-    priors_meaning,
-    brms::set_prior("normal(0, 1)", class = interactions$class[i], coef = interactions$coef[i], dpar = interactions$dpar[i])
-  )
-}
-
-
-m_meaning <- brm(formula,
-  data = dftask,
-  family = betadiscrete(), stanvars = betadiscrete_stanvars(),
-  prior = brms::validate_prior(priors_meaning, formula, data = dftask),
-  init = 0,
-  chains = chains_per_node,
-  cores = chains_per_node,
-  threads = threading(threads_per_chain),
-  iter = iter,
-  warmup = warmup,
-  thin = thin,
-  seed = seed,
-  backend = "cmdstanr",
-  file = paste0(path, "Meaning_task_", task_id)
-)
-
-print("!! MEANING DONE !!")
+# formula <- brms::bf(
+#   Meaning | vint(6) ~ Condition * Emotion + (Condition * Emotion | Participant) + (Condition | Item),
+#   phi ~ Condition * Emotion + (Condition * Emotion | Participant) + (Condition | Item),
+#   pzero ~ Condition * Emotion + (Condition * Emotion | Participant) + (Condition | Item),
+#   family = cogmod::betadiscrete()
+# )
+#
+# # Tighter priors for interactions
+# priors_meaning <- c(
+#   brms::set_prior("normal(0, 2)", class = "b", coef = "", dpar = ""),
+#   brms::set_prior("normal(0, 2)", class = "b", coef = "", dpar = "phi"),
+#   brms::set_prior("normal(0, 2)", class = "b", coef = "", dpar = "pzero")
+# )
+# default_priors <- as.data.frame(brms::get_prior(formula, data = dftask))
+# interactions <- default_priors[grepl("\\:", default_priors$coef) & default_priors$class == "b", ]
+# for (i in 1:nrow(interactions)) {
+#   priors_meaning <- rbind(
+#     priors_meaning,
+#     brms::set_prior("normal(0, 1)", class = interactions$class[i], coef = interactions$coef[i], dpar = interactions$dpar[i])
+#   )
+# }
+#
+#
+# m_meaning <- brm(formula,
+#   data = dftask,
+#   family = betadiscrete(), stanvars = betadiscrete_stanvars(),
+#   prior = brms::validate_prior(priors_meaning, formula, data = dftask),
+#   init = 0,
+#   chains = chains_per_node,
+#   cores = chains_per_node,
+#   threads = threading(threads_per_chain),
+#   iter = iter,
+#   warmup = warmup,
+#   thin = thin, control = list(adapt_delta = 0.90),
+#   seed = seed,
+#   backend = "cmdstanr",
+#   file = paste0(path, "Meaning_task_", task_id)
+# )
+#
+# print("!! MEANING DONE !!")
 
 # Worth ----------------------------
 
-formula <- brms::bf(
-  Worth ~ Condition * Emotion + (Condition * Emotion | Participant) + (Condition * Emotion | Item),
-  disc ~ 1 + (1 | Participant) + (1 | Item),
-  family = cumulative()
-)
-
-priors_worth <- c(
-  brms::set_prior("normal(0, 2)", class = "b", coef = "", dpar = "")
-  # brms::set_prior("normal(0, 2)", class = "b", coef = "", dpar = "disc")
-)
-default_priors <- as.data.frame(brms::get_prior(formula, data = dftask[!is.na(dftask$Worth), ]))
-interactions <- default_priors[grepl("\\:", default_priors$coef) & default_priors$class == "b", ]
-for (i in 1:nrow(interactions)) {
-  priors_worth <- rbind(
-    priors_worth,
-    brms::set_prior("normal(0, 1)", class = interactions$class[i], coef = interactions$coef[i], dpar = interactions$dpar[i])
-  )
-}
-
-
-m_worth <- brm(formula,
-  data = dftask[!is.na(dftask$Worth), ],
-  family = cumulative(),
-  prior = brms::validate_prior(priors_worth, formula, data = dftask),
-  init = 0,
-  chains = chains_per_node,
-  cores = chains_per_node,
-  threads = threading(threads_per_chain),
-  iter = iter,
-  warmup = warmup,
-  thin = thin,
-  seed = seed,
-  backend = "cmdstanr",
-  file = paste0(path, "Worth_task_", task_id)
-)
-
-print("!! WORTH DONE !!")
+# formula <- brms::bf(
+#   Worth ~ Condition * Emotion + (Condition * Emotion | Participant) + (Condition * Emotion | Item),
+#   disc ~ 1 + (1 | Participant) + (1 | Item),
+#   family = cumulative()
+# )
+#
+# priors_worth <- c(
+#   brms::set_prior("normal(0, 2)", class = "b", coef = "", dpar = "")
+#   # brms::set_prior("normal(0, 2)", class = "b", coef = "", dpar = "disc")
+# )
+# default_priors <- as.data.frame(brms::get_prior(formula, data = dftask[!is.na(dftask$Worth), ]))
+# interactions <- default_priors[grepl("\\:", default_priors$coef) & default_priors$class == "b", ]
+# for (i in 1:nrow(interactions)) {
+#   priors_worth <- rbind(
+#     priors_worth,
+#     brms::set_prior("normal(0, 1)", class = interactions$class[i], coef = interactions$coef[i], dpar = interactions$dpar[i])
+#   )
+# }
+#
+#
+# m_worth <- brm(formula,
+#   data = dftask[!is.na(dftask$Worth), ],
+#   family = cumulative(),
+#   prior = brms::validate_prior(priors_worth, formula, data = dftask),
+#   init = 0,
+#   chains = chains_per_node,
+#   cores = chains_per_node,
+#   threads = threading(threads_per_chain),
+#   iter = iter,
+#   warmup = warmup,
+#   thin = thin, control = list(adapt_delta = 0.90),
+#   seed = seed,
+#   backend = "cmdstanr",
+#   file = paste0(path, "Worth_task_", task_id)
+# )
+#
+# print("!! WORTH DONE !!")
 
 # EYETRACKING =================================================================
 # # Entropy ----------------------------
@@ -261,7 +261,7 @@ print("!! WORTH DONE !!")
 #   threads = threading(threads_per_chain),
 #   iter = iter,
 #   warmup = warmup,
-#   thin = thin,
+#   thin = thin, control = list(adapt_delta = 0.90),
 #   seed = seed,
 #   backend = "cmdstanr",
 #   file = paste0(path, "Entropy_task_", task_id)
@@ -302,7 +302,7 @@ print("!! WORTH DONE !!")
 #   threads = threading(threads_per_chain),
 #   iter = iter,
 #   warmup = warmup,
-#   thin = thin,
+#   thin = thin, control = list(adapt_delta = 0.90),
 #   seed = seed,
 #   backend = "cmdstanr",
 #   file = paste0(path, "pLeft_task_", task_id)
@@ -331,7 +331,7 @@ print("!! WORTH DONE !!")
 #   threads = threading(threads_per_chain),
 #   iter = iter,
 #   warmup = warmup,
-#   thin = thin,
+#   thin = thin, control = list(adapt_delta = 0.90),
 #   seed = seed,
 #   backend = "cmdstanr",
 #   file = paste0(path, "pCenter_task_", task_id)
@@ -371,7 +371,7 @@ print("!! WORTH DONE !!")
 #   threads = threading(threads_per_chain),
 #   iter = iter,
 #   warmup = warmup,
-#   thin = thin,
+#   thin = thin, control = list(adapt_delta = 0.90),
 #   seed = seed,
 #   backend = "cmdstanr",
 #   file = paste0(path, "Shift_task_", task_id)
@@ -384,91 +384,91 @@ print("!! WORTH DONE !!")
 # Reality ----------------------------
 
 
-# formula <- brms::bf(
-#   Reality ~ Condition * Emotion + (Condition * Emotion | Participant) + (Condition | Item),
-#   confright ~ Condition * Emotion + (Condition * Emotion | Participant) + (Condition | Item),
-#   confleft ~ Condition * Emotion + (Condition * Emotion | Participant) + (Condition | Item),
-#   precright ~ Condition * Emotion + (Condition * Emotion | Participant) + (1 | Item),
-#   precleft ~ Condition * Emotion + (Condition * Emotion | Participant) + (1 | Item),
-#   pex ~ Condition + (1 | Participant),
-#   bex ~ Condition + (1 | Participant),
-#   pmid ~ Condition + (1 | Participant),
-#   family = choco()
-# )
-#
-# # Tighter priors for interactions
-# priors_reality <- priors
-# default_priors <- as.data.frame(brms::get_prior(formula, data = dftask[!is.na(dftask$Reality), ]))
-# interactions <- default_priors[grepl("\\:", default_priors$coef) & default_priors$class == "b", ]
-# for (i in 1:nrow(interactions)) {
-#   priors_reality <- rbind(
-#     priors_reality,
-#     brms::set_prior("normal(0, 1)", class = interactions$class[i], coef = interactions$coef[i], dpar = interactions$dpar[i])
-#   )
-# }
-#
-# m_reality <- brm(formula,
-#   data = dftask[!is.na(dftask$Reality), ],
-#   family = choco(), stanvars = choco_stanvars(),
-#   prior = brms::validate_prior(priors_reality, formula, data = dftask[!is.na(dftask$Reality), ]),
-#   init = 0,
-#   chains = chains_per_node,
-#   cores = chains_per_node,
-#   threads = threading(threads_per_chain),
-#   iter = iter,
-#   warmup = warmup,
-#   thin = thin,
-#   seed = seed,
-#   backend = "cmdstanr",
-#   file = paste0(path, "Reality_task_", task_id)
-# )
-#
-# print("!! REALITY DONE !!")
+formula <- brms::bf(
+  Reality ~ Condition * Emotion + (Condition * Emotion | Participant) + (Condition | Item),
+  confright ~ Condition * Emotion + (Condition * Emotion | Participant) + (Condition | Item),
+  confleft ~ Condition * Emotion + (Condition * Emotion | Participant) + (Condition | Item),
+  precright ~ Condition * Emotion + (Condition * Emotion | Participant) + (1 | Item),
+  precleft ~ Condition * Emotion + (Condition * Emotion | Participant) + (1 | Item),
+  pex ~ Condition + (1 | Participant),
+  bex ~ Condition + (1 | Participant),
+  pmid ~ Condition + (1 | Participant),
+  family = choco()
+)
+
+# Tighter priors for interactions
+priors_reality <- priors
+default_priors <- as.data.frame(brms::get_prior(formula, data = dftask[!is.na(dftask$Reality), ]))
+interactions <- default_priors[grepl("\\:", default_priors$coef) & default_priors$class == "b", ]
+for (i in 1:nrow(interactions)) {
+  priors_reality <- rbind(
+    priors_reality,
+    brms::set_prior("normal(0, 1)", class = interactions$class[i], coef = interactions$coef[i], dpar = interactions$dpar[i])
+  )
+}
+
+m_reality <- brm(formula,
+  data = dftask[!is.na(dftask$Reality), ],
+  family = choco(), stanvars = choco_stanvars(),
+  prior = brms::validate_prior(priors_reality, formula, data = dftask[!is.na(dftask$Reality), ]),
+  init = 0,
+  chains = chains_per_node,
+  cores = chains_per_node,
+  threads = threading(threads_per_chain),
+  iter = iter,
+  warmup = warmup,
+  thin = thin, control = list(adapt_delta = 0.90),
+  seed = seed,
+  backend = "cmdstanr",
+  file = paste0(path, "Reality_task_", task_id)
+)
+
+print("!! REALITY DONE !!")
 
 
 # Authenticity ----------------------------
 
-#
-# formula <- brms::bf(
-#   Authenticity ~ Condition * Emotion + (Condition * Emotion | Participant) + (Condition | Item),
-#   confright ~ Condition * Emotion + (Condition * Emotion | Participant) + (Condition | Item),
-#   confleft ~ Condition * Emotion + (Condition * Emotion | Participant) + (Condition | Item),
-#   precright ~ Condition * Emotion + (Condition * Emotion | Participant) + (1 | Item),
-#   precleft ~ Condition * Emotion + (Condition * Emotion | Participant) + (1 | Item),
-#   pex ~ Condition + (1 | Participant),
-#   bex ~ Condition + (1 | Participant),
-#   pmid ~ Condition + (1 | Participant),
-#   family = choco()
-# )
-#
-# # Tighter priors for interaction
-# priors_auth <- priors
-# default_priors <- as.data.frame(brms::get_prior(formula, data = dftask[!is.na(dftask$Authenticity), ]))
-# interactions <- default_priors[grepl("\\:", default_priors$coef) & default_priors$class == "b", ]
-# for (i in 1:nrow(interactions)) {
-#   priors_auth <- rbind(
-#     priors_auth,
-#     brms::set_prior("normal(0, 1)", class = interactions$class[i], coef = interactions$coef[i], dpar = interactions$dpar[i])
-#   )
-# }
-#
-# m_reality <- brm(formula,
-#   data = dftask[!is.na(dftask$Authenticity), ],
-#   family = choco(), stanvars = choco_stanvars(),
-#   prior = brms::validate_prior(priors_auth, formula, data = dftask[!is.na(dftask$Authenticity), ]),
-#   init = 0,
-#   chains = chains_per_node,
-#   cores = chains_per_node,
-#   threads = threading(threads_per_chain),
-#   iter = iter,
-#   warmup = warmup,
-#   thin = thin,
-#   seed = seed,
-#   backend = "cmdstanr",
-#   file = paste0(path, "Authenticity_task_", task_id)
-# )
-#
-# print("!! Authenticity DONE !!")
+
+formula <- brms::bf(
+  Authenticity ~ Condition * Emotion + (Condition * Emotion | Participant) + (Condition | Item),
+  confright ~ Condition * Emotion + (Condition * Emotion | Participant) + (Condition | Item),
+  confleft ~ Condition * Emotion + (Condition * Emotion | Participant) + (Condition | Item),
+  precright ~ Condition * Emotion + (Condition * Emotion | Participant) + (1 | Item),
+  precleft ~ Condition * Emotion + (Condition * Emotion | Participant) + (1 | Item),
+  pex ~ Condition + (1 | Participant),
+  bex ~ Condition + (1 | Participant),
+  pmid ~ Condition + (1 | Participant),
+  family = choco()
+)
+
+# Tighter priors for interaction
+priors_auth <- priors
+default_priors <- as.data.frame(brms::get_prior(formula, data = dftask[!is.na(dftask$Authenticity), ]))
+interactions <- default_priors[grepl("\\:", default_priors$coef) & default_priors$class == "b", ]
+for (i in 1:nrow(interactions)) {
+  priors_auth <- rbind(
+    priors_auth,
+    brms::set_prior("normal(0, 1)", class = interactions$class[i], coef = interactions$coef[i], dpar = interactions$dpar[i])
+  )
+}
+
+m_reality <- brm(formula,
+  data = dftask[!is.na(dftask$Authenticity), ],
+  family = choco(), stanvars = choco_stanvars(),
+  prior = brms::validate_prior(priors_auth, formula, data = dftask[!is.na(dftask$Authenticity), ]),
+  init = 0,
+  chains = chains_per_node,
+  cores = chains_per_node,
+  threads = threading(threads_per_chain),
+  iter = iter,
+  warmup = warmup,
+  thin = thin, control = list(adapt_delta = 0.90),
+  seed = seed,
+  backend = "cmdstanr",
+  file = paste0(path, "Authenticity_task_", task_id)
+)
+
+print("!! Authenticity DONE !!")
 
 # FOLLOWUP ======================================================================
 # Beauty2 ----------------------------
@@ -507,7 +507,7 @@ print("!! WORTH DONE !!")
 #   threads = threading(threads_per_chain),
 #   iter = iter,
 #   warmup = warmup,
-#   thin = thin,
+#   thin = thin, control = list(adapt_delta = 0.90),
 #   seed = seed,
 #   backend = "cmdstanr",
 #   file = paste0(path, "Beauty2_task_", task_id)
@@ -516,47 +516,87 @@ print("!! WORTH DONE !!")
 # print("!! BEAUTY2 DONE !!")
 
 
-# Meaning ----------------------------
+# Self-Relevance ----------------------------
 
 
-# # Predict both the monetary tier choice and the probability of paying $0
-# formula_3 <- bf(
-#   y ~ x1 + x2, # Predicts which monetary bucket they fall into (if > $0)
-#   # hu ~ x1 + x2 # Predicts the probability of choosing exactly $0
-# )
-#
-# fit_3 <- brm(
-#   formula = formula_3,
-#   data = your_data,
-#   family = hurdle_cumulative(link = "logit", link_hu = "logit"),
-#   cores = 4
-# )
+formula <- brms::bf(
+  SelfRelevance ~ Condition * Emotion + (Condition * Emotion | Participant) + (Condition * Emotion | Item),
+  disc ~ 1 + (1 | Participant) + (1 | Item),
+  family = cumulative()
+)
+
+priors_selfrel <- c(
+  brms::set_prior("normal(0, 2)", class = "b", coef = "", dpar = "")
+  # brms::set_prior("normal(0, 2)", class = "b", coef = "", dpar = "disc")
+)
+default_priors <- as.data.frame(brms::get_prior(formula, data = dftask[!is.na(dftask$SelfRelevance), ]))
+interactions <- default_priors[grepl("\\:", default_priors$coef) & default_priors$class == "b", ]
+for (i in 1:nrow(interactions)) {
+  priors_selfrel <- rbind(
+    priors_selfrel,
+    brms::set_prior("normal(0, 1)", class = interactions$class[i], coef = interactions$coef[i], dpar = interactions$dpar[i])
+  )
+}
 
 
-# # Option 2 (Recommended): Predict BOTH mean and precision (agreement)
-# # Outcome must be 0–6 scale
-# formula_1_dist <- bf(
-#   y | trials(6) ~ x1 + x2,
-#   phi ~ x1 + x2
-# )
-#
-# fit_1 <- brm(
-#   formula = formula_1_dist,
-#   data = your_data,
-#   family = beta_binomial(link = "logit", link_phi = "log"),
-#   cores = 4
-# )
-#
-# # Predict the mean, precision, AND the probability of a zero response
-# formula_2 <- bf(
-#   y | trials(6) ~ x1 + x2, # Predicts intensity (1-6)
-#   phi ~ x1 + x2, # Predicts agreement
-#   zi ~ x1 + x2 # Predicts the hurdle (probability of answering 0)
-# )
-#
-# fit_2 <- brm(
-#   formula = formula_2,
-#   data = your_data,
-#   family = zero_inflated_beta_binomial(link = "logit", link_phi = "log", link_zi = "logit"),
-#   cores = 4
-# )
+m_selfrelevance <- brm(formula,
+  data = dftask[!is.na(dftask$SelfRelevance), ],
+  family = cumulative(),
+  prior = brms::validate_prior(priors_selfrel, formula, data = dftask[!is.na(dftask$SelfRelevance), ]),
+  init = 0,
+  chains = chains_per_node,
+  cores = chains_per_node,
+  threads = threading(threads_per_chain),
+  iter = iter,
+  warmup = warmup,
+  thin = thin, control = list(adapt_delta = 0.90),
+  seed = seed,
+  backend = "cmdstanr",
+  file = paste0(path, "SelfRelevance_task_", task_id)
+)
+
+print("!! SelfRelevance DONE !!")
+
+# Artificiality ----------------------------
+
+
+formula <- brms::bf(
+  PerceivedArtificiality ~ Condition * Emotion + (Condition * Emotion | Participant) + (Condition | Item),
+  confright ~ Condition * Emotion + (Condition * Emotion | Participant) + (Condition | Item),
+  confleft ~ Condition * Emotion + (Condition * Emotion | Participant) + (Condition | Item),
+  precright ~ Condition * Emotion + (Condition * Emotion | Participant) + (1 | Item),
+  precleft ~ Condition * Emotion + (Condition * Emotion | Participant) + (1 | Item),
+  pex ~ Condition + (1 | Participant),
+  bex ~ Condition + (1 | Participant),
+  pmid ~ Condition + (1 | Participant),
+  family = choco()
+)
+
+# Tighter priors for interactions
+priors_artificiality <- priors
+default_priors <- as.data.frame(brms::get_prior(formula, data = dftask[!is.na(dftask$PerceivedArtificiality), ]))
+interactions <- default_priors[grepl("\\:", default_priors$coef) & default_priors$class == "b", ]
+for (i in 1:nrow(interactions)) {
+  priors_artificiality <- rbind(
+    priors_artificiality,
+    brms::set_prior("normal(0, 1)", class = interactions$class[i], coef = interactions$coef[i], dpar = interactions$dpar[i])
+  )
+}
+
+m_artificiality <- brm(formula,
+  data = dftask[!is.na(dftask$PerceivedArtificiality), ],
+  family = choco(), stanvars = choco_stanvars(),
+  prior = brms::validate_prior(priors_artificiality, formula, data = dftask[!is.na(dftask$PerceivedArtificiality), ]),
+  init = 0,
+  chains = chains_per_node,
+  cores = chains_per_node,
+  threads = threading(threads_per_chain),
+  iter = iter,
+  warmup = warmup,
+  thin = thin, control = list(adapt_delta = 0.90),
+  seed = seed,
+  backend = "cmdstanr",
+  file = paste0(path, "Artificiality_task_", task_id)
+)
+
+print("!! Artificiality DONE !!")

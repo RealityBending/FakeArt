@@ -29,12 +29,15 @@ library(cogmod)
 options(mc.cores = parallel::detectCores() - 2)
 
 df <- read.csv("../data/data_participants.csv")
-dftask <- read.csv("https://raw.githubusercontent.com/RealityBending/FakeArt/refs/heads/main/data/data_task.csv") |>
-  merge(read.csv("https://raw.githubusercontent.com/RealityBending/FakeArt/refs/heads/main/data/data_eyetracking.csv"), all.x = TRUE) |>
+dftask <- read.csv("../data/data_task.csv") |>
+  merge(read.csv("../data/data_eyetracking.csv"), all.x = TRUE) |>
   mutate(Condition = fct_relevel(Condition, "Human Original", "Human Forgery", "AI-Generated"),
          Emotion = fct_relevel(Emotion, "Positive - Low intensity", "Negative - Low intensity", "Positive - High intensity", "Negative - High intensity"),
          Meaning = Meaning * 6,
-         Valence = Valence * 6 + 1) 
+         Valence = Valence * 6 + 1,
+         Worth = factor(Worth * 6, ordered = TRUE),
+         SelfRelevance = SelfRelevance * 6)
+levels(dftask$Worth) <- c("0", "10", "100", "1000", "10000", "100000")
 
 cols <- c(
   # Condition
@@ -48,7 +51,13 @@ cols <- c(
 
 ## Distributions
 
+::: {.panel-tabset}
+
+### Phase 1
+
 ```{r}
+#| warning: false
+
 p_dist_beauty <- dftask |> 
   ggplot(aes(x=Beauty)) +
   geom_histogram(aes(y=after_stat(density)), bins = 47, fill = colorRampPalette(c("#1976D2", "#0D47A1"))(47))
@@ -60,6 +69,7 @@ p_dist_valence <- dftask |>
 p_dist_meaning <- dftask |> 
   ggplot(aes(x=Meaning)) +
   geom_bar(fill = colorRampPalette(c("#512DA8", "#311B92"))(7))
+
 p_dist_worth <- dftask |> 
   ggplot(aes(x=Worth)) +
   geom_bar(fill = colorRampPalette(c("#FBC02D", "#F57F17"))(6)) 
@@ -91,6 +101,7 @@ wrap_plots(
     (p_dist_pcenter + labs(title = "pCenter")),
   ncol = 4
 )
+
 ```
 
 ```{r}
@@ -118,8 +129,45 @@ ggsave(p_dist_pleft + dist_theme, filename = "figures/dist_pleft.png", width = 6
 ggsave(p_dist_pcenter + dist_theme, filename = "figures/dist_pcenter.png", width = 6, height = 1.5, dpi = 300)
 ```
 
+### Phase 2 and Follow-Up
 
-## Models
+```{r}
+#| warning: false
+
+p_dist_reality <- dftask |> 
+  ggplot(aes(x=Reality)) +
+  geom_histogram(aes(y=after_stat(density)), bins = 51, fill = colorRampPalette(c("#C2185B", "#880E4F"))(51))
+
+p_dist_authenticity <- dftask |> 
+  ggplot(aes(x=Authenticity)) +
+  geom_histogram(aes(y=after_stat(density)), bins = 51, fill = colorRampPalette(c("#E64A19", "#BF360C"))(51))
+
+p_dist_beauty2 <- dftask |> 
+  ggplot(aes(x=Beauty2)) +
+  geom_histogram(aes(y=after_stat(density)), bins = 47, fill = colorRampPalette(c("#0097A7", "#006064"))(47))
+
+p_dist_selfrel <- dftask |> 
+  ggplot(aes(x=SelfRelevance)) +
+  geom_bar(fill = colorRampPalette(c("#00796B", "#004D40"))(7))  
+
+p_dist_artificiality <- dftask |> 
+  ggplot(aes(x=PerceivedArtificiality)) +
+  geom_histogram(aes(y=after_stat(density)), bins = 21, fill = colorRampPalette(c("#AFB42B", "#827717"))(21))
+
+wrap_plots(
+  (p_dist_reality + labs(title = "Beauty")), 
+    (p_dist_authenticity + labs(title = "Valence")),
+    (p_dist_beauty2 + labs(title = "Meaning")), 
+    (p_dist_selfrel + labs(title = "Worth")),
+    (p_dist_artificiality + labs(title = "Artificiality")),
+  ncol = 3
+)
+```
+
+:::
+
+
+## Phase 1 - Ratings
 
 ::: {.panel-tabset}
 
@@ -129,9 +177,59 @@ ggsave(p_dist_pcenter + dist_theme, filename = "figures/dist_pcenter.png", width
 m_beauty <- readRDS("models/Beauty.rds")
 ```
 
+```{r}
+get_contrasts <- function(m, outcome = "Beauty", contrast = "Condition", by = NULL, backend = "emmeans") {
+  dat_con <- data.frame()
+  
+  params <- c("response", "mu", insight::find_auxiliary(m))
+  if(outcome %in% c("Worth", "SelfRelevance")) params <- params[!params %in% c("disc")]
+  if(outcome %in% c("pLeft", "pCenter")) params <- params[!params %in% c("zoi", "coi")]
+  for(par in params) {
+    if(!is.null(by) && par %in% c("pmid", "pex", "bex", "disc")) next
+    # cat(par, " * ")
+    
+    c <- estimate_contrasts(m, contrast = contrast, by = by, predict = par, 
+                            backend = backend, test = "pd", iterations = 500) 
+    
+    if(outcome %in% c("Worth", "SelfRelevance") && par == "response") {
+      c <- filter(c, Response1 == Response2)
+      c <- mutate(c, Parameter = paste0("response - ", Response1))
+      c <- data_remove(c, c("Response1", "Response2"))
+    } else {
+      c <- mutate(c, Parameter = par)
+    }
+    
+    dat_con <- rbind(dat_con, c)
+  }
+  
+  if(backend == "marginaleffects") dat_con <- data_rename(dat_con, select = "Median", "Difference")
+  dat_con$Outcome <- outcome
+  dat_con$Contrast <- paste(str_remove(str_remove(dat_con$Level1, "\\("), "\\)"), 
+                            "-", 
+                            str_remove(str_remove(dat_con$Level2, "\\("), "\\)")) 
+  
+  rez_con <- filter(dat_con, sign(CI_low) == sign(CI_high)) 
+  if(nrow(rez_con) == 0) {
+    rez_con <- data.frame(Contrast = unique(dat_con$Contrast), Parameters = "None")
+  } else {
+    rez_con <- rez_con |>
+      format_table(zap_small = TRUE) |> 
+      mutate(param_string = paste0(Parameter, " (", Difference, ", ", CI, ")")) |> 
+      summarise(Parameters = paste(param_string, collapse = "; "), .by = "Contrast")
+  }
+  
+  list(rez_con = rez_con, dat_con = dat_con)
+}
+```
 
+```{r}
+#| label: contrasts-beauty1
 
-#### Figure
+rez_beauty <- get_contrasts(m_beauty, outcome = "Beauty", contrast = "Condition")
+gt::gt(rez_beauty$rez_con)
+rez_beauty_emo <- get_contrasts(m_beauty, outcome = "Beauty", contrast = "Condition", by = "Emotion")
+```
+
 
 ```{r}
 get_marginal_parameters <- function(m, by = "Condition") {
@@ -231,6 +329,7 @@ get_choco_plot <- function(dat, title = "Beauty", observed = title, xlabs = c("0
 ```{r}
 #| fig-width: 10
 #| fig-height: 7
+#| cache-lazy: false
 
 par_beauty <- get_marginal_parameters(m_beauty)
 dens_beauty <- get_marginal_densities(par_beauty, adjust = 0.8)
@@ -239,6 +338,8 @@ p_beauty
 ```
 
 ```{r}
+#| cache-lazy: false
+
 par_beauty_condemo <- get_marginal_parameters(m_beauty, by = c("Condition", "Emotion"))
 
 dens_beauty_condemo <- list(par = data.frame(), dens = data.frame(), annot = data.frame())
@@ -258,93 +359,113 @@ p_beauty_emo
 ```
 
 
-#### Contrasts
 
-```{r}
-get_contrasts <- function(m, outcome = "Beauty", contrast = "Condition", by = NULL) {
-  dat_con <- data.frame()
-  for(par in c("response", "mu", "confright", "confleft", "precright", "precleft", "pmid", "pex", "bex")) {
-    if(!is.null(by) && par %in% c("pmid", "pex", "bex")) next
-    cat(par, " * ")
-    
-    dat_con <- rbind(
-      dat_con,
-      estimate_contrasts(m, contrast = contrast, by = by, predict = par, 
-                         backend = "emmeans", test = "pd", iterations = 500) |> 
-        mutate(Parameter = par)
-      )
-  }
-  dat_con$Outcome <- outcome
-  dat_con$Contrast <- paste(dat_con$Level1, "-", str_remove(str_remove(dat_con$Level2, "\\("), "\\)")) 
-  
-  rez_con <- dat_con |> 
-    filter(pd > .99) |> 
-    format_table(zap_small = TRUE) |> 
-    mutate(param_string = paste0(Parameter, " (", Difference, ", ", CI, ", ", pd, ")")) |> 
-    summarise(Parameters = paste(param_string, collapse = "; "), .by = "Contrast")
-  
-  list(rez_con = rez_con, dat_con = dat_con)
-}
-
-rez_beauty <- get_contrasts(m_beauty, outcome = "Beauty", contrast = "Condition")
-gt::gt(rez_beauty$rez_con)
-```
-
-```{r}
-rez_beauty_emo <- get_contrasts(m_beauty, outcome = "Beauty", contrast = "Condition", by = "Emotion")
-```
-
-
-
-### Syntheticness
-
-
-```{r}
-m_reality <- readRDS("models/Reality.rds")
-```
-
-#### Figure
-
-```{r}
-#| fig-width: 10
-#| fig-height: 7
-
-par_reality <- get_marginal_parameters(m_reality)
-dens_reality <- get_marginal_densities(par_reality, adjust = 0.5)
-p_reality <- get_choco_plot(dens_reality, title = "Syntheticness", observed = "Reality", xlabs = c("0%\nAI-Generated", "100%\nHuman-Creation"))
-p_reality
-```
-
-#### Contrasts
-
-```{r}
-rez_reality <- get_contrasts(m_reality, outcome = "Reality", contrast = "Condition")
-gt::gt(rez_reality$rez_con)
-```
-
-```{r}
-rez_reality_emo <- get_contrasts(m_reality, outcome = "Reality", contrast = "Condition", by = "Emotion")
-```
 
 ### Valence
 
 
 ```{r}
-dftask |> 
-  ggplot(aes(x=Valence)) +
-  geom_bar()
+m_valence <- readRDS("models/Valence.rds")
+```
+
+
+```{r}
+#| label: contrasts-valence
+
+rez_valence <- get_contrasts(m_valence, outcome = "Valence", contrast = "Condition")
+gt::gt(rez_valence$rez_con)
+# estimate_means(m_valence, by = "Condition", iterations = 200, predict = "phi", backend = "emmeans")
+
+rez_valence_emo <- get_contrasts(m_valence, outcome = "Valence", contrast = "Condition", by = "Emotion")
+```
+
+
+
+
+```{r}
+get_discrete_plot <- function(pred, title = "Valence", observed = title, facet = NULL, ...) {
+   dat_obs <- dftask
+   dat_obs$obs <- dat_obs[[observed]]
+   dat_obs <- dat_obs[!is.na(dat_obs$obs), ]
+   
+   if(title == "Worth") dat_obs$obs <- as.numeric(dat_obs$obs)
+   
+   stratifiers <- c("Condition")
+   if(!is.null(facet)) stratifiers <- c(stratifiers, "Emotion")
+   
+   pred_long <- reshape_iterations(pred) |>
+     summarize(N = n(), .by = all_of(c(stratifiers, "iter_group", "iter_value"))) |>
+      mutate(
+        p = N / sum(N),
+        .by = all_of(c(stratifiers, "iter_group"))
+      ) |>
+      summarise(
+        median = median(p),
+        lower = quantile(p, .025),
+        upper = quantile(p, .975),
+        .by = all_of(c(stratifiers, "iter_value"))
+      )
+  
+  p <- dat_obs |>
+    ggplot(aes(x = obs)) +
+    geom_bar(alpha = 0.5, aes(y = after_stat(prop))) +
+    geom_line(
+    data = pred_long,
+    aes(x = iter_value, y = median, group = Condition, colour = Condition), 
+    position = position_dodge(width = 0.25, reverse = TRUE), linewidth = 1
+  )  +
+    geom_pointrange(
+    data = pred_long,
+    aes(x = iter_value, y = median,  ymin = lower,  ymax = upper,  color = Condition),
+    position = position_dodge(width = 0.25, reverse = TRUE)
+  ) +
+    labs(y = "Likelihood of Response", title = title) +
+    scale_size_identity() +
+    scale_color_manual(values = cols) +
+    theme_minimal() +
+    theme(axis.text.y = element_blank(),
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank(),
+          plot.title = element_text(face = "bold"))
+  
+  if(!is.null(facet)) p <- p + facet_wrap(facet, ...)
+  p
+}
+
+
+pred <- estimate_prediction(m_valence, ci = NULL, iterations = 100, keep_iterations = TRUE, centrality = "median") 
+get_discrete_plot(pred, title = "Valence") +
+    scale_x_continuous(breaks = 1:7, labels = c("-3\nNegative", "-2", "-1", "0", "+1", "+2", "+3\nPositive"))
+
+get_discrete_plot(pred, title = "Valence", facet = ~Emotion) +
+    scale_x_continuous(breaks = 1:7, labels = c("-3\nNegative", "-2", "-1", "0", "+1", "+2", "+3\nPositive"))
 ```
 
 
 ### Meaning
 
-
 ```{r}
-dftask |> 
-  ggplot(aes(x=Meaning)) +
-  geom_bar()
+m_meaning <- readRDS("models/Meaning.rds")
 ```
 
+
+```{r}
+#| label: contrasts-meaning
+
+rez_meaning <- get_contrasts(m_meaning, outcome = "Meaning", contrast = "Condition")
+gt::gt(rez_meaning$rez_con)
+
+rez_meaning_emo <- get_contrasts(m_meaning, outcome = "Meaning", contrast = "Condition", by = "Emotion")
+```
+
+```{r}
+pred <- estimate_prediction(m_meaning, ci = NULL, iterations = 100, keep_iterations = TRUE, centrality = "median") 
+get_discrete_plot(pred, title = "Meaning") +
+    scale_x_continuous(breaks = 0:6, labels = c("0\nNot at all", 1:5, "6\nVery much"))
+
+get_discrete_plot(pred, title = "Meaning", facet = ~Emotion) +
+    scale_x_continuous(breaks = 0:6, labels = c("0\nNot at all", 1:5, "6\nVery much"))
+```
 
 ### Worth
 
@@ -354,23 +475,53 @@ m_worth <- readRDS("models/Worth.rds")
 ```
 
 
-### Beauty2
-
-
 ```{r}
-m_beauty2 <- readRDS("models/Beauty2.rds")
+#| label: contrasts-worth
+
+rez_worth <- get_contrasts(m_worth, outcome = "Worth", contrast = "Condition", backend = "marginaleffects")
+gt::gt(rez_worth$rez_con)
+
+rez_worth_emo <- get_contrasts(m_worth, outcome = "Worth", contrast = "Condition", by = "Emotion", backend = "marginaleffects")
 ```
 
-### Eye-Tracking
+```{r}
+pred <- estimate_prediction(m_worth, ci = NULL, iterations = 100, keep_iterations = TRUE, centrality = "median") 
+get_discrete_plot(pred, title = "Worth") +
+    scale_x_continuous(breaks = 1:6, labels = c("$0", "$10", "$100", "$1,000", "$10,000", "$100,000"))
 
-:::: {.panel-tabset}
+get_discrete_plot(pred, title = "Worth", facet = ~Emotion) +
+    scale_x_continuous(breaks = 1:6, labels = c("$0", "$10", "$100", "$1,000", "$10,000", "$100,000"))
+```
 
-#### Entropy
+:::
 
+
+
+
+## Phase 1 - Eye-Tracking
+
+::: {.panel-tabset}
+
+### Entropy
 
 ```{r}
 m_entropy <- readRDS("models/Entropy.rds")
+```
 
+
+```{r}
+#| label: contrasts-entropy
+
+rez_ent <- get_contrasts(m_entropy, outcome = "Entropy", contrast = "Condition")
+gt::gt(rez_ent$rez_con)
+
+rez_ent2 <- get_contrasts(m_entropy, outcome = "Entropy", contrast = "Emotion")
+gt::gt(rez_ent2$rez_con)
+
+rez_ent_emo <- get_contrasts(m_entropy, outcome = "Entropy", contrast = "Condition", by = "Emotion")
+```
+
+```{r}
 pred <- estimate_prediction(m_entropy, ci = NULL, iterations = 50, keep_iterations = TRUE) |> 
   reshape_iterations()
 
@@ -379,21 +530,29 @@ dftask |>
   geom_histogram(aes(y=after_stat(density)), bins = 40) +
   geom_line(data = pred, stat = "density", alpha = 0.5,
             aes(x = iter_value, group = interaction(Condition, iter_group), color = Condition))
-
-estimate_contrasts(m_entropy, contrast = "Condition", by = NULL, predict = "response", 
-                   backend = "emmeans", test = "pd", iterations = 500) 
-estimate_contrasts(m_entropy, contrast = "Emotion", by = NULL, predict = "response", 
-                   backend = "emmeans", test = "pd", iterations = 500) 
-estimate_contrasts(m_entropy, contrast = "Condition", by = "Emotion", predict = "response", 
-                   backend = "emmeans", test = "pd", iterations = 500) 
 ```
 
-#### pLeft
 
+### pLeft
 
 ```{r}
 m_pleft <- readRDS("models/pLeft.rds")
+```
 
+```{r}
+#| label: contrasts-pleft
+
+rez_pleft <- get_contrasts(m_pleft, outcome = "pLeft", contrast = "Condition")
+gt::gt(rez_pleft$rez_con)
+
+rez_pleft2 <- get_contrasts(m_pleft, outcome = "pLeft", contrast = "Emotion")
+gt::gt(rez_pleft2$rez_con)
+
+rez_pleft_emo <- get_contrasts(m_pleft, outcome = "pLeft", contrast = "Condition", by = "Emotion")
+```
+
+
+```{r}
 pred <- estimate_prediction(m_pleft, ci = NULL, iterations = 50, keep_iterations = TRUE) |> 
   reshape_iterations()
 
@@ -402,20 +561,28 @@ dftask |>
   geom_histogram(aes(y=after_stat(density)), bins = 40) +
   geom_line(data = pred, stat = "density", alpha = 0.5,
             aes(x = iter_value, group = interaction(Condition, iter_group), color = Condition))
-
-estimate_contrasts(m_pleft, contrast = "Condition", by = NULL, predict = "response", 
-                   backend = "emmeans", test = "pd", iterations = 500) 
-estimate_contrasts(m_pleft, contrast = "Emotion", by = NULL, predict = "response", 
-                   backend = "emmeans", test = "pd", iterations = 500) 
-estimate_contrasts(m_pleft, contrast = "Condition", by = "Emotion", predict = "response", 
-                   backend = "emmeans", test = "pd", iterations = 500) 
 ```
 
-#### pLeft
 
+### pCenter
 
 ```{r}
 m_pcenter <- readRDS("models/pCenter.rds")
+```
+
+```{r}
+#| label: contrasts-pcenter
+
+rez_pcenter <- get_contrasts(m_pcenter, outcome = "pCenter", contrast = "Condition")
+gt::gt(rez_pcenter$rez_con)
+
+rez_pcenter2 <- get_contrasts(m_pcenter, outcome = "pCenter", contrast = "Emotion")
+gt::gt(rez_pcenter2$rez_con)
+
+rez_pcenter_emo <- get_contrasts(m_pcenter, outcome = "pCenter", contrast = "Condition", by = "Emotion")
+```
+
+```{r}
 
 pred <- estimate_prediction(m_pcenter, ci = NULL, iterations = 50, keep_iterations = TRUE) |> 
   reshape_iterations()
@@ -425,21 +592,30 @@ dftask |>
   geom_histogram(aes(y=after_stat(density)), bins = 40) +
   geom_line(data = pred, stat = "density", alpha = 0.5,
             aes(x = iter_value, group = interaction(Condition, iter_group), color = Condition))
-
-estimate_contrasts(m_pcenter, contrast = "Condition", by = NULL, predict = "response", 
-                   backend = "emmeans", test = "pd", iterations = 500) 
-estimate_contrasts(m_pcenter, contrast = "Emotion", by = NULL, predict = "response", 
-                   backend = "emmeans", test = "pd", iterations = 500) 
-estimate_contrasts(m_pcenter, contrast = "Condition", by = "Emotion", predict = "response", 
-                   backend = "emmeans", test = "pd", iterations = 500) 
 ```
 
-#### Shift
 
+
+### Shift
 
 ```{r}
 m_shift <- readRDS("models/Shift.rds")
+```
 
+
+```{r}
+#| label: contrasts-shift
+
+rez_shift <- get_contrasts(m_shift, outcome = "Shift", contrast = "Condition")
+gt::gt(rez_shift$rez_con)
+
+rez_shift2 <- get_contrasts(m_shift, outcome = "Shift", contrast = "Emotion")
+gt::gt(rez_shift2$rez_con)
+
+rez_shift_emo <- get_contrasts(m_shift, outcome = "Shift", contrast = "Condition", by = "Emotion")
+```
+
+```{r}
 pred <- estimate_prediction(m_shift, ci = NULL, iterations = 500, keep_iterations = TRUE) |> 
   reshape_iterations()
 
@@ -451,20 +627,250 @@ dftask |>
             aes(x = iter_value, group = interaction(Condition, iter_group), color = Condition)) +
   coord_cartesian(xlim = c(0, 1)) +
   facet_wrap(~Emotion)
-
-estimate_contrasts(m_shift, contrast = "Condition", by = NULL, predict = "response", 
-                   backend = "emmeans", test = "pd", iterations = 500) 
-estimate_contrasts(m_shift, contrast = "Emotion", by = NULL, predict = "response", 
-                   backend = "emmeans", test = "pd", iterations = 500) 
-estimate_contrasts(m_shift, contrast = "Condition", by = "Emotion", predict = "response", 
-                   backend = "emmeans", test = "pd", iterations = 500) 
 ```
 
-::::
+
+:::
+
+
+
+## Phase 2
+
+::: {.panel-tabset}
+
+### Syntheticness
+
+```{r}
+m_reality <- readRDS("models/Reality.rds")
+```
+
+```{r}
+#| label: contrasts-reality
+
+rez_reality <- get_contrasts(m_reality, outcome = "Reality", contrast = "Condition")
+gt::gt(rez_reality$rez_con)
+
+rez_reality_emo <- get_contrasts(m_reality, outcome = "Reality", contrast = "Condition", by = "Emotion")
+```
+
+
+```{r}
+#| fig-width: 10
+#| fig-height: 7
+#| cache-lazy: false
+
+par_reality <- get_marginal_parameters(m_reality)
+dens_reality <- get_marginal_densities(par_reality, adjust = 0.5)
+p_reality <- get_choco_plot(dens_reality, title = "Syntheticness", observed = "Reality", xlabs = c("0%\nAI-Generated", "100%\nHuman-Creation"))
+p_reality
+```
+
+
+
+```{r}
+# Per Artwork analysis
+
+# dftask |>
+#   summarize(Reality = mean(Reality, na.rm = TRUE),
+#             .by = c("Item")) |>
+#   arrange(Reality)
+```
+
+
+
+### Authenticity
+
+```{r}
+m_authenticity <- readRDS("models/Authenticity.rds")
+```
+
+```{r}
+#| label: contrasts-authenticity
+
+rez_authenticity <- get_contrasts(m_authenticity, outcome = "Authenticity", contrast = "Condition")
+gt::gt(rez_authenticity$rez_con)
+
+rez_authenticity_emo <- get_contrasts(m_authenticity, outcome = "Authenticity", contrast = "Condition", by = "Emotion")
+```
+
+
+```{r}
+#| fig-width: 10
+#| fig-height: 7
+#| cache-lazy: false
+
+par_authenticity <- get_marginal_parameters(m_authenticity)
+dens_authenticity <- get_marginal_densities(par_authenticity, adjust = 0.5)
+p_authenticity <- get_choco_plot(dens_authenticity, title = "Authenticity", xlabs = c("0%\nCopy", "100%\nOriginal"))
+p_authenticity
+```
+
+
+
+:::
+
+
+## Follow-up
+
+::: {.panel-tabset}
+
+### Beauty2
+
+
+```{r}
+m_beauty2 <- readRDS("models/Beauty2.rds")
+```
+
+
+```{r}
+#| label: contrasts-beauty2
+
+rez_beauty2 <- get_contrasts(m_beauty2, outcome = "Beauty2", contrast = "Condition")
+gt::gt(rez_beauty2$rez_con)
+
+rez_beauty2_emo <- get_contrasts(m_beauty2, outcome = "Beauty2", contrast = "Condition", by = "Emotion")
+```
+
+```{r}
+#| fig-width: 10
+#| fig-height: 7
+#| cache-lazy: false
+
+par_beauty2 <- get_marginal_parameters(m_beauty2)
+dens_beauty2 <- get_marginal_densities(par_beauty2, adjust = 0.5)
+p_beauty2 <- get_choco_plot(dens_beauty2, title = "Beauty2", xlabs = c("0%\nUgly", "100%\nBeautiful"))
+p_beauty2
+```
+
+
+### Self-Relevance
+
+
+```{r}
+m_selfrelevance <- readRDS("models/SelfRelevance.rds")
+```
+
+```{r}
+#| label: contrasts-selfrelevance
+
+rez_selfrelevance <- get_contrasts(m_selfrelevance, outcome = "SelfRelevance", contrast = "Condition", backend = "marginaleffects")
+gt::gt(rez_selfrelevance$rez_con)
+
+rez_selfrelevance_emo <- get_contrasts(m_selfrelevance, outcome = "SelfRelevance", contrast = "Condition", by = "Emotion", backend = "marginaleffects")
+```
+
+
+```{r}
+pred <- estimate_prediction(m_selfrelevance, ci = NULL, iterations = 100, keep_iterations = TRUE, centrality = "median") 
+get_discrete_plot(pred, title = "SelfRelevance")  +
+    scale_x_continuous(breaks = 0:6, labels = c("0\nNot at all", 1:5, "6\nVery much"))
+
+get_discrete_plot(pred, title = "SelfRelevance", facet = ~Emotion)  +
+    scale_x_continuous(breaks = 0:6, labels = c("0\nNot at all", 1:5, "6\nVery much"))
+```
+
+
+### Artificiality
+
+
+```{r}
+m_artificiality <- readRDS("models/Artificiality.rds")
+```
+
+```{r}
+#| label: contrasts-artificiality
+
+rez_artificiality <- get_contrasts(m_artificiality, outcome = "Artificiality", contrast = "Condition")
+gt::gt(rez_artificiality$rez_con)
+
+rez_artificiality_emo <- get_contrasts(m_artificiality, outcome = "Artificiality", contrast = "Condition", by = "Emotion")
+```
+
+
+```{r}
+#| fig-width: 10
+#| fig-height: 7
+#| cache-lazy: false
+
+par_artificiality <- get_marginal_parameters(m_artificiality)
+dens_artificiality <- get_marginal_densities(par_artificiality, adjust = 0.8)
+p_artificiality <- get_choco_plot(dens_artificiality, title = "Artificiality", observed = "PerceivedArtificiality", xlabs = c("0%\nVery Human", "100%\nVery Artificial"))
+p_artificiality
+```
+
+
 
 :::
 
 ## Summary
+
+```{r}
+#| eval: false
+
+rez_beauty <- knitr::load_cache(
+  label = "contrasts-beauty1",
+  object = "rez_beauty",
+  path = "3_models_cache/html/"
+)
+rez_valence <- knitr::load_cache(
+  label = "contrasts-valence",
+  object = "rez_valence",
+  path = "3_models_cache/html/"
+)
+rez_meaning <- knitr::load_cache(
+  label = "contrasts-meaning",
+  object = "rez_meaning",
+  path = "3_models_cache/html/"
+)
+rez_worth <- knitr::load_cache(
+  label = "contrasts-worth",
+  object = "rez_worth",
+  path = "3_models_cache/html/"
+)
+
+rez_ent <- knitr::load_cache(
+  label = "contrasts-entropy",
+  object = "rez_ent",
+  path = "3_models_cache/html/"
+)
+rez_pleft <- knitr::load_cache(
+  label = "contrasts-pleft",
+  object = "rez_pleft",
+  path = "3_models_cache/html/"
+)
+rez_pcenter <- knitr::load_cache(
+  label = "contrasts-pcenter",
+  object = "rez_pcenter",
+  path = "3_models_cache/html/"
+)
+rez_shift <- knitr::load_cache(
+  label = "contrasts-shift",
+  object = "rez_shift",
+  path = "3_models_cache/html/"
+)
+
+rez_reality <- knitr::load_cache(
+  label = "contrasts-reality",
+  object = "rez_reality",
+  path = "3_models_cache/html/"
+)
+rez_authenticity <- knitr::load_cache(
+  label = "contrasts-authenticity",
+  object = "rez_authenticity",
+  path = "3_models_cache/html/"
+)
+rez_beauty2 <- knitr::load_cache(
+  label = "contrasts-beauty2",
+  object = "rez_beauty2",
+  path = "3_models_cache/html/"
+)
+rez_selfrelevance <- knitr::load_cache(
+  label = "contrasts-selfrelevance",
+  object = "rez_selfrelevance",
+  path = "3_models_cache/html/"
+)
+```
+
 
 ```{r}
 #| fig-width: 10
@@ -475,22 +881,51 @@ estimate_contrasts(m_shift, contrast = "Condition", by = "Emotion", predict = "r
 ```
 
 ```{r}
+#| fig-width: 12
+#| fig-height: 10
+
+
 rez_con <- rbind(
-  rez_beauty$dat_con, 
-  rez_reality$dat_con
+  rez_beauty$dat_con,
+  rez_valence$dat_con,
+  rez_meaning$dat_con,
+  rez_worth$dat_con,
+  rez_ent$dat_con,
+  rez_pleft$dat_con,
+  rez_pcenter$dat_con,
+  rez_shift$dat_con,
+  rez_reality$dat_con,
+  rez_authenticity$dat_con,
+  rez_beauty2$dat_con,
+  rez_selfrelevance$dat_con,
+  rez_artificiality$dat_con
   ) |> 
   mutate(Emotion = "Overall") |> 
   rbind(
-    rez_beauty_emo$dat_con, 
-    rez_reality_emo$dat_con
+    rez_beauty_emo$dat_con,
+    rez_valence_emo$dat_con,
+    rez_meaning_emo$dat_con,
+    rez_worth_emo$dat_con,
+    rez_ent_emo$dat_con,
+    rez_pleft_emo$dat_con,
+    rez_pcenter_emo$dat_con,
+    rez_shift_emo$dat_con,
+    rez_reality_emo$dat_con,
+    rez_authenticity_emo$dat_con,
+    rez_beauty2_emo$dat_con,
+    rez_selfrelevance_emo$dat_con,
+    rez_artificiality_emo$dat_con
   ) |> 
-  filter(Parameter %in% c("response", "mu", "confright", "confleft")) |> 
+  filter(Parameter %in% c("response", "mu", "confright", "confleft", "pzero")) |> 
   select(-Level1, -Level2) |> 
-  as.data.frame() |> 
+  as.data.frame() |>
+  mutate(Difference = ifelse(Outcome %in% c("Valence", "Meaning") & Parameter == "response", Difference / 7, Difference),
+         CI_low = ifelse(Outcome %in% c("Valence", "Meaning") & Parameter == "response", CI_low / 7, CI_low),
+         CI_high = ifelse(Outcome %in% c("Valence", "Meaning") & Parameter == "response", CI_high / 7, CI_high)) |> 
   mutate(Significant = ifelse(sign(CI_low) == sign(CI_high), "Yes", "No"),
          Effect = case_when(Significant == "No" ~ "n.s.", Difference < 0 ~ "Negative", .default = "Positive"),
          Effect = fct_relevel(Effect, "Negative", "n.s.", "Positive"),
-         Contrast = fct_relevel(Contrast, "Human Original - AI-Generated", "Human Original - Human Forgery", "Human Forgery - AI-Generated"))
+         Contrast = fct_relevel(Contrast, "AI-Generated - Human Original", "Human Forgery - Human Original", "AI-Generated - Human Forgery"))
 
 
 rez_con |>
@@ -506,7 +941,7 @@ rez_con |>
   switch = "y"
 ) +
   scale_shape_manual(values = c("Positive - High intensity" = "square plus", "Positive - Low intensity" = "square",
-                                "Negative - Low intensity" = "circle", "Negative - High intensity" = "circle cross")) +
+                                "Negative - Low intensity" = "circle", "Negative - High intensity" = "circle plus")) +
   scale_y_discrete(position = "right") +
   scale_color_manual(values = c("Negative" = "#F44336", "n.s." = "#FF9800", "Positive" = "#4CAF50")) +
   theme_bw() +
@@ -525,67 +960,6 @@ rez_con |>
 
 
 
-## Individual Parameters
-
-```{r}
-ppt_beauty_con <- estimate_contrasts(m_beauty, contrast = "Condition", by = c("Participant"), backend = "marginaleffects", iter = 20)
-
-# Extract pairwise contrasts for each participant
-ppt_beauty_con <- marginaleffects::avg_comparisons(
-  m_beauty,
-  newdata = dftask[1:100,],
-  draws = 50,
-  variables = list(Condition = "pairwise"),
-  by = "Participant",
-  re_formula = NULL # Crucial: tells brms to include the random effects
-)
-
-ppt_beauty <- estimate_grouplevel(m_beauty, type = "total")
-# plot(ppt_beauty)
-ppt_reality <- estimate_grouplevel(m_reality, type = "total")
-```
-
-
-
-<!-- ### Reliability -->
-
-<!-- ### Structure -->
-
-<!-- ```{r} -->
-<!-- df_grouplevel <- ppt_beauty |> -->
-<!--   reshape_grouplevel(group = "Participant", indices = "Median") |> -->
-<!--   data_addprefix("Beauty_", exclude = "Participant") |> -->
-<!--   full_join( -->
-<!--       reshape_grouplevel(ppt_reality, group = "Participant", indices = "Median") |> -->
-<!--       data_addprefix("Reality_", exclude = "Participant"), -->
-<!--     by = "Participant") -->
-
-<!-- correlation::correlation(df_grouplevel, redundant = TRUE) |> -->
-<!--   cor_sort() |> -->
-<!--   summary() |> -->
-<!--   plot() -->
-
-<!-- # n_factors(df_grouplevel, n = 9) -->
-<!-- fa <- factor_analysis(select(df_grouplevel, -Participant), n = 3) -->
-<!-- df_grouplevel <- cbind(df_grouplevel, predict(fa)) -->
-<!-- plot(fa) -->
-<!-- ``` -->
-
-<!-- ### Correlations -->
-
-<!-- ```{r} -->
-<!-- select(df, ManipulationDistrust, -->
-<!--        BAIT_ArtRealistic, BAIT_Positive, BAIT_Negative, BAIT_Total, -->
-<!--        starts_with("MINT"), -MINT_AttentionCheck) |> -->
-<!--   correlation(data2 = df_grouplevel, p_adjust = "none") |> -->
-<!--   cor_sort() |> -->
-<!--   mutate(Sig = ifelse(p < .05, "Significant", "N.S.")) |> -->
-<!--   ggplot(aes(x=Parameter1, y=Parameter2)) + -->
-<!--   geom_tile(aes(fill = r, alpha = Sig)) + -->
-<!--   scale_fill_gradient2(low = "#1D9AF5", mid = "white", high = "#F51D56", midpoint = 0, limits = c(-1, 1)) + -->
-<!--   scale_alpha_manual(values = c("Significant" = 1, "N.S." = 0.2)) + -->
-<!--   theme(axis.text.x = element_text(angle = 45, hjust = 1)) -->
-<!-- ``` -->
 
 
 ## Animations
