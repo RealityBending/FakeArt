@@ -14,16 +14,18 @@ execute:
 ---
 
 
-```{r}
-#| message: false
-#| warning: false
 
+::: {.cell}
+
+```{.r .cell-code}
 library(tidyverse)
 library(easystats)
 library(patchwork)
 library(magick)
 library(ggside)
 ```
+:::
+
 
 In this neuroaesthetics experiment, gaze data was collected through webgazer.js during each fixation cross and subsequent stimuli.
 
@@ -31,9 +33,10 @@ In this neuroaesthetics experiment, gaze data was collected through webgazer.js 
 
 ### Loading
 
-```{r}
-#| code-fold: false
 
+::: {.cell}
+
+```{.r .cell-code  code-fold="false"}
 # Gaze data
 df <- rbind(
   read.csv("../data/rawdata_eyetracking1.csv"),
@@ -77,12 +80,17 @@ df_ppt <- read.csv("../data/data_participants.csv") |>
 # Keep only participants that were not rejected as outliers
 df <- df[df$Participant %in% df_ppt$Participant,]
 ```
+:::
+
 
 ## Cleaning
 
 ### Participant-Level
 
-```{r}
+
+::: {.cell}
+
+```{.r .cell-code}
 participant_dup <- df |>
   arrange(Participant, Item, Stimulus, t) |>
   group_by(Participant, Item, Stimulus) |>
@@ -94,8 +102,18 @@ participant_dup <- df |>
 # Candidates for full removal from eyetracking module
 broken_ppts <- participant_dup |> filter(prop_dup > 0.25) |> pull(Participant)
 length(broken_ppts)  # expect ~14
+```
+
+::: {.cell-output .cell-output-stdout}
+
+```
+[1] 15
+```
 
 
+:::
+
+```{.r .cell-code}
 participant_dup |> 
   mutate(Flagged = Participant %in% broken_ppts,
          Participant = fct_reorder(Participant, prop_dup)) |>
@@ -108,11 +126,19 @@ participant_dup |>
   labs(title = "Proportion of duplicate samples per participant",
        x = "Proportion of duplicate samples",
        y = "Count", fill = NULL)
-
-df <- df |> filter(!Participant %in% broken_ppts)
 ```
 
-We removed `r length(broken_ppts)` participants (`r insight::format_percent(length(broken_ppts) / nrow(participant_dup))`) with >25% duplicate samples (frozen gaze / face loss).
+::: {.cell-output-display}
+![](2_eyetracking_files/figure-html/unnamed-chunk-3-1.png){width=672}
+:::
+
+```{.r .cell-code}
+df <- df |> filter(!Participant %in% broken_ppts)
+```
+:::
+
+
+We removed 15 participants (4.72%) with >25% duplicate samples (frozen gaze / face loss).
 
 
 ### Observation Level
@@ -121,19 +147,27 @@ We removed `r length(broken_ppts)` participants (`r insight::format_percent(leng
 
 Outside screen = face loss / artifact.
 
-We removed `r sum(df$x < 0 | df$x > df$ScreenWidth | df$y < 0 | df$y > df$ScreenHeight)` samples (`r insight::format_percent(sum(df$x < 0 | df$x > df$ScreenWidth | df$y < 0 | df$y > df$ScreenHeight) / nrow(df))`).
+We removed 182638 samples (9.14%).
 
-```{r}
+
+::: {.cell}
+
+```{.r .cell-code}
 df <- df |>
   filter(
     x >= 0, x <= ScreenWidth,   
     y >= 0, y <= ScreenHeight
   )
 ```
+:::
+
 
 #### Velocity
 
-```{r}
+
+::: {.cell}
+
+```{.r .cell-code}
 vel_threshold <- 6  # 6 stimulus-widths/sec ≈ upper bound of real saccade
 
 # Compute velocity on the full df (pre-filter)
@@ -167,7 +201,13 @@ df_vel |>
   labs(title = "Sample velocity",
        subtitle = "Implausibly fast transitions = blinks / face loss",
        x = "Velocity (stim-widths / sec; capped at 12)", y = "Count", fill = NULL)
+```
 
+::: {.cell-output-display}
+![](2_eyetracking_files/figure-html/unnamed-chunk-5-1.png){width=672}
+:::
+
+```{.r .cell-code}
 df <- df |>
   arrange(Participant, Item, Stimulus, t) |>
   mutate(
@@ -179,13 +219,18 @@ df <- df |>
   filter(is.na(velocity) | velocity < vel_threshold | velocity == 0) |>   
   select(-dx, -dy, -velocity) 
 ```
+:::
+
 
 
 ### Trial-Level
 
 #### Functions
 
-```{r}
+
+::: {.cell}
+
+```{.r .cell-code}
 # Safe Correlation 
 safe_cor <- function(x, y) {
   if (length(x) < 3) return(NA_real_)                        # too few points
@@ -402,10 +447,15 @@ compute_drift_magnitude <- function(x, y, t) {
   sqrt(coef(lm_x)[2]^2 + coef(lm_y)[2]^2)
 }
 ```
+:::
+
 
 #### Feature Extraction
 
-```{r}
+
+::: {.cell}
+
+```{.r .cell-code}
 # ---- Main per-trial extractor ----------------------------------------------
 
 extract_gaze_features <- function(data) {
@@ -507,12 +557,16 @@ df_features <- df |>
   group_by(Participant, Item) |>
   group_modify(~ extract_gaze_features(.x)) |>
   ungroup()
-
 ```
+:::
+
 
 #### Quality Control
 
-```{r}
+
+::: {.cell}
+
+```{.r .cell-code}
 # ---- Quality-control thresholds --------------------------------------------
 
 thresh_n_samples   <- 20
@@ -552,15 +606,16 @@ df_features <- df_features |>
     )
   )
 ```
+:::
+
 
 
 #### Tracking Quality
 
-```{r}
-#| warning: false
-#| fig-width: 12
-#| fig-height: 12
 
+::: {.cell}
+
+```{.r .cell-code}
 flag_for_plot <- function(data, criterion) {
   criterion <- rlang::enquo(criterion)   # capture the expression + its environment, unevaluated
   data |>
@@ -735,14 +790,18 @@ p_waterfall <- waterfall |>
   )
 ```
 
+::: {.cell-output-display}
+![](2_eyetracking_files/figure-html/unnamed-chunk-9-1.png){width=1152}
+:::
+:::
+
+
 #### Spatial Distribution
 
-```{r}
-#| warning: false
-#| fig-width: 12
-#| fig-height: 12
 
+::: {.cell}
 
+```{.r .cell-code}
 p_bcea <- df_features |>
   mutate(Dropped = Status != "Kept",
          bcea_clipped = pmin(bcea, 1.5)) |>   # clip extremes for readability
@@ -811,14 +870,18 @@ p_gini <- df_features |>
   )
 ```
 
+::: {.cell-output-display}
+![](2_eyetracking_files/figure-html/unnamed-chunk-10-1.png){width=1152}
+:::
+:::
+
+
 #### Temporal Dynamics
 
-```{r}
-#| warning: false
-#| fig-width: 12
-#| fig-height: 12
 
+::: {.cell}
 
+```{.r .cell-code}
 p_path <- df_features |>
   mutate(Dropped = Status != "Kept") |>
   ggplot(aes(path_length, fill = Dropped)) +
@@ -866,14 +929,18 @@ p_dispersion <- df_features |>
   )
 ```
 
+::: {.cell-output-display}
+![](2_eyetracking_files/figure-html/unnamed-chunk-11-1.png){width=1152}
+:::
+:::
+
+
 #### Feature Relationship
 
-```{r}
-#| warning: false
-#| fig-width: 12
-#| fig-height: 12
 
+::: {.cell}
 
+```{.r .cell-code}
 p_sd_bcea <- df_features |>
   mutate(mean_sd = (sd_x + sd_y)/2) |>
   ggplot(aes(mean_sd, bcea, colour=Status)) +
@@ -939,11 +1006,20 @@ p_shift <- df_features |>
   )
 ```
 
+::: {.cell-output-display}
+![](2_eyetracking_files/figure-html/unnamed-chunk-12-1.png){width=1152}
+:::
+:::
+
+
 
     
 #### Exclude
 
-```{r}
+
+::: {.cell}
+
+```{.r .cell-code}
 df_features <- df_features |> 
   filter(Status == "Kept") |> 
   select(-Status)
@@ -951,6 +1027,8 @@ df_features <- df_features |>
 df <- df |> 
   filter(paste(Participant, Item) %in% paste(df_features$Participant, df_features$Item))
 ```
+:::
+
 
 
 ### Participant-Level
@@ -960,11 +1038,10 @@ df <- df |>
 Calibration scores relate to the % of gaze in the target areas during the calibration phase. One of them took place at the beginning, and the second one in the middle.
 
 
-```{r}
-#| fig-width: 12
-#| fig-height: 8
-#| warning: false
 
+::: {.cell}
+
+```{.r .cell-code}
 p_val1 <- df_ppt |>
   ggplot(aes(x=Value, y=Participant)) +
   geom_bar(stat="identity", aes(fill=Index), position = position_dodge2(reverse=TRUE)) +
@@ -1006,9 +1083,18 @@ p_val3 <- features_ppt |>
 (p_val1 | p_val2) / p_val3
 ```
 
+::: {.cell-output-display}
+![](2_eyetracking_files/figure-html/unnamed-chunk-14-1.png){width=1152}
+:::
+:::
+
+
 #### Exclude
 
-```{r}
+
+::: {.cell}
+
+```{.r .cell-code}
 exclude <- features_ppt |> 
   filter(n_samples_total < 2000) |> 
   pull(Participant)
@@ -1016,17 +1102,19 @@ exclude <- features_ppt |>
 df_features <- filter(df_features, !Participant %in% exclude)
 df <- filter(df, !Participant %in% exclude)
 ```
+:::
 
 
-We excluded `r length(exclude)` participants with fewer than 2000 valid gaze samples across all trials. 
+
+We excluded 18 participants with fewer than 2000 valid gaze samples across all trials. 
 
 
 ## Features
 
-```{r}
-#| fig-width: 10
-#| fig-height: 10
 
+::: {.cell}
+
+```{.r .cell-code}
 # 1. Select the core numeric features (drop quality-control features)
 df_num <- df_features |>
   select(-Participant, -Item) |>
@@ -1099,6 +1187,12 @@ patch_cor <- (p_cor_mat | p_dendro_side) +
 
 patch_cor
 ```
+
+::: {.cell-output-display}
+![](2_eyetracking_files/figure-html/unnamed-chunk-16-1.png){width=960}
+:::
+:::
+
 
 
 
@@ -1175,7 +1269,10 @@ patch_cor
 
 ### Save
 
-```{r}
+
+::: {.cell}
+
+```{.r .cell-code}
 df_final <- df_features |> 
   select(Participant, Item,
          # Gaze_Entropy20 = entropy20, 
@@ -1191,30 +1288,86 @@ df_final <- df_features |>
          )
 
 report(df_final)
+```
 
+::: {.cell-output .cell-output-stdout}
+
+```
+The data contains 12220 observations of the following 8 variables:
+
+  - Participant: 274 entries, such as S012 (0.39%); S017 (0.39%); S019 (0.39%)
+and 271 others (0 missing)
+  - Item: 48 entries, such as 10130.jpg (2.18%); 10224.jpg (2.15%); 11126.jpg
+(2.14%) and 45 others (0 missing)
+  - Gaze_Entropy: n = 12220, Mean = 0.80, SD = 0.06, Median = 0.81, MAD = 0.06,
+range: [0.50, 0.95], Skewness = -0.86, Kurtosis = 1.27, 0% missing
+  - Gaze_Shift: n = 12220, Mean = 0.27, SD = 0.13, Median = 0.25, MAD = 0.12,
+range: [0.02, 1.15], Skewness = 1.01, Kurtosis = 1.26, 3.67% missing
+  - Gaze_pLeft: n = 12220, Mean = 0.49, SD = 0.30, Median = 0.49, MAD = 0.36,
+range: [0, 1], Skewness = 7.51e-03, Kurtosis = -1.12, 0% missing
+  - Gaze_pCenter: n = 12220, Mean = 0.54, SD = 0.28, Median = 0.56, MAD = 0.33,
+range: [0, 1], Skewness = -0.17, Kurtosis = -1.00, 0% missing
+  - Gaze_pTop: n = 12220, Mean = 0.48, SD = 0.32, Median = 0.48, MAD = 0.42,
+range: [0, 1], Skewness = 0.03, Kurtosis = -1.27, 0% missing
+  - Gaze_nSamples: n = 12220, Mean = 120.62, SD = 27.92, Median = 131.00, MAD =
+22.24, range: [20, 149], Skewness = -1.07, Kurtosis = 0.37, 0% missing
+```
+
+
+:::
+
+```{.r .cell-code}
 write.csv(df_final, "../data/data_eyetracking.csv", row.names = FALSE)
 ```
+:::
+
 
 ### Validation
 
 
-```{r}
+
+::: {.cell}
+
+```{.r .cell-code}
 df_final |> 
   pivot_longer(cols = -c(Participant, Item), names_to = "Feature", values_to = "Value") |>
   ggplot(aes(x = Value)) +
   geom_histogram(bins = 50, alpha = 0.8, fill = "steelblue") +
   facet_wrap(~Feature, scales = "free") 
+```
+
+::: {.cell-output .cell-output-stderr}
+
+```
+Warning: Removed 448 rows containing non-finite outside the scale range
+(`stat_bin()`).
+```
 
 
+:::
 
+::: {.cell-output-display}
+![](2_eyetracking_files/figure-html/unnamed-chunk-18-1.png){width=672}
+:::
+
+```{.r .cell-code}
 correlation(df_final, redundant = TRUE) |> 
   cor_sort() |> 
   summary() |> 
   plot()
 ```
 
+::: {.cell-output-display}
+![](2_eyetracking_files/figure-html/unnamed-chunk-18-2.png){width=672}
+:::
+:::
 
-```{r}
+
+
+
+::: {.cell}
+
+```{.r .cell-code}
 dftask <- read.csv("../data/data_task.csv") |> 
   mutate(Condition = fct_relevel(Condition, "Human Original", "Human Forgery", "AI-Generated"),
          Emotion = fct_relevel(Emotion, "Positive - Low intensity", "Negative - Low intensity", "Positive - High intensity", "Negative - High intensity")) 
@@ -1248,7 +1401,646 @@ rez_cor |>
   gt::tab_header(
     "Sensitivity of the gaze features to the behavioural outcomes",
     subtitle = "Coefficients in % of the outcome's scale range, per SD of the gaze feature")
+```
 
+::: {.cell-output-display}
+
+```{=html}
+<div id="mmxhtkgbjs" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#mmxhtkgbjs table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#mmxhtkgbjs thead, #mmxhtkgbjs tbody, #mmxhtkgbjs tfoot, #mmxhtkgbjs tr, #mmxhtkgbjs td, #mmxhtkgbjs th {
+  border-style: none;
+}
+
+#mmxhtkgbjs p {
+  margin: 0;
+  padding: 0;
+}
+
+#mmxhtkgbjs .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#mmxhtkgbjs .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#mmxhtkgbjs .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#mmxhtkgbjs .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#mmxhtkgbjs .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#mmxhtkgbjs .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#mmxhtkgbjs .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#mmxhtkgbjs .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#mmxhtkgbjs .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#mmxhtkgbjs .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#mmxhtkgbjs .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#mmxhtkgbjs .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#mmxhtkgbjs .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#mmxhtkgbjs .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#mmxhtkgbjs .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#mmxhtkgbjs .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#mmxhtkgbjs .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#mmxhtkgbjs .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#mmxhtkgbjs .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#mmxhtkgbjs .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#mmxhtkgbjs .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#mmxhtkgbjs .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#mmxhtkgbjs .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#mmxhtkgbjs .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+
+#mmxhtkgbjs .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#mmxhtkgbjs .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#mmxhtkgbjs .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#mmxhtkgbjs .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#mmxhtkgbjs .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D3D3D3;
+}
+
+#mmxhtkgbjs .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#mmxhtkgbjs .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#mmxhtkgbjs .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#mmxhtkgbjs .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#mmxhtkgbjs .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#mmxhtkgbjs .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#mmxhtkgbjs .gt_left {
+  text-align: left;
+}
+
+#mmxhtkgbjs .gt_center {
+  text-align: center;
+}
+
+#mmxhtkgbjs .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#mmxhtkgbjs .gt_font_normal {
+  font-weight: normal;
+}
+
+#mmxhtkgbjs .gt_font_bold {
+  font-weight: bold;
+}
+
+#mmxhtkgbjs .gt_font_italic {
+  font-style: italic;
+}
+
+#mmxhtkgbjs .gt_super {
+  font-size: 65%;
+}
+
+#mmxhtkgbjs .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#mmxhtkgbjs .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#mmxhtkgbjs .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#mmxhtkgbjs .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#mmxhtkgbjs .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#mmxhtkgbjs .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#mmxhtkgbjs .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#mmxhtkgbjs .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#mmxhtkgbjs div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+  <thead>
+    <tr class="gt_heading">
+      <td colspan="5" class="gt_heading gt_title gt_font_normal" style>Sensitivity of the gaze features to the behavioural outcomes</td>
+    </tr>
+    <tr class="gt_heading">
+      <td colspan="5" class="gt_heading gt_subtitle gt_font_normal gt_bottom_border" style>Coefficients in % of the outcome's scale range, per SD of the gaze feature</td>
+    </tr>
+    <tr class="gt_col_headings">
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Outcome">Outcome</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Feature">Feature</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Coefficient">Coefficient</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="CI">CI</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="p">p</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr><td headers="Outcome" class="gt_row gt_left">SelfRelevance</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_pLeft</td>
+<td headers="Coefficient" class="gt_row gt_right">1.11</td>
+<td headers="CI" class="gt_row gt_left">[ 0.54,  1.68]</td>
+<td headers="p" class="gt_row gt_left">&lt; .001</td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">Meaning</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_Entropy</td>
+<td headers="Coefficient" class="gt_row gt_right">0.73</td>
+<td headers="CI" class="gt_row gt_left">[ 0.31,  1.15]</td>
+<td headers="p" class="gt_row gt_left">&lt; .001</td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">Beauty</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_Entropy</td>
+<td headers="Coefficient" class="gt_row gt_right">0.57</td>
+<td headers="CI" class="gt_row gt_left">[ 0.23,  0.92]</td>
+<td headers="p" class="gt_row gt_left">0.001 </td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">SelfRelevance</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_Entropy</td>
+<td headers="Coefficient" class="gt_row gt_right">0.60</td>
+<td headers="CI" class="gt_row gt_left">[ 0.12,  1.09]</td>
+<td headers="p" class="gt_row gt_left">0.014 </td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">Beauty2</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_pLeft</td>
+<td headers="Coefficient" class="gt_row gt_right">0.62</td>
+<td headers="CI" class="gt_row gt_left">[ 0.11,  1.13]</td>
+<td headers="p" class="gt_row gt_left">0.017 </td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">Worth</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_Entropy</td>
+<td headers="Coefficient" class="gt_row gt_right">0.42</td>
+<td headers="CI" class="gt_row gt_left">[ 0.07,  0.76]</td>
+<td headers="p" class="gt_row gt_left">0.019 </td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">Authenticity</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_Shift</td>
+<td headers="Coefficient" class="gt_row gt_right">-0.66</td>
+<td headers="CI" class="gt_row gt_left">[-1.22, -0.10]</td>
+<td headers="p" class="gt_row gt_left">0.022 </td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">Authenticity</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_Entropy</td>
+<td headers="Coefficient" class="gt_row gt_right">0.63</td>
+<td headers="CI" class="gt_row gt_left">[ 0.08,  1.18]</td>
+<td headers="p" class="gt_row gt_left">0.025 </td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">Worth</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_Shift</td>
+<td headers="Coefficient" class="gt_row gt_right">-0.40</td>
+<td headers="CI" class="gt_row gt_left">[-0.75, -0.04]</td>
+<td headers="p" class="gt_row gt_left">0.029 </td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">Reality</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_pCenter</td>
+<td headers="Coefficient" class="gt_row gt_right">-0.66</td>
+<td headers="CI" class="gt_row gt_left">[-1.26, -0.07]</td>
+<td headers="p" class="gt_row gt_left">0.029 </td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">Valence</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_Shift</td>
+<td headers="Coefficient" class="gt_row gt_right">-0.41</td>
+<td headers="CI" class="gt_row gt_left">[-0.78, -0.03]</td>
+<td headers="p" class="gt_row gt_left">0.032 </td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">Valence</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_Entropy</td>
+<td headers="Coefficient" class="gt_row gt_right">0.38</td>
+<td headers="CI" class="gt_row gt_left">[ 0.01,  0.74]</td>
+<td headers="p" class="gt_row gt_left">0.043 </td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">Meaning</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_Shift</td>
+<td headers="Coefficient" class="gt_row gt_right">-0.38</td>
+<td headers="CI" class="gt_row gt_left">[-0.81,  0.05]</td>
+<td headers="p" class="gt_row gt_left">0.082 </td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">Beauty</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_pLeft</td>
+<td headers="Coefficient" class="gt_row gt_right">0.29</td>
+<td headers="CI" class="gt_row gt_left">[-0.11,  0.69]</td>
+<td headers="p" class="gt_row gt_left">0.157 </td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">Authenticity</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_pLeft</td>
+<td headers="Coefficient" class="gt_row gt_right">-0.40</td>
+<td headers="CI" class="gt_row gt_left">[-1.03,  0.22]</td>
+<td headers="p" class="gt_row gt_left">0.205 </td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">Worth</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_pCenter</td>
+<td headers="Coefficient" class="gt_row gt_right">-0.20</td>
+<td headers="CI" class="gt_row gt_left">[-0.56,  0.17]</td>
+<td headers="p" class="gt_row gt_left">0.294 </td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">Beauty</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_Shift</td>
+<td headers="Coefficient" class="gt_row gt_right">-0.19</td>
+<td headers="CI" class="gt_row gt_left">[-0.54,  0.17]</td>
+<td headers="p" class="gt_row gt_left">0.299 </td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">Beauty2</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_Entropy</td>
+<td headers="Coefficient" class="gt_row gt_right">0.23</td>
+<td headers="CI" class="gt_row gt_left">[-0.21,  0.66]</td>
+<td headers="p" class="gt_row gt_left">0.303 </td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">SelfRelevance</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_Shift</td>
+<td headers="Coefficient" class="gt_row gt_right">-0.16</td>
+<td headers="CI" class="gt_row gt_left">[-0.66,  0.33]</td>
+<td headers="p" class="gt_row gt_left">0.518 </td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">Reality</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_Entropy</td>
+<td headers="Coefficient" class="gt_row gt_right">0.16</td>
+<td headers="CI" class="gt_row gt_left">[-0.41,  0.73]</td>
+<td headers="p" class="gt_row gt_left">0.584 </td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">Valence</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_pCenter</td>
+<td headers="Coefficient" class="gt_row gt_right">-0.09</td>
+<td headers="CI" class="gt_row gt_left">[-0.47,  0.30]</td>
+<td headers="p" class="gt_row gt_left">0.655 </td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">Reality</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_Shift</td>
+<td headers="Coefficient" class="gt_row gt_right">0.09</td>
+<td headers="CI" class="gt_row gt_left">[-0.49,  0.67]</td>
+<td headers="p" class="gt_row gt_left">0.761 </td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">Authenticity</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_pCenter</td>
+<td headers="Coefficient" class="gt_row gt_right">0.08</td>
+<td headers="CI" class="gt_row gt_left">[-0.49,  0.66]</td>
+<td headers="p" class="gt_row gt_left">0.774 </td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">Beauty</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_pCenter</td>
+<td headers="Coefficient" class="gt_row gt_right">-0.05</td>
+<td headers="CI" class="gt_row gt_left">[-0.41,  0.32]</td>
+<td headers="p" class="gt_row gt_left">0.807 </td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">Worth</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_pLeft</td>
+<td headers="Coefficient" class="gt_row gt_right">-0.05</td>
+<td headers="CI" class="gt_row gt_left">[-0.46,  0.36]</td>
+<td headers="p" class="gt_row gt_left">0.813 </td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">Beauty2</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_Shift</td>
+<td headers="Coefficient" class="gt_row gt_right">-0.04</td>
+<td headers="CI" class="gt_row gt_left">[-0.48,  0.40]</td>
+<td headers="p" class="gt_row gt_left">0.865 </td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">SelfRelevance</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_pCenter</td>
+<td headers="Coefficient" class="gt_row gt_right">0.04</td>
+<td headers="CI" class="gt_row gt_left">[-0.46,  0.55]</td>
+<td headers="p" class="gt_row gt_left">0.869 </td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">Beauty2</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_pCenter</td>
+<td headers="Coefficient" class="gt_row gt_right">0.03</td>
+<td headers="CI" class="gt_row gt_left">[-0.42,  0.49]</td>
+<td headers="p" class="gt_row gt_left">0.886 </td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">Meaning</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_pCenter</td>
+<td headers="Coefficient" class="gt_row gt_right">0.03</td>
+<td headers="CI" class="gt_row gt_left">[-0.42,  0.47]</td>
+<td headers="p" class="gt_row gt_left">0.901 </td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">Reality</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_pLeft</td>
+<td headers="Coefficient" class="gt_row gt_right">0.02</td>
+<td headers="CI" class="gt_row gt_left">[-0.62,  0.66]</td>
+<td headers="p" class="gt_row gt_left">0.948 </td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">Valence</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_pLeft</td>
+<td headers="Coefficient" class="gt_row gt_right">-0.01</td>
+<td headers="CI" class="gt_row gt_left">[-0.44,  0.41]</td>
+<td headers="p" class="gt_row gt_left">0.953 </td></tr>
+    <tr><td headers="Outcome" class="gt_row gt_left">Meaning</td>
+<td headers="Feature" class="gt_row gt_left">Gaze_pLeft</td>
+<td headers="Coefficient" class="gt_row gt_right">0.01</td>
+<td headers="CI" class="gt_row gt_left">[-0.48,  0.51]</td>
+<td headers="p" class="gt_row gt_left">0.961 </td></tr>
+  </tbody>
+  
+</table>
+</div>
+```
+
+:::
+
+```{.r .cell-code}
 # rez <- data.frame()
 # for(feature in names(select(df_final, -Participant, -Item))) {
 #   f <- paste0(feature, " ~ Condition + (1|Participant) + (1|Item)")
@@ -1262,11 +2054,16 @@ rez_cor |>
 #   format_table() |> 
 #   gt::gt()
 ```
+:::
+
 
 
 ### Visualization
 
-```{r}
+
+::: {.cell}
+
+```{.r .cell-code}
 # high_quality_ppts <- unique(arrange(df_ppt, desc(Value))$Participant[1:20])
 
 # df |> 
@@ -1284,9 +2081,14 @@ rez_cor |>
 #   coord_fixed() +
 #   theme_minimal()
 ```
+:::
 
 
-```{r}
+
+
+::: {.cell}
+
+```{.r .cell-code}
 # item_names <- unique(df$Item)[1:9]
 # plot_margin <- 0.05
 # 
@@ -1341,12 +2143,13 @@ rez_cor |>
 # 
 # wrap_plots(plots, ncol = 3)   # adjust ncol to taste
 ```
+:::
 
-```{r}
-#| label: feature-illustrations
-#| fig-width: 10
-#| fig-height: 7
 
+
+::: {.cell}
+
+```{.r .cell-code}
 feature_meta <- tribble(
   ~col,              ~label,           ~lo_desc,                   ~hi_desc,
  
@@ -1475,4 +2278,10 @@ contrast_plots <- purrr::pmap(feature_meta, make_contrast) |>
 
 wrap_plots(contrast_plots, ncol = 2)
 ```
+
+::: {.cell-output-display}
+![](2_eyetracking_files/figure-html/feature-illustrations-1.png){width=960}
+:::
+:::
+
 

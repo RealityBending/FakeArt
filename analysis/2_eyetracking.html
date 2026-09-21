@@ -2,17 +2,23 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.8.25">
+<meta name="generator" content="quarto-1.10.18">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>FictionArt - Eyetracking</title>
+<title>FakeArt - Eyetracking</title>
 <style>
-code{white-space: pre-wrap;}
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
 span.smallcaps{font-variant: small-caps;}
-div.columns{display: flex; gap: min(4vw, 1.5em);}
-div.column{flex: auto; overflow-x: auto;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
 div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
 ul.task-list{list-style: none;}
 ul.task-list li input[type="checkbox"] {
@@ -61,15 +67,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="2_eyetracking_files/libs/clipboard/clipboard.min.js"></script>
 <script src="2_eyetracking_files/libs/quarto-html/quarto.js" type="module"></script>
 <script src="2_eyetracking_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
-<script src="2_eyetracking_files/libs/quarto-html/axe/axe-check.js" type="module"></script>
 <script src="2_eyetracking_files/libs/quarto-html/popper.min.js"></script>
 <script src="2_eyetracking_files/libs/quarto-html/tippy.umd.min.js"></script>
 <script src="2_eyetracking_files/libs/quarto-html/anchor.min.js"></script>
 <link href="2_eyetracking_files/libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="2_eyetracking_files/libs/quarto-html/quarto-syntax-highlighting-7b89279ff1a6dce999919e0e67d4d9ec.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="2_eyetracking_files/libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="2_eyetracking_files/libs/bootstrap/bootstrap.min.js"></script>
 <link href="2_eyetracking_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="2_eyetracking_files/libs/bootstrap/bootstrap-9e3ffae467580fdb927a41352e75a2e0.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="2_eyetracking_files/libs/bootstrap/bootstrap-215b371544c282197b31c8aa00ce3677.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 
 
 </head>
@@ -107,7 +112,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">FictionArt - Eyetracking</h1>
+<h1 class="title">FakeArt - Eyetracking</h1>
 </div>
 
 
@@ -201,11 +206,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">prop_dup =</span> <span class="fu">mean</span>(dup, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), <span class="at">.groups =</span> <span class="st">"drop"</span>)</span>
 <span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Candidates for full removal from eyetracking module</span></span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>broken_ppts <span class="ot">&lt;-</span> participant_dup <span class="sc">|&gt;</span> <span class="fu">filter</span>(prop_dup <span class="sc">&gt;</span> <span class="fl">0.05</span>) <span class="sc">|&gt;</span> <span class="fu">pull</span>(Participant)</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>broken_ppts <span class="ot">&lt;-</span> participant_dup <span class="sc">|&gt;</span> <span class="fu">filter</span>(prop_dup <span class="sc">&gt;</span> <span class="fl">0.25</span>) <span class="sc">|&gt;</span> <span class="fu">pull</span>(Participant)</span>
 <span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="fu">length</span>(broken_ppts)  <span class="co"># expect ~14</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>[1] 21</code></pre>
+<pre><code>[1] 15</code></pre>
 </div>
 <details class="code-fold">
 <summary>Code</summary>
@@ -214,7 +219,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>         <span class="at">Participant =</span> <span class="fu">fct_reorder</span>(Participant, prop_dup)) <span class="sc">|&gt;</span></span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> prop_dup, <span class="at">y =</span> Participant, <span class="at">fill =</span> Flagged)) <span class="sc">+</span></span>
 <span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_bar</span>(<span class="at">stat =</span> <span class="st">"identity"</span>, <span class="at">position =</span> <span class="st">"stack"</span>) <span class="sc">+</span></span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> <span class="fl">0.05</span>, <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">color =</span> <span class="st">"black"</span>, <span class="at">linewidth =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> <span class="fl">0.25</span>, <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">color =</span> <span class="st">"black"</span>, <span class="at">linewidth =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
 <span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"FALSE"</span> <span class="ot">=</span> <span class="st">"#4CAF50"</span>, <span class="st">"TRUE"</span> <span class="ot">=</span> <span class="st">"firebrick"</span>)) <span class="sc">+</span></span>
 <span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
 <span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">axis.text.y =</span> <span class="fu">element_blank</span>()) <span class="sc">+</span></span>
@@ -234,14 +239,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> df <span class="sc">|&gt;</span> <span class="fu">filter</span>(<span class="sc">!</span>Participant <span class="sc">%in%</span> broken_ppts)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
-<p>We removed 21 participants (7.09%) with &gt;25% duplicate samples (frozen gaze / face loss).</p>
+<p>We removed 15 participants (4.72%) with &gt;25% duplicate samples (frozen gaze / face loss).</p>
 </section>
 <section id="observation-level" class="level3">
 <h3 class="anchored" data-anchor-id="observation-level">Observation Level</h3>
 <section id="off-screen-coordinates" class="level4">
 <h4 class="anchored" data-anchor-id="off-screen-coordinates">Off-screen coordinates</h4>
 <p>Outside screen = face loss / artifact.</p>
-<p>We removed 179361 samples (9.20%).</p>
+<p>We removed 182638 samples (9.14%).</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
@@ -1186,7 +1191,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">filter</span>(df, <span class="sc">!</span>Participant <span class="sc">%in%</span> exclude)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
-<p>We excluded 17 participants with fewer than 2000 valid gaze samples across all trials.</p>
+<p>We excluded 18 participants with fewer than 2000 valid gaze samples across all trials.</p>
 </section>
 </section>
 </section>
@@ -1352,24 +1357,24 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a><span class="fu">report</span>(df_final)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>The data contains 11947 observations of the following 8 variables:
+<pre><code>The data contains 12220 observations of the following 8 variables:
 
-  - Participant: 268 entries, such as S012 (0.40%); S017 (0.40%); S019 (0.40%)
-and 265 others (0 missing)
+  - Participant: 274 entries, such as S012 (0.39%); S017 (0.39%); S019 (0.39%)
+and 271 others (0 missing)
   - Item: 48 entries, such as 10130.jpg (2.18%); 10224.jpg (2.15%); 11126.jpg
 (2.14%) and 45 others (0 missing)
-  - Gaze_Entropy: n = 11947, Mean = 0.80, SD = 0.06, Median = 0.81, MAD = 0.06,
-range: [0.50, 0.95], Skewness = -0.85, Kurtosis = 1.27, 0% missing
-  - Gaze_Shift: n = 11947, Mean = 0.27, SD = 0.13, Median = 0.25, MAD = 0.12,
-range: [0.02, 1.15], Skewness = 0.99, Kurtosis = 1.20, 3.74% missing
-  - Gaze_pLeft: n = 11947, Mean = 0.49, SD = 0.30, Median = 0.49, MAD = 0.37,
-range: [0, 1], Skewness = 0.01, Kurtosis = -1.12, 0% missing
-  - Gaze_pCenter: n = 11947, Mean = 0.54, SD = 0.28, Median = 0.55, MAD = 0.33,
+  - Gaze_Entropy: n = 12220, Mean = 0.80, SD = 0.06, Median = 0.81, MAD = 0.06,
+range: [0.50, 0.95], Skewness = -0.86, Kurtosis = 1.27, 0% missing
+  - Gaze_Shift: n = 12220, Mean = 0.27, SD = 0.13, Median = 0.25, MAD = 0.12,
+range: [0.02, 1.15], Skewness = 1.01, Kurtosis = 1.26, 3.67% missing
+  - Gaze_pLeft: n = 12220, Mean = 0.49, SD = 0.30, Median = 0.49, MAD = 0.36,
+range: [0, 1], Skewness = 7.51e-03, Kurtosis = -1.12, 0% missing
+  - Gaze_pCenter: n = 12220, Mean = 0.54, SD = 0.28, Median = 0.56, MAD = 0.33,
 range: [0, 1], Skewness = -0.17, Kurtosis = -1.00, 0% missing
-  - Gaze_pTop: n = 11947, Mean = 0.48, SD = 0.32, Median = 0.48, MAD = 0.42,
+  - Gaze_pTop: n = 12220, Mean = 0.48, SD = 0.32, Median = 0.48, MAD = 0.42,
 range: [0, 1], Skewness = 0.03, Kurtosis = -1.27, 0% missing
-  - Gaze_nSamples: n = 11947, Mean = 120.26, SD = 28.03, Median = 131.00, MAD =
-22.24, range: [20, 149], Skewness = -1.05, Kurtosis = 0.32, 0% missing</code></pre>
+  - Gaze_nSamples: n = 12220, Mean = 120.62, SD = 27.92, Median = 131.00, MAD =
+22.24, range: [20, 149], Skewness = -1.07, Kurtosis = 0.37, 0% missing</code></pre>
 </div>
 <details class="code-fold">
 <summary>Code</summary>
@@ -1389,7 +1394,7 @@ range: [0, 1], Skewness = 0.03, Kurtosis = -1.27, 0% missing
 <span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>Feature, <span class="at">scales =</span> <span class="st">"free"</span>) </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output cell-output-stderr">
-<pre><code>Warning: Removed 447 rows containing non-finite outside the scale range
+<pre><code>Warning: Removed 448 rows containing non-finite outside the scale range
 (`stat_bin()`).</code></pre>
 </div>
 <div class="cell-output-display">
@@ -1420,46 +1425,55 @@ range: [0, 1], Skewness = 0.03, Kurtosis = -1.27, 0% missing
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>dftask <span class="ot">&lt;-</span> <span class="fu">read.csv</span>(<span class="st">"../data/data_task.csv"</span>) <span class="sc">|&gt;</span> </span>
 <span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Condition =</span> <span class="fu">fct_relevel</span>(Condition, <span class="st">"Human Original"</span>, <span class="st">"Human Forgery"</span>, <span class="st">"AI-Generated"</span>),</span>
 <span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>         <span class="at">Emotion =</span> <span class="fu">fct_relevel</span>(Emotion, <span class="st">"Positive - Low intensity"</span>, <span class="st">"Negative - Low intensity"</span>, <span class="st">"Positive - High intensity"</span>, <span class="st">"Negative - High intensity"</span>)) </span>
-<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>dftask <span class="ot">&lt;-</span> dplyr<span class="sc">::</span><span class="fu">left_join</span>(df_final, dftask, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"Participant"</span>, <span class="st">"Item"</span>))</span>
-<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>rez_cor <span class="ot">&lt;-</span> <span class="fu">data.frame</span>()</span>
-<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(outcome <span class="cf">in</span> <span class="fu">c</span>(<span class="st">"Beauty"</span>, <span class="st">"Meaning"</span>, <span class="st">"Valence"</span>, <span class="st">"Worth"</span>, <span class="st">"Beauty2"</span>, <span class="st">"SelfRelevance"</span>, <span class="st">"Authenticity"</span>, <span class="st">"Reality"</span>)) {</span>
-<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(feature <span class="cf">in</span> <span class="fu">names</span>(<span class="fu">select</span>(df_final, <span class="sc">-</span>Participant, <span class="sc">-</span>Item, <span class="sc">-</span>Gaze_nSamples))) {</span>
-<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>    f <span class="ot">&lt;-</span> <span class="fu">paste0</span>(outcome, <span class="st">" ~ "</span>, feature, <span class="st">" + Gaze_nSamples + (1|Participant) + (1|Item)"</span>)</span>
-<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a>    m <span class="ot">&lt;-</span> glmmTMB<span class="sc">::</span><span class="fu">glmmTMB</span>(<span class="fu">as.formula</span>(f), <span class="at">data =</span> dftask) </span>
-<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a>    param <span class="ot">&lt;-</span> parameters<span class="sc">::</span><span class="fu">parameters</span>(m, <span class="at">effects =</span> <span class="st">"fixed"</span>)</span>
-<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a>    rez_cor <span class="ot">&lt;-</span> <span class="fu">rbind</span>(rez_cor,</span>
-<span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a>                     effectsize<span class="sc">::</span><span class="fu">z_to_r</span>(</span>
-<span id="cb27-14"><a href="#cb27-14" aria-hidden="true" tabindex="-1"></a>                       param<span class="sc">$</span>z[<span class="dv">2</span>], </span>
-<span id="cb27-15"><a href="#cb27-15" aria-hidden="true" tabindex="-1"></a>                       <span class="at">n =</span> <span class="fu">degrees_of_freedom</span>(m, <span class="at">method =</span> <span class="st">"analytical"</span>)) <span class="sc">|&gt;</span> </span>
-<span id="cb27-16"><a href="#cb27-16" aria-hidden="true" tabindex="-1"></a>                       <span class="fu">mutate</span>(<span class="at">p =</span> param<span class="sc">$</span>p[<span class="dv">2</span>],</span>
-<span id="cb27-17"><a href="#cb27-17" aria-hidden="true" tabindex="-1"></a>                              <span class="at">Outcome =</span> outcome, <span class="at">Feature =</span> feature))</span>
-<span id="cb27-18"><a href="#cb27-18" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb27-19"><a href="#cb27-19" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb27-20"><a href="#cb27-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-21"><a href="#cb27-21" aria-hidden="true" tabindex="-1"></a>rez_cor <span class="sc">|&gt;</span> </span>
-<span id="cb27-22"><a href="#cb27-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(p) <span class="sc">|&gt;</span> </span>
-<span id="cb27-23"><a href="#cb27-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">format_table</span>() <span class="sc">|&gt;</span> </span>
-<span id="cb27-24"><a href="#cb27-24" aria-hidden="true" tabindex="-1"></a>  gt<span class="sc">::</span><span class="fu">gt</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Standardize the gaze features so that coefficients are expressed per SD of the</span></span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a><span class="co"># feature. Outcomes are left on their native 0-1 scale, so that a coefficient</span></span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a><span class="co"># reads as a proportion of the outcome's scale range (x 100 = % of scale range,</span></span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a><span class="co"># the same unit used to report the main results).</span></span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a>dftask <span class="ot">&lt;-</span> dplyr<span class="sc">::</span><span class="fu">left_join</span>(df_final, dftask, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"Participant"</span>, <span class="st">"Item"</span>)) <span class="sc">|&gt;</span> </span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>  datawizard<span class="sc">::</span><span class="fu">standardize</span>(<span class="at">select =</span> <span class="fu">c</span>(<span class="st">"Gaze_Entropy"</span>, <span class="st">"Gaze_Shift"</span>, <span class="st">"Gaze_pLeft"</span>, </span>
+<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a>                                     <span class="st">"Gaze_pCenter"</span>, <span class="st">"Gaze_nSamples"</span>))</span>
+<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a>rez_cor <span class="ot">&lt;-</span> <span class="fu">data.frame</span>()</span>
+<span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(outcome <span class="cf">in</span> <span class="fu">c</span>(<span class="st">"Beauty"</span>, <span class="st">"Meaning"</span>, <span class="st">"Valence"</span>, <span class="st">"Worth"</span>, <span class="st">"Beauty2"</span>, <span class="st">"SelfRelevance"</span>, <span class="st">"Authenticity"</span>, <span class="st">"Reality"</span>)) {</span>
+<span id="cb27-14"><a href="#cb27-14" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(feature <span class="cf">in</span> <span class="fu">c</span>(<span class="st">"Gaze_Entropy"</span>, <span class="st">"Gaze_Shift"</span>, <span class="st">"Gaze_pLeft"</span>, <span class="st">"Gaze_pCenter"</span>)) {</span>
+<span id="cb27-15"><a href="#cb27-15" aria-hidden="true" tabindex="-1"></a>    f <span class="ot">&lt;-</span> <span class="fu">paste0</span>(outcome, <span class="st">" ~ "</span>, feature, <span class="st">" + Gaze_nSamples + (1|Participant) + (1|Item)"</span>)</span>
+<span id="cb27-16"><a href="#cb27-16" aria-hidden="true" tabindex="-1"></a>    m <span class="ot">&lt;-</span> glmmTMB<span class="sc">::</span><span class="fu">glmmTMB</span>(<span class="fu">as.formula</span>(f), <span class="at">data =</span> dftask) </span>
+<span id="cb27-17"><a href="#cb27-17" aria-hidden="true" tabindex="-1"></a>    param <span class="ot">&lt;-</span> parameters<span class="sc">::</span><span class="fu">parameters</span>(m, <span class="at">effects =</span> <span class="st">"fixed"</span>)</span>
+<span id="cb27-18"><a href="#cb27-18" aria-hidden="true" tabindex="-1"></a>    rez_cor <span class="ot">&lt;-</span> <span class="fu">rbind</span>(rez_cor,</span>
+<span id="cb27-19"><a href="#cb27-19" aria-hidden="true" tabindex="-1"></a>                     <span class="fu">data.frame</span>(<span class="at">Outcome =</span> outcome, <span class="at">Feature =</span> feature,</span>
+<span id="cb27-20"><a href="#cb27-20" aria-hidden="true" tabindex="-1"></a>                                <span class="at">Coefficient =</span> <span class="dv">100</span> <span class="sc">*</span> param<span class="sc">$</span>Coefficient[<span class="dv">2</span>],</span>
+<span id="cb27-21"><a href="#cb27-21" aria-hidden="true" tabindex="-1"></a>                                <span class="at">CI_low =</span> <span class="dv">100</span> <span class="sc">*</span> param<span class="sc">$</span>CI_low[<span class="dv">2</span>],</span>
+<span id="cb27-22"><a href="#cb27-22" aria-hidden="true" tabindex="-1"></a>                                <span class="at">CI_high =</span> <span class="dv">100</span> <span class="sc">*</span> param<span class="sc">$</span>CI_high[<span class="dv">2</span>],</span>
+<span id="cb27-23"><a href="#cb27-23" aria-hidden="true" tabindex="-1"></a>                                <span class="at">p =</span> param<span class="sc">$</span>p[<span class="dv">2</span>]))</span>
+<span id="cb27-24"><a href="#cb27-24" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb27-25"><a href="#cb27-25" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb27-26"><a href="#cb27-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-27"><a href="#cb27-27" aria-hidden="true" tabindex="-1"></a>rez_cor <span class="sc">|&gt;</span> </span>
+<span id="cb27-28"><a href="#cb27-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(p) <span class="sc">|&gt;</span> </span>
+<span id="cb27-29"><a href="#cb27-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">format_table</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb27-30"><a href="#cb27-30" aria-hidden="true" tabindex="-1"></a>  gt<span class="sc">::</span><span class="fu">gt</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb27-31"><a href="#cb27-31" aria-hidden="true" tabindex="-1"></a>  gt<span class="sc">::</span><span class="fu">tab_header</span>(</span>
+<span id="cb27-32"><a href="#cb27-32" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Sensitivity of the gaze features to the behavioural outcomes"</span>,</span>
+<span id="cb27-33"><a href="#cb27-33" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="st">"Coefficients in % of the outcome's scale range, per SD of the gaze feature"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
-<div id="jwdinuldgs" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#jwdinuldgs table {
+<div id="mmxhtkgbjs" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#mmxhtkgbjs table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-#jwdinuldgs thead, #jwdinuldgs tbody, #jwdinuldgs tfoot, #jwdinuldgs tr, #jwdinuldgs td, #jwdinuldgs th {
+#mmxhtkgbjs thead, #mmxhtkgbjs tbody, #mmxhtkgbjs tfoot, #mmxhtkgbjs tr, #mmxhtkgbjs td, #mmxhtkgbjs th {
   border-style: none;
 }
 
-#jwdinuldgs p {
+#mmxhtkgbjs p {
   margin: 0;
   padding: 0;
 }
 
-#jwdinuldgs .gt_table {
+#mmxhtkgbjs .gt_table {
   display: table;
   border-collapse: collapse;
   line-height: normal;
@@ -1485,12 +1499,12 @@ range: [0, 1], Skewness = 0.03, Kurtosis = -1.27, 0% missing
   border-left-color: #D3D3D3;
 }
 
-#jwdinuldgs .gt_caption {
+#mmxhtkgbjs .gt_caption {
   padding-top: 4px;
   padding-bottom: 4px;
 }
 
-#jwdinuldgs .gt_title {
+#mmxhtkgbjs .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -1502,7 +1516,7 @@ range: [0, 1], Skewness = 0.03, Kurtosis = -1.27, 0% missing
   border-bottom-width: 0;
 }
 
-#jwdinuldgs .gt_subtitle {
+#mmxhtkgbjs .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -1514,7 +1528,7 @@ range: [0, 1], Skewness = 0.03, Kurtosis = -1.27, 0% missing
   border-top-width: 0;
 }
 
-#jwdinuldgs .gt_heading {
+#mmxhtkgbjs .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -1526,13 +1540,13 @@ range: [0, 1], Skewness = 0.03, Kurtosis = -1.27, 0% missing
   border-right-color: #D3D3D3;
 }
 
-#jwdinuldgs .gt_bottom_border {
+#mmxhtkgbjs .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#jwdinuldgs .gt_col_headings {
+#mmxhtkgbjs .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -1547,7 +1561,7 @@ range: [0, 1], Skewness = 0.03, Kurtosis = -1.27, 0% missing
   border-right-color: #D3D3D3;
 }
 
-#jwdinuldgs .gt_col_heading {
+#mmxhtkgbjs .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1567,7 +1581,7 @@ range: [0, 1], Skewness = 0.03, Kurtosis = -1.27, 0% missing
   overflow-x: hidden;
 }
 
-#jwdinuldgs .gt_column_spanner_outer {
+#mmxhtkgbjs .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1579,15 +1593,15 @@ range: [0, 1], Skewness = 0.03, Kurtosis = -1.27, 0% missing
   padding-right: 4px;
 }
 
-#jwdinuldgs .gt_column_spanner_outer:first-child {
+#mmxhtkgbjs .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#jwdinuldgs .gt_column_spanner_outer:last-child {
+#mmxhtkgbjs .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#jwdinuldgs .gt_column_spanner {
+#mmxhtkgbjs .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -1599,11 +1613,11 @@ range: [0, 1], Skewness = 0.03, Kurtosis = -1.27, 0% missing
   width: 100%;
 }
 
-#jwdinuldgs .gt_spanner_row {
+#mmxhtkgbjs .gt_spanner_row {
   border-bottom-style: hidden;
 }
 
-#jwdinuldgs .gt_group_heading {
+#mmxhtkgbjs .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1629,7 +1643,7 @@ range: [0, 1], Skewness = 0.03, Kurtosis = -1.27, 0% missing
   text-align: left;
 }
 
-#jwdinuldgs .gt_empty_group_heading {
+#mmxhtkgbjs .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -1644,15 +1658,15 @@ range: [0, 1], Skewness = 0.03, Kurtosis = -1.27, 0% missing
   vertical-align: middle;
 }
 
-#jwdinuldgs .gt_from_md > :first-child {
+#mmxhtkgbjs .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#jwdinuldgs .gt_from_md > :last-child {
+#mmxhtkgbjs .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#jwdinuldgs .gt_row {
+#mmxhtkgbjs .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1671,7 +1685,7 @@ range: [0, 1], Skewness = 0.03, Kurtosis = -1.27, 0% missing
   overflow-x: hidden;
 }
 
-#jwdinuldgs .gt_stub {
+#mmxhtkgbjs .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1684,7 +1698,7 @@ range: [0, 1], Skewness = 0.03, Kurtosis = -1.27, 0% missing
   padding-right: 5px;
 }
 
-#jwdinuldgs .gt_stub_row_group {
+#mmxhtkgbjs .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1698,15 +1712,15 @@ range: [0, 1], Skewness = 0.03, Kurtosis = -1.27, 0% missing
   vertical-align: top;
 }
 
-#jwdinuldgs .gt_row_group_first td {
+#mmxhtkgbjs .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#jwdinuldgs .gt_row_group_first th {
+#mmxhtkgbjs .gt_row_group_first th {
   border-top-width: 2px;
 }
 
-#jwdinuldgs .gt_summary_row {
+#mmxhtkgbjs .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -1716,16 +1730,16 @@ range: [0, 1], Skewness = 0.03, Kurtosis = -1.27, 0% missing
   padding-right: 5px;
 }
 
-#jwdinuldgs .gt_first_summary_row {
+#mmxhtkgbjs .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D3D3D3;
 }
 
-#jwdinuldgs .gt_first_summary_row.thick {
+#mmxhtkgbjs .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#jwdinuldgs .gt_last_summary_row {
+#mmxhtkgbjs .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1735,7 +1749,7 @@ range: [0, 1], Skewness = 0.03, Kurtosis = -1.27, 0% missing
   border-bottom-color: #D3D3D3;
 }
 
-#jwdinuldgs .gt_grand_summary_row {
+#mmxhtkgbjs .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -1745,7 +1759,7 @@ range: [0, 1], Skewness = 0.03, Kurtosis = -1.27, 0% missing
   padding-right: 5px;
 }
 
-#jwdinuldgs .gt_first_grand_summary_row {
+#mmxhtkgbjs .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1755,7 +1769,7 @@ range: [0, 1], Skewness = 0.03, Kurtosis = -1.27, 0% missing
   border-top-color: #D3D3D3;
 }
 
-#jwdinuldgs .gt_last_grand_summary_row_top {
+#mmxhtkgbjs .gt_last_grand_summary_row_top {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1765,11 +1779,11 @@ range: [0, 1], Skewness = 0.03, Kurtosis = -1.27, 0% missing
   border-bottom-color: #D3D3D3;
 }
 
-#jwdinuldgs .gt_striped {
+#mmxhtkgbjs .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#jwdinuldgs .gt_table_body {
+#mmxhtkgbjs .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -1778,7 +1792,7 @@ range: [0, 1], Skewness = 0.03, Kurtosis = -1.27, 0% missing
   border-bottom-color: #D3D3D3;
 }
 
-#jwdinuldgs .gt_footnotes {
+#mmxhtkgbjs .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -1792,7 +1806,7 @@ range: [0, 1], Skewness = 0.03, Kurtosis = -1.27, 0% missing
   border-right-color: #D3D3D3;
 }
 
-#jwdinuldgs .gt_footnote {
+#mmxhtkgbjs .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-top: 4px;
@@ -1801,7 +1815,7 @@ range: [0, 1], Skewness = 0.03, Kurtosis = -1.27, 0% missing
   padding-right: 5px;
 }
 
-#jwdinuldgs .gt_sourcenotes {
+#mmxhtkgbjs .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -1815,7 +1829,7 @@ range: [0, 1], Skewness = 0.03, Kurtosis = -1.27, 0% missing
   border-right-color: #D3D3D3;
 }
 
-#jwdinuldgs .gt_sourcenote {
+#mmxhtkgbjs .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -1823,366 +1837,316 @@ range: [0, 1], Skewness = 0.03, Kurtosis = -1.27, 0% missing
   padding-right: 5px;
 }
 
-#jwdinuldgs .gt_left {
+#mmxhtkgbjs .gt_left {
   text-align: left;
 }
 
-#jwdinuldgs .gt_center {
+#mmxhtkgbjs .gt_center {
   text-align: center;
 }
 
-#jwdinuldgs .gt_right {
+#mmxhtkgbjs .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#jwdinuldgs .gt_font_normal {
+#mmxhtkgbjs .gt_font_normal {
   font-weight: normal;
 }
 
-#jwdinuldgs .gt_font_bold {
+#mmxhtkgbjs .gt_font_bold {
   font-weight: bold;
 }
 
-#jwdinuldgs .gt_font_italic {
+#mmxhtkgbjs .gt_font_italic {
   font-style: italic;
 }
 
-#jwdinuldgs .gt_super {
+#mmxhtkgbjs .gt_super {
   font-size: 65%;
 }
 
-#jwdinuldgs .gt_footnote_marks {
+#mmxhtkgbjs .gt_footnote_marks {
   font-size: 75%;
   vertical-align: 0.4em;
   position: initial;
 }
 
-#jwdinuldgs .gt_asterisk {
+#mmxhtkgbjs .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#jwdinuldgs .gt_indent_1 {
+#mmxhtkgbjs .gt_indent_1 {
   text-indent: 5px;
 }
 
-#jwdinuldgs .gt_indent_2 {
+#mmxhtkgbjs .gt_indent_2 {
   text-indent: 10px;
 }
 
-#jwdinuldgs .gt_indent_3 {
+#mmxhtkgbjs .gt_indent_3 {
   text-indent: 15px;
 }
 
-#jwdinuldgs .gt_indent_4 {
+#mmxhtkgbjs .gt_indent_4 {
   text-indent: 20px;
 }
 
-#jwdinuldgs .gt_indent_5 {
+#mmxhtkgbjs .gt_indent_5 {
   text-indent: 25px;
 }
 
-#jwdinuldgs .katex-display {
+#mmxhtkgbjs .katex-display {
   display: inline-flex !important;
   margin-bottom: 0.75em !important;
 }
 
-#jwdinuldgs div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+#mmxhtkgbjs div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
   height: 0px !important;
 }
 </style>
 
 <table class="gt_table caption-top table table-sm table-striped small" data-quarto-bootstrap="false">
 <thead>
+<tr class="gt_heading header">
+<td colspan="5" class="gt_heading gt_title gt_font_normal">Sensitivity of the gaze features to the behavioural outcomes</td>
+</tr>
+<tr class="gt_heading even">
+<td colspan="5" class="gt_heading gt_subtitle gt_font_normal gt_bottom_border">Coefficients in % of the outcome's scale range, per SD of the gaze feature</td>
+</tr>
 <tr class="gt_col_headings header">
-<th id="r" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">r</th>
-<th id="a95%-CI" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">95% CI</th>
-<th id="p" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">p</th>
 <th id="Outcome" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Outcome</th>
 <th id="Feature" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Feature</th>
+<th id="Coefficient" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Coefficient</th>
+<th id="CI" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">CI</th>
+<th id="p" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">p</th>
 </tr>
 </thead>
 <tbody class="gt_table_body">
 <tr class="odd">
-<td class="gt_row gt_left" headers="r">0.04</td>
-<td class="gt_row gt_left" headers="95% CI">[ 0.02, 0.06]</td>
-<td class="gt_row gt_left" headers="p">&lt; .001</td>
 <td class="gt_row gt_left" headers="Outcome">SelfRelevance</td>
 <td class="gt_row gt_left" headers="Feature">Gaze_pLeft</td>
+<td class="gt_row gt_right" headers="Coefficient">1.11</td>
+<td class="gt_row gt_left" headers="CI">[ 0.54, 1.68]</td>
+<td class="gt_row gt_left" headers="p">&lt; .001</td>
 </tr>
 <tr class="even">
-<td class="gt_row gt_left" headers="r">0.03</td>
-<td class="gt_row gt_left" headers="95% CI">[ 0.01, 0.05]</td>
-<td class="gt_row gt_left" headers="p">&lt; .001</td>
 <td class="gt_row gt_left" headers="Outcome">Meaning</td>
 <td class="gt_row gt_left" headers="Feature">Gaze_Entropy</td>
+<td class="gt_row gt_right" headers="Coefficient">0.73</td>
+<td class="gt_row gt_left" headers="CI">[ 0.31, 1.15]</td>
+<td class="gt_row gt_left" headers="p">&lt; .001</td>
 </tr>
 <tr class="odd">
-<td class="gt_row gt_left" headers="r">0.03</td>
-<td class="gt_row gt_left" headers="95% CI">[ 0.01, 0.05]</td>
+<td class="gt_row gt_left" headers="Outcome">Beauty</td>
+<td class="gt_row gt_left" headers="Feature">Gaze_Entropy</td>
+<td class="gt_row gt_right" headers="Coefficient">0.57</td>
+<td class="gt_row gt_left" headers="CI">[ 0.23, 0.92]</td>
 <td class="gt_row gt_left" headers="p">0.001</td>
-<td class="gt_row gt_left" headers="Outcome">Beauty</td>
-<td class="gt_row gt_left" headers="Feature">Gaze_Entropy</td>
 </tr>
 <tr class="even">
-<td class="gt_row gt_left" headers="r">-0.02</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.04, 0.00]</td>
-<td class="gt_row gt_left" headers="p">0.016</td>
-<td class="gt_row gt_left" headers="Outcome">Authenticity</td>
-<td class="gt_row gt_left" headers="Feature">Gaze_Shift</td>
-</tr>
-<tr class="odd">
-<td class="gt_row gt_left" headers="r">0.03</td>
-<td class="gt_row gt_left" headers="95% CI">[ 0.00, 0.05]</td>
-<td class="gt_row gt_left" headers="p">0.018</td>
 <td class="gt_row gt_left" headers="Outcome">SelfRelevance</td>
 <td class="gt_row gt_left" headers="Feature">Gaze_Entropy</td>
-</tr>
-<tr class="even">
-<td class="gt_row gt_left" headers="r">0.02</td>
-<td class="gt_row gt_left" headers="95% CI">[ 0.00, 0.04]</td>
-<td class="gt_row gt_left" headers="p">0.020</td>
-<td class="gt_row gt_left" headers="Outcome">Worth</td>
-<td class="gt_row gt_left" headers="Feature">Gaze_Entropy</td>
+<td class="gt_row gt_right" headers="Coefficient">0.60</td>
+<td class="gt_row gt_left" headers="CI">[ 0.12, 1.09]</td>
+<td class="gt_row gt_left" headers="p">0.014</td>
 </tr>
 <tr class="odd">
-<td class="gt_row gt_left" headers="r">0.02</td>
-<td class="gt_row gt_left" headers="95% CI">[ 0.00, 0.05]</td>
-<td class="gt_row gt_left" headers="p">0.023</td>
 <td class="gt_row gt_left" headers="Outcome">Beauty2</td>
 <td class="gt_row gt_left" headers="Feature">Gaze_pLeft</td>
+<td class="gt_row gt_right" headers="Coefficient">0.62</td>
+<td class="gt_row gt_left" headers="CI">[ 0.11, 1.13]</td>
+<td class="gt_row gt_left" headers="p">0.017</td>
 </tr>
 <tr class="even">
-<td class="gt_row gt_left" headers="r">-0.02</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.04, 0.00]</td>
+<td class="gt_row gt_left" headers="Outcome">Worth</td>
+<td class="gt_row gt_left" headers="Feature">Gaze_Entropy</td>
+<td class="gt_row gt_right" headers="Coefficient">0.42</td>
+<td class="gt_row gt_left" headers="CI">[ 0.07, 0.76]</td>
+<td class="gt_row gt_left" headers="p">0.019</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Outcome">Authenticity</td>
+<td class="gt_row gt_left" headers="Feature">Gaze_Shift</td>
+<td class="gt_row gt_right" headers="Coefficient">-0.66</td>
+<td class="gt_row gt_left" headers="CI">[-1.22, -0.10]</td>
+<td class="gt_row gt_left" headers="p">0.022</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Outcome">Authenticity</td>
+<td class="gt_row gt_left" headers="Feature">Gaze_Entropy</td>
+<td class="gt_row gt_right" headers="Coefficient">0.63</td>
+<td class="gt_row gt_left" headers="CI">[ 0.08, 1.18]</td>
 <td class="gt_row gt_left" headers="p">0.025</td>
-<td class="gt_row gt_left" headers="Outcome">Reality</td>
-<td class="gt_row gt_left" headers="Feature">Gaze_pCenter</td>
 </tr>
 <tr class="odd">
-<td class="gt_row gt_left" headers="r">0.02</td>
-<td class="gt_row gt_left" headers="95% CI">[ 0.00, 0.04]</td>
-<td class="gt_row gt_left" headers="p">0.039</td>
-<td class="gt_row gt_left" headers="Outcome">Valence</td>
-<td class="gt_row gt_left" headers="Feature">Gaze_Entropy</td>
-</tr>
-<tr class="even">
-<td class="gt_row gt_left" headers="r">-0.02</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.04, 0.00]</td>
-<td class="gt_row gt_left" headers="p">0.050</td>
-<td class="gt_row gt_left" headers="Outcome">Valence</td>
-<td class="gt_row gt_left" headers="Feature">Gaze_Shift</td>
-</tr>
-<tr class="odd">
-<td class="gt_row gt_left" headers="r">-0.02</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.04, 0.00]</td>
-<td class="gt_row gt_left" headers="p">0.050</td>
 <td class="gt_row gt_left" headers="Outcome">Worth</td>
 <td class="gt_row gt_left" headers="Feature">Gaze_Shift</td>
+<td class="gt_row gt_right" headers="Coefficient">-0.40</td>
+<td class="gt_row gt_left" headers="CI">[-0.75, -0.04]</td>
+<td class="gt_row gt_left" headers="p">0.029</td>
 </tr>
 <tr class="even">
-<td class="gt_row gt_left" headers="r">0.02</td>
-<td class="gt_row gt_left" headers="95% CI">[ 0.00, 0.04]</td>
-<td class="gt_row gt_left" headers="p">0.060</td>
-<td class="gt_row gt_left" headers="Outcome">Authenticity</td>
+<td class="gt_row gt_left" headers="Outcome">Reality</td>
+<td class="gt_row gt_left" headers="Feature">Gaze_pCenter</td>
+<td class="gt_row gt_right" headers="Coefficient">-0.66</td>
+<td class="gt_row gt_left" headers="CI">[-1.26, -0.07]</td>
+<td class="gt_row gt_left" headers="p">0.029</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Outcome">Valence</td>
+<td class="gt_row gt_left" headers="Feature">Gaze_Shift</td>
+<td class="gt_row gt_right" headers="Coefficient">-0.41</td>
+<td class="gt_row gt_left" headers="CI">[-0.78, -0.03]</td>
+<td class="gt_row gt_left" headers="p">0.032</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Outcome">Valence</td>
 <td class="gt_row gt_left" headers="Feature">Gaze_Entropy</td>
+<td class="gt_row gt_right" headers="Coefficient">0.38</td>
+<td class="gt_row gt_left" headers="CI">[ 0.01, 0.74]</td>
+<td class="gt_row gt_left" headers="p">0.043</td>
 </tr>
 <tr class="odd">
-<td class="gt_row gt_left" headers="r">-0.02</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.03, 0.00]</td>
-<td class="gt_row gt_left" headers="p">0.079</td>
 <td class="gt_row gt_left" headers="Outcome">Meaning</td>
 <td class="gt_row gt_left" headers="Feature">Gaze_Shift</td>
+<td class="gt_row gt_right" headers="Coefficient">-0.38</td>
+<td class="gt_row gt_left" headers="CI">[-0.81, 0.05]</td>
+<td class="gt_row gt_left" headers="p">0.082</td>
 </tr>
 <tr class="even">
-<td class="gt_row gt_left" headers="r">-0.01</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.03, 0.01]</td>
-<td class="gt_row gt_left" headers="p">0.229</td>
+<td class="gt_row gt_left" headers="Outcome">Beauty</td>
+<td class="gt_row gt_left" headers="Feature">Gaze_pLeft</td>
+<td class="gt_row gt_right" headers="Coefficient">0.29</td>
+<td class="gt_row gt_left" headers="CI">[-0.11, 0.69]</td>
+<td class="gt_row gt_left" headers="p">0.157</td>
+</tr>
+<tr class="odd">
 <td class="gt_row gt_left" headers="Outcome">Authenticity</td>
 <td class="gt_row gt_left" headers="Feature">Gaze_pLeft</td>
-</tr>
-<tr class="odd">
-<td class="gt_row gt_left" headers="r">0.01</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.01, 0.03]</td>
-<td class="gt_row gt_left" headers="p">0.247</td>
-<td class="gt_row gt_left" headers="Outcome">Beauty</td>
-<td class="gt_row gt_left" headers="Feature">Gaze_pLeft</td>
+<td class="gt_row gt_right" headers="Coefficient">-0.40</td>
+<td class="gt_row gt_left" headers="CI">[-1.03, 0.22]</td>
+<td class="gt_row gt_left" headers="p">0.205</td>
 </tr>
 <tr class="even">
-<td class="gt_row gt_left" headers="r">0.01</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.01, 0.03]</td>
-<td class="gt_row gt_left" headers="p">0.251</td>
-<td class="gt_row gt_left" headers="Outcome">Meaning</td>
-<td class="gt_row gt_left" headers="Feature">Gaze_pTop</td>
+<td class="gt_row gt_left" headers="Outcome">Worth</td>
+<td class="gt_row gt_left" headers="Feature">Gaze_pCenter</td>
+<td class="gt_row gt_right" headers="Coefficient">-0.20</td>
+<td class="gt_row gt_left" headers="CI">[-0.56, 0.17]</td>
+<td class="gt_row gt_left" headers="p">0.294</td>
 </tr>
 <tr class="odd">
-<td class="gt_row gt_left" headers="r">-0.01</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.03, 0.01]</td>
-<td class="gt_row gt_left" headers="p">0.272</td>
 <td class="gt_row gt_left" headers="Outcome">Beauty</td>
 <td class="gt_row gt_left" headers="Feature">Gaze_Shift</td>
+<td class="gt_row gt_right" headers="Coefficient">-0.19</td>
+<td class="gt_row gt_left" headers="CI">[-0.54, 0.17]</td>
+<td class="gt_row gt_left" headers="p">0.299</td>
 </tr>
 <tr class="even">
-<td class="gt_row gt_left" headers="r">-0.01</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.03, 0.01]</td>
-<td class="gt_row gt_left" headers="p">0.293</td>
 <td class="gt_row gt_left" headers="Outcome">Beauty2</td>
-<td class="gt_row gt_left" headers="Feature">Gaze_pTop</td>
-</tr>
-<tr class="odd">
-<td class="gt_row gt_left" headers="r">-0.01</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.03, 0.01]</td>
+<td class="gt_row gt_left" headers="Feature">Gaze_Entropy</td>
+<td class="gt_row gt_right" headers="Coefficient">0.23</td>
+<td class="gt_row gt_left" headers="CI">[-0.21, 0.66]</td>
 <td class="gt_row gt_left" headers="p">0.303</td>
+</tr>
+<tr class="odd">
 <td class="gt_row gt_left" headers="Outcome">SelfRelevance</td>
-<td class="gt_row gt_left" headers="Feature">Gaze_pTop</td>
+<td class="gt_row gt_left" headers="Feature">Gaze_Shift</td>
+<td class="gt_row gt_right" headers="Coefficient">-0.16</td>
+<td class="gt_row gt_left" headers="CI">[-0.66, 0.33]</td>
+<td class="gt_row gt_left" headers="p">0.518</td>
 </tr>
 <tr class="even">
-<td class="gt_row gt_left" headers="r">-9.17e-03</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.03, 0.01]</td>
-<td class="gt_row gt_left" headers="p">0.316</td>
-<td class="gt_row gt_left" headers="Outcome">Worth</td>
-<td class="gt_row gt_left" headers="Feature">Gaze_pCenter</td>
-</tr>
-<tr class="odd">
-<td class="gt_row gt_left" headers="r">9.81e-03</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.01, 0.03]</td>
-<td class="gt_row gt_left" headers="p">0.373</td>
-<td class="gt_row gt_left" headers="Outcome">Beauty2</td>
-<td class="gt_row gt_left" headers="Feature">Gaze_Entropy</td>
-</tr>
-<tr class="even">
-<td class="gt_row gt_left" headers="r">8.02e-03</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.01, 0.03]</td>
-<td class="gt_row gt_left" headers="p">0.384</td>
-<td class="gt_row gt_left" headers="Outcome">Authenticity</td>
-<td class="gt_row gt_left" headers="Feature">Gaze_pTop</td>
-</tr>
-<tr class="odd">
-<td class="gt_row gt_left" headers="r">5.81e-03</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.01, 0.02]</td>
-<td class="gt_row gt_left" headers="p">0.529</td>
 <td class="gt_row gt_left" headers="Outcome">Reality</td>
 <td class="gt_row gt_left" headers="Feature">Gaze_Entropy</td>
+<td class="gt_row gt_right" headers="Coefficient">0.16</td>
+<td class="gt_row gt_left" headers="CI">[-0.41, 0.73]</td>
+<td class="gt_row gt_left" headers="p">0.584</td>
 </tr>
-<tr class="even">
-<td class="gt_row gt_left" headers="r">-5.49e-03</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.02, 0.01]</td>
-<td class="gt_row gt_left" headers="p">0.549</td>
+<tr class="odd">
 <td class="gt_row gt_left" headers="Outcome">Valence</td>
 <td class="gt_row gt_left" headers="Feature">Gaze_pCenter</td>
-</tr>
-<tr class="odd">
-<td class="gt_row gt_left" headers="r">5.26e-03</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.01, 0.02]</td>
-<td class="gt_row gt_left" headers="p">0.568</td>
-<td class="gt_row gt_left" headers="Outcome">Reality</td>
-<td class="gt_row gt_left" headers="Feature">Gaze_pTop</td>
+<td class="gt_row gt_right" headers="Coefficient">-0.09</td>
+<td class="gt_row gt_left" headers="CI">[-0.47, 0.30]</td>
+<td class="gt_row gt_left" headers="p">0.655</td>
 </tr>
 <tr class="even">
-<td class="gt_row gt_left" headers="r">-6.38e-03</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.03, 0.02]</td>
-<td class="gt_row gt_left" headers="p">0.571</td>
-<td class="gt_row gt_left" headers="Outcome">SelfRelevance</td>
-<td class="gt_row gt_left" headers="Feature">Gaze_Shift</td>
-</tr>
-<tr class="odd">
-<td class="gt_row gt_left" headers="r">-3.80e-03</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.02, 0.01]</td>
-<td class="gt_row gt_left" headers="p">0.678</td>
-<td class="gt_row gt_left" headers="Outcome">Worth</td>
-<td class="gt_row gt_left" headers="Feature">Gaze_pLeft</td>
-</tr>
-<tr class="even">
-<td class="gt_row gt_left" headers="r">3.86e-03</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.01, 0.02]</td>
-<td class="gt_row gt_left" headers="p">0.681</td>
 <td class="gt_row gt_left" headers="Outcome">Reality</td>
 <td class="gt_row gt_left" headers="Feature">Gaze_Shift</td>
+<td class="gt_row gt_right" headers="Coefficient">0.09</td>
+<td class="gt_row gt_left" headers="CI">[-0.49, 0.67]</td>
+<td class="gt_row gt_left" headers="p">0.761</td>
 </tr>
 <tr class="odd">
-<td class="gt_row gt_left" headers="r">3.45e-03</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.01, 0.02]</td>
-<td class="gt_row gt_left" headers="p">0.706</td>
-<td class="gt_row gt_left" headers="Outcome">Valence</td>
-<td class="gt_row gt_left" headers="Feature">Gaze_pTop</td>
-</tr>
-<tr class="even">
-<td class="gt_row gt_left" headers="r">2.54e-03</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.02, 0.02]</td>
-<td class="gt_row gt_left" headers="p">0.782</td>
-<td class="gt_row gt_left" headers="Outcome">Meaning</td>
-<td class="gt_row gt_left" headers="Feature">Gaze_pCenter</td>
-</tr>
-<tr class="odd">
-<td class="gt_row gt_left" headers="r">-2.41e-03</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.02, 0.02]</td>
-<td class="gt_row gt_left" headers="p">0.792</td>
-<td class="gt_row gt_left" headers="Outcome">Valence</td>
-<td class="gt_row gt_left" headers="Feature">Gaze_pLeft</td>
-</tr>
-<tr class="even">
-<td class="gt_row gt_left" headers="r">-2.09e-03</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.02, 0.02]</td>
-<td class="gt_row gt_left" headers="p">0.820</td>
-<td class="gt_row gt_left" headers="Outcome">Worth</td>
-<td class="gt_row gt_left" headers="Feature">Gaze_pTop</td>
-</tr>
-<tr class="odd">
-<td class="gt_row gt_left" headers="r">2.20e-03</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.02, 0.02]</td>
-<td class="gt_row gt_left" headers="p">0.841</td>
-<td class="gt_row gt_left" headers="Outcome">SelfRelevance</td>
-<td class="gt_row gt_left" headers="Feature">Gaze_pCenter</td>
-</tr>
-<tr class="even">
-<td class="gt_row gt_left" headers="r">1.94e-03</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.02, 0.02]</td>
-<td class="gt_row gt_left" headers="p">0.860</td>
-<td class="gt_row gt_left" headers="Outcome">Beauty2</td>
-<td class="gt_row gt_left" headers="Feature">Gaze_pCenter</td>
-</tr>
-<tr class="odd">
-<td class="gt_row gt_left" headers="r">1.53e-03</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.02, 0.02]</td>
-<td class="gt_row gt_left" headers="p">0.868</td>
 <td class="gt_row gt_left" headers="Outcome">Authenticity</td>
 <td class="gt_row gt_left" headers="Feature">Gaze_pCenter</td>
+<td class="gt_row gt_right" headers="Coefficient">0.08</td>
+<td class="gt_row gt_left" headers="CI">[-0.49, 0.66]</td>
+<td class="gt_row gt_left" headers="p">0.774</td>
 </tr>
 <tr class="even">
-<td class="gt_row gt_left" headers="r">-1.24e-03</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.02, 0.02]</td>
-<td class="gt_row gt_left" headers="p">0.892</td>
-<td class="gt_row gt_left" headers="Outcome">Beauty</td>
-<td class="gt_row gt_left" headers="Feature">Gaze_pTop</td>
-</tr>
-<tr class="odd">
-<td class="gt_row gt_left" headers="r">-1.12e-03</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.02, 0.02]</td>
-<td class="gt_row gt_left" headers="p">0.903</td>
 <td class="gt_row gt_left" headers="Outcome">Beauty</td>
 <td class="gt_row gt_left" headers="Feature">Gaze_pCenter</td>
-</tr>
-<tr class="even">
-<td class="gt_row gt_left" headers="r">-1.36e-03</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.02, 0.02]</td>
-<td class="gt_row gt_left" headers="p">0.904</td>
-<td class="gt_row gt_left" headers="Outcome">Beauty2</td>
-<td class="gt_row gt_left" headers="Feature">Gaze_Shift</td>
+<td class="gt_row gt_right" headers="Coefficient">-0.05</td>
+<td class="gt_row gt_left" headers="CI">[-0.41, 0.32]</td>
+<td class="gt_row gt_left" headers="p">0.807</td>
 </tr>
 <tr class="odd">
-<td class="gt_row gt_left" headers="r">-8.71e-04</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.02, 0.02]</td>
-<td class="gt_row gt_left" headers="p">0.925</td>
-<td class="gt_row gt_left" headers="Outcome">Reality</td>
+<td class="gt_row gt_left" headers="Outcome">Worth</td>
 <td class="gt_row gt_left" headers="Feature">Gaze_pLeft</td>
+<td class="gt_row gt_right" headers="Coefficient">-0.05</td>
+<td class="gt_row gt_left" headers="CI">[-0.46, 0.36]</td>
+<td class="gt_row gt_left" headers="p">0.813</td>
 </tr>
 <tr class="even">
-<td class="gt_row gt_left" headers="r">1.81e-04</td>
-<td class="gt_row gt_left" headers="95% CI">[-0.02, 0.02]</td>
-<td class="gt_row gt_left" headers="p">0.984</td>
+<td class="gt_row gt_left" headers="Outcome">Beauty2</td>
+<td class="gt_row gt_left" headers="Feature">Gaze_Shift</td>
+<td class="gt_row gt_right" headers="Coefficient">-0.04</td>
+<td class="gt_row gt_left" headers="CI">[-0.48, 0.40]</td>
+<td class="gt_row gt_left" headers="p">0.865</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Outcome">SelfRelevance</td>
+<td class="gt_row gt_left" headers="Feature">Gaze_pCenter</td>
+<td class="gt_row gt_right" headers="Coefficient">0.04</td>
+<td class="gt_row gt_left" headers="CI">[-0.46, 0.55]</td>
+<td class="gt_row gt_left" headers="p">0.869</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Outcome">Beauty2</td>
+<td class="gt_row gt_left" headers="Feature">Gaze_pCenter</td>
+<td class="gt_row gt_right" headers="Coefficient">0.03</td>
+<td class="gt_row gt_left" headers="CI">[-0.42, 0.49]</td>
+<td class="gt_row gt_left" headers="p">0.886</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Outcome">Meaning</td>
+<td class="gt_row gt_left" headers="Feature">Gaze_pCenter</td>
+<td class="gt_row gt_right" headers="Coefficient">0.03</td>
+<td class="gt_row gt_left" headers="CI">[-0.42, 0.47]</td>
+<td class="gt_row gt_left" headers="p">0.901</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Outcome">Reality</td>
+<td class="gt_row gt_left" headers="Feature">Gaze_pLeft</td>
+<td class="gt_row gt_right" headers="Coefficient">0.02</td>
+<td class="gt_row gt_left" headers="CI">[-0.62, 0.66]</td>
+<td class="gt_row gt_left" headers="p">0.948</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Outcome">Valence</td>
+<td class="gt_row gt_left" headers="Feature">Gaze_pLeft</td>
+<td class="gt_row gt_right" headers="Coefficient">-0.01</td>
+<td class="gt_row gt_left" headers="CI">[-0.44, 0.41]</td>
+<td class="gt_row gt_left" headers="p">0.953</td>
+</tr>
+<tr class="even">
 <td class="gt_row gt_left" headers="Outcome">Meaning</td>
 <td class="gt_row gt_left" headers="Feature">Gaze_pLeft</td>
+<td class="gt_row gt_right" headers="Coefficient">0.01</td>
+<td class="gt_row gt_left" headers="CI">[-0.48, 0.51]</td>
+<td class="gt_row gt_left" headers="p">0.961</td>
 </tr>
 </tbody>
 </table>

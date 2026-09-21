@@ -413,6 +413,9 @@ wrap_plots(
 
 ```{r}
 #| eval: false
+# Exports the bare distribution panels used in the procedure figure
+# (figures/figure1.pptx). Run by hand after a data update, then swap the PNGs
+# into the pptx (the 8 panels are ppt/media/image7,8,9,13,15,16,17,18).
 
 dist_theme <- list(
   scale_x_continuous(expand = c(0, 0)),
@@ -429,7 +432,7 @@ dist_theme <- list(
 ggsave(p_dist_beauty + dist_theme, filename = "figures/dist_beauty.png", width = 6, height = 4, dpi = 300)
 ggsave(p_dist_valence + dist_theme, filename = "figures/dist_valence.png", width = 6, height = 4, dpi = 300)
 ggsave(p_dist_meaning + dist_theme, filename = "figures/dist_meaning.png", width = 6, height = 4, dpi = 300)
-ggsave(p_dist_worth + dist_theme, filename = "figures/dist_worth.png", width = 6, height = 4, dpi = 300)
+ggsave(p_dist_worth + dist_theme[-1] + scale_x_discrete(expand = c(0, 0)), filename = "figures/dist_worth.png", width = 6, height = 4, dpi = 300) # Worth is a factor: discrete x scale
 ggsave(p_dist_entropy + dist_theme, filename = "figures/dist_entropy.png", width = 6, height = 1.5, dpi = 300)
 ggsave(p_dist_shift + dist_theme, filename = "figures/dist_shift.png", width = 6, height = 1.5, dpi = 300)
 ggsave(p_dist_pleft + dist_theme, filename = "figures/dist_pleft.png", width = 6, height = 1.5, dpi = 300)
