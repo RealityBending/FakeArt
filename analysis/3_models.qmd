@@ -8,6 +8,7 @@ format:
     code-fold: true
     self-contained: false
     toc: true
+    keep-md: true   # also writes 3_models.html.md: the report as plain Markdown, for text-based readers
 execute:
   cache: true
 ---
@@ -49,6 +50,309 @@ cols <- c(
   "Not recognized" = "#607D8B")
 ```
 
+## How to read this report
+
+Every model below is a Bayesian mixed model (`brms` + `cogmod`) of one outcome
+on `Condition * Emotion`, where **Condition** is the label shown before the
+artwork (Human Original, Human Forgery, AI-Generated; all artworks were in fact
+human originals) and **Emotion** is the stimulus's normative valence x arousal
+quadrant. Random effects: `(Condition * Emotion | Participant)` and
+`(Condition | Item)`.
+
+Each model section has, in this order: (1) the model-implied distributions
+(figures), (2) a **convergence** table, (3) **marginal means** per condition on
+the response scale, (4) **all contrasts** between label conditions, for every
+distributional parameter, as a coloured table (green = credibly positive,
+red = credibly negative, grey = 95% CI includes 0), (5) the same contrasts
+within each emotion quadrant, and (6) an **auto-generated summary** of the
+credible effects. Every table also exists as a folded Markdown table
+("for text readers"); those, and the pooled CSVs written by the Summary
+section (`data/results_contrasts.csv`, `data/results_means.csv`), are the
+machine-readable outputs.
+
+Contrasts are differences of posterior medians (`Level1 - Level2`) with a 95%
+credible interval and the probability of direction (`pd`). "Credible" below
+means the CI excludes 0; no multiplicity correction is applied.
+
+**Units.** To keep outcomes comparable, every difference that lives on a
+bounded scale is reported in **percent of that scale's range**: the 0-1
+sliders and gaze proportions, the CHOCO probabilities (`mu`, `confright`,
+`confleft`, `pex`, `bex`, `pmid`), the hurdle probability `pzero`, the `zoi` /
+`coi` inflation probabilities, and the per-category probabilities of the
+ordinal models are multiplied by 100; the Valence (1-7) and Meaning (0-6)
+response-scale differences are divided by their range (6) and multiplied by
+100. Parameters without a bounded scale (`phi`, `precright`, `precleft`,
+`sigma`, `disc`, `Gaze_Shift` in stimulus widths) stay on their own scale and
+are marked `raw` in the tables. The CSVs carry both the raw and the percent
+columns.
+
+```{r}
+#| label: helpers
+#| code-summary: "Reporting helpers (tables, diagnostics, generated summaries)"
+
+# Compatibility shims -------------------------------------------------------
+# The models in models/ were fitted in July 2026 with cogmod < 0.3, whose
+# custom families were named "choco" and "betadiscrete". brms resolves the
+# post-processing methods of a custom family by name (posterior_epred_<name>,
+# posterior_predict_<name>, log_lik_<name>) in the family's environment, which
+# is the global environment for these fits. cogmod 0.3 renamed the families to
+# cogmod_choco / cogmod_betadiscrete (same parameters, same density), so alias
+# the new methods under the old names until the models are refitted with the
+# new API (analysis/server/). Remove this block after the refit.
+for (fam in c("choco", "betadiscrete")) {
+  for (fun in c("posterior_epred", "posterior_predict", "log_lik")) {
+    old <- paste0(fun, "_", fam)
+    new <- paste0(fun, "_cogmod_", fam)
+    if (!exists(old, envir = globalenv(), inherits = FALSE) &&
+        exists(new, envir = asNamespace("cogmod"))) {
+      assign(old, get(new, envir = asNamespace("cogmod")), envir = globalenv())
+    }
+  }
+}
+if (!exists("dchoco")) dchoco <- cogmod::dcogmod_choco # used by get_marginal_densities()
+
+# Reporting helpers: every model section calls fa_report(), which prints
+#   1. a convergence table (chains, draws, Rhat, ESS, divergences)
+#   2. marginal means per Condition on the response scale
+#   3. the full contrast table (every parameter, credible or not), as a coloured
+#      gt table for readers and, folded, as a Markdown table for text-based
+#      readers (agents, diffs, the .md twin of this report)
+#   4. an auto-generated plain-language summary of the credible effects
+# The tables come from the `rez_*` objects computed in the cached contrasts-*
+# chunks, so this costs nothing to re-render.
+
+outcome_info <- list(
+  Beauty = list(label = "Beauty", family = "CHOCO", scale = "analog slider rescaled to 0 (Ugly) - 1 (Beautiful)"),
+  Beauty2 = list(label = "Beauty (follow-up)", family = "CHOCO", scale = "analog slider rescaled to 0 (Ugly) - 1 (Beautiful), rated again in the follow-up session after the debrief"),
+  Reality = list(label = "Syntheticness", family = "CHOCO", scale = "slider rescaled to 0 (AI-Generated) - 1 (Human Creation); higher = judged more human"),
+  Authenticity = list(label = "Authenticity", family = "CHOCO", scale = "slider rescaled to 0 (Copy / Forgery) - 1 (Original Creation)"),
+  Artificiality = list(label = "Perceived Artificiality", family = "CHOCO", scale = "slider rescaled to 0 (Very Human) - 1 (Very Artificial), follow-up, items judged 'new' only"),
+  Valence = list(label = "Valence", family = "Discrete Beta (k = 7)", scale = "7-point pictorial scale coded 1 (Negative) - 7 (Positive); `response` differences are reported in % of the 6-point range", range = 6),
+  Meaning = list(label = "Meaning", family = "Discrete Beta (k = 6) with zero hurdle", scale = "0 (Not at all) - 6 (Very much); `response` differences are reported in % of the 6-point range; `pzero` is the probability of answering exactly 0", range = 6),
+  Worth = list(label = "Worth", family = "Cumulative (ordinal)", scale = "6 ordered categories $0, $10, $100, $1,000, $10,000, $100,000; `response - <k>` rows are differences in the probability of choosing category k"),
+  SelfRelevance = list(label = "Self-Relevance", family = "Cumulative (ordinal)", scale = "7 ordered categories 0 (Not at all) - 6 (Very much); `response - <k>` rows are differences in the probability of choosing category k"),
+  Entropy = list(label = "Gaze Entropy", family = "Beta", scale = "normalised spatial entropy of gaze in (0, 1); higher = more dispersed gaze"),
+  pLeft = list(label = "Gaze Laterality (pLeft)", family = "Zero-one-inflated Beta", scale = "proportion of gaze samples on the left half of the image (0 - 1)"),
+  pCenter = list(label = "Gaze Centeredness (pCenter)", family = "Zero-one-inflated Beta", scale = "proportion of gaze samples in the central region of the image (0 - 1)"),
+  Shift = list(label = "Gaze Max. Shift", family = "LogNormal", scale = "largest within-trial relocation of the gaze centroid, in stimulus widths", range = NA)
+)
+
+# Parameters that live on a probability / bounded [0, 1] scale and are therefore
+# reported in percent. `response` is included unless the outcome has no bounded
+# range (range = NA, i.e. Gaze_Shift); for Valence / Meaning it is divided by
+# the outcome's range first. Everything else stays raw.
+fa_pct_params <- c("mu", "confright", "confleft", "pex", "bex", "pmid", "pzero", "zoi", "coi")
+fa_scale_factor <- function(parameter, outcome) {
+  info <- outcome_info[[outcome]]
+  rng <- if (is.null(info$range)) 1 else info$range
+  is_resp <- parameter == "response" | grepl("^response", parameter)
+  ifelse(parameter %in% fa_pct_params, 100,
+    ifelse(is_resp & !is.na(rng), 100 / rng, NA_real_))
+}
+
+param_glossary <- c(
+  response = "expected value on the response scale",
+  mu = "CHOCO: probability of choosing the upper half of the scale (logit link). Discrete Beta / Beta: mean of the latent Beta",
+  confright = "CHOCO: mean confidence (position within the upper half) when the upper half is chosen",
+  confleft = "CHOCO: mean confidence within the lower half when the lower half is chosen",
+  precright = "CHOCO: precision (inverse spread) of ratings within the upper half",
+  precleft = "CHOCO: precision of ratings within the lower half",
+  pex = "CHOCO: probability of an extreme response (exactly 0 or 1)",
+  bex = "CHOCO: balance of the extreme mass towards 1 (> 0.5) or 0 (< 0.5)",
+  pmid = "CHOCO: probability of answering exactly at the midpoint",
+  phi = "precision of the latent Beta (higher = more agreement / less dispersion)",
+  pzero = "probability of the hurdle category 0",
+  sigma = "LogNormal: scale (spread) parameter on the log scale",
+  zoi = "probability of an exact 0 or 1", coi = "conditional probability that an extreme is 1 rather than 0",
+  disc = "ordinal discrimination"
+)
+
+contrast_order <- c("AI-Generated - Human Original", "Human Forgery - Human Original", "AI-Generated - Human Forgery")
+
+fa_asis <- function(...) knitr::asis_output(paste(unlist(list(...)), collapse = "\n"))
+
+fa_prep_contrasts <- function(dat_con, outcome) {
+  dat_con <- as.data.frame(dat_con)
+  dat_con$Credible <- sign(dat_con$CI_low) == sign(dat_con$CI_high)
+  dat_con$Effect <- ifelse(!dat_con$Credible, "n.s.", ifelse(dat_con$Difference < 0, "Negative", "Positive"))
+  dat_con$Contrast <- factor(dat_con$Contrast, levels = unique(c(contrast_order, unique(dat_con$Contrast))))
+  # Percent of scale range where the parameter has one (see fa_scale_factor)
+  k <- fa_scale_factor(dat_con$Parameter, outcome)
+  dat_con$Unit <- ifelse(is.na(k), "raw", "%")
+  dat_con$Difference_pct <- dat_con$Difference * k
+  dat_con$CI_low_pct <- dat_con$CI_low * k
+  dat_con$CI_high_pct <- dat_con$CI_high * k
+  shown <- function(raw, pct) ifelse(is.na(k), raw, pct)
+  d <- shown(dat_con$Difference, dat_con$Difference_pct)
+  lo <- shown(dat_con$CI_low, dat_con$CI_low_pct)
+  hi <- shown(dat_con$CI_high, dat_con$CI_high_pct)
+  dat_con$Diff <- insight::format_value(d, zap_small = TRUE)
+  dat_con$CI <- sprintf("[%s, %s]", insight::format_value(lo, zap_small = TRUE), insight::format_value(hi, zap_small = TRUE))
+  dat_con$pd_fmt <- if ("pd" %in% names(dat_con)) insight::format_pd(dat_con$pd, name = NULL) else ""
+  dat_con[order(dat_con$Contrast), ]
+}
+
+# A coloured gt table for humans + the same table as Markdown in a folded
+# callout for text-based readers.
+fa_tables <- function(df, cols, title, id) {
+  tbl <- as.data.frame(df)[cols]
+  g <- gt::gt(tbl, groupname_col = if ("Contrast" %in% cols) "Contrast" else NULL) |>
+    gt::tab_header(title = title) |>
+    gt::opt_stylize(style = 2, color = "gray") |>
+    gt::tab_options(table.font.size = gt::px(13), heading.align = "left")
+  if ("Effect" %in% cols) {
+    g <- g |>
+      gt::tab_style(style = gt::cell_fill(color = "#E8F5E9"), locations = gt::cells_body(rows = Effect == "Positive")) |>
+      gt::tab_style(style = gt::cell_fill(color = "#FFEBEE"), locations = gt::cells_body(rows = Effect == "Negative")) |>
+      gt::tab_style(style = gt::cell_text(color = "#9E9E9E"), locations = gt::cells_body(rows = Effect == "n.s."))
+  }
+  md <- knitr::kable(tbl, format = "pipe", row.names = FALSE)
+  fa_asis(
+    as.character(knitr::knit_print(g)), # gt HTML with a scoped <style>, not inline CSS
+    "",
+    sprintf('::: {.callout-note collapse="true" title="%s (Markdown table, for text readers)"}', title),
+    "",
+    md,
+    "",
+    ":::",
+    ""
+  )
+}
+
+fa_diagnostics <- function(m, outcome) {
+  rh <- brms::rhat(m)
+  ne <- brms::neff_ratio(m)
+  np <- brms::nuts_params(m, pars = "divergent__")
+  data.frame(
+    Model = outcome,
+    Family = outcome_info[[outcome]]$family,
+    N_obs = nrow(m$data),
+    N_participants = length(unique(m$data$Participant)),
+    Chains = brms::nchains(m),
+    Draws = brms::ndraws(m),
+    Max_Rhat = round(max(rh, na.rm = TRUE), 3),
+    Min_ESS_ratio = round(min(ne, na.rm = TRUE), 3),
+    Divergent_pct = round(100 * mean(np$Value), 2),
+    Criterion = paste(names(m$criteria), collapse = ", "),
+    check.names = FALSE
+  )
+}
+
+fa_means <- function(m) {
+  if (m$family$family == "cumulative") {
+    # Ordinal: the response-scale mean is meaningless; report the probability
+    # of each category per condition instead (marginaleffects gives them).
+    out <- estimate_means(m, by = "Condition", predict = "response", backend = "marginaleffects",
+                          test = NULL, iterations = 500) |> as.data.frame()
+  } else {
+    out <- estimate_means(m, by = "Condition", predict = "response", backend = "emmeans", test = NULL) |>
+      as.data.frame()
+  }
+  names(out)[names(out) %in% c("Probability", "Mean", "Median")] <- "Estimate"
+  out[intersect(c("Condition", "Response", "Estimate", "CI_low", "CI_high"), names(out))]
+}
+
+# Plain-language summary generated from the numbers, so it is never stale.
+fa_describe <- function(dat, dat_emo, outcome) {
+  info <- outcome_info[[outcome]]
+  main_pars <- c("response", "mu")
+  out <- c(sprintf("**%s** (%s). Scale: %s. Differences are posterior medians with 95%% CI, in %% of the scale range for bounded parameters and on the parameter's own scale for those marked `raw`; `pd` is the probability of direction. An effect is called credible when the CI excludes 0.", info$label, info$family, info$scale), "")
+  for (con in levels(dat$Contrast)) {
+    d <- dat[dat$Contrast == con, ]
+    if (nrow(d) == 0) next
+    cred <- d[d$Credible, ]
+    if (nrow(cred) == 0) {
+      out <- c(out, sprintf("- **%s**: no credible difference on any parameter (%s).", con, paste(unique(d$Parameter), collapse = ", ")))
+      next
+    }
+    cred <- cred[order(!cred$Parameter %in% main_pars & !grepl("^response", cred$Parameter), cred$Parameter), ]
+    up <- cred[cred$Difference > 0, ]; down <- cred[cred$Difference < 0, ]
+    fmt <- function(x) paste(sprintf("`%s` %s%s %s", x$Parameter, x$Diff, ifelse(x$Unit == "%", "%", ""), x$CI), collapse = "; ")
+    parts <- c(if (nrow(down)) sprintf("lower %s", fmt(down)), if (nrow(up)) sprintf("higher %s", fmt(up)))
+    ns <- setdiff(unique(d$Parameter), cred$Parameter)
+    out <- c(out, sprintf("- **%s**: %s.%s", con, paste(parts, collapse = "; "),
+                          if (length(ns)) sprintf(" No credible difference on %s.", paste0("`", ns, "`", collapse = ", ")) else ""))
+  }
+  if (!is.null(dat_emo) && nrow(dat_emo) > 0 && "Emotion" %in% names(dat_emo)) {
+    out <- c(out, "", "By stimulus emotion (same contrasts within each valence x arousal quadrant, main parameter only):")
+    for (con in levels(dat$Contrast)) {
+      d <- dat_emo[dat_emo$Contrast == con & (dat_emo$Parameter %in% main_pars | grepl("^response", dat_emo$Parameter)), ]
+      if (nrow(d) == 0) next
+      d <- d[d$Parameter == d$Parameter[1], ] # first main parameter available
+      cred <- d[d$Credible, ]
+      out <- c(out, sprintf("- **%s** on `%s`: credible in %s%s.", con, d$Parameter[1],
+                            if (nrow(cred)) paste(sprintf("%s (%s%s %s)", cred$Emotion, cred$Diff, ifelse(cred$Unit == "%", "%", ""), cred$CI), collapse = ", ") else "no quadrant",
+                            if (nrow(cred) && nrow(cred) < nrow(d)) sprintf("; not in %s", paste(setdiff(d$Emotion, cred$Emotion), collapse = ", ")) else ""))
+    }
+  }
+  fa_asis("", '::: {.callout-tip title="Summary of credible effects (generated from the tables above)"}', "", out, "", ":::", "")
+}
+
+# Expensive part (cached per model): diagnostics + marginal means + the raw
+# contrast tables. No formatting here, so that fa_print() can change without
+# invalidating the cache.
+fa_report <- function(m, rez, rez_emo, outcome, rez_extra = NULL, extra_title = "Emotion contrasts") {
+  list(
+    outcome = outcome,
+    extra_title = extra_title,
+    diag = fa_diagnostics(m, outcome),
+    means = fa_means(m),
+    contrasts = fa_prep_contrasts(rez$dat_con, outcome),
+    contrasts_emo = fa_prep_contrasts(rez_emo$dat_con, outcome),
+    contrasts_extra = if (!is.null(rez_extra)) fa_prep_contrasts(rez_extra$dat_con, outcome) else NULL
+  )
+}
+
+# Cheap part (never cached): the tables and the generated summary.
+fa_print <- function(rep) {
+  info <- outcome_info[[rep$outcome]]
+  id <- tolower(rep$outcome)
+  # Recompute the derived columns so a change in fa_prep_contrasts() shows up
+  # without refitting anything.
+  dat <- fa_prep_contrasts(rep$contrasts, rep$outcome)
+  dat_emo <- fa_prep_contrasts(rep$contrasts_emo, rep$outcome)
+  extra <- if (!is.null(rep$contrasts_extra)) fa_prep_contrasts(rep$contrasts_extra, rep$outcome) else NULL
+  means_fmt <- rep$means
+  num <- vapply(means_fmt, is.numeric, logical(1))
+  means_fmt[num] <- lapply(means_fmt[num], insight::format_value, zap_small = TRUE)
+  cols <- c("Contrast", "Parameter", "Diff", "CI", "Unit", "pd_fmt", "Effect")
+  fa_asis(
+    fa_tables(rep$diag, c("Model", "Family", "N_obs", "N_participants", "Chains", "Draws", "Max_Rhat", "Min_ESS_ratio", "Divergent_pct", "Criterion"),
+              sprintf("%s: convergence", info$label), id),
+    fa_tables(means_fmt, names(means_fmt),
+              sprintf("%s: marginal means per label condition (response scale)", info$label), id),
+    fa_tables(dat, cols, sprintf("%s: all contrasts between label conditions", info$label), id),
+    if (!is.null(extra)) fa_tables(extra, cols, sprintf("%s: %s", info$label, rep$extra_title), id) else "",
+    sprintf('::: {.callout-note collapse="true" title="%s: contrasts within each stimulus emotion (Markdown table)"}', info$label),
+    "",
+    knitr::kable(dat_emo[c("Emotion", cols)], format = "pipe", row.names = FALSE),
+    "",
+    ":::",
+    fa_describe(dat, dat_emo, rep$outcome)
+  )
+}
+```
+
+```{r}
+#| label: glossary
+
+knitr::kable(
+  data.frame(
+    Model = vapply(outcome_info, `[[`, "", "label"),
+    Outcome = names(outcome_info),
+    Family = vapply(outcome_info, `[[`, "", "family"),
+    Scale = vapply(outcome_info, `[[`, "", "scale"),
+    row.names = NULL
+  ),
+  caption = "Outcomes, model families and response scales.", format = "pipe"
+)
+
+knitr::kable(
+  data.frame(Parameter = names(param_glossary), Meaning = unname(param_glossary)),
+  caption = "Distributional parameters that appear in the contrast tables.", format = "pipe"
+)
+```
+
 ## Distributions
 
 ::: {.panel-tabset}
@@ -56,6 +360,9 @@ cols <- c(
 ### Phase 1
 
 ```{r}
+#| label: fig-dist-phase1
+#| fig-cap: "Observed distributions of the Phase 1 ratings (Beauty 0-1, Valence 1-7, Meaning 0-6, Worth in 6 money categories) and of the four gaze features, pooled over conditions."
+#| fig-alt: "Observed distributions of the Phase 1 ratings (Beauty 0-1, Valence 1-7, Meaning 0-6, Worth in 6 money categories) and of the four gaze features, pooled over conditions."
 #| warning: false
 
 p_dist_beauty <- dftask |> 
@@ -132,6 +439,9 @@ ggsave(p_dist_pcenter + dist_theme, filename = "figures/dist_pcenter.png", width
 ### Phase 2 and Follow-Up
 
 ```{r}
+#| label: fig-dist-phase2
+#| fig-cap: "Observed distributions of the Phase 2 sliders (Syntheticness: 0 = AI-Generated, 1 = Human; Authenticity: 0 = Copy, 1 = Original) and of the follow-up outcomes (Beauty rated again, Self-Relevance 0-6, Perceived Artificiality 0-1)."
+#| fig-alt: "Observed distributions of the Phase 2 sliders (Syntheticness: 0 = AI-Generated, 1 = Human; Authenticity: 0 = Copy, 1 = Original) and of the follow-up outcomes (Beauty rated again, Self-Relevance 0-6, Perceived Artificiality 0-1)."
 #| warning: false
 
 p_dist_reality <- dftask |> 
@@ -155,10 +465,10 @@ p_dist_artificiality <- dftask |>
   geom_histogram(aes(y=after_stat(density)), bins = 21, fill = colorRampPalette(c("#AFB42B", "#827717"))(21))
 
 wrap_plots(
-  (p_dist_reality + labs(title = "Beauty")), 
-    (p_dist_authenticity + labs(title = "Valence")),
-    (p_dist_beauty2 + labs(title = "Meaning")), 
-    (p_dist_selfrel + labs(title = "Worth")),
+  (p_dist_reality + labs(title = "Syntheticness")), 
+    (p_dist_authenticity + labs(title = "Authenticity")),
+    (p_dist_beauty2 + labs(title = "Beauty (follow-up)")), 
+    (p_dist_selfrel + labs(title = "Self-Relevance")),
     (p_dist_artificiality + labs(title = "Artificiality")),
   ncol = 3
 )
@@ -228,6 +538,19 @@ get_contrasts <- function(m, outcome = "Beauty", contrast = "Condition", by = NU
 rez_beauty <- get_contrasts(m_beauty, outcome = "Beauty", contrast = "Condition")
 gt::gt(rez_beauty$rez_con)
 rez_beauty_emo <- get_contrasts(m_beauty, outcome = "Beauty", contrast = "Condition", by = "Emotion")
+```
+
+```{r}
+#| label: report-beauty
+
+rep_beauty <- fa_report(m_beauty, rez_beauty, rez_beauty_emo, outcome = "Beauty")
+```
+
+```{r}
+#| label: tables-beauty
+#| cache: false
+
+fa_print(rep_beauty)
 ```
 
 
@@ -327,6 +650,9 @@ get_choco_plot <- function(dat, title = "Beauty", observed = title, xlabs = c("0
 
 
 ```{r}
+#| label: fig-beauty
+#| fig-cap: "Beauty: observed ratings (grey histogram, 0 = Ugly, 1 = Beautiful) with the model-implied CHOCO density for each label condition. The two dots per condition on the x-axis mark the modal rating within the lower and upper half of the scale, sized by the probability of choosing that half (mu); the point-ranges above are the marginal means with 95% CI."
+#| fig-alt: "Beauty: observed ratings (grey histogram, 0 = Ugly, 1 = Beautiful) with the model-implied CHOCO density for each label condition. The two dots per condition on the x-axis mark the modal rating within the lower and upper half of the scale, sized by the probability of choosing that half (mu); the point-ranges above are the marginal means with 95% CI."
 #| fig-width: 10
 #| fig-height: 7
 #| cache-lazy: false
@@ -338,6 +664,9 @@ p_beauty
 ```
 
 ```{r}
+#| label: fig-beauty-emotion
+#| fig-cap: "Beauty by stimulus emotion quadrant: as the previous figure, one panel per valence x arousal quadrant of the artworks."
+#| fig-alt: "Beauty by stimulus emotion quadrant: as the previous figure, one panel per valence x arousal quadrant of the artworks."
 #| cache-lazy: false
 
 par_beauty_condemo <- get_marginal_parameters(m_beauty, by = c("Condition", "Emotion"))
@@ -379,10 +708,29 @@ gt::gt(rez_valence$rez_con)
 rez_valence_emo <- get_contrasts(m_valence, outcome = "Valence", contrast = "Condition", by = "Emotion")
 ```
 
+```{r}
+#| label: report-valence
+
+rep_valence <- fa_report(m_valence, rez_valence, rez_valence_emo, outcome = "Valence")
+```
+
+```{r}
+#| label: tables-valence
+#| cache: false
+
+fa_print(rep_valence)
+```
+
 
 
 
 ```{r}
+#| label: fig-valence
+#| fig-cap: "Valence (1 = Negative, 7 = Positive): observed proportion of each response (grey bars) and the model-implied probability of each response per label condition (points with 95% CI)."
+#| fig-subcap:
+#|   - "Overall"
+#|   - "By stimulus emotion quadrant"
+#| layout-ncol: 1
 get_discrete_plot <- function(pred, title = "Valence", observed = title, facet = NULL, ...) {
    dat_obs <- dftask
    dat_obs$obs <- dat_obs[[observed]]
@@ -459,6 +807,25 @@ rez_meaning_emo <- get_contrasts(m_meaning, outcome = "Meaning", contrast = "Con
 ```
 
 ```{r}
+#| label: report-meaning
+
+rep_meaning <- fa_report(m_meaning, rez_meaning, rez_meaning_emo, outcome = "Meaning")
+```
+
+```{r}
+#| label: tables-meaning
+#| cache: false
+
+fa_print(rep_meaning)
+```
+
+```{r}
+#| label: fig-meaning
+#| fig-cap: "Meaning (0 = Not at all, 6 = Very much): observed proportion of each response (grey bars) and the model-implied probability per label condition (points with 95% CI)."
+#| fig-subcap:
+#|   - "Overall"
+#|   - "By stimulus emotion quadrant"
+#| layout-ncol: 1
 pred <- estimate_prediction(m_meaning, ci = NULL, iterations = 100, keep_iterations = TRUE, centrality = "median") 
 get_discrete_plot(pred, title = "Meaning") +
     scale_x_continuous(breaks = 0:6, labels = c("0\nNot at all", 1:5, "6\nVery much"))
@@ -485,6 +852,25 @@ rez_worth_emo <- get_contrasts(m_worth, outcome = "Worth", contrast = "Condition
 ```
 
 ```{r}
+#| label: report-worth
+
+rep_worth <- fa_report(m_worth, rez_worth, rez_worth_emo, outcome = "Worth")
+```
+
+```{r}
+#| label: tables-worth
+#| cache: false
+
+fa_print(rep_worth)
+```
+
+```{r}
+#| label: fig-worth
+#| fig-cap: "Worth ($0 to $100,000, six ordered categories): observed proportion of each category (grey bars) and the model-implied probability per label condition (points with 95% CI)."
+#| fig-subcap:
+#|   - "Overall"
+#|   - "By stimulus emotion quadrant"
+#| layout-ncol: 1
 pred <- estimate_prediction(m_worth, ci = NULL, iterations = 100, keep_iterations = TRUE, centrality = "median") 
 get_discrete_plot(pred, title = "Worth") +
     scale_x_continuous(breaks = 1:6, labels = c("$0", "$10", "$100", "$1,000", "$10,000", "$100,000"))
@@ -522,6 +908,22 @@ rez_ent_emo <- get_contrasts(m_entropy, outcome = "Entropy", contrast = "Conditi
 ```
 
 ```{r}
+#| label: report-entropy
+
+rep_entropy <- fa_report(m_entropy, rez_ent, rez_ent_emo, outcome = "Entropy", rez_extra = rez_ent2, extra_title = "contrasts between stimulus emotion quadrants")
+```
+
+```{r}
+#| label: tables-entropy
+#| cache: false
+
+fa_print(rep_entropy)
+```
+
+```{r}
+#| label: fig-entropy
+#| fig-cap: "Gaze entropy: observed distribution (histogram) with posterior-predictive densities per label condition (50 draws each)."
+#| fig-alt: "Gaze entropy: observed distribution (histogram) with posterior-predictive densities per label condition (50 draws each)."
 pred <- estimate_prediction(m_entropy, ci = NULL, iterations = 50, keep_iterations = TRUE) |> 
   reshape_iterations()
 
@@ -551,8 +953,24 @@ gt::gt(rez_pleft2$rez_con)
 rez_pleft_emo <- get_contrasts(m_pleft, outcome = "pLeft", contrast = "Condition", by = "Emotion")
 ```
 
+```{r}
+#| label: report-pleft
+
+rep_pleft <- fa_report(m_pleft, rez_pleft, rez_pleft_emo, outcome = "pLeft", rez_extra = rez_pleft2, extra_title = "contrasts between stimulus emotion quadrants")
+```
 
 ```{r}
+#| label: tables-pleft
+#| cache: false
+
+fa_print(rep_pleft)
+```
+
+
+```{r}
+#| label: fig-pleft
+#| fig-cap: "Gaze laterality (proportion of samples on the left half of the image): observed distribution with posterior-predictive densities per label condition (50 draws each)."
+#| fig-alt: "Gaze laterality (proportion of samples on the left half of the image): observed distribution with posterior-predictive densities per label condition (50 draws each)."
 pred <- estimate_prediction(m_pleft, ci = NULL, iterations = 50, keep_iterations = TRUE) |> 
   reshape_iterations()
 
@@ -583,6 +1001,22 @@ rez_pcenter_emo <- get_contrasts(m_pcenter, outcome = "pCenter", contrast = "Con
 ```
 
 ```{r}
+#| label: report-pcenter
+
+rep_pcenter <- fa_report(m_pcenter, rez_pcenter, rez_pcenter_emo, outcome = "pCenter", rez_extra = rez_pcenter2, extra_title = "contrasts between stimulus emotion quadrants")
+```
+
+```{r}
+#| label: tables-pcenter
+#| cache: false
+
+fa_print(rep_pcenter)
+```
+
+```{r}
+#| label: fig-pcenter
+#| fig-cap: "Gaze centeredness (proportion of samples in the central region): observed distribution with posterior-predictive densities per label condition (50 draws each)."
+#| fig-alt: "Gaze centeredness (proportion of samples in the central region): observed distribution with posterior-predictive densities per label condition (50 draws each)."
 
 pred <- estimate_prediction(m_pcenter, ci = NULL, iterations = 50, keep_iterations = TRUE) |> 
   reshape_iterations()
@@ -616,6 +1050,22 @@ rez_shift_emo <- get_contrasts(m_shift, outcome = "Shift", contrast = "Condition
 ```
 
 ```{r}
+#| label: report-shift
+
+rep_shift <- fa_report(m_shift, rez_shift, rez_shift_emo, outcome = "Shift", rez_extra = rez_shift2, extra_title = "contrasts between stimulus emotion quadrants")
+```
+
+```{r}
+#| label: tables-shift
+#| cache: false
+
+fa_print(rep_shift)
+```
+
+```{r}
+#| label: fig-shift
+#| fig-cap: "Gaze maximal shift (largest within-trial relocation of the gaze centroid, in stimulus widths, truncated at 1): observed distribution with posterior-predictive densities per label condition (500 draws), one panel per stimulus emotion quadrant."
+#| fig-alt: "Gaze maximal shift (largest within-trial relocation of the gaze centroid, in stimulus widths, truncated at 1): observed distribution with posterior-predictive densities per label condition (500 draws), one panel per stimulus emotion quadrant."
 pred <- estimate_prediction(m_shift, ci = NULL, iterations = 500, keep_iterations = TRUE) |> 
   reshape_iterations()
 
@@ -653,8 +1103,24 @@ gt::gt(rez_reality$rez_con)
 rez_reality_emo <- get_contrasts(m_reality, outcome = "Reality", contrast = "Condition", by = "Emotion")
 ```
 
+```{r}
+#| label: report-reality
+
+rep_reality <- fa_report(m_reality, rez_reality, rez_reality_emo, outcome = "Reality")
+```
 
 ```{r}
+#| label: tables-reality
+#| cache: false
+
+fa_print(rep_reality)
+```
+
+
+```{r}
+#| label: fig-reality
+#| fig-cap: "Syntheticness (Phase 2 slider, 0 = AI-Generated, 1 = Human Creation): observed ratings with the model-implied CHOCO density per label condition; dots mark the modal rating in each half of the scale sized by the probability of choosing that half, point-ranges are marginal means with 95% CI."
+#| fig-alt: "Syntheticness (Phase 2 slider, 0 = AI-Generated, 1 = Human Creation): observed ratings with the model-implied CHOCO density per label condition; dots mark the modal rating in each half of the scale sized by the probability of choosing that half, point-ranges are marginal means with 95% CI."
 #| fig-width: 10
 #| fig-height: 7
 #| cache-lazy: false
@@ -693,8 +1159,24 @@ gt::gt(rez_authenticity$rez_con)
 rez_authenticity_emo <- get_contrasts(m_authenticity, outcome = "Authenticity", contrast = "Condition", by = "Emotion")
 ```
 
+```{r}
+#| label: report-authenticity
+
+rep_authenticity <- fa_report(m_authenticity, rez_authenticity, rez_authenticity_emo, outcome = "Authenticity")
+```
 
 ```{r}
+#| label: tables-authenticity
+#| cache: false
+
+fa_print(rep_authenticity)
+```
+
+
+```{r}
+#| label: fig-authenticity
+#| fig-cap: "Authenticity (Phase 2 slider, 0 = Copy, 1 = Original): observed ratings with the model-implied CHOCO density per label condition; dots mark the modal rating in each half of the scale sized by the probability of choosing that half, point-ranges are marginal means with 95% CI."
+#| fig-alt: "Authenticity (Phase 2 slider, 0 = Copy, 1 = Original): observed ratings with the model-implied CHOCO density per label condition; dots mark the modal rating in each half of the scale sized by the probability of choosing that half, point-ranges are marginal means with 95% CI."
 #| fig-width: 10
 #| fig-height: 7
 #| cache-lazy: false
@@ -732,6 +1214,22 @@ rez_beauty2_emo <- get_contrasts(m_beauty2, outcome = "Beauty2", contrast = "Con
 ```
 
 ```{r}
+#| label: report-beauty2
+
+rep_beauty2 <- fa_report(m_beauty2, rez_beauty2, rez_beauty2_emo, outcome = "Beauty2")
+```
+
+```{r}
+#| label: tables-beauty2
+#| cache: false
+
+fa_print(rep_beauty2)
+```
+
+```{r}
+#| label: fig-beauty2
+#| fig-cap: "Beauty rated again in the follow-up session (after participants were told all artworks were human originals): observed ratings with the model-implied CHOCO density per original label condition."
+#| fig-alt: "Beauty rated again in the follow-up session (after participants were told all artworks were human originals): observed ratings with the model-implied CHOCO density per original label condition."
 #| fig-width: 10
 #| fig-height: 7
 #| cache-lazy: false
@@ -759,8 +1257,27 @@ gt::gt(rez_selfrelevance$rez_con)
 rez_selfrelevance_emo <- get_contrasts(m_selfrelevance, outcome = "SelfRelevance", contrast = "Condition", by = "Emotion", backend = "marginaleffects")
 ```
 
+```{r}
+#| label: report-selfrelevance
+
+rep_selfrelevance <- fa_report(m_selfrelevance, rez_selfrelevance, rez_selfrelevance_emo, outcome = "SelfRelevance")
+```
 
 ```{r}
+#| label: tables-selfrelevance
+#| cache: false
+
+fa_print(rep_selfrelevance)
+```
+
+
+```{r}
+#| label: fig-selfrelevance
+#| fig-cap: "Self-Relevance (0 = Not at all, 6 = Very much; follow-up session): observed proportion of each response and the model-implied probability per original label condition."
+#| fig-subcap:
+#|   - "Overall"
+#|   - "By stimulus emotion quadrant"
+#| layout-ncol: 1
 pred <- estimate_prediction(m_selfrelevance, ci = NULL, iterations = 100, keep_iterations = TRUE, centrality = "median") 
 get_discrete_plot(pred, title = "SelfRelevance")  +
     scale_x_continuous(breaks = 0:6, labels = c("0\nNot at all", 1:5, "6\nVery much"))
@@ -786,8 +1303,24 @@ gt::gt(rez_artificiality$rez_con)
 rez_artificiality_emo <- get_contrasts(m_artificiality, outcome = "Artificiality", contrast = "Condition", by = "Emotion")
 ```
 
+```{r}
+#| label: report-artificiality
+
+rep_artificiality <- fa_report(m_artificiality, rez_artificiality, rez_artificiality_emo, outcome = "Artificiality")
+```
 
 ```{r}
+#| label: tables-artificiality
+#| cache: false
+
+fa_print(rep_artificiality)
+```
+
+
+```{r}
+#| label: fig-artificiality
+#| fig-cap: "Perceived Artificiality (follow-up, items judged as new; 0 = Very Human, 1 = Very Artificial): observed ratings with the model-implied CHOCO density per original label condition."
+#| fig-alt: "Perceived Artificiality (follow-up, items judged as new; 0 = Very Human, 1 = Very Artificial): observed ratings with the model-implied CHOCO density per original label condition."
 #| fig-width: 10
 #| fig-height: 7
 #| cache-lazy: false
@@ -804,132 +1337,66 @@ p_artificiality
 
 ## Summary
 
+All contrasts of all models, pooled. Two CSVs are written for downstream use
+and for text-based readers:
+
+- `data/results_contrasts.csv`: every contrast x parameter x (overall or
+  emotion quadrant), unscaled (each on its own parameter / response scale, see
+  the glossary above).
+- `data/results_means.csv`: marginal means per label condition, response
+  scale, for every model.
+
 ```{r}
-#| eval: false
+#| label: summary-collect
 
-rez_beauty <- knitr::load_cache(
-  label = "contrasts-beauty1",
-  object = "rez_beauty",
-  path = "3_models_cache/html/"
-)
-rez_valence <- knitr::load_cache(
-  label = "contrasts-valence",
-  object = "rez_valence",
-  path = "3_models_cache/html/"
-)
-rez_meaning <- knitr::load_cache(
-  label = "contrasts-meaning",
-  object = "rez_meaning",
-  path = "3_models_cache/html/"
-)
-rez_worth <- knitr::load_cache(
-  label = "contrasts-worth",
-  object = "rez_worth",
-  path = "3_models_cache/html/"
-)
+reps <- list(rep_beauty, rep_valence, rep_meaning, rep_worth,
+             rep_entropy, rep_pleft, rep_pcenter, rep_shift,
+             rep_reality, rep_authenticity,
+             rep_beauty2, rep_selfrelevance, rep_artificiality)
 
-rez_ent <- knitr::load_cache(
-  label = "contrasts-entropy",
-  object = "rez_ent",
-  path = "3_models_cache/html/"
-)
-rez_pleft <- knitr::load_cache(
-  label = "contrasts-pleft",
-  object = "rez_pleft",
-  path = "3_models_cache/html/"
-)
-rez_pcenter <- knitr::load_cache(
-  label = "contrasts-pcenter",
-  object = "rez_pcenter",
-  path = "3_models_cache/html/"
-)
-rez_shift <- knitr::load_cache(
-  label = "contrasts-shift",
-  object = "rez_shift",
-  path = "3_models_cache/html/"
-)
+results_contrasts <- bind_rows(
+  lapply(reps, function(r) mutate(r$contrasts, Emotion = "Overall")),
+  lapply(reps, function(r) r$contrasts_emo)
+) |>
+  select(Outcome, Emotion, Contrast, Parameter, Unit, Difference, CI_low, CI_high,
+         Difference_pct, CI_low_pct, CI_high_pct, pd, Credible, Effect) |>
+  mutate(Contrast = as.character(Contrast)) |>
+  arrange(Outcome, Emotion, Contrast, Parameter)
+write.csv(results_contrasts, "../data/results_contrasts.csv", row.names = FALSE)
 
-rez_reality <- knitr::load_cache(
-  label = "contrasts-reality",
-  object = "rez_reality",
-  path = "3_models_cache/html/"
-)
-rez_authenticity <- knitr::load_cache(
-  label = "contrasts-authenticity",
-  object = "rez_authenticity",
-  path = "3_models_cache/html/"
-)
-rez_beauty2 <- knitr::load_cache(
-  label = "contrasts-beauty2",
-  object = "rez_beauty2",
-  path = "3_models_cache/html/"
-)
-rez_selfrelevance <- knitr::load_cache(
-  label = "contrasts-selfrelevance",
-  object = "rez_selfrelevance",
-  path = "3_models_cache/html/"
-)
+results_means <- bind_rows(lapply(reps, function(r) cbind(Outcome = r$diag$Model, r$means)))
+write.csv(results_means, "../data/results_means.csv", row.names = FALSE)
+
+diag_all <- bind_rows(lapply(reps, `[[`, "diag"))
+fa_tables(diag_all, names(diag_all), "Convergence of all models", "diag-all")
 ```
 
-
 ```{r}
+#| label: fig-summary-beauty-reality
 #| fig-width: 10
 #| fig-height: 7
+#| fig-cap: "Beauty (Phase 1, left) and Syntheticness (Phase 2, right) by label condition: observed ratings with model-implied CHOCO densities, marginal means with 95% CI above."
+#| fig-alt: "Two panels of histograms with overlaid density curves in three colours, one per label condition."
 
 (p_beauty | p_reality) +
   plot_layout(guides = "collect")
 ```
 
 ```{r}
+#| label: fig-summary-effects
 #| fig-width: 12
 #| fig-height: 10
+#| fig-cap: "Effect of the label condition on the main parameters of every model (posterior median difference with 95% CI, in percent of each scale's range). Rows: contrast; columns: outcome; y-axis: parameter. Large points with error bars are the overall contrasts, small shapes the contrasts within each stimulus emotion quadrant. Green = credibly positive, red = credibly negative, orange = CI includes 0. Gaze_Shift is omitted (no bounded scale)."
+#| fig-alt: "Grid of dot-and-whisker plots, one cell per contrast and outcome, coloured by direction and credibility of the effect."
 
-
-rez_con <- rbind(
-  rez_beauty$dat_con,
-  rez_valence$dat_con,
-  rez_meaning$dat_con,
-  rez_worth$dat_con,
-  rez_ent$dat_con,
-  rez_pleft$dat_con,
-  rez_pcenter$dat_con,
-  rez_shift$dat_con,
-  rez_reality$dat_con,
-  rez_authenticity$dat_con,
-  rez_beauty2$dat_con,
-  rez_selfrelevance$dat_con,
-  rez_artificiality$dat_con
-  ) |> 
-  mutate(Emotion = "Overall") |> 
-  rbind(
-    rez_beauty_emo$dat_con,
-    rez_valence_emo$dat_con,
-    rez_meaning_emo$dat_con,
-    rez_worth_emo$dat_con,
-    rez_ent_emo$dat_con,
-    rez_pleft_emo$dat_con,
-    rez_pcenter_emo$dat_con,
-    rez_shift_emo$dat_con,
-    rez_reality_emo$dat_con,
-    rez_authenticity_emo$dat_con,
-    rez_beauty2_emo$dat_con,
-    rez_selfrelevance_emo$dat_con,
-    rez_artificiality_emo$dat_con
-  ) |> 
-  filter(Parameter %in% c("response", "mu", "confright", "confleft", "pzero")) |> 
-  select(-Level1, -Level2) |> 
-  as.data.frame() |>
-  mutate(Difference = ifelse(Outcome %in% c("Valence", "Meaning") & Parameter == "response", Difference / 7, Difference),
-         CI_low = ifelse(Outcome %in% c("Valence", "Meaning") & Parameter == "response", CI_low / 7, CI_low),
-         CI_high = ifelse(Outcome %in% c("Valence", "Meaning") & Parameter == "response", CI_high / 7, CI_high)) |> 
-  mutate(Significant = ifelse(sign(CI_low) == sign(CI_high), "Yes", "No"),
-         Effect = case_when(Significant == "No" ~ "n.s.", Difference < 0 ~ "Negative", .default = "Positive"),
-         Effect = fct_relevel(Effect, "Negative", "n.s.", "Positive"),
+rez_con <- results_contrasts |>
+  filter(Parameter %in% c("response", "mu", "confright", "confleft", "pzero"), Unit == "%") |>
+  mutate(Difference = Difference_pct, CI_low = CI_low_pct, CI_high = CI_high_pct) |>
+  mutate(Effect = fct_relevel(Effect, "Negative", "n.s.", "Positive"),
          Contrast = fct_relevel(Contrast, "AI-Generated - Human Original", "Human Forgery - Human Original", "AI-Generated - Human Forgery"))
 
-
 rez_con |>
-  filter(Emotion == "Overall") |> 
+  filter(Emotion == "Overall") |>
   ggplot(aes(x = Difference, y = Parameter, color = Effect)) +
   geom_point(size = 2) +
   geom_errorbar(aes(xmin = CI_low, xmax = CI_high), width = 0.2) +
@@ -947,7 +1414,7 @@ rez_con |>
   theme_bw() +
   labs(
     title = "Effect Sizes by Contrast and Outcome",
-    x = "Difference (with 95% CI)",
+    x = "Difference in % of the scale range (with 95% CI)",
     y = "Model Parameter"
   ) +
   theme(
@@ -958,9 +1425,22 @@ rez_con |>
 )
 ```
 
+```{r}
+#| label: summary-table
 
+credible_main <- results_contrasts |>
+  filter(Emotion == "Overall", Credible, Parameter %in% c("response", "mu") | grepl("^response", Parameter)) |>
+  mutate(shown_d = ifelse(Unit == "%", Difference_pct, Difference),
+         shown_lo = ifelse(Unit == "%", CI_low_pct, CI_low),
+         shown_hi = ifelse(Unit == "%", CI_high_pct, CI_high),
+         Diff = insight::format_value(shown_d, zap_small = TRUE),
+         CI = sprintf("[%s, %s]", insight::format_value(shown_lo, zap_small = TRUE), insight::format_value(shown_hi, zap_small = TRUE)),
+         pd_fmt = insight::format_pd(pd, name = NULL)) |>
+  select(Outcome, Contrast, Parameter, Diff, CI, Unit, pd_fmt, Effect)
 
-
+fa_tables(credible_main, names(credible_main),
+          "Credible overall effects of the label on the main parameter of each model (response / mu), in % of the scale range", "summary")
+```
 
 ## Animations
 

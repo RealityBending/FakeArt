@@ -57,7 +57,7 @@ FakeArt/
 │   ├── 2_eyetracking.qmd
 │   ├── 3_models.qmd
 │   ├── 4_correlates.qmd
-│   ├── server/             # SLURM + R scripts for fitting brms models on Sussex HPC (Artemis)
+│   ├── server/             # ./hpc driver + models.R registry + SLURM/R scripts for the Sussex HPC (see its README.md)
 │   ├── models/             # *.rds fitted brms models (GITIGNORED, 0.2–1 GB each) + contrasts.csv
 │   ├── figures/            # exported figures (figure1.png/.pptx is the procedure figure)
 │   └── old/                # superseded notebooks (2_analysis, 3_analysis, 4_memory, funs_eyetracking.R)
@@ -72,8 +72,8 @@ FakeArt/
 | 0 | `analysis/0_preprocessing.R` | raw DataPipe CSVs from **local Box folder** `C:/Users/domma/Box/Data/FictionArt/` (not in repo) | `data/rawdata_participants.csv`, `rawdata_task.csv`, `rawdata_eyetracking{1,2}.csv`, `rawdata_memory_participants.csv`, `rawdata_memory_task.csv` |
 | 1 | `analysis/1_cleaning.qmd` | `rawdata_*` | `data/data_participants.csv`, `data_task.csv`, `data_memory_task.csv` |
 | 2 | `analysis/2_eyetracking.qmd` | `rawdata_eyetracking*`, `data_participants.csv` | `data/data_eyetracking.csv` |
-| HPC | `analysis/server/make_models.R` → `combine_models.R` | `data_task.csv` + `data_eyetracking.csv` **fetched from GitHub raw URL** | `analysis/models/<Outcome>.rds` |
-| 3 | `analysis/3_models.qmd` | `data_*`, `models/*.rds` | figures, `models/contrasts.csv`, HTML report |
+| HPC | `analysis/server/hpc fit` → `fit_model.R` (per shard) → `hpc combine` → `combine_model.R` | `data_task.csv` + `data_eyetracking.csv` **fetched from GitHub raw URL** | `analysis/models/<Model>.rds` via `hpc pull` |
+| 3 | `analysis/3_models.qmd` | `data_*`, `models/*.rds` | HTML report + Markdown twin (`3_models.html.md`, via `keep-md`), figures, **`data/results_contrasts.csv`** (every contrast x parameter, overall and per emotion quadrant) and **`data/results_means.csv`** (marginal means per condition). The report is written to be machine-readable: per model a convergence table, marginal means, the full coloured contrast table with a folded Markdown twin, and an auto-generated summary of credible effects; see its "How to read this report" section. |
 | 4 | `analysis/4_correlates.qmd` | `models/*.rds` (eval: false), `data_grouplevel.csv` | `data/data_grouplevel.csv` (per-participant model parameters) |
 
 Notes on step 0: anonymises participants to `S001…` by start date; skips test runs (`researcher` in `test`, `testp`, `README`, case-insensitive); joins VAPS norms and renames them `Norms_*`. Raw files are never in the repo. Recruitment tags in the data: `prolific`, `os`, `fw`, `dm` (lab members), `mia` (master's student, summer 2026). Check `Age`, duration and attention scores of lab-collected files: students sometimes run the task on themselves without a test tag.
@@ -99,7 +99,7 @@ All models are Bayesian (`brms` + `cmdstanr`), fit on the HPC, with formula patt
 
 `cogmod` is the lab's own package (<https://github.com/DominiqueMakowski/cogmod>). Analyses use the `easystats` ecosystem (`modelbased::estimate_means/contrasts`, `marginaleffects` backend).
 
-**HPC workflow** (`analysis/server/`): `make.slurm` is a SLURM array (1–8); each task fits 2 chains of every *uncommented* model block in `make_models.R` with a task-specific seed, saving `models/<Name>_task_<id>.rds`. `combine.slurm` + `combine_models.R` then merge the chains per model and add WAIC. Models are toggled by (un)commenting blocks in `make_models.R` and editing `model_names` in `combine_models.R`. Server paths, VPN and module details are in `server/server.md` (gitignored, contains login hints). `.slurm` files must be LF, not CRLF.
+**HPC workflow** (`analysis/server/`, rewritten 2026-09-20 to the lab's standard layout, same as IllusionGameComputational). `models.R` is the registry: one entry per model (13 of them, named after the `.rds` files the notebooks read). `./hpc` drives the Sussex Artemis cluster over SSH: `./hpc push`, `./hpc fit <model|all>` (one SLURM array of 8 shards per model, each shard 2 chains × 8 threads), `./hpc queue` / `./hpc progress <model>` to watch, `./hpc combine <model>` to merge shards and add `loo`, `./hpc pull` to bring `combined/<model>.rds` into `analysis/models/`. Everything is parameterised by `FA_*` environment variables; nothing is hard-coded to one account. The cluster reads the data from GitHub `main`, so push data before fitting. `analysis/server/README.md` is the command reference and `AGENT.md` the project-specific notes. `server.md` and `hpc.local` are gitignored (credentials, per-machine account).
 
 Fitted `.rds` files live in `analysis/models/` but are gitignored (too large). Without them, chunks in `3_models.qmd` that call `readRDS("models/...")` will fail; the notebook relies on Quarto `cache: true` (`3_models_cache/`) and `knitr::load_cache` for the Summary section.
 
@@ -118,7 +118,7 @@ Fitted `.rds` files live in `analysis/models/` but are gitignored (too large). W
 ## Current state (as of 2026-09)
 
 - Data collection and cleaning: done.
-- Models: all Phase 1, eye-tracking, Phase 2 and follow-up models fitted. Most recent HPC run fitted `Reality`, `Authenticity`, `SelfRelevance`, `Artificiality` (see uncommented blocks in `make_models.R`).
+- Models: all 13 fitted in July 2026 with the previous scripts (family names `choco`/`betadiscrete`; `3_models.qmd` has a compatibility shim in its `helpers` chunk so the new cogmod can post-process them, to be removed after the refit); those fits predate the 2026-09-20 data update (+1 participant, eye-tracking fix) and the cogmod API rename. A refit with the new `analysis/server/` layout is pending; existing shards on the cluster must be cleared or `FA_FILE_REFIT=always` used.
 - `3_models.qmd` is the active analysis notebook (Phase 1/2/follow-up sections, Summary, and Python/matplotlib GIF animations of Beauty distributions).
 - `4_correlates.qmd`: extracting per-participant parameters into `data_grouplevel.csv`, then factor analysis / EGA and correlation with questionnaires. Early stage.
 - Manuscript: Introduction and Methods drafted; Results not yet written.
@@ -129,7 +129,7 @@ Fitted `.rds` files live in `analysis/models/` but are gitignored (too large). W
 - **Do not modify `pilot/`, `analysis/old/`, or anything in `data/rawdata_*`** unless explicitly asked; they are historical records.
 - Do not edit `data/data_*.csv` by hand; regenerate via the pipeline.
 - Rendered HTML (`analysis/*.html`, `*_files/`) is committed because GitHub Pages serves it. Re-render rather than hand-edit.
-- `*_cache/`, `*.knit.md`, `analysis/models/*.rds`, `server.md` are gitignored on purpose.
+- `*_cache/`, `*.knit.md`, `analysis/models/*.rds`, `analysis/server/server.md`, `analysis/server/hpc.local` are gitignored on purpose.
 - R style: tidyverse + easystats, native pipe `|>`, `Participant` / `Item` / `Condition` / `Emotion` as canonical grouping columns. Colours for conditions are defined in `cols` at the top of `3_models.qmd`.
 - Windows machine; Dropbox-synced folder. Avoid generating large temporary files inside the repo.
 - Commit messages in this repo are short and informal; keep that style.

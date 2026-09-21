@@ -49,3 +49,4 @@ po/*~
 rsconnect/
 analysis/server/server.md
 analysis/models/
+analysis/server/hpc.local

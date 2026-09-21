@@ -75,10 +75,10 @@ lang: en
 language:
   title-block-correspondence-note: "Correspondence concerning this article should be addressed to"
   title-block-role-introduction: "Author roles were classified using the Contributor Role Taxonomy (CRediT; https://credit.niso.org/) as follows:"
-  references-meta-analysis:
 format:
   apaquarto-pdf:
-    # Can be jou (journal), man (manuscript), stu (student), or doc (document)
+    # jou (journal), man (manuscript), stu (student) or doc (document).
+    # Since apaquarto 6.0.0 the spelled-out aliases journal/manuscript/student/document also work.
     documentmode: jou
   apaquarto-docx: default
   apaquarto-html: default
@@ -86,7 +86,7 @@ editor_options:
   chunk_output_type: console
 ---
 
-Title ideas: 
+<!-- Title ideas: 
 
 - Framing the Fake: The Differential Effect of Forgery vs. AI Labels on Aesthetic Experience
 - Art-ificial Beauty: ...
@@ -98,7 +98,7 @@ Title ideas:
 - Framing the Fake: How Aesthetic Experience is Shaped by the Differential Effect of Forgery vs. AI Labels
 - Not All Fakes Are Equally Ugly: Disentangling Syntheticness and Authenticity as Distinct Reality Beliefs Modulating Aesthetic Experience
 - Framing the Fake: AI and Forgery Labels Shape Distinct Aspects of Reality Beliefs During Aesthetic Experience
-- Not All Fakes Are Equally Ugly: Disentangling the role of Syntheticness and Authenticity Beliefs in Aesthetic Experience
+- Not All Fakes Are Equally Ugly: Disentangling the role of Syntheticness and Authenticity Beliefs in Aesthetic Experience -->
 
 # Introduction
 
@@ -205,7 +205,7 @@ For each artwork, participants first rated its beauty once again (using the same
 
 ### Preprocessing
 
-Outlier rejection.
+TODO: Outlier rejection?
 
 ### Eye Tracking
 
@@ -213,21 +213,44 @@ Gaze position was sampled continuously via webcam-based eye-tracking (WebGazer.j
 
 Four simple, robust and interpretable gaze features were computed per trial. *Laterality* was the proportion of samples falling in the left half of the image (vs. the right), and *Centeredness* was the proportion of samples falling within the center portion of the image. *Entropy* quantified the spatial dispersion of gaze: samples were binned into a 5x5 grid, Shannon entropy was computed and normalized by the maximum entropy achievable given the number of valid samples (avoiding artificial deflation on sparse trials). *Max. Shift* captured the single largest reorganization of gaze focus within a trial: for every possible partition of the chronologically ordered samples into an initial and final segment (each with at least 30 samples), the Euclidean distance between the two segments' centroids was computed, and the maximum across all partitions was retained; large values indicate a relocation of attention to a different image region, and near-zero values indicate a single stable focus throughout.
 
+<!-- TODO: say that it correlates with outcomes -->
 
 ### Statistical Models
 
 Given the varied nature of the outcome scales, model families were chosen to match each outcome's distributional characteristics rather than defaulting to linear (Gaussian) models, which assume continuous, unbounded, unimodal outcomes and would poorly capture the shape of most of our data. Beauty, Syntheticness and Authenticity all displayed the characteristic bimodal pattern with inflation at 0, 1 and the midpoint, consistent with a Choice-Confidence process in which a discrete evaluative choice (e.g., "Ugly vs. Beautiful", "Human vs. AI") is conflated with a continuous rating of degree. These outcomes were modelled with a two-component Beta mixture that explicitly parameterizes this two-stage process [**TODO: Add REF TO CHOCO PREPRINT + the COGMOD package: https://github.com/DominiqueMakowski/cogmod**]. Valence ratings were bounded and discrete, and thus modelled with a Discrete-Beta distribution, which accommodates the discretized nature of the response scale [**TODO: Add REF to Sciandra, 2024**]. Meaning showed additional mass at zero beyond what the Beta-Discrete component could capture and was modelled with a zero-inflated extension. Worth and Self-Relevance, whose response options form discrete, ordered categories with idiosyncratic boundaries between adjacent levels (e.g., the distinction between \$1,000 and \$10,000, or between a Self-Relevance rating of 1 and 2 can be variable between participants), were modelled with Cumulative (ordinal) models. Among the eye-tracking features, Entropy, a continuous bounded proportion, was modelled with a Beta distribution, while Laterality and Centeredness (*Laterality* and *Centeredness*), which additionally showed boundary inflation at 0 and 1, were modelled with Zero-One-Inflated Beta (ZOIB) distributions. *Max. Shift*, strictly positive and right-skewed, was modelled with a LogNormal distribution. 
 
-Using bespoke models suited for each outcome's characteristics results in a much better fit than linear models, and yields deeper and accurate insights. For instance, CHOCO models allow to disentangle effects on the probability of each discrete choice, from effects influencing the degree (mean and spread) of each choice separately. For simplicity, we will however focus on reporting effects on the main parameters (typically $\mu$), reflecting shifts in the outcome's central tendency. For models with additional parameters of theoretical interest (e.g., *p*-Zero in the zero-inflated Beta-Discrete model for Meaning), effects on these parameters are also reported and interpreted where relevant. Details of analyses and results are openly available at https://github.com/RealityBending/FakeArt.
+Using bespoke models suited for each outcome's characteristics results in a much better fit than linear models, and yields deeper and accurate insights. For instance, CHOCO models allow to disentangle effects on the probability of each discrete choice, from effects influencing the degree (mean and spread) of each choice separately. For simplicity, we will however focus on reporting effects on the main parameters (typically $\mu$), reflecting shifts in the outcome's central tendency. For models with additional parameters of theoretical interest (e.g., *p*-Zero in the zero-inflated Beta-Discrete model for Meaning), effects on these parameters are also reported and interpreted where relevant. Effects are reported as marginal contrasts between label conditions on the response scale (posterior median with its 95% HDI as CI), and an effect is considered significant when its CI excludes zero. To make effect sizes comparable across outcomes, all differences are expressed in percent of the scale's range, or choice probability depending on the parameter. Details of analyses and results are openly available at https://github.com/RealityBending/FakeArt.
 
 
 # Results
 
 ## Effect of Label Condition
 
+<!-- Numbers from analysis/3_models.qmd (data/results_contrasts.csv, *_pct columns): marginal contrasts on the response scale, posterior median and 95% CI; an effect is reported as significant when the CI excludes 0. All differences are expressed in % of the scale range: sliders (0-1) x 100, Valence (1-7) and Meaning (0-6) divided by their 6-point range, Worth as changes in the probability of a category. -->
 
+Across the Phase 1 ratings, the three labels ordered consistently: artworks presented as Human Forgeries were rated in-between Human Originals and AI-Generated images, with AI-Generated images receiving the lowest ratings on every dimension.
 
-<!-- These features correlated with the outcomes -->
+Compared to Human Originals, artworks labelled as Forgeries were judged less beautiful (-3.6% [-4.6, -2.7]), as evoking less positive emotions (-3.5% [-4.3, -2.7]), as less meaningful (-4.2% [-5.3, -3.2]) and as less valuable, with a higher probability of being assigned no monetary value at all (+9.5% for the "$0" option [8.3, 10.8]). The AI-Generated label produced the same pattern with roughly twice the magnitude (Beauty: -7.0% [-8.2, -5.9]; Valence: -6.2% [-7.2, -5.2]; Meaning: -10.5% [-12.1, -9.1]; "$0" option: +18.3% [17.0, 19.6]), and also differed significantly from the Forgery label on all four dimensions (Beauty: -3.4% [-4.5, -2.3]; Valence: -2.7% [-3.6, -1.7]; Meaning: -6.3% [-7.7, -4.9]; "$0" option: +8.7% [7.4, 10.2]). For meaningfulness, the label additionally increased the probability of a flat "not at all meaningful" (0) answer, from +0.9% [0.2, 1.8] for Forgeries to +5.1% [3.2, 7.9] for AI-Generated images relative to Originals. The model's decomposition of the beauty ratings indicated that the penalty operated on both stages of the judgment: the probability of judging an image as beautiful rather than ugly decreased (Forgeries: -6.7% [-9.5, -4.0]; AI-Generated: -15.9% [-19.3, -12.4]), and, among images judged beautiful, the reported degree of beauty was lower (-4.3% [-5.3, -3.2] and -6.3% [-7.4, -5.2], respectively).
+
+None of the gaze features (entropy, laterality, centeredness, maximal shift) differed between label conditions, suggesting that the labels changed how the artworks were appraised without changing how they were visually explored.
+
+The labels also shaped the reality beliefs measured in Phase 2 in a dissociable manner. Images that had been presented as AI-Generated were subsequently judged as more synthetic, i.e., less likely to be human-made, than Originals (-5.4% [-6.8, -4.1]) and than Forgeries (-4.0% [-5.5, -2.5]), whereas the Forgery label barely affected syntheticness (-1.4% [-2.8, -0.0]). Conversely, the Forgery label lowered judged authenticity relative to Originals (-2.0% [-3.2, -0.8]), an effect that was smaller for the AI-Generated label (-1.3% [-2.6, -0.1]) and did not differ between the two "fake" labels (+0.7% [-0.6, 1.9]). In other words, the AI label was primarily encoded as a matter of syntheticness and the Forgery label as a matter of authenticity, and these beliefs partially persisted despite participants having been told that the labels were randomly assigned.
+
+However, the label effect vanished about a month later during the follow-up (where participants were reminded that all artworks were genuine human originals), the beauty penalty vanished: artworks previously labelled as AI-Generated or as Forgeries were no longer rated as less beautiful than those labelled as Originals (-1.0% [-2.1, 0.1] and -0.2% [-1.4, 0.9], respectively), and the original label did not affect their self-relevance or their perceived artificiality.
+
+<!-- TODO: add a results figure (candidate: analysis/3_models.html "Summary" effect-size grid, or the Beauty / Syntheticness CHOCO densities). -->
+
+## Effect on Memory
+
+## Determinants of Reality Beliefs
+
+## Interindividual Differences
+
+<!-- Reliability of random factors estimates -->
+
+## Dispositional Factors Modulating the Anti-AI Bias
+
+<!-- Correlations -->
 
 # Discussion
 

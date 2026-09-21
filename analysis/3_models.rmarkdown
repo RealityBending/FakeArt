@@ -1,0 +1,2003 @@
+---
+title: "FakeArt - Data Analysis"
+editor: source
+editor_options: 
+  chunk_output_type: console
+format:
+  html:
+    code-fold: true
+    self-contained: false
+    toc: true
+    keep-md: true   # also writes 3_models.html.md: the report as plain Markdown, for text-based readers
+execute:
+  cache: true
+---
+
+## Data Preparation
+
+```{r}
+#| warning: false
+#| error: false
+
+library(tidyverse)
+library(easystats)
+library(patchwork)
+library(ggside)
+library(ggdist)
+library(brms)
+library(cogmod)
+
+options(mc.cores = parallel::detectCores() - 2)
+
+df <- read.csv("../data/data_participants.csv")
+dftask <- read.csv("../data/data_task.csv") |>
+  merge(read.csv("../data/data_eyetracking.csv"), all.x = TRUE) |>
+  mutate(Condition = fct_relevel(Condition, "Human Original", "Human Forgery", "AI-Generated"),
+         Emotion = fct_relevel(Emotion, "Positive - Low intensity", "Negative - Low intensity", "Positive - High intensity", "Negative - High intensity"),
+         Meaning = Meaning * 6,
+         Valence = Valence * 6 + 1,
+         Worth = factor(Worth * 6, ordered = TRUE),
+         SelfRelevance = SelfRelevance * 6)
+levels(dftask$Worth) <- c("0", "10", "100", "1000", "10000", "100000")
+
+cols <- c(
+  # Condition
+  "Human Original" = "#F51D56",
+  "Human Forgery" = "#F5A41D",
+  "AI-Generated" = "#1D9AF5",
+  "AI Original" = "#1D9AF5",
+  "AI Copy" = "#4CAF50",
+  "Not recognized" = "#607D8B")
+```
+
+## How to read this report
+
+Every model below is a Bayesian mixed model (`brms` + `cogmod`) of one outcome
+on `Condition * Emotion`, where **Condition** is the label shown before the
+artwork (Human Original, Human Forgery, AI-Generated; all artworks were in fact
+human originals) and **Emotion** is the stimulus's normative valence x arousal
+quadrant. Random effects: `(Condition * Emotion | Participant)` and
+`(Condition | Item)`.
+
+Each model section has, in this order: (1) the model-implied distributions
+(figures), (2) a **convergence** table, (3) **marginal means** per condition on
+the response scale, (4) **all contrasts** between label conditions, for every
+distributional parameter, as a coloured table (green = credibly positive,
+red = credibly negative, grey = 95% CI includes 0), (5) the same contrasts
+within each emotion quadrant, and (6) an **auto-generated summary** of the
+credible effects. Every table also exists as a folded Markdown table
+("for text readers"); those, and the pooled CSVs written by the Summary
+section (`data/results_contrasts.csv`, `data/results_means.csv`), are the
+machine-readable outputs.
+
+Contrasts are differences of posterior medians (`Level1 - Level2`) with a 95%
+credible interval and the probability of direction (`pd`). "Credible" below
+means the CI excludes 0; no multiplicity correction is applied.
+
+**Units.** To keep outcomes comparable, every difference that lives on a
+bounded scale is reported in **percent of that scale's range**: the 0-1
+sliders and gaze proportions, the CHOCO probabilities (`mu`, `confright`,
+`confleft`, `pex`, `bex`, `pmid`), the hurdle probability `pzero`, the `zoi` /
+`coi` inflation probabilities, and the per-category probabilities of the
+ordinal models are multiplied by 100; the Valence (1-7) and Meaning (0-6)
+response-scale differences are divided by their range (6) and multiplied by
+100. Parameters without a bounded scale (`phi`, `precright`, `precleft`,
+`sigma`, `disc`, `Gaze_Shift` in stimulus widths) stay on their own scale and
+are marked `raw` in the tables. The CSVs carry both the raw and the percent
+columns.
+
+```{r}
+#| label: helpers
+#| code-summary: "Reporting helpers (tables, diagnostics, generated summaries)"
+
+# Compatibility shims -------------------------------------------------------
+# The models in models/ were fitted in July 2026 with cogmod < 0.3, whose
+# custom families were named "choco" and "betadiscrete". brms resolves the
+# post-processing methods of a custom family by name (posterior_epred_<name>,
+# posterior_predict_<name>, log_lik_<name>) in the family's environment, which
+# is the global environment for these fits. cogmod 0.3 renamed the families to
+# cogmod_choco / cogmod_betadiscrete (same parameters, same density), so alias
+# the new methods under the old names until the models are refitted with the
+# new API (analysis/server/). Remove this block after the refit.
+for (fam in c("choco", "betadiscrete")) {
+  for (fun in c("posterior_epred", "posterior_predict", "log_lik")) {
+    old <- paste0(fun, "_", fam)
+    new <- paste0(fun, "_cogmod_", fam)
+    if (!exists(old, envir = globalenv(), inherits = FALSE) &&
+        exists(new, envir = asNamespace("cogmod"))) {
+      assign(old, get(new, envir = asNamespace("cogmod")), envir = globalenv())
+    }
+  }
+}
+if (!exists("dchoco")) dchoco <- cogmod::dcogmod_choco # used by get_marginal_densities()
+
+# Reporting helpers: every model section calls fa_report(), which prints
+#   1. a convergence table (chains, draws, Rhat, ESS, divergences)
+#   2. marginal means per Condition on the response scale
+#   3. the full contrast table (every parameter, credible or not), as a coloured
+#      gt table for readers and, folded, as a Markdown table for text-based
+#      readers (agents, diffs, the .md twin of this report)
+#   4. an auto-generated plain-language summary of the credible effects
+# The tables come from the `rez_*` objects computed in the cached contrasts-*
+# chunks, so this costs nothing to re-render.
+
+outcome_info <- list(
+  Beauty = list(label = "Beauty", family = "CHOCO", scale = "analog slider rescaled to 0 (Ugly) - 1 (Beautiful)"),
+  Beauty2 = list(label = "Beauty (follow-up)", family = "CHOCO", scale = "analog slider rescaled to 0 (Ugly) - 1 (Beautiful), rated again in the follow-up session after the debrief"),
+  Reality = list(label = "Syntheticness", family = "CHOCO", scale = "slider rescaled to 0 (AI-Generated) - 1 (Human Creation); higher = judged more human"),
+  Authenticity = list(label = "Authenticity", family = "CHOCO", scale = "slider rescaled to 0 (Copy / Forgery) - 1 (Original Creation)"),
+  Artificiality = list(label = "Perceived Artificiality", family = "CHOCO", scale = "slider rescaled to 0 (Very Human) - 1 (Very Artificial), follow-up, items judged 'new' only"),
+  Valence = list(label = "Valence", family = "Discrete Beta (k = 7)", scale = "7-point pictorial scale coded 1 (Negative) - 7 (Positive); `response` differences are reported in % of the 6-point range", range = 6),
+  Meaning = list(label = "Meaning", family = "Discrete Beta (k = 6) with zero hurdle", scale = "0 (Not at all) - 6 (Very much); `response` differences are reported in % of the 6-point range; `pzero` is the probability of answering exactly 0", range = 6),
+  Worth = list(label = "Worth", family = "Cumulative (ordinal)", scale = "6 ordered categories $0, $10, $100, $1,000, $10,000, $100,000; `response - <k>` rows are differences in the probability of choosing category k"),
+  SelfRelevance = list(label = "Self-Relevance", family = "Cumulative (ordinal)", scale = "7 ordered categories 0 (Not at all) - 6 (Very much); `response - <k>` rows are differences in the probability of choosing category k"),
+  Entropy = list(label = "Gaze Entropy", family = "Beta", scale = "normalised spatial entropy of gaze in (0, 1); higher = more dispersed gaze"),
+  pLeft = list(label = "Gaze Laterality (pLeft)", family = "Zero-one-inflated Beta", scale = "proportion of gaze samples on the left half of the image (0 - 1)"),
+  pCenter = list(label = "Gaze Centeredness (pCenter)", family = "Zero-one-inflated Beta", scale = "proportion of gaze samples in the central region of the image (0 - 1)"),
+  Shift = list(label = "Gaze Max. Shift", family = "LogNormal", scale = "largest within-trial relocation of the gaze centroid, in stimulus widths", range = NA)
+)
+
+# Parameters that live on a probability / bounded [0, 1] scale and are therefore
+# reported in percent. `response` is included unless the outcome has no bounded
+# range (range = NA, i.e. Gaze_Shift); for Valence / Meaning it is divided by
+# the outcome's range first. Everything else stays raw.
+fa_pct_params <- c("mu", "confright", "confleft", "pex", "bex", "pmid", "pzero", "zoi", "coi")
+fa_scale_factor <- function(parameter, outcome) {
+  info <- outcome_info[[outcome]]
+  rng <- if (is.null(info$range)) 1 else info$range
+  is_resp <- parameter == "response" | grepl("^response", parameter)
+  ifelse(parameter %in% fa_pct_params, 100,
+    ifelse(is_resp & !is.na(rng), 100 / rng, NA_real_))
+}
+
+param_glossary <- c(
+  response = "expected value on the response scale",
+  mu = "CHOCO: probability of choosing the upper half of the scale (logit link). Discrete Beta / Beta: mean of the latent Beta",
+  confright = "CHOCO: mean confidence (position within the upper half) when the upper half is chosen",
+  confleft = "CHOCO: mean confidence within the lower half when the lower half is chosen",
+  precright = "CHOCO: precision (inverse spread) of ratings within the upper half",
+  precleft = "CHOCO: precision of ratings within the lower half",
+  pex = "CHOCO: probability of an extreme response (exactly 0 or 1)",
+  bex = "CHOCO: balance of the extreme mass towards 1 (> 0.5) or 0 (< 0.5)",
+  pmid = "CHOCO: probability of answering exactly at the midpoint",
+  phi = "precision of the latent Beta (higher = more agreement / less dispersion)",
+  pzero = "probability of the hurdle category 0",
+  sigma = "LogNormal: scale (spread) parameter on the log scale",
+  zoi = "probability of an exact 0 or 1", coi = "conditional probability that an extreme is 1 rather than 0",
+  disc = "ordinal discrimination"
+)
+
+contrast_order <- c("AI-Generated - Human Original", "Human Forgery - Human Original", "AI-Generated - Human Forgery")
+
+fa_asis <- function(...) knitr::asis_output(paste(unlist(list(...)), collapse = "\n"))
+
+fa_prep_contrasts <- function(dat_con, outcome) {
+  dat_con <- as.data.frame(dat_con)
+  dat_con$Credible <- sign(dat_con$CI_low) == sign(dat_con$CI_high)
+  dat_con$Effect <- ifelse(!dat_con$Credible, "n.s.", ifelse(dat_con$Difference < 0, "Negative", "Positive"))
+  dat_con$Contrast <- factor(dat_con$Contrast, levels = unique(c(contrast_order, unique(dat_con$Contrast))))
+  # Percent of scale range where the parameter has one (see fa_scale_factor)
+  k <- fa_scale_factor(dat_con$Parameter, outcome)
+  dat_con$Unit <- ifelse(is.na(k), "raw", "%")
+  dat_con$Difference_pct <- dat_con$Difference * k
+  dat_con$CI_low_pct <- dat_con$CI_low * k
+  dat_con$CI_high_pct <- dat_con$CI_high * k
+  shown <- function(raw, pct) ifelse(is.na(k), raw, pct)
+  d <- shown(dat_con$Difference, dat_con$Difference_pct)
+  lo <- shown(dat_con$CI_low, dat_con$CI_low_pct)
+  hi <- shown(dat_con$CI_high, dat_con$CI_high_pct)
+  dat_con$Diff <- insight::format_value(d, zap_small = TRUE)
+  dat_con$CI <- sprintf("[%s, %s]", insight::format_value(lo, zap_small = TRUE), insight::format_value(hi, zap_small = TRUE))
+  dat_con$pd_fmt <- if ("pd" %in% names(dat_con)) insight::format_pd(dat_con$pd, name = NULL) else ""
+  dat_con[order(dat_con$Contrast), ]
+}
+
+# A coloured gt table for humans + the same table as Markdown in a folded
+# callout for text-based readers.
+fa_tables <- function(df, cols, title, id) {
+  tbl <- as.data.frame(df)[cols]
+  g <- gt::gt(tbl, groupname_col = if ("Contrast" %in% cols) "Contrast" else NULL) |>
+    gt::tab_header(title = title) |>
+    gt::opt_stylize(style = 2, color = "gray") |>
+    gt::tab_options(table.font.size = gt::px(13), heading.align = "left")
+  if ("Effect" %in% cols) {
+    g <- g |>
+      gt::tab_style(style = gt::cell_fill(color = "#E8F5E9"), locations = gt::cells_body(rows = Effect == "Positive")) |>
+      gt::tab_style(style = gt::cell_fill(color = "#FFEBEE"), locations = gt::cells_body(rows = Effect == "Negative")) |>
+      gt::tab_style(style = gt::cell_text(color = "#9E9E9E"), locations = gt::cells_body(rows = Effect == "n.s."))
+  }
+  md <- knitr::kable(tbl, format = "pipe", row.names = FALSE)
+  fa_asis(
+    as.character(knitr::knit_print(g)), # gt HTML with a scoped <style>, not inline CSS
+    "",
+    sprintf('::: {.callout-note collapse="true" title="%s (Markdown table, for text readers)"}', title),
+    "",
+    md,
+    "",
+    ":::",
+    ""
+  )
+}
+
+fa_diagnostics <- function(m, outcome) {
+  rh <- brms::rhat(m)
+  ne <- brms::neff_ratio(m)
+  np <- brms::nuts_params(m, pars = "divergent__")
+  data.frame(
+    Model = outcome,
+    Family = outcome_info[[outcome]]$family,
+    N_obs = nrow(m$data),
+    N_participants = length(unique(m$data$Participant)),
+    Chains = brms::nchains(m),
+    Draws = brms::ndraws(m),
+    Max_Rhat = round(max(rh, na.rm = TRUE), 3),
+    Min_ESS_ratio = round(min(ne, na.rm = TRUE), 3),
+    Divergent_pct = round(100 * mean(np$Value), 2),
+    Criterion = paste(names(m$criteria), collapse = ", "),
+    check.names = FALSE
+  )
+}
+
+fa_means <- function(m) {
+  if (m$family$family == "cumulative") {
+    # Ordinal: the response-scale mean is meaningless; report the probability
+    # of each category per condition instead (marginaleffects gives them).
+    out <- estimate_means(m, by = "Condition", predict = "response", backend = "marginaleffects",
+                          test = NULL, iterations = 500) |> as.data.frame()
+  } else {
+    out <- estimate_means(m, by = "Condition", predict = "response", backend = "emmeans", test = NULL) |>
+      as.data.frame()
+  }
+  names(out)[names(out) %in% c("Probability", "Mean", "Median")] <- "Estimate"
+  out[intersect(c("Condition", "Response", "Estimate", "CI_low", "CI_high"), names(out))]
+}
+
+# Plain-language summary generated from the numbers, so it is never stale.
+fa_describe <- function(dat, dat_emo, outcome) {
+  info <- outcome_info[[outcome]]
+  main_pars <- c("response", "mu")
+  out <- c(sprintf("**%s** (%s). Scale: %s. Differences are posterior medians with 95%% CI, in %% of the scale range for bounded parameters and on the parameter's own scale for those marked `raw`; `pd` is the probability of direction. An effect is called credible when the CI excludes 0.", info$label, info$family, info$scale), "")
+  for (con in levels(dat$Contrast)) {
+    d <- dat[dat$Contrast == con, ]
+    if (nrow(d) == 0) next
+    cred <- d[d$Credible, ]
+    if (nrow(cred) == 0) {
+      out <- c(out, sprintf("- **%s**: no credible difference on any parameter (%s).", con, paste(unique(d$Parameter), collapse = ", ")))
+      next
+    }
+    cred <- cred[order(!cred$Parameter %in% main_pars & !grepl("^response", cred$Parameter), cred$Parameter), ]
+    up <- cred[cred$Difference > 0, ]; down <- cred[cred$Difference < 0, ]
+    fmt <- function(x) paste(sprintf("`%s` %s%s %s", x$Parameter, x$Diff, ifelse(x$Unit == "%", "%", ""), x$CI), collapse = "; ")
+    parts <- c(if (nrow(down)) sprintf("lower %s", fmt(down)), if (nrow(up)) sprintf("higher %s", fmt(up)))
+    ns <- setdiff(unique(d$Parameter), cred$Parameter)
+    out <- c(out, sprintf("- **%s**: %s.%s", con, paste(parts, collapse = "; "),
+                          if (length(ns)) sprintf(" No credible difference on %s.", paste0("`", ns, "`", collapse = ", ")) else ""))
+  }
+  if (!is.null(dat_emo) && nrow(dat_emo) > 0 && "Emotion" %in% names(dat_emo)) {
+    out <- c(out, "", "By stimulus emotion (same contrasts within each valence x arousal quadrant, main parameter only):")
+    for (con in levels(dat$Contrast)) {
+      d <- dat_emo[dat_emo$Contrast == con & (dat_emo$Parameter %in% main_pars | grepl("^response", dat_emo$Parameter)), ]
+      if (nrow(d) == 0) next
+      d <- d[d$Parameter == d$Parameter[1], ] # first main parameter available
+      cred <- d[d$Credible, ]
+      out <- c(out, sprintf("- **%s** on `%s`: credible in %s%s.", con, d$Parameter[1],
+                            if (nrow(cred)) paste(sprintf("%s (%s%s %s)", cred$Emotion, cred$Diff, ifelse(cred$Unit == "%", "%", ""), cred$CI), collapse = ", ") else "no quadrant",
+                            if (nrow(cred) && nrow(cred) < nrow(d)) sprintf("; not in %s", paste(setdiff(d$Emotion, cred$Emotion), collapse = ", ")) else ""))
+    }
+  }
+  fa_asis("", '::: {.callout-tip title="Summary of credible effects (generated from the tables above)"}', "", out, "", ":::", "")
+}
+
+# Expensive part (cached per model): diagnostics + marginal means + the raw
+# contrast tables. No formatting here, so that fa_print() can change without
+# invalidating the cache.
+fa_report <- function(m, rez, rez_emo, outcome, rez_extra = NULL, extra_title = "Emotion contrasts") {
+  list(
+    outcome = outcome,
+    extra_title = extra_title,
+    diag = fa_diagnostics(m, outcome),
+    means = fa_means(m),
+    contrasts = fa_prep_contrasts(rez$dat_con, outcome),
+    contrasts_emo = fa_prep_contrasts(rez_emo$dat_con, outcome),
+    contrasts_extra = if (!is.null(rez_extra)) fa_prep_contrasts(rez_extra$dat_con, outcome) else NULL
+  )
+}
+
+# Cheap part (never cached): the tables and the generated summary.
+fa_print <- function(rep) {
+  info <- outcome_info[[rep$outcome]]
+  id <- tolower(rep$outcome)
+  # Recompute the derived columns so a change in fa_prep_contrasts() shows up
+  # without refitting anything.
+  dat <- fa_prep_contrasts(rep$contrasts, rep$outcome)
+  dat_emo <- fa_prep_contrasts(rep$contrasts_emo, rep$outcome)
+  extra <- if (!is.null(rep$contrasts_extra)) fa_prep_contrasts(rep$contrasts_extra, rep$outcome) else NULL
+  means_fmt <- rep$means
+  num <- vapply(means_fmt, is.numeric, logical(1))
+  means_fmt[num] <- lapply(means_fmt[num], insight::format_value, zap_small = TRUE)
+  cols <- c("Contrast", "Parameter", "Diff", "CI", "Unit", "pd_fmt", "Effect")
+  fa_asis(
+    fa_tables(rep$diag, c("Model", "Family", "N_obs", "N_participants", "Chains", "Draws", "Max_Rhat", "Min_ESS_ratio", "Divergent_pct", "Criterion"),
+              sprintf("%s: convergence", info$label), id),
+    fa_tables(means_fmt, names(means_fmt),
+              sprintf("%s: marginal means per label condition (response scale)", info$label), id),
+    fa_tables(dat, cols, sprintf("%s: all contrasts between label conditions", info$label), id),
+    if (!is.null(extra)) fa_tables(extra, cols, sprintf("%s: %s", info$label, rep$extra_title), id) else "",
+    sprintf('::: {.callout-note collapse="true" title="%s: contrasts within each stimulus emotion (Markdown table)"}', info$label),
+    "",
+    knitr::kable(dat_emo[c("Emotion", cols)], format = "pipe", row.names = FALSE),
+    "",
+    ":::",
+    fa_describe(dat, dat_emo, rep$outcome)
+  )
+}
+```
+
+```{r}
+#| label: glossary
+
+knitr::kable(
+  data.frame(
+    Model = vapply(outcome_info, `[[`, "", "label"),
+    Outcome = names(outcome_info),
+    Family = vapply(outcome_info, `[[`, "", "family"),
+    Scale = vapply(outcome_info, `[[`, "", "scale"),
+    row.names = NULL
+  ),
+  caption = "Outcomes, model families and response scales.", format = "pipe"
+)
+
+knitr::kable(
+  data.frame(Parameter = names(param_glossary), Meaning = unname(param_glossary)),
+  caption = "Distributional parameters that appear in the contrast tables.", format = "pipe"
+)
+```
+
+## Distributions
+
+::: {.panel-tabset}
+
+### Phase 1
+
+```{r}
+#| label: fig-dist-phase1
+#| fig-cap: "Observed distributions of the Phase 1 ratings (Beauty 0-1, Valence 1-7, Meaning 0-6, Worth in 6 money categories) and of the four gaze features, pooled over conditions."
+#| fig-alt: "Observed distributions of the Phase 1 ratings (Beauty 0-1, Valence 1-7, Meaning 0-6, Worth in 6 money categories) and of the four gaze features, pooled over conditions."
+#| warning: false
+
+p_dist_beauty <- dftask |> 
+  ggplot(aes(x=Beauty)) +
+  geom_histogram(aes(y=after_stat(density)), bins = 47, fill = colorRampPalette(c("#1976D2", "#0D47A1"))(47))
+
+p_dist_valence <- dftask |> 
+  ggplot(aes(x=Valence)) +
+  geom_bar(fill = colorRampPalette(c("#388E3C", "#1B5E20"))(7)) 
+  
+p_dist_meaning <- dftask |> 
+  ggplot(aes(x=Meaning)) +
+  geom_bar(fill = colorRampPalette(c("#512DA8", "#311B92"))(7))
+
+p_dist_worth <- dftask |> 
+  ggplot(aes(x=Worth)) +
+  geom_bar(fill = colorRampPalette(c("#FBC02D", "#F57F17"))(6)) 
+
+p_dist_entropy <- dftask |> 
+  ggplot(aes(x=Gaze_Entropy)) +
+  geom_histogram(aes(y=after_stat(density)), bins = 100, fill = colorRampPalette(c("#455A64", "#263238"))(100)) 
+
+p_dist_shift <- dftask |> 
+  ggplot(aes(x=Gaze_Shift)) +
+  geom_histogram(aes(y=after_stat(density)), bins = 100, fill = colorRampPalette(c("#455A64", "#263238"))(100)) 
+
+p_dist_pleft <- dftask |> 
+  ggplot(aes(x=Gaze_pLeft)) +
+  geom_histogram(aes(y=after_stat(density)), bins = 51, fill = colorRampPalette(c("#455A64", "#263238"))(51)) 
+
+p_dist_pcenter <- dftask |> 
+  ggplot(aes(x=Gaze_pCenter)) +
+  geom_histogram(aes(y=after_stat(density)), bins = 51, fill = colorRampPalette(c("#455A64", "#263238"))(51))
+
+wrap_plots(
+  (p_dist_beauty + labs(title = "Beauty")), 
+    (p_dist_valence + labs(title = "Valence")),
+    (p_dist_meaning + labs(title = "Meaning")), 
+    (p_dist_worth + labs(title = "Worth")),
+    (p_dist_entropy + labs(title = "Entropy")),
+    (p_dist_shift + labs(title = "Shift")),
+    (p_dist_pleft + labs(title = "pLeft")),
+    (p_dist_pcenter + labs(title = "pCenter")),
+  ncol = 4
+)
+
+```
+
+```{r}
+#| eval: false
+
+dist_theme <- list(
+  scale_x_continuous(expand = c(0, 0)),
+  scale_y_continuous(expand = c(0, 0)),
+  theme_void(),
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        plot.title = element_text(face = "bold"))
+)
+
+
+ggsave(p_dist_beauty + dist_theme, filename = "figures/dist_beauty.png", width = 6, height = 4, dpi = 300)
+ggsave(p_dist_valence + dist_theme, filename = "figures/dist_valence.png", width = 6, height = 4, dpi = 300)
+ggsave(p_dist_meaning + dist_theme, filename = "figures/dist_meaning.png", width = 6, height = 4, dpi = 300)
+ggsave(p_dist_worth + dist_theme, filename = "figures/dist_worth.png", width = 6, height = 4, dpi = 300)
+ggsave(p_dist_entropy + dist_theme, filename = "figures/dist_entropy.png", width = 6, height = 1.5, dpi = 300)
+ggsave(p_dist_shift + dist_theme, filename = "figures/dist_shift.png", width = 6, height = 1.5, dpi = 300)
+ggsave(p_dist_pleft + dist_theme, filename = "figures/dist_pleft.png", width = 6, height = 1.5, dpi = 300)
+ggsave(p_dist_pcenter + dist_theme, filename = "figures/dist_pcenter.png", width = 6, height = 1.5, dpi = 300)
+```
+
+### Phase 2 and Follow-Up
+
+```{r}
+#| label: fig-dist-phase2
+#| fig-cap: "Observed distributions of the Phase 2 sliders (Syntheticness: 0 = AI-Generated, 1 = Human; Authenticity: 0 = Copy, 1 = Original) and of the follow-up outcomes (Beauty rated again, Self-Relevance 0-6, Perceived Artificiality 0-1)."
+#| fig-alt: "Observed distributions of the Phase 2 sliders (Syntheticness: 0 = AI-Generated, 1 = Human; Authenticity: 0 = Copy, 1 = Original) and of the follow-up outcomes (Beauty rated again, Self-Relevance 0-6, Perceived Artificiality 0-1)."
+#| warning: false
+
+p_dist_reality <- dftask |> 
+  ggplot(aes(x=Reality)) +
+  geom_histogram(aes(y=after_stat(density)), bins = 51, fill = colorRampPalette(c("#C2185B", "#880E4F"))(51))
+
+p_dist_authenticity <- dftask |> 
+  ggplot(aes(x=Authenticity)) +
+  geom_histogram(aes(y=after_stat(density)), bins = 51, fill = colorRampPalette(c("#E64A19", "#BF360C"))(51))
+
+p_dist_beauty2 <- dftask |> 
+  ggplot(aes(x=Beauty2)) +
+  geom_histogram(aes(y=after_stat(density)), bins = 47, fill = colorRampPalette(c("#0097A7", "#006064"))(47))
+
+p_dist_selfrel <- dftask |> 
+  ggplot(aes(x=SelfRelevance)) +
+  geom_bar(fill = colorRampPalette(c("#00796B", "#004D40"))(7))  
+
+p_dist_artificiality <- dftask |> 
+  ggplot(aes(x=PerceivedArtificiality)) +
+  geom_histogram(aes(y=after_stat(density)), bins = 21, fill = colorRampPalette(c("#AFB42B", "#827717"))(21))
+
+wrap_plots(
+  (p_dist_reality + labs(title = "Syntheticness")), 
+    (p_dist_authenticity + labs(title = "Authenticity")),
+    (p_dist_beauty2 + labs(title = "Beauty (follow-up)")), 
+    (p_dist_selfrel + labs(title = "Self-Relevance")),
+    (p_dist_artificiality + labs(title = "Artificiality")),
+  ncol = 3
+)
+```
+
+:::
+
+
+## Phase 1 - Ratings
+
+::: {.panel-tabset}
+
+### Beauty
+
+```{r}
+m_beauty <- readRDS("models/Beauty.rds")
+```
+
+```{r}
+get_contrasts <- function(m, outcome = "Beauty", contrast = "Condition", by = NULL, backend = "emmeans") {
+  dat_con <- data.frame()
+  
+  params <- c("response", "mu", insight::find_auxiliary(m))
+  if(outcome %in% c("Worth", "SelfRelevance")) params <- params[!params %in% c("disc")]
+  if(outcome %in% c("pLeft", "pCenter")) params <- params[!params %in% c("zoi", "coi")]
+  for(par in params) {
+    if(!is.null(by) && par %in% c("pmid", "pex", "bex", "disc")) next
+    # cat(par, " * ")
+    
+    c <- estimate_contrasts(m, contrast = contrast, by = by, predict = par, 
+                            backend = backend, test = "pd", iterations = 500) 
+    
+    if(outcome %in% c("Worth", "SelfRelevance") && par == "response") {
+      c <- filter(c, Response1 == Response2)
+      c <- mutate(c, Parameter = paste0("response - ", Response1))
+      c <- data_remove(c, c("Response1", "Response2"))
+    } else {
+      c <- mutate(c, Parameter = par)
+    }
+    
+    dat_con <- rbind(dat_con, c)
+  }
+  
+  if(backend == "marginaleffects") dat_con <- data_rename(dat_con, select = "Median", "Difference")
+  dat_con$Outcome <- outcome
+  dat_con$Contrast <- paste(str_remove(str_remove(dat_con$Level1, "\\("), "\\)"), 
+                            "-", 
+                            str_remove(str_remove(dat_con$Level2, "\\("), "\\)")) 
+  
+  rez_con <- filter(dat_con, sign(CI_low) == sign(CI_high)) 
+  if(nrow(rez_con) == 0) {
+    rez_con <- data.frame(Contrast = unique(dat_con$Contrast), Parameters = "None")
+  } else {
+    rez_con <- rez_con |>
+      format_table(zap_small = TRUE) |> 
+      mutate(param_string = paste0(Parameter, " (", Difference, ", ", CI, ")")) |> 
+      summarise(Parameters = paste(param_string, collapse = "; "), .by = "Contrast")
+  }
+  
+  list(rez_con = rez_con, dat_con = dat_con)
+}
+```
+
+```{r}
+#| label: contrasts-beauty1
+
+rez_beauty <- get_contrasts(m_beauty, outcome = "Beauty", contrast = "Condition")
+gt::gt(rez_beauty$rez_con)
+rez_beauty_emo <- get_contrasts(m_beauty, outcome = "Beauty", contrast = "Condition", by = "Emotion")
+```
+
+```{r}
+#| label: report-beauty
+
+rep_beauty <- fa_report(m_beauty, rez_beauty, rez_beauty_emo, outcome = "Beauty")
+```
+
+```{r}
+#| label: tables-beauty
+#| cache: false
+
+fa_print(rep_beauty)
+```
+
+
+```{r}
+get_marginal_parameters <- function(m, by = "Condition") {
+  # 1. Get predicted averages
+  dat_par <- estimate_means(m, by = by, predict = "response", backend = "emmeans", test = NULL) |>
+    datawizard::data_rename(
+      select = c("Probability", "CI_low", "CI_high"),
+      replacement = c("Mean", "Mean_low", "Mean_high")
+    ) 
+  
+  # 2. Get predicted parameters
+  for (par in c("mu", "confright", "confleft", "precright", "precleft", "pex", "bex", "pmid")) {
+    # cat(par, " * ")
+    if(par %in% c("pex", "bex", "pmid")) by <- "Condition" # Overwrite for last params
+      dat_par <- estimate_means(m, by = by, predict = par, backend = "emmeans", test = NULL) |>
+      datawizard::data_rename(
+        select = c("CI_low", "CI_high"),
+        replacement = paste0(tools::toTitleCase(par), c("_low", "_high"))
+      ) |>
+      full_join(dat_par, by = by)
+    }
+  dat_par
+}
+
+
+get_marginal_densities <- function(dat_par, adjust = 2) {
+  
+  # 3. Get corresponding densities
+  dat_dens <- data.frame()
+  dat_annot <- data.frame()
+  for (row in 1:nrow(dat_par)) {
+    x <- seq(0, 1, length.out = 201)
+    # Compute density line
+    y <- dchoco(
+      x = x, p = dat_par$Mu[row], confleft = dat_par$Confleft[row], confright = dat_par$Confright[row],
+      precleft = dat_par$Precleft[row], precright = dat_par$Precright[row],
+      pmid = dat_par$Pmid[row], pex = dat_par$Pex[row], bex = dat_par$Bex[row]
+    ) 
+    y <- y * adjust # Aesthetic adjustment for the plot so that it matches the histogram
+    dat_dens <- rbind(dat_dens, data.frame(Condition = dat_par$Condition[row], x = x, y = y))
+  
+    # Find particular points coordinates
+    dat_annot <- rbind(dat_annot, data.frame(
+      Condition = dat_par$Condition[row],
+      right_y = max(y[x > 0.5]), left_y = max(y[x < 0.5]),
+      right_x = 0.5 + x[which.max(y[x > 0.5])], left_x = x[which.max(y[x < 0.5])],
+      right_size = dat_par$Mu[row], left_size = 1 - dat_par$Mu[row]
+    ))
+  }
+  
+  
+  offset <- 1 - (rev(as.numeric(dat_par$Condition)) / 3)
+  max_y <- max(dat_dens$y)
+  dat_par$Mean_y <- 1.2 * max_y - offset * (1.2 * max_y - max_y)
+  
+  list(par=dat_par, dens=dat_dens, annot=dat_annot)
+}
+
+
+get_choco_plot <- function(dat, title = "Beauty", observed = title, xlabs = c("0% - Ugly", "100% - Beautiful"), facet = NULL, ...) {
+   dat_obs <- dftask
+   dat_obs$obs <- dat_obs[[observed]]
+   dat_obs <- dat_obs[!is.na(dat_obs$obs), ]
+  
+  p <- dat$dens |>
+    ggplot(aes(x = x, y = y)) +
+    geom_histogram(data = dat_obs, aes(x = obs, y = after_stat(density)), alpha = 0.1, bins = 47) +
+    geom_segment(data = dat$annot, aes(
+      x = right_x, xend = right_x,
+      y = 0, yend = right_y, color = Condition
+    ), linewidth = 0.5, linetype = "dashed") +
+    geom_segment(data = dat$annot, aes(
+      x = left_x, xend = left_x,
+      y = 0, yend = left_y, color = Condition
+    ), linewidth = 0.5, linetype = "dashed") +
+    geom_point(data = dat$annot, aes(x = right_x, y = 0, color = Condition, size = right_size * 6)) +
+    geom_point(data = dat$annot, aes(x = left_x, y = 0, color = Condition, size = left_size * 6)) +
+    geom_pointrange(data = dat$par, aes(x = Mean, y = Mean_y, xmin = Mean_low, xmax = Mean_high, color = Condition), linewidth = 0.5) +
+    geom_line(aes(color = Condition), linewidth = 1) +
+    labs(y = "Likelihood of Response", title = title) +
+    scale_size_identity() +
+    scale_color_manual(values = cols) +
+    scale_x_continuous(breaks = c(0, 0.25, 0.5, 0.75, 1), 
+                       labels = c(xlabs[1], "25%", "50%",  "75%", xlabs[2])) +
+    theme_minimal() +
+    theme(axis.text.y = element_blank(),
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank(),
+          plot.title = element_text(face = "bold"))
+  
+  if(!is.null(facet)) p <- p + facet_wrap(facet, ...)
+  p
+}
+```
+
+
+```{r}
+#| label: fig-beauty
+#| fig-cap: "Beauty: observed ratings (grey histogram, 0 = Ugly, 1 = Beautiful) with the model-implied CHOCO density for each label condition. The two dots per condition on the x-axis mark the modal rating within the lower and upper half of the scale, sized by the probability of choosing that half (mu); the point-ranges above are the marginal means with 95% CI."
+#| fig-alt: "Beauty: observed ratings (grey histogram, 0 = Ugly, 1 = Beautiful) with the model-implied CHOCO density for each label condition. The two dots per condition on the x-axis mark the modal rating within the lower and upper half of the scale, sized by the probability of choosing that half (mu); the point-ranges above are the marginal means with 95% CI."
+#| fig-width: 10
+#| fig-height: 7
+#| cache-lazy: false
+
+par_beauty <- get_marginal_parameters(m_beauty)
+dens_beauty <- get_marginal_densities(par_beauty, adjust = 0.8)
+p_beauty <- get_choco_plot(dens_beauty, title = "Beauty", xlabs = c("0%\nUgly", "100%\nBeautiful"))
+p_beauty
+```
+
+```{r}
+#| label: fig-beauty-emotion
+#| fig-cap: "Beauty by stimulus emotion quadrant: as the previous figure, one panel per valence x arousal quadrant of the artworks."
+#| fig-alt: "Beauty by stimulus emotion quadrant: as the previous figure, one panel per valence x arousal quadrant of the artworks."
+#| cache-lazy: false
+
+par_beauty_condemo <- get_marginal_parameters(m_beauty, by = c("Condition", "Emotion"))
+
+dens_beauty_condemo <- list(par = data.frame(), dens = data.frame(), annot = data.frame())
+for(emo in unique(par_beauty_condemo$Emotion)) {
+  dat <- get_marginal_densities(par_beauty_condemo[par_beauty_condemo$Emotion == emo, ], adjust = 0.8)
+  dat[["dens"]]$Emotion <- emo 
+  dat[["annot"]]$Emotion <- emo
+  dens_beauty_condemo[["par"]] <- rbind(dens_beauty_condemo[["par"]], dat[["par"]])
+  dens_beauty_condemo[["dens"]] <- rbind(dens_beauty_condemo[["dens"]], dat[["dens"]])
+  dens_beauty_condemo[["annot"]] <- rbind(dens_beauty_condemo[["annot"]], dat[["annot"]])
+}
+dens_beauty_condemo$dens$Emotion <- fct_relevel(dens_beauty_condemo$dens$Emotion, rev(levels(dftask$Emotion)))
+dens_beauty_condemo$annot$Emotion <- fct_relevel(dens_beauty_condemo$annot$Emotion, rev(levels(dftask$Emotion)))
+p_beauty_emo <- get_choco_plot(dens_beauty_condemo, title = "Beauty", 
+                               xlabs = c("0%\nUgly", "100%\nBeautiful"), facet = ~Emotion)
+p_beauty_emo
+```
+
+
+
+
+### Valence
+
+
+```{r}
+m_valence <- readRDS("models/Valence.rds")
+```
+
+
+```{r}
+#| label: contrasts-valence
+
+rez_valence <- get_contrasts(m_valence, outcome = "Valence", contrast = "Condition")
+gt::gt(rez_valence$rez_con)
+# estimate_means(m_valence, by = "Condition", iterations = 200, predict = "phi", backend = "emmeans")
+
+rez_valence_emo <- get_contrasts(m_valence, outcome = "Valence", contrast = "Condition", by = "Emotion")
+```
+
+```{r}
+#| label: report-valence
+
+rep_valence <- fa_report(m_valence, rez_valence, rez_valence_emo, outcome = "Valence")
+```
+
+```{r}
+#| label: tables-valence
+#| cache: false
+
+fa_print(rep_valence)
+```
+
+
+
+
+```{r}
+#| label: fig-valence
+#| fig-cap: "Valence (1 = Negative, 7 = Positive): observed proportion of each response (grey bars) and the model-implied probability of each response per label condition (points with 95% CI)."
+#| fig-subcap:
+#|   - "Overall"
+#|   - "By stimulus emotion quadrant"
+#| layout-ncol: 1
+get_discrete_plot <- function(pred, title = "Valence", observed = title, facet = NULL, ...) {
+   dat_obs <- dftask
+   dat_obs$obs <- dat_obs[[observed]]
+   dat_obs <- dat_obs[!is.na(dat_obs$obs), ]
+   
+   if(title == "Worth") dat_obs$obs <- as.numeric(dat_obs$obs)
+   
+   stratifiers <- c("Condition")
+   if(!is.null(facet)) stratifiers <- c(stratifiers, "Emotion")
+   
+   pred_long <- reshape_iterations(pred) |>
+     summarize(N = n(), .by = all_of(c(stratifiers, "iter_group", "iter_value"))) |>
+      mutate(
+        p = N / sum(N),
+        .by = all_of(c(stratifiers, "iter_group"))
+      ) |>
+      summarise(
+        median = median(p),
+        lower = quantile(p, .025),
+        upper = quantile(p, .975),
+        .by = all_of(c(stratifiers, "iter_value"))
+      )
+  
+  p <- dat_obs |>
+    ggplot(aes(x = obs)) +
+    geom_bar(alpha = 0.5, aes(y = after_stat(prop))) +
+    geom_line(
+    data = pred_long,
+    aes(x = iter_value, y = median, group = Condition, colour = Condition), 
+    position = position_dodge(width = 0.25, reverse = TRUE), linewidth = 1
+  )  +
+    geom_pointrange(
+    data = pred_long,
+    aes(x = iter_value, y = median,  ymin = lower,  ymax = upper,  color = Condition),
+    position = position_dodge(width = 0.25, reverse = TRUE)
+  ) +
+    labs(y = "Likelihood of Response", title = title) +
+    scale_size_identity() +
+    scale_color_manual(values = cols) +
+    theme_minimal() +
+    theme(axis.text.y = element_blank(),
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank(),
+          plot.title = element_text(face = "bold"))
+  
+  if(!is.null(facet)) p <- p + facet_wrap(facet, ...)
+  p
+}
+
+
+pred <- estimate_prediction(m_valence, ci = NULL, iterations = 100, keep_iterations = TRUE, centrality = "median") 
+get_discrete_plot(pred, title = "Valence") +
+    scale_x_continuous(breaks = 1:7, labels = c("-3\nNegative", "-2", "-1", "0", "+1", "+2", "+3\nPositive"))
+
+get_discrete_plot(pred, title = "Valence", facet = ~Emotion) +
+    scale_x_continuous(breaks = 1:7, labels = c("-3\nNegative", "-2", "-1", "0", "+1", "+2", "+3\nPositive"))
+```
+
+
+### Meaning
+
+```{r}
+m_meaning <- readRDS("models/Meaning.rds")
+```
+
+
+```{r}
+#| label: contrasts-meaning
+
+rez_meaning <- get_contrasts(m_meaning, outcome = "Meaning", contrast = "Condition")
+gt::gt(rez_meaning$rez_con)
+
+rez_meaning_emo <- get_contrasts(m_meaning, outcome = "Meaning", contrast = "Condition", by = "Emotion")
+```
+
+```{r}
+#| label: report-meaning
+
+rep_meaning <- fa_report(m_meaning, rez_meaning, rez_meaning_emo, outcome = "Meaning")
+```
+
+```{r}
+#| label: tables-meaning
+#| cache: false
+
+fa_print(rep_meaning)
+```
+
+```{r}
+#| label: fig-meaning
+#| fig-cap: "Meaning (0 = Not at all, 6 = Very much): observed proportion of each response (grey bars) and the model-implied probability per label condition (points with 95% CI)."
+#| fig-subcap:
+#|   - "Overall"
+#|   - "By stimulus emotion quadrant"
+#| layout-ncol: 1
+pred <- estimate_prediction(m_meaning, ci = NULL, iterations = 100, keep_iterations = TRUE, centrality = "median") 
+get_discrete_plot(pred, title = "Meaning") +
+    scale_x_continuous(breaks = 0:6, labels = c("0\nNot at all", 1:5, "6\nVery much"))
+
+get_discrete_plot(pred, title = "Meaning", facet = ~Emotion) +
+    scale_x_continuous(breaks = 0:6, labels = c("0\nNot at all", 1:5, "6\nVery much"))
+```
+
+### Worth
+
+
+```{r}
+m_worth <- readRDS("models/Worth.rds")
+```
+
+
+```{r}
+#| label: contrasts-worth
+
+rez_worth <- get_contrasts(m_worth, outcome = "Worth", contrast = "Condition", backend = "marginaleffects")
+gt::gt(rez_worth$rez_con)
+
+rez_worth_emo <- get_contrasts(m_worth, outcome = "Worth", contrast = "Condition", by = "Emotion", backend = "marginaleffects")
+```
+
+```{r}
+#| label: report-worth
+
+rep_worth <- fa_report(m_worth, rez_worth, rez_worth_emo, outcome = "Worth")
+```
+
+```{r}
+#| label: tables-worth
+#| cache: false
+
+fa_print(rep_worth)
+```
+
+```{r}
+#| label: fig-worth
+#| fig-cap: "Worth ($0 to $100,000, six ordered categories): observed proportion of each category (grey bars) and the model-implied probability per label condition (points with 95% CI)."
+#| fig-subcap:
+#|   - "Overall"
+#|   - "By stimulus emotion quadrant"
+#| layout-ncol: 1
+pred <- estimate_prediction(m_worth, ci = NULL, iterations = 100, keep_iterations = TRUE, centrality = "median") 
+get_discrete_plot(pred, title = "Worth") +
+    scale_x_continuous(breaks = 1:6, labels = c("$0", "$10", "$100", "$1,000", "$10,000", "$100,000"))
+
+get_discrete_plot(pred, title = "Worth", facet = ~Emotion) +
+    scale_x_continuous(breaks = 1:6, labels = c("$0", "$10", "$100", "$1,000", "$10,000", "$100,000"))
+```
+
+:::
+
+
+
+
+## Phase 1 - Eye-Tracking
+
+::: {.panel-tabset}
+
+### Entropy
+
+```{r}
+m_entropy <- readRDS("models/Entropy.rds")
+```
+
+
+```{r}
+#| label: contrasts-entropy
+
+rez_ent <- get_contrasts(m_entropy, outcome = "Entropy", contrast = "Condition")
+gt::gt(rez_ent$rez_con)
+
+rez_ent2 <- get_contrasts(m_entropy, outcome = "Entropy", contrast = "Emotion")
+gt::gt(rez_ent2$rez_con)
+
+rez_ent_emo <- get_contrasts(m_entropy, outcome = "Entropy", contrast = "Condition", by = "Emotion")
+```
+
+```{r}
+#| label: report-entropy
+
+rep_entropy <- fa_report(m_entropy, rez_ent, rez_ent_emo, outcome = "Entropy", rez_extra = rez_ent2, extra_title = "contrasts between stimulus emotion quadrants")
+```
+
+```{r}
+#| label: tables-entropy
+#| cache: false
+
+fa_print(rep_entropy)
+```
+
+```{r}
+#| label: fig-entropy
+#| fig-cap: "Gaze entropy: observed distribution (histogram) with posterior-predictive densities per label condition (50 draws each)."
+#| fig-alt: "Gaze entropy: observed distribution (histogram) with posterior-predictive densities per label condition (50 draws each)."
+pred <- estimate_prediction(m_entropy, ci = NULL, iterations = 50, keep_iterations = TRUE) |> 
+  reshape_iterations()
+
+dftask |> 
+  ggplot(aes(x=Gaze_Entropy)) +
+  geom_histogram(aes(y=after_stat(density)), bins = 40) +
+  geom_line(data = pred, stat = "density", alpha = 0.5,
+            aes(x = iter_value, group = interaction(Condition, iter_group), color = Condition))
+```
+
+
+### pLeft
+
+```{r}
+m_pleft <- readRDS("models/pLeft.rds")
+```
+
+```{r}
+#| label: contrasts-pleft
+
+rez_pleft <- get_contrasts(m_pleft, outcome = "pLeft", contrast = "Condition")
+gt::gt(rez_pleft$rez_con)
+
+rez_pleft2 <- get_contrasts(m_pleft, outcome = "pLeft", contrast = "Emotion")
+gt::gt(rez_pleft2$rez_con)
+
+rez_pleft_emo <- get_contrasts(m_pleft, outcome = "pLeft", contrast = "Condition", by = "Emotion")
+```
+
+```{r}
+#| label: report-pleft
+
+rep_pleft <- fa_report(m_pleft, rez_pleft, rez_pleft_emo, outcome = "pLeft", rez_extra = rez_pleft2, extra_title = "contrasts between stimulus emotion quadrants")
+```
+
+```{r}
+#| label: tables-pleft
+#| cache: false
+
+fa_print(rep_pleft)
+```
+
+
+```{r}
+#| label: fig-pleft
+#| fig-cap: "Gaze laterality (proportion of samples on the left half of the image): observed distribution with posterior-predictive densities per label condition (50 draws each)."
+#| fig-alt: "Gaze laterality (proportion of samples on the left half of the image): observed distribution with posterior-predictive densities per label condition (50 draws each)."
+pred <- estimate_prediction(m_pleft, ci = NULL, iterations = 50, keep_iterations = TRUE) |> 
+  reshape_iterations()
+
+dftask |> 
+  ggplot(aes(x=Gaze_pLeft)) +
+  geom_histogram(aes(y=after_stat(density)), bins = 40) +
+  geom_line(data = pred, stat = "density", alpha = 0.5,
+            aes(x = iter_value, group = interaction(Condition, iter_group), color = Condition))
+```
+
+
+### pCenter
+
+```{r}
+m_pcenter <- readRDS("models/pCenter.rds")
+```
+
+```{r}
+#| label: contrasts-pcenter
+
+rez_pcenter <- get_contrasts(m_pcenter, outcome = "pCenter", contrast = "Condition")
+gt::gt(rez_pcenter$rez_con)
+
+rez_pcenter2 <- get_contrasts(m_pcenter, outcome = "pCenter", contrast = "Emotion")
+gt::gt(rez_pcenter2$rez_con)
+
+rez_pcenter_emo <- get_contrasts(m_pcenter, outcome = "pCenter", contrast = "Condition", by = "Emotion")
+```
+
+```{r}
+#| label: report-pcenter
+
+rep_pcenter <- fa_report(m_pcenter, rez_pcenter, rez_pcenter_emo, outcome = "pCenter", rez_extra = rez_pcenter2, extra_title = "contrasts between stimulus emotion quadrants")
+```
+
+```{r}
+#| label: tables-pcenter
+#| cache: false
+
+fa_print(rep_pcenter)
+```
+
+```{r}
+#| label: fig-pcenter
+#| fig-cap: "Gaze centeredness (proportion of samples in the central region): observed distribution with posterior-predictive densities per label condition (50 draws each)."
+#| fig-alt: "Gaze centeredness (proportion of samples in the central region): observed distribution with posterior-predictive densities per label condition (50 draws each)."
+
+pred <- estimate_prediction(m_pcenter, ci = NULL, iterations = 50, keep_iterations = TRUE) |> 
+  reshape_iterations()
+
+dftask |> 
+  ggplot(aes(x=Gaze_pCenter)) +
+  geom_histogram(aes(y=after_stat(density)), bins = 40) +
+  geom_line(data = pred, stat = "density", alpha = 0.5,
+            aes(x = iter_value, group = interaction(Condition, iter_group), color = Condition))
+```
+
+
+
+### Shift
+
+```{r}
+m_shift <- readRDS("models/Shift.rds")
+```
+
+
+```{r}
+#| label: contrasts-shift
+
+rez_shift <- get_contrasts(m_shift, outcome = "Shift", contrast = "Condition")
+gt::gt(rez_shift$rez_con)
+
+rez_shift2 <- get_contrasts(m_shift, outcome = "Shift", contrast = "Emotion")
+gt::gt(rez_shift2$rez_con)
+
+rez_shift_emo <- get_contrasts(m_shift, outcome = "Shift", contrast = "Condition", by = "Emotion")
+```
+
+```{r}
+#| label: report-shift
+
+rep_shift <- fa_report(m_shift, rez_shift, rez_shift_emo, outcome = "Shift", rez_extra = rez_shift2, extra_title = "contrasts between stimulus emotion quadrants")
+```
+
+```{r}
+#| label: tables-shift
+#| cache: false
+
+fa_print(rep_shift)
+```
+
+```{r}
+#| label: fig-shift
+#| fig-cap: "Gaze maximal shift (largest within-trial relocation of the gaze centroid, in stimulus widths, truncated at 1): observed distribution with posterior-predictive densities per label condition (500 draws), one panel per stimulus emotion quadrant."
+#| fig-alt: "Gaze maximal shift (largest within-trial relocation of the gaze centroid, in stimulus widths, truncated at 1): observed distribution with posterior-predictive densities per label condition (500 draws), one panel per stimulus emotion quadrant."
+pred <- estimate_prediction(m_shift, ci = NULL, iterations = 500, keep_iterations = TRUE) |> 
+  reshape_iterations()
+
+dftask |> 
+  # filter(Emotion == "Positiev - Low intensity") |> 
+  ggplot(aes(x=Gaze_Shift)) +
+  geom_histogram(aes(y=after_stat(density)), bins = 100) +
+  geom_line(data = pred, stat = "density", alpha = 0.05,
+            aes(x = iter_value, group = interaction(Condition, iter_group), color = Condition)) +
+  coord_cartesian(xlim = c(0, 1)) +
+  facet_wrap(~Emotion)
+```
+
+
+:::
+
+
+
+## Phase 2
+
+::: {.panel-tabset}
+
+### Syntheticness
+
+```{r}
+m_reality <- readRDS("models/Reality.rds")
+```
+
+```{r}
+#| label: contrasts-reality
+
+rez_reality <- get_contrasts(m_reality, outcome = "Reality", contrast = "Condition")
+gt::gt(rez_reality$rez_con)
+
+rez_reality_emo <- get_contrasts(m_reality, outcome = "Reality", contrast = "Condition", by = "Emotion")
+```
+
+```{r}
+#| label: report-reality
+
+rep_reality <- fa_report(m_reality, rez_reality, rez_reality_emo, outcome = "Reality")
+```
+
+```{r}
+#| label: tables-reality
+#| cache: false
+
+fa_print(rep_reality)
+```
+
+
+```{r}
+#| label: fig-reality
+#| fig-cap: "Syntheticness (Phase 2 slider, 0 = AI-Generated, 1 = Human Creation): observed ratings with the model-implied CHOCO density per label condition; dots mark the modal rating in each half of the scale sized by the probability of choosing that half, point-ranges are marginal means with 95% CI."
+#| fig-alt: "Syntheticness (Phase 2 slider, 0 = AI-Generated, 1 = Human Creation): observed ratings with the model-implied CHOCO density per label condition; dots mark the modal rating in each half of the scale sized by the probability of choosing that half, point-ranges are marginal means with 95% CI."
+#| fig-width: 10
+#| fig-height: 7
+#| cache-lazy: false
+
+par_reality <- get_marginal_parameters(m_reality)
+dens_reality <- get_marginal_densities(par_reality, adjust = 0.5)
+p_reality <- get_choco_plot(dens_reality, title = "Syntheticness", observed = "Reality", xlabs = c("0%\nAI-Generated", "100%\nHuman-Creation"))
+p_reality
+```
+
+
+
+```{r}
+# Per Artwork analysis
+
+# dftask |>
+#   summarize(Reality = mean(Reality, na.rm = TRUE),
+#             .by = c("Item")) |>
+#   arrange(Reality)
+```
+
+
+
+### Authenticity
+
+```{r}
+m_authenticity <- readRDS("models/Authenticity.rds")
+```
+
+```{r}
+#| label: contrasts-authenticity
+
+rez_authenticity <- get_contrasts(m_authenticity, outcome = "Authenticity", contrast = "Condition")
+gt::gt(rez_authenticity$rez_con)
+
+rez_authenticity_emo <- get_contrasts(m_authenticity, outcome = "Authenticity", contrast = "Condition", by = "Emotion")
+```
+
+```{r}
+#| label: report-authenticity
+
+rep_authenticity <- fa_report(m_authenticity, rez_authenticity, rez_authenticity_emo, outcome = "Authenticity")
+```
+
+```{r}
+#| label: tables-authenticity
+#| cache: false
+
+fa_print(rep_authenticity)
+```
+
+
+```{r}
+#| label: fig-authenticity
+#| fig-cap: "Authenticity (Phase 2 slider, 0 = Copy, 1 = Original): observed ratings with the model-implied CHOCO density per label condition; dots mark the modal rating in each half of the scale sized by the probability of choosing that half, point-ranges are marginal means with 95% CI."
+#| fig-alt: "Authenticity (Phase 2 slider, 0 = Copy, 1 = Original): observed ratings with the model-implied CHOCO density per label condition; dots mark the modal rating in each half of the scale sized by the probability of choosing that half, point-ranges are marginal means with 95% CI."
+#| fig-width: 10
+#| fig-height: 7
+#| cache-lazy: false
+
+par_authenticity <- get_marginal_parameters(m_authenticity)
+dens_authenticity <- get_marginal_densities(par_authenticity, adjust = 0.5)
+p_authenticity <- get_choco_plot(dens_authenticity, title = "Authenticity", xlabs = c("0%\nCopy", "100%\nOriginal"))
+p_authenticity
+```
+
+
+
+:::
+
+
+## Follow-up
+
+::: {.panel-tabset}
+
+### Beauty2
+
+
+```{r}
+m_beauty2 <- readRDS("models/Beauty2.rds")
+```
+
+
+```{r}
+#| label: contrasts-beauty2
+
+rez_beauty2 <- get_contrasts(m_beauty2, outcome = "Beauty2", contrast = "Condition")
+gt::gt(rez_beauty2$rez_con)
+
+rez_beauty2_emo <- get_contrasts(m_beauty2, outcome = "Beauty2", contrast = "Condition", by = "Emotion")
+```
+
+```{r}
+#| label: report-beauty2
+
+rep_beauty2 <- fa_report(m_beauty2, rez_beauty2, rez_beauty2_emo, outcome = "Beauty2")
+```
+
+```{r}
+#| label: tables-beauty2
+#| cache: false
+
+fa_print(rep_beauty2)
+```
+
+```{r}
+#| label: fig-beauty2
+#| fig-cap: "Beauty rated again in the follow-up session (after participants were told all artworks were human originals): observed ratings with the model-implied CHOCO density per original label condition."
+#| fig-alt: "Beauty rated again in the follow-up session (after participants were told all artworks were human originals): observed ratings with the model-implied CHOCO density per original label condition."
+#| fig-width: 10
+#| fig-height: 7
+#| cache-lazy: false
+
+par_beauty2 <- get_marginal_parameters(m_beauty2)
+dens_beauty2 <- get_marginal_densities(par_beauty2, adjust = 0.5)
+p_beauty2 <- get_choco_plot(dens_beauty2, title = "Beauty2", xlabs = c("0%\nUgly", "100%\nBeautiful"))
+p_beauty2
+```
+
+
+### Self-Relevance
+
+
+```{r}
+m_selfrelevance <- readRDS("models/SelfRelevance.rds")
+```
+
+```{r}
+#| label: contrasts-selfrelevance
+
+rez_selfrelevance <- get_contrasts(m_selfrelevance, outcome = "SelfRelevance", contrast = "Condition", backend = "marginaleffects")
+gt::gt(rez_selfrelevance$rez_con)
+
+rez_selfrelevance_emo <- get_contrasts(m_selfrelevance, outcome = "SelfRelevance", contrast = "Condition", by = "Emotion", backend = "marginaleffects")
+```
+
+```{r}
+#| label: report-selfrelevance
+
+rep_selfrelevance <- fa_report(m_selfrelevance, rez_selfrelevance, rez_selfrelevance_emo, outcome = "SelfRelevance")
+```
+
+```{r}
+#| label: tables-selfrelevance
+#| cache: false
+
+fa_print(rep_selfrelevance)
+```
+
+
+```{r}
+#| label: fig-selfrelevance
+#| fig-cap: "Self-Relevance (0 = Not at all, 6 = Very much; follow-up session): observed proportion of each response and the model-implied probability per original label condition."
+#| fig-subcap:
+#|   - "Overall"
+#|   - "By stimulus emotion quadrant"
+#| layout-ncol: 1
+pred <- estimate_prediction(m_selfrelevance, ci = NULL, iterations = 100, keep_iterations = TRUE, centrality = "median") 
+get_discrete_plot(pred, title = "SelfRelevance")  +
+    scale_x_continuous(breaks = 0:6, labels = c("0\nNot at all", 1:5, "6\nVery much"))
+
+get_discrete_plot(pred, title = "SelfRelevance", facet = ~Emotion)  +
+    scale_x_continuous(breaks = 0:6, labels = c("0\nNot at all", 1:5, "6\nVery much"))
+```
+
+
+### Artificiality
+
+
+```{r}
+m_artificiality <- readRDS("models/Artificiality.rds")
+```
+
+```{r}
+#| label: contrasts-artificiality
+
+rez_artificiality <- get_contrasts(m_artificiality, outcome = "Artificiality", contrast = "Condition")
+gt::gt(rez_artificiality$rez_con)
+
+rez_artificiality_emo <- get_contrasts(m_artificiality, outcome = "Artificiality", contrast = "Condition", by = "Emotion")
+```
+
+```{r}
+#| label: report-artificiality
+
+rep_artificiality <- fa_report(m_artificiality, rez_artificiality, rez_artificiality_emo, outcome = "Artificiality")
+```
+
+```{r}
+#| label: tables-artificiality
+#| cache: false
+
+fa_print(rep_artificiality)
+```
+
+
+```{r}
+#| label: fig-artificiality
+#| fig-cap: "Perceived Artificiality (follow-up, items judged as new; 0 = Very Human, 1 = Very Artificial): observed ratings with the model-implied CHOCO density per original label condition."
+#| fig-alt: "Perceived Artificiality (follow-up, items judged as new; 0 = Very Human, 1 = Very Artificial): observed ratings with the model-implied CHOCO density per original label condition."
+#| fig-width: 10
+#| fig-height: 7
+#| cache-lazy: false
+
+par_artificiality <- get_marginal_parameters(m_artificiality)
+dens_artificiality <- get_marginal_densities(par_artificiality, adjust = 0.8)
+p_artificiality <- get_choco_plot(dens_artificiality, title = "Artificiality", observed = "PerceivedArtificiality", xlabs = c("0%\nVery Human", "100%\nVery Artificial"))
+p_artificiality
+```
+
+
+
+:::
+
+## Summary
+
+All contrasts of all models, pooled. Two CSVs are written for downstream use
+and for text-based readers:
+
+- `data/results_contrasts.csv`: every contrast x parameter x (overall or
+  emotion quadrant), unscaled (each on its own parameter / response scale, see
+  the glossary above).
+- `data/results_means.csv`: marginal means per label condition, response
+  scale, for every model.
+
+```{r}
+#| label: summary-collect
+
+reps <- list(rep_beauty, rep_valence, rep_meaning, rep_worth,
+             rep_entropy, rep_pleft, rep_pcenter, rep_shift,
+             rep_reality, rep_authenticity,
+             rep_beauty2, rep_selfrelevance, rep_artificiality)
+
+results_contrasts <- bind_rows(
+  lapply(reps, function(r) mutate(r$contrasts, Emotion = "Overall")),
+  lapply(reps, function(r) r$contrasts_emo)
+) |>
+  select(Outcome, Emotion, Contrast, Parameter, Unit, Difference, CI_low, CI_high,
+         Difference_pct, CI_low_pct, CI_high_pct, pd, Credible, Effect) |>
+  mutate(Contrast = as.character(Contrast)) |>
+  arrange(Outcome, Emotion, Contrast, Parameter)
+write.csv(results_contrasts, "../data/results_contrasts.csv", row.names = FALSE)
+
+results_means <- bind_rows(lapply(reps, function(r) cbind(Outcome = r$diag$Model, r$means)))
+write.csv(results_means, "../data/results_means.csv", row.names = FALSE)
+
+diag_all <- bind_rows(lapply(reps, `[[`, "diag"))
+fa_tables(diag_all, names(diag_all), "Convergence of all models", "diag-all")
+```
+
+```{r}
+#| label: fig-summary-beauty-reality
+#| fig-width: 10
+#| fig-height: 7
+#| fig-cap: "Beauty (Phase 1, left) and Syntheticness (Phase 2, right) by label condition: observed ratings with model-implied CHOCO densities, marginal means with 95% CI above."
+#| fig-alt: "Two panels of histograms with overlaid density curves in three colours, one per label condition."
+
+(p_beauty | p_reality) +
+  plot_layout(guides = "collect")
+```
+
+```{r}
+#| label: fig-summary-effects
+#| fig-width: 12
+#| fig-height: 10
+#| fig-cap: "Effect of the label condition on the main parameters of every model (posterior median difference with 95% CI, in percent of each scale's range). Rows: contrast; columns: outcome; y-axis: parameter. Large points with error bars are the overall contrasts, small shapes the contrasts within each stimulus emotion quadrant. Green = credibly positive, red = credibly negative, orange = CI includes 0. Gaze_Shift is omitted (no bounded scale)."
+#| fig-alt: "Grid of dot-and-whisker plots, one cell per contrast and outcome, coloured by direction and credibility of the effect."
+
+rez_con <- results_contrasts |>
+  filter(Parameter %in% c("response", "mu", "confright", "confleft", "pzero"), Unit == "%") |>
+  mutate(Difference = Difference_pct, CI_low = CI_low_pct, CI_high = CI_high_pct) |>
+  mutate(Effect = fct_relevel(Effect, "Negative", "n.s.", "Positive"),
+         Contrast = fct_relevel(Contrast, "AI-Generated - Human Original", "Human Forgery - Human Original", "AI-Generated - Human Forgery"))
+
+rez_con |>
+  filter(Emotion == "Overall") |>
+  ggplot(aes(x = Difference, y = Parameter, color = Effect)) +
+  geom_point(size = 2) +
+  geom_errorbar(aes(xmin = CI_low, xmax = CI_high), width = 0.2) +
+  geom_point(data = filter(rez_con, Emotion != "Overall"), aes(shape = Emotion), size = 2, position = position_nudge(y = 0.18)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+  facet_grid(
+  Contrast ~ Outcome,
+  scales = "free_y",
+  switch = "y"
+) +
+  scale_shape_manual(values = c("Positive - High intensity" = "square plus", "Positive - Low intensity" = "square",
+                                "Negative - Low intensity" = "circle", "Negative - High intensity" = "circle plus")) +
+  scale_y_discrete(position = "right") +
+  scale_color_manual(values = c("Negative" = "#F44336", "n.s." = "#FF9800", "Positive" = "#4CAF50")) +
+  theme_bw() +
+  labs(
+    title = "Effect Sizes by Contrast and Outcome",
+    x = "Difference in % of the scale range (with 95% CI)",
+    y = "Model Parameter"
+  ) +
+  theme(
+  strip.placement = "outside",
+  strip.background = element_rect(fill = "grey90"),
+  strip.text.y.left = element_text(angle = 0),
+  legend.position = "bottom"
+)
+```
+
+```{r}
+#| label: summary-table
+
+credible_main <- results_contrasts |>
+  filter(Emotion == "Overall", Credible, Parameter %in% c("response", "mu") | grepl("^response", Parameter)) |>
+  mutate(shown_d = ifelse(Unit == "%", Difference_pct, Difference),
+         shown_lo = ifelse(Unit == "%", CI_low_pct, CI_low),
+         shown_hi = ifelse(Unit == "%", CI_high_pct, CI_high),
+         Diff = insight::format_value(shown_d, zap_small = TRUE),
+         CI = sprintf("[%s, %s]", insight::format_value(shown_lo, zap_small = TRUE), insight::format_value(shown_hi, zap_small = TRUE)),
+         pd_fmt = insight::format_pd(pd, name = NULL)) |>
+  select(Outcome, Contrast, Parameter, Diff, CI, Unit, pd_fmt, Effect)
+
+fa_tables(credible_main, names(credible_main),
+          "Credible overall effects of the label on the main parameter of each model (response / mu), in % of the scale range", "summary")
+```
+
+## Animations
+
+### Beauty
+
+```{python}
+#| warning: false
+#| message: false
+#| eval: false
+
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+import pandas as pd
+import numpy as np
+
+
+# ─── Data from R ──────────────────────────────────────────────────────────────
+df_dens  = r.dens_beauty["dens"]
+df_annot = r.dens_beauty["annot"]
+df_par   = r.dens_beauty["par"]
+df_task  = r.dftask
+
+conditions = ["Human Original", "Human Forgery", "AI-Generated"]
+colors = {
+    "Human Original": "#F51D56",
+    "Human Forgery":  "#F5A41D",
+    "AI-Generated":   "#1D9AF5",
+}
+
+# ─── Figure — match minimal R aesthetic ───────────────────────────────────────
+fig, ax = plt.subplots(figsize=(12, 8), dpi=150)
+fig.patch.set_facecolor("white")
+ax.set_facecolor("white")
+
+max_y = df_dens["y"].max()
+
+# Slider-scale band below y = 0 — tightened up vs. before.
+slider_y = -max_y * 0.20     # vertical position of the slider track
+pct_y    = slider_y - max_y * 0.09   # live % readout, just under the pill
+anchor_y = slider_y - max_y * 0.20   # "Ugly" / "Beautiful" anchor labels
+y_bottom = -max_y * 0.32             # margin below the anchor labels
+ax.set_xlim(0, 1)
+ax.set_ylim(y_bottom, max_y * 1.55)
+
+for spine in ["top", "right", "bottom"]:
+    ax.spines[spine].set_visible(False)
+ax.spines["left"].set_color("#cccccc")
+ax.spines["left"].set_linewidth(0.8)
+ax.spines["left"].set_bounds(0, max_y * 1.55)
+
+ax.tick_params(length=0, labelbottom=False)
+ax.set_yticks([])
+ax.set_xticks([0, 0.25, 0.50, 0.75, 1.0])
+ax.set_ylabel("Likelihood of Response", fontsize=11, color="#333333", labelpad=8)
+ax.grid(True, alpha=0.2, linestyle="-", color="#aaaaaa", linewidth=0.5, zorder=0)
+ax.set_axisbelow(True)
+
+ax.hist(df_task["Beauty"].dropna(), bins=47, density=True,
+        alpha=0.1, color="gray", zorder=1)
+
+# ─── Slider track + static anchors (the handle + % readout are animated, set up below) ─
+ax.plot([0, 1], [slider_y, slider_y], color="#cccccc", linewidth=3,
+        solid_capstyle="round", zorder=2, clip_on=False)
+ax.plot([0, 1], [slider_y, slider_y], "o", markersize=6,
+        color="#bbbbbb", zorder=3, clip_on=False)
+ax.text(0, anchor_y, "Ugly", ha="center", va="top",
+        fontsize=10.5, color="#666666", style="italic", clip_on=False)
+ax.text(1, anchor_y, "Beautiful", ha="center", va="top",
+        fontsize=10.5, color="#666666", style="italic", clip_on=False)
+
+# ─── Frame plan ───────────────────────────────────────────────────────────────
+F_LINE  = 55   # frames per density line
+PAUSE   = 10   # quiet gap between phases
+F_SLIDE = 40   # pointranges slide in
+F_DROP  = 40   # vertical lines fall
+F_DOT   = 18   # bottom dots grow in
+TAIL    = 30   # hold at end
+
+p1_end   = 3 * F_LINE                  # 165
+p2_start = p1_end   + PAUSE            # 175
+p2_end   = p2_start + F_SLIDE          # 215
+p3_start = p2_end   + PAUSE            # 225
+p3_end   = p3_start + F_DROP           # 265
+p4_start = p3_end                      # 265  (dots pop as lines finish)
+p4_end   = p4_start + F_DOT            # 283
+N_FRAMES = p4_end   + TAIL             # 313
+
+# Slider-handle intro: middle → wait → slow drag left → brief pause → drag
+# right to settle on the Human Original mean.
+HANDLE_START = 0.5
+HANDLE_LEFT  = 0.15     # how far left it explores before committing
+F_WAIT       = 40
+F_DRAG_LEFT  = 80       # the first drag left
+F_PAUSE_LEFT = 10
+F_DRAG_RIGHT = 90       # On the way to the answer
+h_wait_end  = F_WAIT
+h_left_end  = h_wait_end  + F_DRAG_LEFT
+h_pause_end = h_left_end  + F_PAUSE_LEFT
+h_end       = h_pause_end + F_DRAG_RIGHT   
+assert h_end <= N_FRAMES
+
+# ─── Pre-process data per condition ───────────────────────────────────────────
+dens  = {c: df_dens [df_dens ["Condition"] == c].sort_values("x").reset_index(drop=True) for c in conditions}
+annot = {c: df_annot[df_annot["Condition"] == c].iloc[0]  for c in conditions}
+par   = {c: df_par  [df_par  ["Condition"] == c].iloc[0]  for c in conditions}
+
+# ─── Artists ──────────────────────────────────────────────────────────────────
+# Phase 1: smooth density curves
+dens_lines = {}
+for cond in conditions:
+    (l,) = ax.plot([], [], lw=2, color=colors[cond], zorder=3,
+                   solid_capstyle="round", label=cond)
+    dens_lines[cond] = l
+
+# Phase 2: horizontal pointranges (line + centre dot)
+pr_segs = {}
+pr_dots = {}
+for cond in conditions:
+    (s,) = ax.plot([], [], lw=1.2, color=colors[cond], zorder=5, solid_capstyle="round")
+    (d,) = ax.plot([], [], "o",    ms=0,  color=colors[cond], zorder=6)
+    pr_segs[cond] = s
+    pr_dots[cond] = d
+
+# Phase 3: vertical dashed lines (left & right per condition)
+vl_left  = {}
+vl_right = {}
+for cond in conditions:
+    (ll,) = ax.plot([], [], "--", lw=0.9, color=colors[cond], alpha=0.75, zorder=4)
+    (lr,) = ax.plot([], [], "--", lw=0.9, color=colors[cond], alpha=0.75, zorder=4)
+    vl_left[cond]  = ll
+    vl_right[cond] = lr
+
+# Phase 4: bottom dots — clip_on=False so they're not half-swallowed by the axis
+bdot_left  = {}
+bdot_right = {}
+for cond in conditions:
+    (dl,) = ax.plot([], [], "o", color=colors[cond], zorder=7, clip_on=False)
+    (dr,) = ax.plot([], [], "o", color=colors[cond], zorder=7, clip_on=False)
+    bdot_left[cond]  = dl
+    bdot_right[cond] = dr
+
+ax.legend(
+    handles=[dens_lines[c] for c in conditions],
+    labels=conditions,
+    frameon=False, loc="upper right",
+    fontsize=9, title="Condition", title_fontsize=9.5,
+)
+
+handle_text = ax.text(HANDLE_START, slider_y, "Beauty", ha="center", va="center",
+                       fontsize=9.5, color="white", fontweight="bold", zorder=5,
+                       clip_on=False,
+                       bbox=dict(boxstyle="round,pad=0.55", facecolor="#555555", edgecolor="none"))
+pct_text = ax.text(HANDLE_START, pct_y, "50%", ha="center", va="top",
+                    fontsize=9, color="#888888", clip_on=False)
+
+# ─── Easing ───────────────────────────────────────────────────────────────────
+def ease_out(t: float) -> float:
+    t = max(0.0, min(1.0, t))
+    return 1 - (1 - t) ** 2
+
+def ease_in_out(t: float) -> float:
+    t = max(0.0, min(1.0, t))
+    return t * t * (3 - 2 * t)
+  
+# ─── Update ───────────────────────────────────────────────────────────────────
+def update(frame: int):
+
+    # ── Phase 1: draw density lines one by one, left→right ────────────────────
+    for i, cond in enumerate(conditions):
+        fs, fe = i * F_LINE, (i + 1) * F_LINE
+        d = dens[cond]
+        if frame >= fe:
+            dens_lines[cond].set_data(d["x"], d["y"])
+        elif frame >= fs:
+            t = ease_out((frame - fs) / F_LINE)
+            n = max(1, int(t * len(d)))
+            dens_lines[cond].set_data(d["x"].iloc[:n], d["y"].iloc[:n])
+
+    # ── Phase 2: all three pointranges slide in from the left simultaneously ───
+    if frame >= p2_start:
+        t = ease_out((frame - p2_start) / F_SLIDE)
+        for cond in conditions:
+            p = par[cond]
+            low, high, mean, y_pr = p["Mean_low"], p["Mean_high"], p["Mean"], p["Mean_y"]
+            cur_hi = low + t * (high - low)
+            pr_segs[cond].set_data([low, cur_hi], [y_pr, y_pr])
+            # Centre dot appears once the sliding front reaches the mean position
+            frac = (mean - low) / max(high - low, 1e-9)
+            if t >= frac:
+                dot_t = ease_out((t - frac) / max(1.0 - frac, 1e-9))
+                pr_dots[cond].set_data([mean], [y_pr])
+                pr_dots[cond].set_markersize(5.5 * dot_t)
+            else:
+                pr_dots[cond].set_data([], [])
+
+    # ── Phase 3: vertical lines fall downward from the density peak ────────────
+    # Top stays pinned at the curve; bottom drops from peak → 0
+    if frame >= p3_start:
+        t = ease_out((frame - p3_start) / F_DROP)
+        for cond in conditions:
+            a = annot[cond]
+            bot_r = a["right_y"] * (1 - t)   # bottom falls from right_y to 0
+            bot_l = a["left_y"]  * (1 - t)
+            vl_right[cond].set_data([a["right_x"], a["right_x"]], [bot_r, a["right_y"]])
+            vl_left[cond].set_data( [a["left_x"],  a["left_x"] ], [bot_l, a["left_y"] ])
+
+    # ── Phase 4: bottom dots grow in at y = 0 ─────────────────────────────────
+    # Sizes mirror R's geom_point(aes(size = right_size * 6)) with scale_size_identity()
+    # ggplot size in mm → matplotlib markersize in pts: × 2.835
+    if frame >= p4_start:
+        t = ease_out((frame - p4_start) / F_DOT)
+        for cond in conditions:
+            a = annot[cond]
+            ms_r = a["right_size"] * 6 * 2.835 * t
+            ms_l = a["left_size"]  * 6 * 2.835 * t
+            bdot_right[cond].set_data([a["right_x"]], [0])
+            bdot_right[cond].set_markersize(max(0.1, ms_r))
+            bdot_left[cond].set_data( [a["left_x"]],  [0])
+            bdot_left[cond].set_markersize(max(0.1, ms_l))
+            
+    # ── Slider handle: middle → wait → drag left → drag right to the mean ─────
+    target_x = par["Human Original"]["Mean"]
+    if frame <= h_wait_end:
+        x = HANDLE_START
+    elif frame <= h_left_end:
+        t = ease_in_out((frame - h_wait_end) / F_DRAG_LEFT)
+        x = HANDLE_START + t * (HANDLE_LEFT - HANDLE_START)
+    elif frame <= h_pause_end:
+        x = HANDLE_LEFT
+    elif frame <= h_end:
+        t = ease_in_out((frame - h_pause_end) / F_DRAG_RIGHT)
+        x = HANDLE_LEFT + t * (target_x - HANDLE_LEFT)
+    else:
+        x = target_x
+
+    handle_text.set_x(x)
+    pct_text.set_x(x)
+    pct_text.set_text(f"{x * 100:.0f}%")
+
+    return (
+        list(dens_lines.values())
+        + list(pr_segs.values())
+        + list(pr_dots.values())
+        + list(vl_left.values())
+        + list(vl_right.values())
+        + list(bdot_left.values())
+        + list(bdot_right.values())
+        + [handle_text, pct_text]
+    )
+
+# ─── Build & save ─────────────────────────────────────────────────────────────
+ani = animation.FuncAnimation(
+    fig, update,
+    frames=N_FRAMES,
+    interval=40,
+    blit=False,   # False is safer with clip_on=False artists
+    repeat=False,
+)
+
+ani.save("figures/anim_beauty.gif", writer="pillow", fps=30, dpi=150)
+plt.close()
+print("✓ Saved distribution_animation.gif")
+```
+
+### Beauty by Emotion
+
+
+```{python}
+#| warning: false
+#| message: false
+#| eval: false
+
+import matplotlib.pyplot as plt
+from matplotlib.patches import Polygon
+from matplotlib.colors import to_rgb
+from PIL import Image
+import pandas as pd
+import numpy as np
+
+# ─── Data from R ──────────────────────────────────────────────────────────────
+df_dens_neutral  = r.dens_beauty["dens"]
+df_annot_neutral = r.dens_beauty["annot"]
+df_par_neutral   = r.dens_beauty["par"]
+
+df_dens_emo  = r.dens_beauty_condemo["dens"]
+df_annot_emo = r.dens_beauty_condemo["annot"]
+df_par_emo   = r.dens_beauty_condemo["par"]
+
+df_task = r.dftask
+
+conditions = ["Human Original", "Human Forgery", "AI-Generated"]
+colors = {
+    "Human Original": "#F51D56",
+    "Human Forgery":  "#F5A41D",
+    "AI-Generated":   "#1D9AF5",
+}
+
+# ─── Cycle order (loops back to Neutral) ──────────────────────────────────────
+state_order = [
+    "Neutral",
+    "Positive - High intensity",
+    "Positive - Low intensity",
+    "Negative - Low intensity",
+    "Negative - High intensity",
+]
+N_STATES = len(state_order)
+
+quadrant_coords = {
+    "Neutral":                    (0.0,   0.0),
+    "Positive - High intensity":  (0.65,  0.65),
+    "Positive - Low intensity":   (0.65, -0.65),
+    "Negative - Low intensity":   (-0.65, -0.65),
+    "Negative - High intensity":  (-0.65,  0.65),
+}
+
+quad_colors = {
+    "Neutral":                    "#1a1a1a",
+    "Positive - High intensity":  "#2E9E4F",
+    "Positive - Low intensity":   "#2E9E4F",
+    "Negative - Low intensity":   "#D1453D",
+    "Negative - High intensity":  "#D1453D",
+}
+
+# ─── Build per-state, per-condition lookups ───────────────────────────────────
+def build_state_dict(dens_df, annot_df, par_df, emotion=None):
+    out = {}
+    for cond in conditions:
+        if emotion is None:
+            d = dens_df[dens_df["Condition"] == cond].sort_values("x").reset_index(drop=True)
+            a = annot_df[annot_df["Condition"] == cond].iloc[0]
+            p = par_df[par_df["Condition"] == cond].iloc[0]
+        else:
+            d = dens_df[(dens_df["Condition"] == cond) & (dens_df["Emotion"] == emotion)] \
+                    .sort_values("x").reset_index(drop=True)
+            a = annot_df[(annot_df["Condition"] == cond) & (annot_df["Emotion"] == emotion)].iloc[0]
+            p = par_df[(par_df["Condition"] == cond) & (par_df["Emotion"] == emotion)].iloc[0]
+        out[cond] = {"x": d["x"].to_numpy(), "y": d["y"].to_numpy(), "annot": a, "par": p}
+    return out
+
+states = {"Neutral": build_state_dict(df_dens_neutral, df_annot_neutral, df_par_neutral, emotion=None)}
+for emo in state_order[1:]:
+    states[emo] = build_state_dict(df_dens_emo, df_annot_emo, df_par_emo, emotion=emo)
+
+# ─── Global axis scaling ────────────────────────────────────────────────────
+max_y = max(df_dens_neutral["y"].max(), df_dens_emo["y"].max())
+all_par = pd.concat([df_par_neutral, df_par_emo], ignore_index=True, sort=False)
+y_top = max(max_y * 1.35, all_par["Mean_y"].max() * 1.15)
+y_bottom = -max_y * 0.12
+
+# ─── Figure ────────────────────────────────────────────────────────────────────
+fig, ax = plt.subplots(figsize=(11, 8), dpi=150)
+fig.patch.set_facecolor("white")
+ax.set_facecolor("white")
+
+# reserve headroom above the axes so the raised legend/quadrant never clip
+fig.subplots_adjust(top=0.97, bottom=0.10, left=0.07, right=0.95)
+
+ax.set_xlim(0, 1)
+ax.set_ylim(y_bottom, y_top)
+for spine in ["top", "right", "bottom"]:
+    ax.spines[spine].set_visible(False)
+ax.spines["left"].set_color("#cccccc")
+ax.spines["left"].set_linewidth(0.8)
+ax.spines["left"].set_bounds(0, y_top)
+ax.tick_params(length=0, labelbottom=True)
+ax.set_yticks([])
+ax.set_xticks([0, 0.25, 0.50, 0.75, 1.0])
+ax.set_xticklabels(["0%\nUgly", "25%", "50%", "75%", "100%\nBeautiful"], fontsize=9.5)
+ax.set_ylabel("Likelihood of Response", fontsize=11, color="#333333", labelpad=8, fontweight='bold')
+ax.set_xlabel("Beauty Rating", fontsize=11, color="#333333", labelpad=10, fontweight='bold')
+ax.grid(True, alpha=0.2, linestyle="-", color="#aaaaaa", linewidth=0.5, zorder=0)
+ax.set_axisbelow(True)
+
+if "Beauty" in df_task.columns:
+    ax.hist(df_task["Beauty"].dropna(), bins=47, density=True,
+            alpha=0.1, color="gray", zorder=1)
+
+# ─── Artists: density curves, pointranges, vertical lines, bottom dots ────────
+dens_lines, pr_segs, pr_dots = {}, {}, {}
+vl_left, vl_right, bdot_left, bdot_right = {}, {}, {}, {}
+for cond in conditions:
+    (l,)  = ax.plot([], [], lw=2, color=colors[cond], zorder=3, solid_capstyle="round", label=cond)
+    (s,)  = ax.plot([], [], lw=1.2, color=colors[cond], zorder=5, solid_capstyle="round")
+    (d,)  = ax.plot([], [], "o", ms=5.5, color=colors[cond], zorder=6)
+    (ll,) = ax.plot([], [], "--", lw=0.9, color=colors[cond], alpha=0.75, zorder=4)
+    (lr,) = ax.plot([], [], "--", lw=0.9, color=colors[cond], alpha=0.75, zorder=4)
+    (dl,) = ax.plot([], [], "o", color=colors[cond], zorder=7, clip_on=False)
+    (dr,) = ax.plot([], [], "o", color=colors[cond], zorder=7, clip_on=False)
+    dens_lines[cond] = l
+    pr_segs[cond]    = s
+    pr_dots[cond]    = d
+    vl_left[cond]    = ll
+    vl_right[cond]   = lr
+    bdot_left[cond]  = dl
+    bdot_right[cond] = dr
+
+leg = ax.legend(
+    handles=[dens_lines[c] for c in conditions], labels=conditions,
+    frameon=False, loc="upper right", bbox_to_anchor=(0.995, 0.9),
+    fontsize=9, title="Condition", title_fontsize=9.5,
+)
+leg.get_title().set_fontweight("bold")
+leg.get_title().set_color("#333333")
+
+# ─── Valence × Intensity quadrant inset ───────────────────────────────────────
+QUAD_SIZE = 0.33
+ax_quad = ax.inset_axes([-0.04, 0.86 - QUAD_SIZE, QUAD_SIZE, QUAD_SIZE])
+ax_quad.set_xlim(-1.6, 1.6)
+ax_quad.set_ylim(-1.6, 1.6)
+ax_quad.set_aspect("equal")
+ax_quad.set_facecolor("white")
+ax_quad.patch.set_alpha(0.85)
+for spine in ax_quad.spines.values():
+    spine.set_visible(False)
+ax_quad.set_xticks([])
+ax_quad.set_yticks([])
+
+ax_quad.set_title("Emotion", fontsize=9.5, fontweight="bold", color="#333333", pad=6)
+
+ax_quad.annotate("", xy=(1.3, 0), xytext=(-1.3, 0),
+                  arrowprops=dict(arrowstyle="-|>", color="#cccccc", lw=0.8,
+                                   shrinkA=0, shrinkB=0))
+ax_quad.annotate("", xy=(0, 1.3), xytext=(0, -1.3),
+                  arrowprops=dict(arrowstyle="-|>", color="#cccccc", lw=0.8,
+                                   shrinkA=0, shrinkB=0))
+
+ax_quad.text(-1.4, 0.12, "Negative", ha="left", va="bottom", fontsize=7.6, color="#888888")
+ax_quad.text(1.4, 0.12, "Positive", ha="right", va="bottom", fontsize=7.6, color="#888888")
+ax_quad.text(0.12, 1.32, "High", ha="left", va="center", fontsize=7.6, color="#888888")
+ax_quad.text(0.12, -1.32, "Low", ha="left", va="center", fontsize=7.6, color="#888888")
+
+def star_vertices(cx, cy, outer_r, spikiness, n_points=5, rotation=np.pi / 2):
+    spikiness = np.clip(spikiness, 0.0, 1.0)
+    inner_r = outer_r * (1 - spikiness * 0.62)
+    n = n_points * 2
+    angles = rotation + np.arange(n) * (2 * np.pi / n)
+    radii = np.where(np.arange(n) % 2 == 0, outer_r, inner_r)
+    return np.column_stack([cx + radii * np.cos(angles), cy + radii * np.sin(angles)])
+
+quad_dot = Polygon(star_vertices(0, 0, 0.20, 0.0), closed=True,
+                    facecolor=quad_colors["Neutral"], edgecolor="white",
+                    linewidth=0.7, zorder=6)
+ax_quad.add_patch(quad_dot)
+
+# ─── Easing / interpolation helpers ───────────────────────────────────────────
+def ease_in_out(t: float) -> float:
+    t = max(0.0, min(1.0, t))
+    return t * t * (3 - 2 * t)
+
+def lerp(a, b, t):
+    return a + t * (b - a)
+
+def lerp_color(c0, c1, t):
+    rgb0, rgb1 = np.array(to_rgb(c0)), np.array(to_rgb(c1))
+    return tuple(lerp(rgb0, rgb1, t))
+
+# ─── Frame plan ───────────────────────────────────────────────────────────────
+F_HOLD  = 45
+F_TRANS = 55
+SEG = F_HOLD + F_TRANS
+N_FRAMES = N_STATES * SEG  # last morph lands back on Neutral -> seamless loop
+
+# ─── Update (mutates all artists for a given frame) ───────────────────────────
+def update(frame: int):
+    s = frame // SEG
+    local = frame % SEG
+    cur_state = state_order[s]
+    nxt_state = state_order[(s + 1) % N_STATES]
+    t = 0.0 if local < F_HOLD else ease_in_out((local - F_HOLD) / F_TRANS)
+
+    cur = states[cur_state]
+    nxt = states[nxt_state]
+
+    for cond in conditions:
+        c0, c1 = cur[cond], nxt[cond]
+        y = lerp(c0["y"], c1["y"], t)
+        dens_lines[cond].set_data(c0["x"], y)
+
+        a0, a1 = c0["annot"], c1["annot"]
+        p0, p1 = c0["par"], c1["par"]
+
+        rx = lerp(a0["right_x"], a1["right_x"], t)
+        ry = lerp(a0["right_y"], a1["right_y"], t)
+        lx = lerp(a0["left_x"],  a1["left_x"],  t)
+        ly = lerp(a0["left_y"],  a1["left_y"],  t)
+        r_size = lerp(a0["right_size"], a1["right_size"], t)
+        l_size = lerp(a0["left_size"],  a1["left_size"],  t)
+
+        vl_right[cond].set_data([rx, rx], [0, ry])
+        vl_left[cond].set_data([lx, lx], [0, ly])
+        bdot_right[cond].set_data([rx], [0])
+        bdot_right[cond].set_markersize(max(0.1, r_size * 6 * 2.835))
+        bdot_left[cond].set_data([lx], [0])
+        bdot_left[cond].set_markersize(max(0.1, l_size * 6 * 2.835))
+
+        mean   = lerp(p0["Mean"], p1["Mean"], t)
+        m_low  = lerp(p0["Mean_low"], p1["Mean_low"], t)
+        m_high = lerp(p0["Mean_high"], p1["Mean_high"], t)
+        m_y    = lerp(p0["Mean_y"], p1["Mean_y"], t)
+
+        pr_segs[cond].set_data([m_low, m_high], [m_y, m_y])
+        pr_dots[cond].set_data([mean], [m_y])
+
+    qx0, qy0 = quadrant_coords[cur_state]
+    qx1, qy1 = quadrant_coords[nxt_state]
+    qx, qy = lerp(qx0, qx1, t), lerp(qy0, qy1, t)
+
+    col = lerp_color(quad_colors[cur_state], quad_colors[nxt_state], t)
+    spikiness = np.clip(qy / 0.65, 0.0, 1.0)
+    quad_dot.set_xy(star_vertices(qx, qy, 0.20, spikiness))
+    quad_dot.set_facecolor(col)
+
+# Manual render loop with a fixed global GIF palette 
+def render_frame_image():
+    fig.canvas.draw()
+    buf = np.asarray(fig.canvas.buffer_rgba())
+    return Image.fromarray(buf).convert("RGB")
+
+# Sample a handful of frames spanning every hold + transition, so the shared
+# palette actually contains black, green, red, and the in-between hues.
+calibration_frames = sorted(set(
+    [0, N_FRAMES - 1] +
+    [i * SEG for i in range(N_STATES)] +
+    [i * SEG + F_HOLD // 2 for i in range(N_STATES)] +
+    [i * SEG + F_HOLD + F_TRANS // 2 for i in range(N_STATES)]
+))
+calib_imgs = []
+for f in calibration_frames:
+    update(f)
+    calib_imgs.append(render_frame_image())
+
+calib_strip = Image.new("RGB", (calib_imgs[0].width, calib_imgs[0].height * len(calib_imgs)))
+for i, im_ in enumerate(calib_imgs):
+    calib_strip.paste(im_, (0, i * im_.height))
+base_palette_img = calib_strip.quantize(colors=256, method=Image.MEDIANCUT)
+
+# Now render every real frame and quantize it against that ONE shared palette.
+# dither=Image.NONE keeps flat color regions (backgrounds, lines) perfectly
+# stable frame-to-frame -- this is what actually removes the flicker.
+quantized_frames = []
+for frame in range(N_FRAMES):
+    update(frame)
+    img = render_frame_image()
+    quantized_frames.append(img.quantize(palette=base_palette_img, dither=Image.NONE))
+
+# NOTE: do NOT pass optimize=True below -- it can silently re-quantize frames
+# per-frame and reintroduce the exact flicker we just fixed.
+quantized_frames[0].save(
+    "figures/anim_beauty_emotion.gif",
+    save_all=True,
+    append_images=quantized_frames[1:],
+    duration=33,   # ~30fps
+    loop=0,
+    disposal=2,
+)
+plt.close()
+print("✓ Saved anim_beauty_emotion.gif")
+```
+
+
