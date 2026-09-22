@@ -1,0 +1,42 @@
+"Model","Predictor","Level","Response","Median","CI_low","CI_high"
+"MemoryBelief","Belief","AI Copy","AI Copy",0.0455248047216265,0.0367772018016358,0.056130897723659
+"MemoryBelief","Belief","AI Copy","AI Original",0.125815418542318,0.106454067360618,0.148414501618249
+"MemoryBelief","Belief","AI Copy","Human Forgery",0.0734396258517822,0.0611597581181314,0.0871932036078069
+"MemoryBelief","Belief","AI Copy","Human Original",0.136322484595634,0.118733961029289,0.156342825836955
+"MemoryBelief","Belief","AI Copy","Not recognized",0.618102378831944,0.576801464718845,0.65498080608902
+"MemoryBelief","Belief","AI Original","AI Copy",0.0498959658737405,0.0402532184205732,0.0612369864750846
+"MemoryBelief","Belief","AI Original","AI Original",0.155785570770681,0.133275685950637,0.18288768988361
+"MemoryBelief","Belief","AI Original","Human Forgery",0.0593022906729897,0.048138927166775,0.0725801135148899
+"MemoryBelief","Belief","AI Original","Human Original",0.125086989468477,0.108307708831778,0.144277123981325
+"MemoryBelief","Belief","AI Original","Not recognized",0.6092064916285,0.56807260055651,0.648297522310941
+"MemoryBelief","Belief","Human Forgery","AI Copy",0.0395885392042064,0.0294653924856919,0.052614790513411
+"MemoryBelief","Belief","Human Forgery","AI Original",0.100468653010412,0.0815338717555115,0.12372612126961
+"MemoryBelief","Belief","Human Forgery","Human Forgery",0.0851243768491398,0.070551407537049,0.101708586399778
+"MemoryBelief","Belief","Human Forgery","Human Original",0.174126495158013,0.151807832006795,0.198462508160395
+"MemoryBelief","Belief","Human Forgery","Not recognized",0.599625126426003,0.557020917902055,0.639339826729351
+"MemoryBelief","Belief","Human Original","AI Copy",0.0294538749760263,0.0242476049159471,0.035566627112845
+"MemoryBelief","Belief","Human Original","AI Original",0.0908223288638519,0.0779433158620588,0.107053787206597
+"MemoryBelief","Belief","Human Original","Human Forgery",0.0729845175751289,0.0638527747078328,0.0827466456325279
+"MemoryBelief","Belief","Human Original","Human Original",0.205399280601409,0.185868211194116,0.227010600448197
+"MemoryBelief","Belief","Human Original","Not recognized",0.600840098690565,0.562858064695467,0.635144554432655
+"MemoryBelief","Belief","None","AI Copy",0.0114389803396924,0.00887573272564416,0.0148898987661871
+"MemoryBelief","Belief","None","AI Original",0.0357053712181855,0.0287088715417279,0.0456447616327246
+"MemoryBelief","Belief","None","Human Forgery",0.0273182566750557,0.0228046292915694,0.0331384347577965
+"MemoryBelief","Belief","None","Human Original",0.0646778406440114,0.0562653759523827,0.0761426100970285
+"MemoryBelief","Belief","None","Not recognized",0.860568411724207,0.836973190099129,0.877932618882615
+"MemoryCondition","Condition","AI-Generated","AI-Generated",0.14554189513142,0.128180508419403,0.165480656603348
+"MemoryCondition","Condition","AI-Generated","Human Forgery",0.0651597642547428,0.0566546887380621,0.0749110257659279
+"MemoryCondition","Condition","AI-Generated","Human Original",0.214018361994607,0.194255049005728,0.235770574862307
+"MemoryCondition","Condition","AI-Generated","Not recognized",0.574483246689558,0.540083346236422,0.608005046000843
+"MemoryCondition","Condition","Human Forgery","AI-Generated",0.139590493098723,0.122420966959579,0.158519552084734
+"MemoryCondition","Condition","Human Forgery","Human Forgery",0.0669221450893007,0.0578917052131017,0.0768350186095125
+"MemoryCondition","Condition","Human Forgery","Human Original",0.218803696596445,0.199110443392574,0.240274308204529
+"MemoryCondition","Condition","Human Forgery","Not recognized",0.574177195450406,0.541074622835537,0.607472555015756
+"MemoryCondition","Condition","Human Original","AI-Generated",0.147916822877389,0.129809721338796,0.167438108592212
+"MemoryCondition","Condition","Human Original","Human Forgery",0.0633770770779044,0.0550236131243849,0.0724273047512261
+"MemoryCondition","Condition","Human Original","Human Original",0.226996022273285,0.207145360136559,0.248644245664596
+"MemoryCondition","Condition","Human Original","Not recognized",0.561245820080524,0.52688417803246,0.594658752811859
+"MemoryCondition","Condition","New Items","AI-Generated",0.0364191335226482,0.0309565712558099,0.0438048572734042
+"MemoryCondition","Condition","New Items","Human Forgery",0.0167052177860143,0.013743493103634,0.0202865101966033
+"MemoryCondition","Condition","New Items","Human Original",0.0602526774366843,0.0525780933326708,0.0692329624655406
+"MemoryCondition","Condition","New Items","Not recognized",0.886412905257751,0.870093392579088,0.899343546217147

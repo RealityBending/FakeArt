@@ -11,11 +11,14 @@
 #   ./hpc models                list the models defined in models.R
 #   ./hpc fit <model|all> [..]  one array job per model (extra args -> sbatch)
 #   ./hpc combine <model|all>   merge a model's shards, add loo (shards kept)
+#   ./hpc extract <model|all>   means/contrasts/figure data -> models/estimates/
 #   ./hpc queue                 squeue for this user
 #   ./hpc progress [model]      iteration counts + REPORT lines from the .out logs
 #   ./hpc log [jobid|model]     tail the newest .out/.err in scratch
 #   ./hpc ls                    list fitted models on the cluster
-#   ./hpc pull [pattern]        copy combined .rds back into analysis/models/
+#   ./hpc pull [pattern]        copy .rds back into analysis/models/ (a pattern
+#                               in a subdir lands in the same subdir locally,
+#                               e.g. 'estimates/*.rds')
 #   ./hpc cancel <jobid|all>    scancel
 #   ./hpc sh '<cmd>'            run an arbitrary command on the login node
 #
@@ -78,6 +81,7 @@ fi
 
 die() { printf '\033[31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 info() { printf '\033[36m==>\033[0m %s\n' "$*"; }
+warn() { printf '\033[33mwarning:\033[0m %s\n' "$*" >&2; }
 
 remote() { "$SSH" "$HPC_ALIAS" "$@"; }
 
@@ -226,24 +230,37 @@ submit_per_model() {
   #   FA_CRITERION=waic ./hpc combine Beauty
   local extra="" v val
   for v in FA_NPARTICIPANTS FA_WARMUP FA_SAMPLES FA_THIN FA_CHAINS FA_DATA \
-           FA_CRITERION FA_CRITERION_NDRAWS FA_DELETE_SHARDS FA_COGMOD_MIN; do
+           FA_CRITERION FA_CRITERION_NDRAWS FA_DELETE_SHARDS FA_COGMOD_MIN \
+           FA_SEED; do
     eval "val=\${$v:-}"
     [ -n "$val" ] && extra="${extra},${v}='${val}'"
   done
-  # fit is an array (%A = array job id, %a = task); combine is a single job (%j).
+  # fit is an array (%A = array job id, %a = task); combine and extract are
+  # single jobs (%j).
   local logid="%A_%a"
-  [ "$tag" = combine ] && logid="%j"
+  case "$tag" in combine|extract) logid="%j" ;; esac
+  # ONE ssh connection for the whole set, not one per model. Artemis' sshd
+  # rate-limits rapid connections, and `./hpc extract all` (15 models) hit it
+  # repeatedly on 2026-09-22: several models were silently not submitted, each
+  # reported only as "cannot reach artemis" in the middle of the run. Building
+  # one script and sending it once removes the failure mode entirely, and is
+  # faster. A failing sbatch no longer stops the rest, which is what we want:
+  # the output names every model, so a gap is visible.
+  local cmd="cd '${USERS_DIR}' || exit 1"
   for model in $models; do
     info "submitting ${script} for ${model}"
-    remote "cd '${USERS_DIR}' && sbatch \
+    cmd="${cmd}
+printf '%s: ' '${model}'
+sbatch \
       --chdir='${USERS_DIR}' \
       --job-name='fakeart_${tag}_${model}' \
       --output='${SCRATCH_DIR}/${tag}_${model}_${logid}.out' \
       --error='${SCRATCH_DIR}/${tag}_${model}_${logid}.err' \
       --mail-user='${MAIL_USER}' \
       --export=ALL,FA_MODEL='${model}',FA_USERS_DIR='${USERS_DIR}',FA_SCRATCH_DIR='${SCRATCH_DIR}',FA_MODELS_DIR='${MODELS_DIR}',FA_R_MODULE='${R_MODULE}',FA_R_LIBS='${R_LIBS_DIR}',FA_EB_MODULES='${EB_MODULES}',FA_FILE_REFIT='${FILE_REFIT}'${extra} \
-      $* '${script}'"
+      $* '${script}' || echo 'SUBMIT FAILED'"
   done
+  remote "$cmd"
 }
 
 cmd_fit() {
@@ -254,6 +271,15 @@ cmd_fit() {
 cmd_combine() {
   local want="${1:-}"; shift || true
   submit_per_model combine.slurm combine "$want" "$@"
+}
+
+# The marginal means / contrasts / figure data, which is the expensive half of
+# 3_models.qmd. One job per model, all in parallel; see extract.slurm.
+# `extract all` includes MemoryCondition and MemoryBelief, which have no
+# outcome_info entry in estimates.R -- those two fail fast and say so.
+cmd_extract() {
+  local want="${1:-}"; shift || true
+  submit_per_model extract.slurm extract "$want" "$@"
 }
 
 cmd_queue() {
@@ -291,16 +317,86 @@ cmd_log() {
 
 cmd_ls() {
   require_link
-  remote "ls -lh '${MODELS_DIR}'/*.rds '${MODELS_DIR}'/combined/*.rds 2>/dev/null || echo '  (no .rds yet)'"
+  remote "ls -lh '${MODELS_DIR}'/*.rds '${MODELS_DIR}'/combined/*.rds '${MODELS_DIR}'/estimates/*.rds 2>/dev/null || echo '  (no .rds yet)'"
 }
 
+# Pull into a staging dir OUTSIDE the repo, verify each file's byte size
+# against the cluster, and only then move it into analysis/models/.
+#
+# Why not scp straight there: analysis/models/ is inside Dropbox on at least
+# one machine, and Dropbox holds a file open while it uploads it. scp then
+# truncates the local file and fails the write --
+#   ftruncate ... / write local "...Beauty.rds": Permission denied
+# -- leaving a partial .rds that still loads far enough to look plausible. On
+# 2026-09-21 two such runs left nine fits truncated (Shift 3.5 MB of 209 MB).
+# Staging is on the same volume, so the final step is a rename: it races with
+# Dropbox for milliseconds instead of the minutes a 650 MB transfer takes, and
+# it is retried. A file that does not match the cluster is left in staging
+# rather than overwriting a good local copy with a bad one.
+#
+# No -p: preserving mode/times is what produced the "local chmod / set times"
+# errors inside Dropbox, and neither matters for an .rds.
 cmd_pull() {
   require_link
   local pattern="${1:-combined/*.rds}"
-  mkdir -p "$LOCAL_MODELS"
-  info "pulling '${pattern}' into analysis/models/"
-  "$SCP" -p "${HPC_ALIAS}:${MODELS_DIR}/${pattern}" "$LOCAL_MODELS/" || die "nothing matched '${pattern}'"
-  ls -lh "$LOCAL_MODELS"
+  local stage="${TMPDIR:-/tmp}/fa_pull_$$"
+
+  # Where the files land locally. combined/ flattens into analysis/models/ --
+  # that is what the combine step is for, and where the notebook reads fits
+  # from. Any other subdirectory on the cluster keeps its name here, so
+  # 'estimates/*.rds' becomes analysis/models/estimates/*.rds.
+  local sub dest
+  sub="$(dirname "$pattern")"
+  case "$sub" in
+    . | combined) dest="$LOCAL_MODELS" ;;
+    *) dest="${LOCAL_MODELS}/${sub}" ;;
+  esac
+  mkdir -p "$dest" "$stage"
+
+  info "pulling '${pattern}' into staging"
+  if ! "$SCP" "${HPC_ALIAS}:${MODELS_DIR}/${pattern}" "$stage/"; then
+    rm -rf "$stage"
+    die "nothing matched '${pattern}'"
+  fi
+
+  # Sizes on the cluster, to check each transfer arrived whole.
+  local sizes
+  sizes="$(remote "for f in '${MODELS_DIR}'/${pattern}; do [ -f \"\$f\" ] && echo \"\$(stat -c %s \"\$f\") \$(basename \"\$f\")\"; done" 2>/dev/null)"
+
+  local moved=0 failed=0 name want got
+  for f in "$stage"/*; do
+    [ -f "$f" ] || continue
+    name="$(basename "$f")"
+    want="$(printf '%s\n' "$sizes" | awk -v n="$name" '$2 == n {print $1}')"
+    got="$(stat -c %s "$f" 2>/dev/null || echo 0)"
+    if [ -n "$want" ] && [ "$want" != "$got" ]; then
+      warn "${name}: staged ${got} bytes, cluster has ${want} -- keeping the existing local copy"
+      failed=$((failed + 1))
+      continue
+    fi
+    # Dropbox may hold the destination briefly; a rename is quick, so retry.
+    local ok=0 attempt
+    for attempt in 1 2 3 4 5 6; do
+      if mv -f "$f" "${dest}/${name}" 2>/dev/null; then ok=1; break; fi
+      sleep 10
+    done
+    if [ "$ok" = 1 ]; then
+      moved=$((moved + 1))
+    else
+      warn "${name}: could not replace ${dest}/${name} (locked); left in ${stage}"
+      failed=$((failed + 1))
+    fi
+  done
+
+  info "pulled ${moved} file(s) into analysis/${dest#"${HERE}/../"}/"
+  if [ "$failed" -eq 0 ]; then
+    rm -rf "$stage"
+  else
+    # Keep the staged copies: they are good, and re-running costs a download.
+    warn "${failed} file(s) not replaced; their staged copies are in ${stage}"
+  fi
+  ls -lh "$dest"
+  [ "$failed" -eq 0 ]
 }
 
 cmd_cancel() {
@@ -329,6 +425,7 @@ case "${1:-}" in
   models)     shift; cmd_models "$@" ;;
   fit)        shift; cmd_fit "$@" ;;
   combine)    shift; cmd_combine "$@" ;;
+  extract)    shift; cmd_extract "$@" ;;
   queue)      shift; cmd_queue "$@" ;;
   progress)   shift; cmd_progress "$@" ;;
   log)        shift; cmd_log "$@" ;;

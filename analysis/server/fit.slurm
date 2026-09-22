@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=fakeart_fit
-#SBATCH --array=1-8
+#SBATCH --array=1-4
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
@@ -11,10 +11,15 @@
 #SBATCH --mail-type=END,FAIL
 
 # One array task = one shard of one model (FA_MODEL) = 2 chains x 8 threads.
-# 8 tasks x 16 CPUs = 128 of long's 140-CPU per-user cap, so one model runs at
-# a time and a second submission queues behind it (costs nothing: --time is per
-# task and pending time does not count). No --time is set: the task gets long's
-# 8-day maximum, and a task killed at the wall loses its whole chain.
+# 4 tasks x 16 CPUs = 64 CPUs, so two models fit inside long's 140-CPU per-user
+# cap and a third queues behind them (costs nothing: --time is per task and
+# pending time does not count). No --time is set: the task gets long's 8-day
+# maximum, and a task killed at the wall loses its whole chain.
+#
+# long is the safe default because Reality and Valence took 20.3 h and 15.5 h
+# per shard in July and still project to ~9 h and ~8 h at warmup 1000
+# (AGENT.md 3.2). The gaze models project to well under an hour, so they are
+# submitted with --partition=general instead; see README.md.
 #
 # --job-name/--array/--output/--error/--mail-user/--chdir and the FA_*
 # variables are all overridden on the sbatch command line by `./hpc fit`, so

@@ -1,0 +1,471 @@
+---
+title: "FakeArt - Interindividual Differences"
+editor: source
+editor_options:
+  chunk_output_type: console
+format:
+  html:
+    code-fold: true
+    self-contained: false
+    toc: true
+    keep-md: true
+execute:
+  cache: true
+---
+
+## Data Preparation
+
+```{r}
+#| warning: false
+#| error: false
+
+library(tidyverse)
+library(easystats)
+library(patchwork)
+library(ggside)
+library(ggdist)
+library(brms)
+library(cogmod)
+
+options(mc.cores = parallel::detectCores() - 2)
+
+df <- read.csv("../data/data_participants.csv")
+```
+
+
+## Individual Parameters
+
+
+::: {.callout-note}
+## Two constraints on which models appear below
+
+**Current-API fits only.** No compatibility shim is carried here (unlike
+`3_models.qmd`): a pre-0.3 cogmod fit is rejected by `require_new_fit()` with a
+message telling you to refit it. `Valence` and `Meaning` are therefore commented out
+of the task list until they have been through `./hpc fit` + `./hpc pull`. Read back
+from `analysis/models/` on 2026-09-21, they are the only two left on the old API
+(15 chains / 6,000 draws / family `betadiscrete`); `Beauty`, `Authenticity`,
+`Reality`, `Beauty2` and `Artificiality` are all 8 chains / 4,000 draws /
+`cogmod_choco`.
+
+**`Worth` and `SelfRelevance` are new-API but a superseded parametrisation.** Both
+local files still carry `(Condition * Emotion | Item)`, retired on 2026-09-21 in
+favour of `(Condition | Item)` (`analysis/server/AGENT.md` 4.3a); the corrected
+arrays are jobs `11403591` / `11403592`. `require_new_fit()` warns about this rather
+than stopping -- the numbers are valid, just from the parametrisation that was
+deliberately replaced -- so re-pull both before anything from them is reported.
+
+**Ordinal outcomes go through `predict = "link"`.** `Worth` and `SelfRelevance` are
+`cumulative()`, so on the response scale they return one row *per response category*
+per cell (6 money categories x 3 conditions per participant) rather than the single
+value the rest of this notebook expects -- feeding them through anyway is what
+corrupted the previous `data_grouplevel.csv`, which ended up holding only `Beauty`
+and `Valence`. The latent linear predictor gives exactly one value per cell. The
+categorical memory models are still excluded: see **Plan** below.
+
+**`SelfRelevance` is follow-up-only (220 of 324 participants)**, so enabling it puts
+`NA` into `df_wide` for the 104 who did not return. `n_factors()`,
+`factor_analysis()` and `bootEGA()` will either drop those rows or refuse; decide how
+to handle that before reading the feature-reduction output.
+:::
+
+```{r}
+#| label: grouplevel-require-new
+#| code-summary: "Refuse pre-0.3 cogmod fits"
+
+# This notebook deliberately does NOT carry the compatibility shim that
+# 3_models.qmd has (chunk `helpers`, aliasing posterior_epred_choco ->
+# posterior_epred_cogmod_choco). Only fits made with the current cogmod API are
+# analysed here.
+#
+# brms resolves a custom family's post-processing by the family *name* stored in
+# the fit. cogmod 0.3 renamed `choco` -> `cogmod_choco` and `betadiscrete` ->
+# `cogmod_betadiscrete`, so a July 2026 fit fails with the unhelpful message
+# "Unable to compute predict" (verified 2026-09-21). This turns that into a
+# message that says what to do.
+require_new_fit <- function(m, name) {
+  # Only a custom family carries $name (the cogmod ones); a native brms family
+  # such as cumulative() has $family and no $name at all, so read both -- an
+  # unguarded m$family$name is NULL there and `NULL %in% ...` is length zero,
+  # which errors rather than passing.
+  fam <- c(m$family$name, m$family$family)[1]
+  if (isTRUE(fam %in% c("choco", "betadiscrete"))) {
+    stop("models/", name, ".rds was fitted with cogmod < 0.3 (family '", fam,
+      "'). This notebook analyses current-API fits only -- refit it with ",
+      "`./hpc fit ", name, "` (analysis/server/) and `./hpc pull`.",
+      call. = FALSE
+    )
+  }
+  # A fit can be new-API and still be a superseded parametrisation. The two
+  # cumulative models carried `(Condition * Emotion | Item)` until 2026-09-21;
+  # Emotion is a property of the item, so those slopes had no within-item
+  # variation and were only a reparametrisation of the item intercept. They were
+  # changed to `(Condition | Item)` and refitted (AGENT.md 4.3a), the old files
+  # being moved to models/superseded_itemslopes/ on the cluster. Warn rather than
+  # stop: the numbers are valid, just from the retired parametrisation.
+  if (grepl("Emotion *\\| *Item", paste(deparse(m$formula$formula), collapse = " "))) {
+    warning("models/", name, ".rds still has the superseded item term ",
+      "(Condition * Emotion | Item); the corrected fit uses (Condition | Item). ",
+      "Re-pull it (`./hpc combine ", name, "` / `./hpc pull`) before reporting.",
+      call. = FALSE, immediate. = TRUE
+    )
+  }
+  invisible(m)
+}
+```
+
+```{r}
+#| label: grouplevel-helper
+#| code-summary: "get_grouplevel(): participant-level baselines and contrasts"
+
+# Per-participant marginal means and condition contrasts, for every distributional
+# parameter of `m`. Returns one row per Participant x Parameter:
+#
+#   Baseline_<par>   marginal mean in the Human Original condition
+#   AIOri_<par>      AI-Generated  - Human Original
+#   AIForg_<par>     AI-Generated  - Human Forgery
+#   ForgOri_<par>    Human Forgery - Human Original
+#
+# WHY THERE IS NO BATCHING (measured 2026-09-21 on the refitted Beauty.rds, 4,000
+# draws, 0.71 GB in RAM). An earlier version split the participants into batches of
+# 50 and looped over them. That is pure overhead:
+#
+#   n participants |   50   100   200   324
+#   estimate_means | 19.4  19.2  21.5  24.0   s
+#   peak RAM       | 4962  5077  5077  5078   Mb
+#
+# The ~20 s is fixed per-call setup, not posterior work -- it is also flat in
+# `iterations` (100 -> 500 draws: 16.3 -> 18.6 s), which is why the production value
+# of 500 is used here rather than the 100 the old code used "for speed during
+# testing". Peak RAM is dominated by the fit object, not the prediction grid, so
+# batching bought no memory either. Batched and unbatched results are bit-identical
+# (max |Median diff| = max |MAD diff| = 0 over all Participant x Condition cells),
+# the design being balanced so the reference grid does not move with batch
+# composition.
+#
+# CAUTION if that is ever revisited: both the flatness and the identity depend on
+# that balance. A model with a continuous covariate varying between participants --
+# `Gaze_nSamples` in the four gaze models -- would take a different batch-mean
+# reference value in each batch.
+
+get_grouplevel <- function(m, outcome, extra_params = c("response", "mu"),
+                           iterations = 500) {
+  data <- insight::get_data(m)
+
+  params <- unique(c(extra_params, insight::find_auxiliary(m)))
+  # pex / bex / pmid (CHOCO extreme- and midpoint-inflation) are modelled as
+  # `~ Condition + (1 | Participant)`, and `disc` (ordinal discrimination) as
+  # `~ 1 + (1 | Participant) + (1 | Item)`: a participant intercept but no
+  # participant-specific Condition slope, so their per-participant contrasts carry
+  # no individual-difference signal. Dropped rather than paid for.
+  params <- setdiff(params, c("pex", "bex", "pmid", "disc"))
+
+  short <- function(p) str_replace(p, "response", "resp")
+  abbr <- function(x) {
+    case_when(
+      x == "AI-Generated" ~ "AI",
+      x == "Human Original" ~ "Ori",
+      .default = "Forg"
+    )
+  }
+
+  # modelbased names the estimate column after what was asked for: `Median` for
+  # predict = "response", but `Mu` for predict = "mu", `Confright` for
+  # predict = "confright", and so on (verified 2026-09-21 on Valence:
+  # predict="response" -> [Participant, Condition, MAD, Median], predict="mu" ->
+  # [Participant, Condition, MAD, Mu]). So a rename to a common name IS needed.
+  #
+  # What the previous version got wrong was renaming *every* non-id column, which
+  # for the cumulative and categorical families silently destroyed the data: they
+  # return one row per response category plus a `Response` column, whose category
+  # labels then landed in a second column also called "Median".
+  #
+  # So: rename the estimate column whatever it is called, but only when there is
+  # exactly one of it, and refuse anything returning more than one row per cell.
+  # Row multiplicity is the property that actually breaks the pipeline, and it does
+  # not care what metadata columns modelbased adds.
+  check_estimate <- function(x, id_cols, what) {
+    x <- as.data.frame(x)
+    if (anyDuplicated(x[id_cols]) > 0) {
+      stop("get_grouplevel(): ", outcome, " / ", p, ": ", what,
+        " returned more than one row per [", paste(id_cols, collapse = " x "),
+        "] cell. Outcomes whose response scale is a vector of category ",
+        "probabilities (cumulative / categorical families) cannot be summarised ",
+        "this way -- use predict = \"link\" for the ordinal models, and see the ",
+        "plan in 5_correlates.qmd.",
+        call. = FALSE
+      )
+    }
+    if (!"MAD" %in% names(x)) {
+      stop("get_grouplevel(): ", outcome, " / ", p, ": ", what,
+        " returned no MAD column; `dispersion = TRUE` should give one.",
+        call. = FALSE
+      )
+    }
+    estimate <- setdiff(names(x), c(id_cols, "MAD"))
+    if (length(estimate) != 1) {
+      stop("get_grouplevel(): ", outcome, " / ", p, ": ", what,
+        " returned ", length(estimate), " candidate estimate columns [",
+        paste(estimate, collapse = ", "), "]; expected exactly one.",
+        call. = FALSE
+      )
+    }
+    names(x)[names(x) == estimate] <- "Median"
+    x
+  }
+
+  out <- vector("list", length(params))
+  names(out) <- params
+
+  for (p in params) {
+    cat("  ", format(Sys.time(), "%H:%M:%S"), "  ", outcome, " / ", p, "\n", sep = "")
+
+    baseline <- estimate_means(m,
+      by = c("Participant", "Condition"), backend = "marginaleffects",
+      iterations = iterations, data = data, test = NULL, ci = NULL,
+      dispersion = TRUE, predict = p
+    ) |>
+      check_estimate(c("Participant", "Condition"), "estimate_means()") |>
+      filter(Condition == "Human Original") |>
+      mutate(Parameter = paste0("Baseline_", short(p))) |>
+      select(Participant, Parameter, Median, MAD)
+
+    contrasts <- estimate_contrasts(m,
+      contrast = "Condition", by = "Participant", backend = "marginaleffects",
+      iterations = iterations, data = data, test = NULL, ci = NULL,
+      dispersion = TRUE, predict = p
+    ) |>
+      check_estimate(c("Participant", "Level1", "Level2"), "estimate_contrasts()") |>
+      mutate(Parameter = paste0(abbr(Level1), abbr(Level2), "_", short(p))) |>
+      select(Participant, Parameter, Median, MAD)
+
+    out[[p]] <- bind_rows(baseline, contrasts)
+  }
+
+  bind_rows(out) |> mutate(Outcome = outcome)
+}
+```
+
+```{r}
+#| label: grouplevel-compute
+#| eval: false
+
+# SEQUENTIAL ON PURPOSE. Each fit is 0.7-1.0 GB in memory and peak usage during
+# prediction is ~5 GB, so exactly one model is held at a time (readRDS -> compute ->
+# rm -> gc).
+#
+# Do NOT reach for future::multisession here. Its default `future.globals.maxSize`
+# is 500 MiB and every one of these fits is larger than that, so exporting one to a
+# worker aborts before any work is done. If this ever does need parallelising, the
+# axis is one model per separate R *process* (callr, or one Rscript per model),
+# never a socket cluster that has to serialise the fit.
+#
+# Runtime: ~50 s per model x parameter (one estimate_means + one
+# estimate_contrasts), i.e. ~20 min for the five models below. That is why this
+# stays local rather than becoming an HPC array job -- the scaffolding would cost
+# more than the run.
+
+# CHOCO models: `response` is a mixture over eight dpars, so it is genuinely
+# distinct from `mu` (the probability of being on the right-hand side) -- both are
+# extracted. `confright/confleft/precright/precleft` come from find_auxiliary().
+#
+# Cumulative models: `predict = "link"` gives the latent shift, one value per
+# Participant x Condition (verified 2026-09-21: 30 rows for 10 participants x 3
+# conditions, against 180 on the response scale). `disc` is dropped inside
+# get_grouplevel(). See the plan below for why link rather than response.
+tasks <- list(
+  list(model = "Beauty",        outcome = "Beauty",        extra_params = c("response", "mu")),
+  list(model = "Authenticity",  outcome = "Authenticity",  extra_params = c("response", "mu")),
+  list(model = "Reality",       outcome = "Reality",       extra_params = c("response", "mu")),
+  list(model = "Worth",         outcome = "Worth",         extra_params = "link"),
+  list(model = "SelfRelevance", outcome = "SelfRelevance", extra_params = "link")
+
+  # NOT REFITTED YET -- still the July 2026 fits, which require_new_fit() rejects.
+  # Re-enable each one after `./hpc fit <model>` + `./hpc pull`.
+  #
+  # Valence: Discrete Beta with pzero fixed at 0, so the only free dpars are mu and
+  # phi. E[Y] is a monotone function of mu with no hurdle to decouple them, so
+  # `response` and `mu` are near-duplicates -- take mu (the model's own location
+  # parameter, on the same [0,1] latent scale as CHOCO's mu, hence comparable
+  # across outcomes) and let find_auxiliary() add phi.
+  # list(model = "Valence", outcome = "Valence", extra_params = "mu"),
+  #
+  # Meaning: Discrete Beta *with* a hurdle (pzero has the full design), so
+  # E[Y] = (1 - pzero) * E[Y | Y > 0] and `response` does move independently of
+  # `mu`. Both are worth keeping here, unlike Valence.
+  # list(model = "Meaning", outcome = "Meaning", extra_params = c("response", "mu")),
+  #
+  # Never in the original set; both are refitted and available if wanted. Note both
+  # are follow-up-only (220 participants), like SelfRelevance.
+  # list(model = "Beauty2",       outcome = "Beauty2",       extra_params = c("response", "mu")),
+  # list(model = "Artificiality", outcome = "Artificiality", extra_params = c("response", "mu")),
+  #
+  # Categorical; needs cell-specific bias scores, not this helper. See the plan.
+  # list(model = "MemoryCondition", outcome = "Memory", extra_params = "response")
+)
+
+df_individual <- bind_rows(lapply(tasks, function(task) {
+  cat("\n== ", task$outcome, " ==\n", sep = "")
+  m <- readRDS(paste0("models/", task$model, ".rds"))
+  on.exit({
+    rm(m)
+    gc(verbose = FALSE)
+  })
+  require_new_fit(m, task$model)
+  get_grouplevel(m, outcome = task$outcome, extra_params = task$extra_params)
+}))
+
+write.csv(df_individual, "../data/data_grouplevel.csv", row.names = FALSE)
+```
+
+### Plan: ordinal and categorical outcomes
+
+#### Ordinal (`Worth`, `SelfRelevance`) -- resolved, using the latent scale
+
+A `cumulative()` model's Condition effect is by construction a single shift of the
+latent variable underlying the ordered categories, so `predict = "link"` returns
+exactly one value per Participant x Condition and contributes 4 features per outcome
+like everything else. Verified 2026-09-21: 30 rows for 10 participants x 3
+conditions on `link`, against 180 (`Worth`) and 210 (`SelfRelevance`) on the response
+scale. The numbers sit on the latent logit scale rather than in log-money, so a
+baseline is interpretable only relative to the thresholds -- immaterial here, since
+every feature is standardised before the factor analysis.
+
+The obvious worry about the latent scale is heavy tails: a participant who always
+answers "$0" or always "$100,000" sits far beyond the outer thresholds, and after
+`standardize()` a handful of such people could dominate the Pearson correlations
+feeding `factor_analysis()` and `bootEGA()`. Measured on `Worth` (324 participants,
+500 draws, 2026-09-21), that does not happen:
+
+| parameter | min | med | max | skew | kurt | abs(z) > 3 |
+| --- | --- | --- | --- | --- | --- | --- |
+| Baseline_link | -18.0 | -0.99 | 15.8 | 0.06 | -0.41 | 0 |
+| AIOri_link | -18.4 | -4.62 | 3.24 | -0.77 | 0.87 | 4 |
+| AIForg_link | -14.2 | -1.72 | 6.42 | -0.77 | 1.99 | 3 |
+| ForgOri_link | -11.7 | -2.81 | 2.59 | -0.61 | 0.77 | 2 |
+
+The baseline is near-symmetric with no outliers at all; the contrasts carry 2-4 of
+324 (0.6-1.2%), barely above the ~0.4 a normal would give. The range is wide, but
+that is the logit scale, not pathology.
+
+Two alternatives were considered and rejected:
+
+- *Expected score*: weight each category probability by the category's numeric value
+  (0..5 on the money ladder, 0..6 for self-relevance) and sum. Keeps the response
+  scale interpretable, but needs an extra reduction step and a choice of category
+  scores -- and for the money ladder 0..5 and log10(dollars) are affine equivalents,
+  so the choice is anyway immaterial after standardisation. Measured against option
+  1 on `Worth`: the expected score is itself well behaved (skew 0.31, no outliers)
+  but **Spearman with the link baseline is 0.9962**, so the two rank participants
+  near-identically and the extra machinery buys nothing. Worth revisiting only if a
+  reviewer wants the baseline in dollars.
+- *One feature per category*: faithful but 6 categories x 4 quantities = 24 features
+  for `Worth` alone against 6 for a CHOCO outcome, which would let one outcome
+  dominate `n_factors()`, `factor_analysis()` and the EGA network. Only worth it if
+  the question is specifically *which* part of the money distribution the label
+  moves.
+
+#### Categorical (`MemoryCondition`) -- still open
+
+Does not fit any of the above: its categories are unordered, so there is no latent
+shift and no sensible expected score. The right participant-level quantities are
+**bias scores defined on specific cells** of the response matrix rather than a
+reduction over them -- per participant:
+
+- P(answer `AI-Generated` | item was labelled `Human Original`) -- a false-AI
+  attribution rate;
+- P(answer `Not recognized` | item is old) -- a miss rate;
+- P(answer anything but `Not recognized` | item is `New Items`) -- a false-alarm
+  rate.
+
+These come from *filtering* `estimate_means(..., predict = "response")` to the
+`Response` x `Condition` combinations of interest, so they need a separate small
+helper rather than a variant of `get_grouplevel()`. Blocked on `MemoryCondition`
+being fitted and pulled (submitted as job `11403593`, see `analysis/server/AGENT.md`
+section 5).
+
+The `check_estimate()` guard stays regardless: it is what turns an unsupported
+outcome from silent corruption into an error.
+
+### Reliability
+
+```{r}
+df_individual <- read.csv("../data/data_grouplevel.csv")
+```
+
+
+### Feature Reduction
+
+```{r}
+# Point estimates: the input to every analysis below.
+df_wide <- df_individual |>
+  mutate(Parameter = paste0(Outcome, "_", Parameter)) |>
+  select(Participant, Parameter, Median) |>
+  pivot_wider(names_from = "Parameter", values_from = "Median") |>
+  standardize(exclude = "Participant")
+
+# Posterior dispersion of the same quantities, same columns in the same order.
+# Kept for the reliability analysis: a participant-level effect with a wide
+# posterior carries less information than one with a narrow posterior, and the
+# ratio of between-participant variance to mean within-participant (posterior)
+# variance is what makes these estimates' reliability quantifiable at all.
+# Built here, before the factor scores are appended to df_wide below.
+df_mad <- df_individual |>
+  mutate(Parameter = paste0(Outcome, "_", Parameter)) |>
+  select(Participant, Parameter, MAD) |>
+  pivot_wider(names_from = "Parameter", values_from = "MAD") |>
+  select(all_of(names(df_wide)))
+
+nfac <- n_factors(select(df_wide, -Participant))
+plot(nfac)
+
+rez <- factor_analysis(select(df_wide, -Participant), n = 4, sort = TRUE)
+plot(rez)
+
+df_wide <- cbind(df_wide, predict(rez))
+```
+
+```{r}
+df_wide |>
+  correlation(p_adjust = "none", redundant = TRUE) |>
+  cor_sort() |>
+  mutate(Sig = ifelse(p < .05, "Significant", "N.S.")) |>
+  ggplot(aes(x=Parameter1, y=Parameter2)) +
+  geom_tile(aes(fill = r, alpha = Sig)) +
+  scale_fill_gradient2(low = "#1D9AF5", mid = "white", high = "#F51D56", midpoint = 0, limits = c(-1, 1)) +
+  scale_alpha_manual(values = c("Significant" = 1, "N.S." = 1)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+library(tidygraph)
+library(ggraph)
+library(EGAnet)
+
+rez <- EGAnet::bootEGA(select(df_wide, -Participant), EGA.type
+ = "EGA",  corr  = "pearson", plot.itemStability = FALSE)
+plot(rez)
+```
+
+
+## Correlates
+
+```{r}
+df_all <- full_join(df, df_wide, by = "Participant")
+```
+
+```{r}
+select(df_all, all_of(names(df_wide))) |>
+  correlation(
+    data2 = select(df_all,
+                   ManipulationDistrust,
+                   BAIT_ArtRealistic, BAIT_Positive, BAIT_Negative, BAIT_Total,
+                   starts_with("MINT"), -MINT_AttentionCheck), p_adjust = "none") |>
+  cor_sort() |>
+  mutate(Sig = ifelse(p < .05, "Significant", "N.S.")) |>
+  ggplot(aes(x=Parameter1, y=Parameter2)) +
+  geom_tile(aes(fill = r, alpha = Sig)) +
+  scale_fill_gradient2(low = "#1D9AF5", mid = "white", high = "#F51D56", midpoint = 0, limits = c(-1, 1)) +
+  scale_alpha_manual(values = c("Significant" = 1, "N.S." = 0.2)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```

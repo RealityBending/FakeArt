@@ -209,7 +209,7 @@ Gaze position was sampled continuously via webcam-based eye-tracking (WebGazer.j
 
 Four simple, robust and interpretable gaze features were computed per trial. *Laterality* was the proportion of samples falling in the left half of the image (vs. the right), and *Centeredness* was the proportion of samples falling within the center portion of the image. *Entropy* quantified the spatial dispersion of gaze: samples were binned into a 5x5 grid, Shannon entropy was computed and normalized by the maximum entropy achievable given the number of valid samples (avoiding artificial deflation on sparse trials). *Max. Shift* captured the single largest reorganization of gaze focus within a trial: for every possible partition of the chronologically ordered samples into an initial and final segment (each with at least 30 samples), the Euclidean distance between the two segments' centroids was computed, and the maximum across all partitions was retained; large values indicate a relocation of attention to a different image region, and near-zero values indicate a single stable focus throughout.
 
-As a sensitivity check, we verified that these features - derived from noisy, low-cost webcam data - nonetheless carried signal relevant to the behavioural task, by regressing each of the eight rating outcomes (the four Phase-1 aesthetic dimensions, the two Phase-2 belief judgments, and the beauty and self-relevance ratings of the follow-up) on each of the four gaze features in turn (mixed models with random intercepts for participant and item, controlling for the number of valid gaze samples of the trial). All four features showed at least one significant association, expressed in percent of the outcome's scale range per SD of the gaze feature. *Entropy* was the most broadly sensitive feature, positively predicting meaningfulness (0.73% [0.31, 1.15]), authenticity (0.63% [0.08, 1.18]), self-relevance (0.60% [0.12, 1.09]), beauty (0.57% [0.23, 0.92]), worth (0.42% [0.07, 0.76]) and valence (0.38% [0.01, 0.74]), indicating that a more widely distributed exploration of an artwork accompanied more positive appraisals. Conversely, *Max. Shift* was negatively associated with authenticity (-0.66% [-1.22, -0.10]), valence (-0.41% [-0.78, -0.03]) and worth (-0.40% [-0.75, -0.04]), suggesting that an abrupt relocation of gaze partway through a trial accompanied less favourable evaluations. *Laterality* predicted self-relevance (1.11% [0.54, 1.68]) and beauty at follow-up (0.62% [0.11, 1.13]), and *Centeredness* predicted syntheticness judgments (-0.66% [-1.26, -0.07]). All these associations are very small - at most about 1% of the scale range per SD - but nonetheless are evidence that the gaze features are not pure noise.
+As a sensitivity check, we verified that these features - derived from noisy, low-cost webcam data - nonetheless carried signal relevant to the behavioural task, by regressing each of the eight rating outcomes (the four Phase-1 aesthetic dimensions, the two Phase-2 belief judgments, and the beauty and self-relevance ratings of the follow-up) on each of the four gaze features in turn (mixed models with random intercepts for participant and item, controlling for the number of valid gaze samples of the trial). All four features showed at least one significant association, expressed in percent of the outcome's scale range per SD of the gaze feature. *Entropy* was the most broadly sensitive feature, positively predicting meaningfulness (0.73% [0.31, 1.15]), authenticity (0.63% [0.08, 1.18]), self-relevance (0.60% [0.12, 1.09]), beauty (0.57% [0.23, 0.92]), worth (0.42% [0.07, 0.76]) and valence (0.38% [0.01, 0.74]), indicating that a more widely distributed exploration of an artwork accompanied more positive appraisals. Conversely, *Max. Shift* was negatively associated with authenticity (-0.66% [-1.22, -0.10]), valence (-0.41% [-0.78, -0.03]) and worth (-0.40% [-0.75, -0.04]), suggesting that an abrupt relocation of gaze partway through a trial accompanied less favourable evaluations. *Laterality* predicted self-relevance (1.11% [0.54, 1.68]) and beauty at follow-up (0.62% [0.11, 1.13]), and *Centeredness* predicted syntheticness judgments (-0.66% [-1.26, -0.07]). All these associations are very small - at most about 1% of the scale range per SD - but still are evidence that the gaze features are not pure noise.
 
 ### Statistical Models
 
@@ -224,7 +224,21 @@ Using bespoke models suited for each outcome's characteristics results in a much
 
 <!-- Numbers from analysis/3_models.qmd (data/results_contrasts.csv, *_pct columns): marginal contrasts on the response scale, posterior median and 95% CI; an effect is reported as significant when the CI excludes 0. All differences are expressed in % of the scale range: sliders (0-1) x 100, Valence (1-7) and Meaning (0-6) divided by their 6-point range, Worth as changes in the probability of a category. -->
 
-Across the Phase 1 ratings, the three labels ordered consistently: artworks presented as Human Forgeries were rated in-between Human Originals and AI-Generated images, with AI-Generated images receiving the lowest ratings on every dimension.
+Across the Phase 1 ratings, the three labels ordered consistently: artworks presented as Human Forgeries were rated in-between Human Originals and AI-Generated images, with AI-Generated images receiving the lowest ratings on every dimension (see @fig-2).
+
+```{r}
+#| warning: false
+#| label: fig-2
+#| apa-twocolumn: true  # A Figure Spanning Two Columns When in Journal Mode
+#| out-width: "100%"
+#| fig-cap: "Effect of the label condition on the four Phase 1 aesthetic judgments. Grey bars and histograms show the observed distribution of ratings; coloured lines and point-ranges show the model-implied response distribution for each label condition with its 95% Credible Interval."
+
+
+knitr::include_graphics("../analysis/figures/figure2.png")
+```
+
+<!-- TO DECIDE: To add Syntheticness and Authenticity to the plot above, or to have the results for that in their own figure under the Determinants of Reality Beliefs section? -->
+
 
 Compared to Human Originals, artworks labelled as Forgeries were judged less beautiful (-3.6% [-4.6, -2.7]), as evoking less positive emotions (-3.5% [-4.3, -2.7]), as less meaningful (-4.2% [-5.3, -3.2]) and as less valuable, with a higher probability of being assigned no monetary value at all (+9.5% for the "$0" option [8.3, 10.8]). The AI-Generated label produced the same pattern with roughly twice the magnitude (Beauty: -7.0% [-8.2, -5.9]; Valence: -6.2% [-7.2, -5.2]; Meaning: -10.5% [-12.1, -9.1]; "$0" option: +18.3% [17.0, 19.6]), and also differed significantly from the Forgery label on all four dimensions (Beauty: -3.4% [-4.5, -2.3]; Valence: -2.7% [-3.6, -1.7]; Meaning: -6.3% [-7.7, -4.9]; "$0" option: +8.7% [7.4, 10.2]). For meaningfulness, the label additionally increased the probability of a flat "not at all meaningful" (0) answer, from +0.9% [0.2, 1.8] for Forgeries to +5.1% [3.2, 7.9] for AI-Generated images relative to Originals. The model's decomposition of the beauty ratings indicated that the penalty operated on both stages of the judgment: the probability of judging an image as beautiful rather than ugly decreased (Forgeries: -6.7% [-9.5, -4.0]; AI-Generated: -15.9% [-19.3, -12.4]), and, among images judged beautiful, the reported degree of beauty was lower (-4.3% [-5.3, -3.2] and -6.3% [-7.4, -5.2], respectively).
 
@@ -234,11 +248,13 @@ The labels also shaped the reality beliefs measured in Phase 2 in a dissociable 
 
 However, the label effect vanished about a month later during the follow-up session (where participants were reminded that all artworks were genuine human originals): artworks previously labelled as AI-Generated or as Forgeries were no longer rated as less beautiful than those labelled as Originals (-1.0% [-2.1, 0.1] and -0.2% [-1.4, 0.9], respectively), and the original label did not affect their self-relevance or their perceived artificiality.
 
-<!-- TODO: add a results figure (candidate: analysis/3_models.html "Summary" effect-size grid, or the Beauty / Syntheticness CHOCO densities). -->
+<!-- TODO: Add a sentence that these effects were not modulated by the Emotion category of the image -->
 
 ## Effect on Memory
 
 ## Determinants of Reality Beliefs
+
+<!-- TODO: something interesting to try to get some evidence for is the "causality" of the effect. We know that fake labels -> beauty, but also -> lower reality beliefs. But is it that labels primarily modualte reality beliefs, in terms modulating beauty, or is it that labels modulate beauty, and in turn lower beauty drives lower reality beliefs? Perhaps we could get elements to answer as we have Beauty and Beauty2 and Normative Beauty data? -->
 
 ## Interindividual Differences
 

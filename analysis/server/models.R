@@ -10,7 +10,15 @@
 # at two-space indent, one per model. `./hpc models` prints what it found.
 #
 # Each entry:
-#   outcome   the column of data_task.csv being modelled (used to drop NAs)
+#   outcome   the column being modelled (used to drop NAs)
+#   data      (optional) which cleaned file the model is fitted to:
+#               "task"    data_task.csv merged with data_eyetracking.csv, one
+#                         row per Phase-1 trial (the default; 324 x 48 rows)
+#               "memory"  data_memory_task.csv, one row per follow-up trial
+#                         (220 x 96 rows: the 48 old items *and* the 48 new
+#                         ones, with the Phase-1/2 data of old items joined on)
+#             fit_model.R loads and prepares the file named here
+#             (fa_prepare_data() / fa_prepare_memory()).
 #   formula   a function returning the brms bf(). A function rather than the
 #             object so that sourcing this file costs nothing and only the
 #             model actually being fitted is built.
@@ -114,12 +122,15 @@ fa_models <- list(
 
   # Worth -------------------------------------------------------------------
   # 6-point log-money scale ($0 .. $100,000), an ordered factor. Cumulative
-  # ordinal with a participant- and item-varying discrimination.
+  # ordinal with a participant- and item-varying discrimination. The July fit
+  # had (Condition * Emotion | Item); Emotion is a property of the item, so
+  # those slopes were not separable from the item intercept and were dropped
+  # on 2026-09-21 (fa_rhs_full, like every other model).
   Worth = list(
     outcome = "Worth",
     formula = function() {
       brms::bf(
-        fa_f("Worth", "Condition * Emotion + (Condition * Emotion | Participant) + (Condition * Emotion | Item)"),
+        fa_f("Worth"),
         disc ~ 1 + (1 | Participant) + (1 | Item),
         family = brms::cumulative()
       )
@@ -219,12 +230,13 @@ fa_models <- list(
   ),
 
   # SelfRelevance -----------------------------------------------------------
-  # 0..6 rating, treated as ordered like Worth.
+  # 0..6 rating, treated as ordered like Worth (same 2026-09-21 change to the
+  # item term).
   SelfRelevance = list(
     outcome = "SelfRelevance",
     formula = function() {
       brms::bf(
-        fa_f("SelfRelevance", "Condition * Emotion + (Condition * Emotion | Participant) + (Condition * Emotion | Item)"),
+        fa_f("SelfRelevance"),
         disc ~ 1 + (1 | Participant) + (1 | Item),
         family = brms::cumulative()
       )
@@ -237,6 +249,71 @@ fa_models <- list(
   Artificiality = list(
     outcome = "PerceivedArtificiality",
     formula = function() fa_choco("PerceivedArtificiality")
+  ),
+
+  # FOLLOW-UP -- recognition and source memory ================================
+  # These read data_memory_task.csv (data = "memory"), which also holds the 48
+  # *new* items per participant, so Condition has a fourth level "New Items".
+  # The design is Condition only (no Emotion): the questions are about what
+  # was remembered of the label, not about the stimulus. Read by 4_memory.qmd.
+
+  # MemoryCondition -----------------------------------------------------------
+  # Which label does the participant say the item had in Phase 1?
+  # AnswerCondition is one of Human Original / Human Forgery / AI-Generated,
+  # or "Not recognized" when the item was judged new (Recognition == "No"), so
+  # one categorical model carries recognition and source memory together: the
+  # "Not recognized" category is the miss rate for old items (and the correct
+  # rejection rate for new items, whose other three categories are false
+  # alarms with a fabricated label). Reference categories are Human Original
+  # for both the outcome and Condition, so the mu<category> coefficients on
+  # Condition<label> read as log-odds of answering <category> rather than
+  # "Human Original" for an item that was presented as <label> rather than as
+  # a Human Original. Condition varies by participant and by item: some
+  # people/items are better remembered, and some are more readily called AI.
+  MemoryCondition = list(
+    outcome = "AnswerCondition",
+    data = "memory",
+    formula = function() {
+      brms::bf(
+        AnswerCondition ~ Condition + (1 + Condition | Participant) + (1 + Condition | Item),
+        family = brms::categorical(link = "logit")
+      )
+    }
+  ),
+
+  # MemoryBelief --------------------------------------------------------------
+  # The same question one level up: not what label the item carried, but what
+  # the participant *believed* about it in Phase 2, and whether they recall
+  # that belief in the follow-up. `Belief` is the Phase-2 judgement (Human
+  # Original / Human Forgery / AI Original / AI Copy, crossing the syntheticness
+  # and authenticity sliders) and `AnswerBelief` is what they say in the
+  # follow-up, with "Not recognized" again standing in for an item judged new.
+  #
+  # `Belief` has a fifth level, "None": all 10,560 new items plus 144 old
+  # trials with no recorded belief. It is the new-item baseline here, as
+  # "New Items" is for Condition in MemoryCondition, so the whole file enters
+  # the model and the reference category stays Human Original on both sides.
+  #
+  # Belief varies within item as well as within participant -- different people
+  # reached different Phase-2 judgements about the same artwork -- so both
+  # grouping factors get the slope, as in MemoryCondition. The rarest level
+  # (Human Forgery) is 1,344 trials over 96 items, ~14 per item, and the
+  # commonest old-item level (Human Original) ~48; each item carries 220
+  # participants against each participant's 96 trials, which is why the item
+  # side is the better-informed of the two. MemoryCondition bears that out:
+  # its `cor_Item` are the best-mixed parameters in the model (max Rhat 1.008,
+  # none above 1.01, min ESS ratio 0.133), while its `cor_Participant` are the
+  # worst (1.131, 0.011). brms fits one correlation matrix per mu, so the item
+  # side here is 4 mus x 10 correlations = 40 parameters, not a single 20 x 20.
+  MemoryBelief = list(
+    outcome = "AnswerBelief",
+    data = "memory",
+    formula = function() {
+      brms::bf(
+        AnswerBelief ~ Belief + (1 + Belief | Participant) + (1 + Belief | Item),
+        family = brms::categorical(link = "logit")
+      )
+    }
   )
 )
 
@@ -261,6 +338,28 @@ fa_prepare_data <- function(dftask) {
   levels(dftask$Worth) <- c("0", "10", "100", "1000", "10000", "100000")
   dftask$SelfRelevance <- factor(round(dftask$SelfRelevance * 6), ordered = TRUE)
   dftask
+}
+
+# The follow-up file (data = "memory"). Mirrors the top of 5_memory.qmd: the
+# first level of each factor is the reference category, both for the
+# categorical outcomes (brms takes the first level as the baseline of the
+# multinomial logit) and for the predictors.
+fa_prepare_memory <- function(dfmem) {
+  dfmem$Condition <- factor(dfmem$Condition,
+    levels = c("Human Original", "Human Forgery", "AI-Generated", "New Items")
+  )
+  dfmem$AnswerCondition <- factor(dfmem$AnswerCondition,
+    levels = c("Human Original", "Human Forgery", "AI-Generated", "Not recognized")
+  )
+  dfmem$AnswerBelief <- factor(dfmem$AnswerBelief,
+    levels = c("Human Original", "Human Forgery", "AI Original", "AI Copy", "Not recognized")
+  )
+  dfmem$Belief <- factor(dfmem$Belief,
+    levels = c("Human Original", "Human Forgery", "AI Original", "AI Copy", "None")
+  )
+  dfmem$Recognition <- factor(dfmem$Recognition, levels = c("No", "Yes"))
+  dfmem$Type <- factor(dfmem$Type, levels = c("Old", "New"))
+  dfmem
 }
 
 
@@ -354,5 +453,10 @@ fa_model <- function(name) {
   }
   spec <- c(list(name = name), fa_models[[name]])
   if (is.null(spec$priors)) spec$priors <- fa_priors
+  if (is.null(spec$data)) spec$data <- "task"
+  if (!spec$data %in% c("task", "memory")) {
+    stop("model '", name, "' has data = '", spec$data, "'; must be 'task' or 'memory'",
+         call. = FALSE)
+  }
   spec
 }

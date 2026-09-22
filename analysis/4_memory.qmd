@@ -1,0 +1,339 @@
+---
+title: "FakeArt - Memory Results"
+editor: source
+editor_options: 
+  chunk_output_type: console
+format:
+  html:
+    code-fold: true
+    self-contained: false
+    toc: true
+    keep-md: true
+---
+
+<!-- Estimates are computed on the cluster (`./hpc extract`, see server/estimates.R) and read from models/estimates/. -->
+
+## Data Preparation
+
+```{r}
+#| warning: false
+#| code-fold: false
+#| error: false
+
+library(tidyverse)
+library(easystats)
+library(patchwork)
+
+df <- read.csv("../data/data_memory_task.csv") |>
+  mutate(Condition = fct_relevel(Condition, "Human Original", "Human Forgery", "AI-Generated", "New Items"),
+         AnswerCondition = fct_relevel(AnswerCondition, "Human Original", "Human Forgery", "AI-Generated", "Not recognized"),
+         AnswerBelief = fct_relevel(AnswerBelief, "Human Original", "Human Forgery", "AI Original", "AI Copy", "Not recognized"),
+         Belief = fct_relevel(Belief, "Human Original", "Human Forgery", "AI Original", "AI Copy", "None"))
+
+dfsub <- read.csv("../data/data_participants.csv") |> 
+  filter(Participant %in% df$Participant)
+
+cols <- c(
+  # Condition
+  "Human Original" = "#F51D56",
+  "Human Forgery" = "#F5A41D",
+  "AI-Generated" = "#1D9AF5",
+  "AI Original" = "#1D9AF5",
+  "AI Copy" = "#4CAF50",
+  "Not recognized" = "#607D8B",
+  # Style
+  "Abstract and Avant-garde" = "#E41A1C", 
+  "Classical" = "#377EB8", 
+  "Impressionist and Expressionist" = "#4DAF4A",
+  "Romantic and Realism" = "#FF7F00"
+)
+
+source("server/estimates.R") # memory_info
+source("report.R")           # make_asis(), make_tables(), make_markdown(), read_estimates()
+
+estimates <- read_estimates(names(memory_info))
+provenance_table(estimates)
+```
+
+## How to read this report
+
+Two Bayesian categorical mixed models of what participants remembered in the
+follow-up session (220 participants × 96 items = 21,120 rows: 48 seen in Phase 1,
+48 new).
+
+| model | outcome | predictor | levels of the predictor |
+| --- | --- | --- | --- |
+| **Memory of Condition** | `AnswerCondition`: which label the participant recalls being shown | `Condition`: the label actually shown in Phase 1 | Human Original, Human Forgery, AI-Generated, **New Items** (never seen) |
+| **Memory of Beliefs** | `AnswerBelief`: what the participant recalls believing the artwork was | `Belief`: what they actually reported believing in Phase 2 | Human Original, Human Forgery, AI Original, AI Copy, None |
+
+Both outcomes include **Not recognized** (item judged "new"): correct for
+`New Items`, forgetting for the seen levels.
+
+Each section: figure of the probability of each answer per level, convergence,
+marginal means, contrasts (coloured tables of interest + the complete set), and
+an auto-generated summary. Every table has a folded Markdown twin; the Summary
+section writes `data/results_memory_contrasts.csv` and
+`data/results_memory_means.csv`.
+
+Estimates are probabilities and contrasts (`Level1 - Level2`) differences of
+probabilities, reported in percentage points as posterior medians with 95% CI
+and probability of direction (`pd`). "Credible" = CI excludes 0 (no
+multiplicity correction).
+
+## Delay
+
+```{r}
+dfsub |> 
+  ggplot(aes(x=Delay)) +
+  geom_histogram(bins=30) +
+  theme_minimal()
+```
+
+The mean and median days between the two experiments were `r insight::format_value(mean(dfsub$Delay))` and `r insight::format_value(median(dfsub$Delay))`, respectively.
+
+## Memory of Condition
+
+### Main Model
+
+```{r}
+# Dodging order of the answers in the figures
+make_group <- function(resp, covariate = NULL) {
+  group <- case_when(  
+    resp == "Not recognized" ~ 0,
+    resp == "Human Original" ~ 1,
+    resp == "AI-Generated" ~ 2,
+    resp == "AI Original" ~ 2,
+    resp == "Human Forgery" ~ 3,
+    resp == "AI Copy" ~ 4,
+    .default = NA)
+  
+  if(!is.null(covariate)) {
+    covariate <- insight::format_value(normalize(covariate), style_positive="plus")
+    group <- paste0(group, covariate)
+  }
+  group
+}
+
+dat_cond1 <- estimates$MemoryCondition$means |>
+  mutate(group = make_group(Response))
+
+p_cond1 <- dat_cond1 |> 
+  ggplot(aes(x=Condition,  y = Median, color = Response)) +
+  geom_line(aes(group=group), position = position_dodge(width=0.1), linewidth = 1,
+            show.legend = FALSE) +
+  geom_pointrange(aes(group=group, ymin = CI_low, ymax = CI_high), position = position_dodge(width=0.1),
+                  key_glyph = "point") +
+  scale_y_continuous(label = scales::percent, limits = c(0,1), expand = c(0, 0)) +
+  scale_color_manual(values = cols) +
+  guides(color = guide_legend(override.aes = list(size = 3))) +
+  labs(y="Proportion of answers", color = "Answer", x =  "Experimental Condition",
+       title = "Memory of the Experimental Condition") +
+  theme_minimal() 
+p_cond1
+```
+
+```{r}
+make_contrasts <- function(c, answer=NULL, condition=NULL, title="Marginal Contrasts") {
+
+  if(!is.null(answer)) {
+    c <- filter(c, str_detect(Response1, answer) & str_detect(Response2, answer))
+  }
+  if(!is.null(condition)) {
+    c <- filter(c, str_detect(Level1, condition) & str_detect(Level2, condition))
+  }
+
+  # Collapse a constant Response/Level pair into one Category column
+  if(length(unique(c$Response1)) == 1 & all(c$Response1 == c$Response2)) {
+    c <- cbind(data.frame("Category" = c$Response1[1]), c)
+    c$Response1 <- NULL
+    c$Response2 <- NULL
+  }
+  if(length(unique(c$Level1)) == 1 & all(c$Level1 == c$Level2)) {
+    c <- cbind(data.frame("Category" = c$Level1[1]), c)
+    c$Level1 <- NULL
+    c$Level2 <- NULL
+  }
+
+  c <- arrange(c, desc(abs(Median)))
+  t <- format_table(c, zap_small = TRUE)
+
+  t$effectsize <- as.numeric(c$Median)
+  t$sig <- as.numeric(c$pd)
+
+  g <- gt::gt(t) |>
+    gt::data_color(columns = "effectsize", target_columns = "Median", method = "numeric",
+palette = c("red", "red", "white", "green", "green"), domain = c(-0.7, 0.7)) |>
+    gt::data_color(columns = "sig", target_columns = "pd", fn = \(x) {
+      ifelse(x > 0.99, "#FFC107", ifelse(x > 0.97, "#FFEB3B", ifelse(x > 0.95, "#FFF59D", "white")))
+    }) |>
+    gt::cols_hide(c("effectsize", "sig")) |>
+    gt::tab_header(title = title)
+
+  # Markdown twin: colour coding replaced by an Effect column
+  md <- t[setdiff(names(t), c("effectsize", "sig"))]
+  md$Effect <- ifelse(sign(c$CI_low) != sign(c$CI_high), "n.s.",
+                      ifelse(c$Median < 0, "Negative", "Positive"))
+  make_asis(as.character(knitr::knit_print(g)), "", make_markdown(md, title), "")
+}
+
+# Convergence, marginal means and the complete contrast set
+make_memory_tables <- function(est) {
+  means_fmt <- as.data.frame(est$means)[c(est$by, "Response", "Median", "CI_low", "CI_high")]
+  num <- vapply(means_fmt, is.numeric, logical(1))
+  means_fmt[num] <- lapply(means_fmt[num], insight::format_value, zap_small = TRUE)
+
+  all_con <- as.data.frame(est$contrasts)
+  all_con$Effect <- ifelse(sign(all_con$CI_low) != sign(all_con$CI_high), "n.s.",
+                           ifelse(all_con$Median < 0, "Negative", "Positive"))
+  all_fmt <- all_con[c("Level1", "Response1", "Level2", "Response2", "Median", "CI_low", "CI_high", "pd", "Effect")]
+  n <- vapply(all_fmt, is.numeric, logical(1))
+  all_fmt[n] <- lapply(all_fmt[n], insight::format_value, zap_small = TRUE)
+
+  make_asis(
+    make_tables(est$diag,
+                c("Model", "Family", "N_obs", "N_participants", "Chains", "Draws",
+                  "Max_Rhat", "Min_ESS_ratio", "Divergent_pct", "Criterion"),
+                sprintf("%s: convergence", est$label)),
+    make_tables(means_fmt, names(means_fmt),
+                sprintf("%s: probability of each answer per %s (marginal means)", est$label, est$by)),
+    # Markdown only (120-300 rows)
+    make_markdown(all_fmt, sprintf("%s: all %d contrasts", est$label, nrow(all_fmt)))
+  )
+}
+
+# Generated summary of the credible same-answer contrasts
+make_memory_summary <- function(est) {
+  d <- as.data.frame(est$contrasts)
+  d <- d[d$Response1 == d$Response2, ]
+  d$Credible <- sign(d$CI_low) == sign(d$CI_high)
+  pp <- function(x) insight::format_value(100 * x)
+  out <- c(sprintf(
+    "**%s.** Each row of the model is the probability of one answer. The differences below are between %s levels *within* the same answer, in percentage points, as posterior medians with 95%% CI; `pd` is the probability of direction. An effect is called credible when the CI excludes 0. Contrasts *across* answers are in the full table above.",
+    est$label, est$by), "")
+  for (r in unique(d$Response1)) {
+    dr <- d[d$Response1 == r, ]
+    cred <- dr[dr$Credible, ]
+    if (nrow(cred) == 0) {
+      out <- c(out, sprintf("- **%s**: no credible difference between any pair of %s levels.", r, est$by))
+      next
+    }
+    cred <- cred[order(-abs(cred$Median)), ]
+    out <- c(out, sprintf("- **%s**: %s.%s", r,
+      paste(sprintf("%s - %s %s pp [%s, %s]", cred$Level1, cred$Level2,
+                    pp(cred$Median), pp(cred$CI_low), pp(cred$CI_high)), collapse = "; "),
+      if (nrow(cred) < nrow(dr)) sprintf(" The other %d pair(s) are not credible.", nrow(dr) - nrow(cred)) else ""))
+  }
+  make_asis("", '::: {.callout-tip title="Summary of credible effects (generated from the tables above)"}',
+            "", out, "", ":::", "")
+}
+```
+
+```{r}
+make_memory_tables(estimates$MemoryCondition)
+```
+
+```{r}
+c <- estimates$MemoryCondition$contrasts
+make_contrasts(c, answer="Not recognized",
+               title="Memory of Condition: forgetting ('Not recognized') by condition")
+make_contrasts(c, condition="Human Original",
+               title="Memory of Condition: which answer, within the Human Original condition")
+make_contrasts(c, condition="New Items",
+               title="Memory of Condition: which answer, within the New Items condition")
+```
+
+```{r}
+make_memory_summary(estimates$MemoryCondition)
+```
+
+
+## Memory of Beliefs
+
+### Main Model
+
+```{r}
+dat_belief1a <- estimates$MemoryBelief$means |>
+  mutate(group = make_group(Response))
+
+p_belief1a <- dat_belief1a |> 
+  ggplot(aes(x=Belief,  y = Median, color = Response)) +
+  geom_line(aes(group=group), position = position_dodge(width=0.1), linewidth = 1, 
+            show.legend = FALSE) +
+  geom_pointrange(aes(group=group, ymin = CI_low, ymax = CI_high), position = position_dodge(width=0.1),
+                  key_glyph = "point") +
+  scale_y_continuous(label = scales::percent, limits = c(0,1), expand = c(0, 0)) +
+  scale_color_manual(values = cols) +
+  guides(color = guide_legend(override.aes = list(size = 3))) +
+  labs(y="Proportion of answers", color = "Answer", x =  "Original Belief",
+       title = "Memory of Beliefs") +
+  theme_minimal()
+p_belief1a
+```
+
+```{r}
+make_memory_tables(estimates$MemoryBelief)
+```
+
+```{r}
+c <- estimates$MemoryBelief$contrasts
+make_contrasts(c, answer="Not recognized",
+               title="Memory of Beliefs: forgetting ('Not recognized') by original belief")
+make_contrasts(c, condition="Human Original",
+               title="Memory of Beliefs: which answer, within the Human Original belief")
+```
+
+```{r}
+make_memory_summary(estimates$MemoryBelief)
+```
+
+## Summary
+
+- `data/results_memory_contrasts.csv`: every contrast (level × answer pair), probability scale, with `pd` and `Credible`.
+- `data/results_memory_means.csv`: probability of each answer per level.
+
+```{r}
+#| label: memory-summary
+
+results_memory_contrasts <- bind_rows(lapply(unname(estimates), function(e) {
+  d <- as.data.frame(e$contrasts)
+  d$Model <- e$outcome
+  d$Predictor <- e$by
+  d$Credible <- sign(d$CI_low) == sign(d$CI_high)
+  d[c("Model", "Predictor", "Level1", "Response1", "Level2", "Response2",
+      "Median", "CI_low", "CI_high", "pd", "Credible")]
+})) |>
+  arrange(Model, Response1, Response2, Level1, Level2)
+write.csv(results_memory_contrasts, "../data/results_memory_contrasts.csv", row.names = FALSE)
+
+results_memory_means <- bind_rows(lapply(unname(estimates), function(e) {
+  d <- as.data.frame(e$means)
+  data.frame(Model = e$outcome, Predictor = e$by, Level = as.character(d[[e$by]]),
+             Response = as.character(d$Response), Median = d$Median,
+             CI_low = d$CI_low, CI_high = d$CI_high)
+})) |>
+  arrange(Model, Level, Response)
+write.csv(results_memory_means, "../data/results_memory_means.csv", row.names = FALSE)
+
+make_tables(bind_rows(lapply(unname(estimates), `[[`, "diag")),
+            c("Model", "Family", "N_obs", "N_participants", "Chains", "Draws",
+              "Max_Rhat", "Min_ESS_ratio", "Divergent_pct", "Criterion"),
+            "Convergence of both memory models")
+```
+
+```{r}
+#| label: memory-credible
+
+credible <- results_memory_contrasts |>
+  filter(Credible, Response1 == Response2) |>
+  mutate(Answer = Response1,
+         Contrast = paste(Level1, "-", Level2),
+         Diff_pp = insight::format_value(100 * Median),
+         CI = sprintf("[%s, %s]", insight::format_value(100 * CI_low), insight::format_value(100 * CI_high)),
+         pd_fmt = insight::format_pd(pd, name = NULL),
+         Effect = ifelse(Median < 0, "Negative", "Positive")) |>
+  arrange(Model, Answer, desc(abs(Median))) |>
+  select(Model, Answer, Contrast, Diff_pp, CI, pd_fmt, Effect)
+
+make_tables(credible, names(credible),
+            "Credible differences in the probability of each answer between levels, in percentage points")
+```

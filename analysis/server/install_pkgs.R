@@ -5,8 +5,8 @@
 #   ./hpc install all      force-reinstall everything
 #
 # The CmdStanR module already ships brms / cmdstanr / dplyr; this only adds
-# what it doesn't (cogmod, datawizard) plus their dependencies, and a newer
-# cmdstanr.
+# what it doesn't (cogmod, datawizard, and the easystats + backend stack that
+# extract_model.R needs) plus their dependencies, and a newer cmdstanr.
 #
 # The library is SHARED with the IllusionGameComputational project on the
 # same account (same path, same R minor version), so cogmod is usually already
@@ -79,11 +79,50 @@ if (requireNamespace("cmdstanr", quietly = TRUE)) {
   ), "\n")
 }
 
-for (p in c("remotes", "insight", "datawizard", "bayestestR", "loo")) {
+# modelbased/emmeans/marginaleffects are what extract_model.R needs and the
+# fitting jobs do not: estimate_means(), estimate_contrasts() and
+# estimate_prediction() with both backends. emmeans and marginaleffects are
+# Suggests of modelbased, so they have to be named here or the extraction
+# fails at the first estimate_*() call.
+#
+# `collapse` is a hard dependency of marginaleffects with a *version floor*
+# that the module stack does not meet: the CmdStanR module ships an older
+# collapse, and marginaleffects 1.0.0 stops with
+#   Package `collapse` is installed, but package version `2.0.18` is required.
+# It is listed here so a current one lands in the project library, which
+# precedes the module on R_LIBS and shadows it. Being already installed (just
+# too old) means need() is FALSE, so a stale one needs forcing:
+#   ./hpc install collapse
+for (p in c("remotes", "insight", "datawizard", "bayestestR", "loo",
+            "parameters", "performance", "modelbased", "emmeans",
+            "marginaleffects", "collapse")) {
   if (need(p) || forced(p)) {
     cat("installing", p, "\n")
     install.packages(p, lib = lib, repos = repos)
   }
+}
+
+# Same trick as the cogmod floor below: fail the install rather than let four
+# jobs discover it one at a time.
+collapse_min <- "2.0.18"
+# lib.loc is explicit on purpose: with lib.loc = NULL, packageVersion() reports
+# the *loaded* namespace, and marginaleffects pulls collapse in during the
+# installs above -- so a freshly installed 2.1.8 still reads as the module's
+# 2.0.7, and both this check and the FINAL CHECK below would report a stale
+# version. Forcing a disk lookup in .libPaths() order gives what a new R
+# session would actually get.
+pkg_version <- function(p) {
+  tryCatch(as.character(utils::packageVersion(p, lib.loc = .libPaths())),
+    error = function(e) NA_character_
+  )
+}
+collapse_have <- pkg_version("collapse")
+if (is.na(collapse_have) || package_version(collapse_have) < collapse_min) {
+  # Not `%||%`: that helper tests is.null/nzchar, and nzchar(NA) is NA, which
+  # would error here rather than print "none".
+  cat("collapse", if (is.na(collapse_have)) "none" else collapse_have,
+      "is below marginaleffects' floor", collapse_min, "-- reinstalling\n")
+  install.packages("collapse", lib = lib, repos = repos)
 }
 
 # Also reinstall when the installed cogmod is below the floor, so that a run
@@ -102,11 +141,10 @@ if (need("cogmod") || forced("cogmod") ||
 }
 
 cat("=== FINAL CHECK ===\n")
-for (p in c("brms", "cmdstanr", "loo", "datawizard", "cogmod")) {
-  cat(sprintf(
-    "%-11s %s", p,
-    tryCatch(paste("OK", packageVersion(p)), error = function(e) "MISSING")
-  ), "\n")
+for (p in c("brms", "cmdstanr", "loo", "datawizard", "modelbased", "emmeans",
+            "marginaleffects", "collapse", "cogmod")) {
+  v <- pkg_version(p)
+  cat(sprintf("%-16s %s", p, if (is.na(v)) "MISSING" else paste("OK", v)), "\n")
 }
 d <- tryCatch(utils::packageDescription("cogmod"), error = function(e) NULL)
 if (!is.null(d)) {

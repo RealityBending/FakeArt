@@ -1,5 +1,14 @@
 # Running the models on Artemis (Sussex HPC)
 
+> **Cluster-level instructions live in the lab HPC hub**:
+> <https://github.com/RealityBending/Lab/tree/main/hpc> (start at `hpc/README.md`;
+> on Dom's machines: `~/Dropbox/RealityBendingLab/Lab/hpc/`).
+> Prefer a local clone of `RealityBending/Lab` if there is one — it also holds
+> your gitignored `hpc/private/` notes. The hub covers access, storage,
+> partitions and quotas, the R/Stan toolchain, job conventions, troubleshooting
+> and housekeeping, and **wins over anything here that contradicts it**; this
+> file should only hold what is specific to this project.
+
 The Bayesian models in `3_models.qmd` are too heavy for a laptop, so they run
 as SLURM array jobs on **Artemis**. The `./hpc` script in this folder wraps the
 whole loop (push code, submit, watch, pull results) over SSH, so an agent or a
@@ -13,44 +22,25 @@ the notebooks read them.
 
 This layout is shared with the lab's IllusionGameComputational project (same
 `./hpc` design, same cluster toolchain, same project R library on the same
-account). Its `analysis/server/AGENT.md` holds the cluster measurements that
-were not repeated here; this folder's `AGENT.md` holds what is specific to
-FakeArt.
+account). Cluster-level instructions are in the lab hub linked above; this
+folder's `AGENT.md` holds what is specific to FakeArt.
 
-## The cluster, in a browser
+## The cluster, and one-time setup
 
-Everything below drives Artemis over SSH, but the web interface is useful for
-looking at files, checking a job by hand, and installing your SSH key the first
-time. All of it needs the **GlobalProtect VPN** connected first.
+Access (VPN, Open OnDemand, SSH), storage, partitions and quotas:
+[hub `artemis.md`](https://github.com/RealityBending/Lab/blob/main/hpc/artemis.md). Setting up a machine (SSH key,
+`artemis` alias) or a new account (R library, CmdStan, precompiled header):
+[hub `setup.md`](https://github.com/RealityBending/Lab/blob/main/hpc/setup.md). A machine already set up for any lab
+project needs nothing more.
 
-| | |
-| --- | --- |
-| Open OnDemand (OOD) | <https://ood.artemis.hrc.sussex.ac.uk/> |
-| a shell on the login node | OOD → Clusters → `>_ artemis Shell Access` |
-| submit a `.slurm` by hand | OOD → Jobs → Jobs Composer (set `FA_MODEL` yourself) |
-| browse your files | `https://ood.artemis.hrc.sussex.ac.uk/pun/sys/dashboard/files/fs//mnt/lustre/users/psych/<user>/FakeArt` |
-| Artemis documentation | <https://artemis-docs.hpc.sussex.ac.uk/artemis/> |
-
-Storage, for orientation:
+This project's directories on the cluster:
 
 | path | use |
 | --- | --- |
-| `/mnt/lustre/users/<group>/<user>/FakeArt/` | long-term: code and fitted models live here |
-| `/mnt/lustre/scratch/<group>/<user>/FakeArt/` | fast scratch: job logs go here |
-| `/mnt/nfs2/<group>/<user>/` | home directory (holds `~/.cmdstan`) |
+| `/mnt/lustre/users/<group>/<user>/FakeArt/` | code, `models/` (shards), `models/combined/`, `models/estimates/` |
+| `/mnt/lustre/scratch/<group>/<user>/FakeArt/` | job logs (`fit_<model>_<job>_<task>.out`) |
 
-## One-time setup (per machine)
-
-```bash
-bash analysis/server/setup-ssh.sh
-```
-
-Generates a machine-local keypair at `~/.ssh/artemis`, adds the `artemis`
-alias to `~/.ssh/config`, and prints the exact command to install the public
-key on the cluster. Idempotent, and shared across projects: a machine already
-set up for IllusionGameComputational needs nothing more.
-
-Then, once per cluster account:
+Once per account, for this project:
 
 ```bash
 cd analysis/server
@@ -85,37 +75,25 @@ be submitted by accident (the pre-2026-09 `make_models.R` / `make.slurm` /
 untouched.
 
 **The cluster fits the data on GitHub `main`, not your working copy.**
-`fit_model.R` reads `data/data_task.csv` and `data/data_eyetracking.csv` from
-the raw GitHub URL. Commit and push the data before `./hpc fit`, or the job
-silently fits the previous dataset.
+`fit_model.R` reads `data/data_task.csv` and `data/data_eyetracking.csv` (or
+`data/data_memory_task.csv` for a model with `data = "memory"`) from the raw
+GitHub URL. Commit and push the data before `./hpc fit`, or the job silently
+fits the previous dataset.
 
 ### How to check job status, cheaply
 
-For an agent asked to "check on the jobs": two commands, not a log dump.
-
-**Whenever a user asks for status or progress, report:** the state of every
-job (`./hpc queue`), and for each chain the highest iteration seen and a rough
-ETA, estimated from iterations-so-far vs. elapsed `TIME` and extrapolated to
-warmup + samples (5,800 by default).
+Report status the hub's way ([`jobs.md#status-reports`](https://github.com/RealityBending/Lab/blob/main/hpc/jobs.md#status-reports)):
+running since when, a per-shard table of each chain's iterations, an ETA
+against warmup + samples (1,500 by default), and a warning if a shard risks
+the wall (`general`: 8 h).
 
 ```bash
 ./hpc queue                # one line per array task: STATE, TIME, TIME_LEFT, reason if PENDING
 ./hpc progress Beauty      # per log: latest 'Chain N Iteration:' line per chain, REPORT, SUCCESSFUL, errors
 ```
 
-`queue` answers "is it running, pending, or dead". `progress` answers "how far
-has it got" without the R/brms/compiler banner that fills a `.out`. Two lines
-matter:
-
-- `REPORT ...`: printed once at the end of a shard: wall time, `n_leapfrog`,
-  treedepth, step size, divergences, max Rhat, min ESS ratio. This is the line
-  that says whether the fit is healthy.
-- `Chain N Iteration: ...`: printed periodically; the highest number seen is
-  the only progress signal before a `REPORT` exists.
-
-A long stretch with no fresh `Iteration` line is **not** by itself a hang:
-cmdstanr spaces the console refresh through the run. Trust `TIME` in
-`./hpc queue` (climbing, task not requeued) over the absence of output.
+`REPORT ...` is printed once at the end of a shard (wall time, `n_leapfrog`,
+treedepth, step size, divergences, max Rhat, min ESS ratio).
 
 ### Smoke tests
 
@@ -158,16 +136,59 @@ Full data, `long` partition, one job per model:
 ./hpc fit all              # or everything in models.R, queued behind each other
 ```
 
-The defaults in `fit.slurm` are the configuration the July 2026 fits used:
-`--array=1-8`, `--cpus-per-task=16`, `--mem=32G`, `--partition=long`, no
-`--time` (each task gets `long`'s 8-day maximum), with `FA_WARMUP=5000`,
-`FA_SAMPLES=800`, `FA_THIN=2`, `FA_CHAINS=2`. That is 8 shards × 2 chains ×
-400 kept draws = **6,400 draws per model**.
+The defaults in `fit.slurm` match IllusionGameComputational: `--array=1-4`,
+`--cpus-per-task=16`, `--mem=32G`, `--partition=long`, no `--time` (each task
+gets `long`'s 8-day maximum), with `FA_WARMUP=1000`, `FA_SAMPLES=500`,
+`FA_THIN=1`, `FA_CHAINS=2`. That is 4 shards × 2 chains × 500 draws =
+**4,000 draws per model**, from 8 chains.
 
-One model is 8 tasks × 16 CPUs = 128 of `long`'s 140-CPU per-user cap, so
-models run one at a time and later submissions queue. That costs nothing:
-`--time` is per task, and pending time does not count against it. If the wall
-matters more than draws, `--array=1-4` halves both.
+They replaced the July 2026 settings (warmup 5,000, 800 samples, thin 2, 8
+shards → 6,400 draws) on 2026-09-21. Warmup was 88-94% of every chain's wall
+time there and IGC §4.4.1 measured ESS per draw to be flat from warmup 200 to
+1,000, so the extra 4,000 warmup iterations bought no precision. The measured
+July wall times are in `AGENT.md` §3.2.
+
+One model is 4 tasks × 16 CPUs = 64 CPUs, so two fit inside `long`'s 140-CPU
+per-user cap and a third queues. That costs nothing: `--time` is per task, and
+pending time does not count against it.
+
+**The 8 h `general` partition is enough for every model** (measured
+2026-09-21, `AGENT.md` §3.2/§3.2b): the slowest shard of the nine models
+refitted that day was 2.05 h, and the two the projections had flagged as
+9 h and 8 h -- Reality and Valence -- came in at 34-50 min per shard once
+`cogmod_inits()` replaced `init = 0`. Prefer `general`:
+
+```bash
+./hpc fit Entropy --partition=general
+```
+
+`general` also has 400 CPUs against `long`'s 140, so six models run at once
+instead of two -- and `long` is shared with IGC, whose jobs can hold it for
+days, in which case a FakeArt job sent there simply queues.
+
+Since 2026-09-22 there is a third option for when the account's own quotas are
+busy: `--partition=sussexneuro` draws on a separate departmental allowance
+rather than on `general`'s 400 or `long`'s 140, and dispatches at higher
+priority. It is not a wall-clock decision -- every model already fits in 8 h --
+but it is how a FakeArt model runs alongside a full IGC production set instead
+of behind it. See "Partitions and resource limits" for the group-pool caveats.
+
+The two heaviest models were run one chain per task, so each chain gets all
+16 threads instead of sharing with a second (`AGENT.md` §3.2b):
+
+```bash
+FA_CHAINS=1 ./hpc fit Reality \
+  --partition=general --array=1-8 --cpus-per-task=16 --mem=128G
+```
+
+Same 8 chains and 4,000 draws, ~half the per-chain wall, 128 CPUs instead of
+64. The risk it adds: a lone chain that dies at init loses its whole task
+rather than half of one, which shows up as fewer than 8 chains on the
+combined fit -- so check `brms::nchains()` after combining.
+
+If a task ever *is* killed at the wall it loses only its own chain; the shards
+that finished are kept, and resubmitting with the default
+`FA_FILE_REFIT=never` re-runs only the missing ones.
 
 When a model is done:
 
@@ -200,18 +221,85 @@ written by `brm(file = ...)` and remembers its own path; `combine_models()`
 keeps the first shard's, and `add_criterion()` writes the fit back to whatever
 `$file` says, which would silently save the *combined* fit over shard 1.
 
+## Extract: the marginal means and contrasts
+
+Fitting is not the only expensive half. The marginal means, the contrasts over
+every distributional parameter and the posterior-predictive draws behind the
+figures took **2 h 50 min** when `3_models.qmd` computed them locally on
+2026-09-22, in one R session holding all 13 fits (~15 GB) — which is what made
+the laptop unusable. `./hpc extract` moves that next to the fits:
+
+```bash
+./hpc extract Beauty
+./hpc extract all              # 15 jobs at once; see below
+./hpc pull 'estimates/*.rds'   # -> analysis/models/estimates/
+```
+
+One job per model, `general`, `--cpus-per-task=4 --mem=64G`, so 13 × 4 = 52
+CPUs — well inside the per-user cap, and they all run in parallel. The wall
+clock is therefore the slowest model rather than the sum. Measured locally,
+per model: SelfRelevance 43 min, Worth 31, Authenticity 25, Reality 23,
+Beauty 12, Beauty2 9, Artificiality 8, Shift 6, everything else ≤ 3.
+
+`extract_model.R` reads `models/combined/<model>.rds` and writes
+`models/estimates/<model>.rds`: convergence, per-parameter Rhat/ESS and
+posterior summaries, marginal means, the three contrast tables, the marginal
+CHOCO parameters, and the **reduced** predictive draws. Nothing else travels —
+`estimate_prediction(keep_iterations = TRUE)` is 146 MB for Shift, but the
+figures only ever plot a summary over response categories or one density curve
+per draw, so both reductions run on the cluster and only their output is
+pulled.
+
+What is computed for which model is `outcome_info` in **`estimates.R`**, which
+is the one definition shared by the cluster and the notebooks: a notebook
+`source()`s the same file and does only tables, prose and plots. Neither
+`3_models.qmd` nor `4_memory.qmd` opens a `brmsfit` any more, so both render in
+about a minute and neither needs a knitr cache.
+
+### The memory models are a different shape
+
+`MemoryCondition` and `MemoryBelief` go through the same `./hpc extract`, but
+they are not `3_models.qmd` outcomes and do not belong in `outcome_info`: they
+are categorical, contrast a single factor (`Condition` / `Belief`) with no
+Emotion stratification, and have no figure needing predictive draws. They get
+their own `memory_info` registry and `get_memory_estimates()`, which does the
+two calls that `4_memory.qmd` used to make inline —
+
+```r
+estimate_means(m_cond1, by = "Condition")
+estimate_contrasts(m_cond1, contrast = "Condition", test = "pd")
+```
+
+— and nothing else. `get_estimates()` dispatches on which registry the name is
+in, so `./hpc extract all` covers all 15 models and `4_memory.qmd` reads its
+two `.rds` exactly as `3_models.qmd` reads its thirteen. Adding a model to
+either notebook means adding a registry entry here; without one, `extract`
+fails immediately with a message naming both registries.
+
+Re-running is cheap and safe — the fit is only read — so a new parameter or a
+different iteration count is a resubmit, never a refit. `FA_SEED` (default
+1234) fixes the sampled parts:
+
+```bash
+FA_SEED=99 ./hpc extract Beauty
+```
+
 ## Models
 
-`models.R` holds one entry per model: the outcome column it is fitted to and a
-function returning the brms formula. It is the only place a model is defined:
+`models.R` holds one entry per model: the outcome column it is fitted to, a
+function returning the brms formula and, when it is not the Phase-1 trial
+file, which data file to use (`data = "memory"`). It is the only place a model
+is defined:
 `fit_model.R` fits the one named by `FA_MODEL`, `combine_model.R` merges the
 same one, and `./hpc` reads the *names* straight out of the file (which is why
 the declaration lines must stay in the form `  <name> = list(`).
 
-Every model has the design `Condition * Emotion` (3 labels × 4 stimulus
-emotion quadrants) with `(Condition * Emotion | Participant)` and
-`(Condition | Item)` on the main and most distributional parameters. Names
-match the files `3_models.qmd` reads (`models/<name>.rds`).
+Every rating and gaze model has the design `Condition * Emotion` (3 labels ×
+4 stimulus emotion quadrants) with `(Condition * Emotion | Participant)` and
+`(Condition | Item)` on the main and most distributional parameters. The
+memory models are `Condition` only, on the follow-up file. Names match the
+files the notebooks read (`models/<name>.rds`: `3_models.qmd` for the first
+thirteen, `5_memory.qmd` for the memory ones).
 
 | model | outcome | family | notes |
 | --- | --- | --- | --- |
@@ -228,6 +316,7 @@ match the files `3_models.qmd` reads (`models/<name>.rds`).
 | `Beauty2` | `Beauty2` | `cogmod_choco()` | follow-up; 220 participants |
 | `SelfRelevance` | `SelfRelevance` (ordered 0..6) | `cumulative()` | follow-up |
 | `Artificiality` | `PerceivedArtificiality` | `cogmod_choco()` | follow-up, "new" items only (~6,000 rows) |
+| `MemoryCondition` | `AnswerCondition` (4 categories) | `categorical()` | **`data = "memory"`**; `~ Condition + (1 + Condition \| Participant) + (1 + Condition \| Item)`, `Condition` has a 4th level `New Items`; 220 × 96 = 21,120 rows |
 
 Priors start from `cogmod_priors(f, data)` for the cogmod families (since
 cogmod 0.3.3 dev of 2026-09-20 it covers CHOCO and Discrete-Beta:
@@ -240,7 +329,10 @@ Nothing the family helper set is overwritten. Starting values are
 `cogmod_inits(f, data)` for the cogmod families (a data-informed init
 function, one draw per chain) and `init = 0` for native ones.
 
-Adding a model is one entry in `models.R` and nothing else.
+Adding a model is one entry in `models.R` and nothing else. If it needs a
+data file other than the Phase-1 trial file, set its `data` slot and, for a
+new file, add a loader branch in `fit_model.R` and a `fa_prepare_*()` in
+`models.R` (as `data = "memory"` does).
 
 ### The cogmod API changed under these models
 
@@ -281,11 +373,18 @@ in your own `~/.ssh/config`.
 ## Running from a second cluster account
 
 The per-user CPU quota is per account, so a colleague with their own Artemis
-account and a clone of this repo can fit other models at the same time. Their
-setup, once:
+account and a clone of this repo can fit other models at the same time.
+
+A second account is no longer the only way to get a second allowance: `dmm56`
+can also submit to `sussexneuro`, whose quota is independent of `general`'s and
+`long`'s (see "Partitions and resource limits"). The two stack, so the widest
+arrangement is a colleague on `general` plus a `--partition=sussexneuro` job
+here.
+
+Their setup, once:
 
 ```bash
-FA_HPC_USER=oc236 bash analysis/server/setup-ssh.sh
+bash <Lab>/hpc/scripts/setup-ssh.sh oc236      # lab hub script
 echo 'FA_HPC_USER=oc236' > analysis/server/hpc.local   # gitignored
 cd analysis/server
 ./hpc check && ./hpc setup && ./hpc install && ./hpc precompile && ./hpc push
@@ -294,9 +393,9 @@ cd analysis/server
 `hpc.local` is sourced by `./hpc` before any default is applied and is in
 `.gitignore`. Add `FA_HPC_GROUP=...` if they are not in the `psych` tree.
 
-You cannot read another account's fits on the cluster (every user directory is
-`drwx------`), so the files are handed over: they `./hpc combine` and
-`./hpc pull`, then send `combined/<model>.rds` by a file-transfer service.
+You cannot read another account's fits on the cluster, so the files are handed
+over ([hub `jobs.md#sharing-results-between-accounts`](https://github.com/RealityBending/Lab/blob/main/hpc/jobs.md#sharing-results-between-accounts)):
+they `./hpc combine` and `./hpc pull`, then send `combined/<model>.rds`.
 Combined FakeArt fits run 0.2 to 1 GB each (`ls -lh analysis/models/`).
 
 ## Run-shaping variables
@@ -307,11 +406,11 @@ everything else keeps the script default.
 | variable | default | purpose |
 | --- | --- | --- |
 | `FA_NPARTICIPANTS` | `all` | subset size for tests, e.g. `20` |
-| `FA_WARMUP` | `5000` | warmup iterations per chain |
-| `FA_SAMPLES` | `800` | post-warmup iterations per chain |
-| `FA_THIN` | `2` | keep every n-th draw |
+| `FA_WARMUP` | `1000` | warmup iterations per chain |
+| `FA_SAMPLES` | `500` | post-warmup iterations per chain |
+| `FA_THIN` | `1` | keep every n-th draw |
 | `FA_CHAINS` | `2` | chains per array task; threads per chain is `cpus / chains` |
-| `FA_DATA` | `github` | or a local directory holding the two CSVs (laptop tests) |
+| `FA_DATA` | `github` | or a local directory holding the CSVs (`data_task`, `data_eyetracking`, `data_memory_task`; laptop tests) |
 | `FA_FILE_REFIT` | `never` | `always` forces a clean refit |
 | `FA_CRITERION` | `loo` | `waic` is cheaper; `none` skips it |
 | `FA_CRITERION_NDRAWS` | all | subsample the draws the criterion uses |
@@ -321,39 +420,35 @@ everything else keeps the script default.
 
 ## Precompile the CmdStan header before a cold array
 
-Run `./hpc precompile` once after any change to the toolchain, the cmdstan
-version, or the `stan_model_args` in `fit_model.R`. The precompiled header
-lives in `~/.cmdstan/<version>/stan/src/stan/model/model_header.hpp.gch/`
-(a directory, one ~800 MB variant per flag combination), so it is **per
-account, not per project**: if the IGComputational fits already built the
-`threads_nochecks` variant on this account, this is a no-op. If it is missing
-when an array starts, every task races to build it and all but one die with
-`while reading precompiled header: No such file or directory`, leaving a
-corrupt variant that blocks all compilation until
-`cmdstanr::rebuild_cmdstan()`. Keep `precompile.R`'s `cpp_options` identical to
-`fit_model.R`'s.
+Run `./hpc precompile` once after any change to the toolchain, the CmdStan
+version, or the `stan_model_args` in `fit_model.R`, and keep `precompile.R`'s
+`cpp_options` identical to `fit_model.R`'s. The header is per **account**, so
+if the IGComputational fits already built the `threads_nochecks` variant this
+is a no-op. Why it matters: [hub `toolchain.md#precompiled-header`](https://github.com/RealityBending/Lab/blob/main/hpc/toolchain.md#precompiled-header).
 
 ## Partitions and resource limits
 
-Per-user quotas on Artemis (verified with `sacctmgr` on 2026-09-17 for the
-IGC project; the cluster, not the project, sets them):
+Quotas, `--time` policy and the `sussexneuro` rules are in
+[hub `artemis.md`](https://github.com/RealityBending/Lab/blob/main/hpc/artemis.md) and [`jobs.md#wall-time`](https://github.com/RealityBending/Lab/blob/main/hpc/jobs.md#wall-time).
+For this project:
 
-| partition | max runtime | max CPUs | max RAM |
-| --- | --- | --- | --- |
-| `short` | 2 hours | 550 | 3.6 TB |
-| `general` (default) | 8 hours | 400 | 2.7 TB |
-| `long` | 8 days | **140** | 900 GB |
-| `verylong` | 30 days | 70 | 900 GB |
+- **`general` is the default choice**: every model fits in its 8 h
+  (`AGENT.md` §3.2b), and its 400 CPUs take six models at once.
+- `long`'s 140 CPUs take `floor(140 / 16) = 8` tasks, i.e. two FakeArt models
+  at the default `--array=1-4` — and **FakeArt and IllusionGameComputational
+  run as the same cluster account**, so an IGC array holding `long` is holding
+  it against FakeArt too.
+- **`sussexneuro`** is the overflow, not the default (`AGENT.md` §3.6): a
+  FakeArt array is 4 x 16 = 64 CPUs for a few hours, but it is borrowed from a
+  group pool that our own IGC `gam_ddm5` also draws on. Look first:
 
-Every partition has `DefaultTime=NONE`, so a job that passes **no `--time`**
-gets the partition's maximum. Choosing the partition is the whole wall-clock
-decision; do not set `--time` below it for a job whose runtime is a projection,
-because a task killed at the wall loses its entire chain (Stan cannot
-checkpoint mid-run).
+  ```bash
+  ./hpc sh "squeue -p sussexneuro -o '%.10i %.10u %.8T %.5C %.12L'"
+  ./hpc fit Entropy --partition=sussexneuro
+  ```
 
-`long`'s 140 CPUs cap concurrency at `floor(140 / 16) = 8` tasks, i.e. one
-FakeArt model at a time at the default `--array=1-8`. Anything beyond it sits
-in `PENDING (QOSMaxCpuPerUserLimit)`.
+- If jobs pend everywhere, check the account-wide 550-CPU cap before
+  switching partition (`AGENT.md` §3.6a).
 
 ## R environment on the cluster
 
@@ -377,31 +472,18 @@ built for R 4.2, which is why they needed a manual `install.packages()` on the
 login node. The `.slurm` files no longer depend on `~/.bashrc` at all: SLURM
 does not source it, and they set `R_LIBS` explicitly.
 
-Two Artemis quirks the `.slurm` files work around:
-
-1. SLURM runs batch scripts in a *non-interactive* shell where `module` is not
-   defined, so they source `/etc/profile.d/lmod.sh` first.
-2. Compute nodes only get `/opt/ohpc/pub/modulefiles` on `MODULEPATH`; the
-   EasyBuild tree holding R/CmdStanR is on the login node's path only. The
-   scripts `module use /mnt/shared/easybuild/modules/all` before `module load`.
+The `.slurm` files handle the cluster's module quirks
+([hub `toolchain.md#modules`](https://github.com/RealityBending/Lab/blob/main/hpc/toolchain.md#modules)).
 
 `.gitattributes` forces LF on `*.slurm`, `*.sh`, `hpc` and `analysis/server/*.R`
 so a CRLF file never reaches the cluster (which fails with `bad interpreter`).
 `./hpc push` strips CR as well.
 
-## If SSH starts refusing connections
-
-`kex_exchange_identification: read: Connection reset` means sshd is
-rate-limiting a burst of connections, not that the VPN dropped. `./hpc push`
-sends everything through a single tar pipe for exactly this reason; if you do
-trip it, wait a couple of minutes and retry.
-
 ## Files
 
 | file | role |
 | --- | --- |
-| `hpc` | the driver: check/setup/push/install/precompile/models/fit/combine/queue/progress/log/ls/pull/cancel/sh |
-| `setup-ssh.sh` | per-machine key + `~/.ssh/config` entry |
+| `hpc` | the driver: check/setup/push/install/precompile/models/fit/combine/extract/queue/progress/log/ls/pull/cancel/sh |
 | `install_pkgs.R` | builds the (shared) project R library (`./hpc install`) |
 | `precompile.R` | builds the CmdStan precompiled header (`./hpc precompile`) |
 | `models.R` | **the model registry**: one entry per model, plus data prep, priors, inits |
@@ -409,6 +491,9 @@ trip it, wait a couple of minutes and retry.
 | `fit.slurm` | array job for the above |
 | `combine_model.R` | merges one model's shards into `combined/<model>.rds`, adds `loo` |
 | `combine.slurm` | job for the above |
+| `estimates.R` | **the post-processing**: what a fit is turned into, plus the two registries (`outcome_info`, `memory_info`). Shared with `3_models.qmd` and `4_memory.qmd`, which `source("server/estimates.R")` it |
+| `extract_model.R` | runs `get_estimates()` on one combined fit -> `estimates/<model>.rds` |
+| `extract.slurm` | job for the above |
 | `AGENT.md` | what is FakeArt-specific, what has been measured, what is open |
 | `hpc.local` | **gitignored**: this machine's account settings, e.g. `FA_HPC_USER=oc236` |
-| `server.md` | **gitignored**: account, keys, OOD URLs |
+| `server.md` | **gitignored**: local notes on this project's cluster dirs |
