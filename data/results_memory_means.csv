@@ -40,3 +40,19 @@
 "MemoryCondition","Condition","New Items","Human Forgery",0.0167052177860143,0.013743493103634,0.0202865101966033
 "MemoryCondition","Condition","New Items","Human Original",0.0602526774366843,0.0525780933326708,0.0692329624655406
 "MemoryCondition","Condition","New Items","Not recognized",0.886412905257751,0.870093392579088,0.899343546217147
+"MemoryConditionBelief","Belief","AI Copy","AI-Generated",0.158330366843159,0.143659140618801,0.173088497419243
+"MemoryConditionBelief","Belief","AI Copy","Human Forgery",0.0627711143809881,0.0536707824244856,0.0728766851633899
+"MemoryConditionBelief","Belief","AI Copy","Human Original",0.195933922980029,0.180514341868085,0.212630612174858
+"MemoryConditionBelief","Belief","AI Copy","Not recognized",0.582750737977886,0.56410394572705,0.601730184716934
+"MemoryConditionBelief","Belief","AI Original","AI-Generated",0.188017002479328,0.172395598201659,0.205293424738769
+"MemoryConditionBelief","Belief","AI Original","Human Forgery",0.052154957866843,0.0425962727475676,0.0624907978091996
+"MemoryConditionBelief","Belief","AI Original","Human Original",0.190892896451276,0.174548221102048,0.207932759661716
+"MemoryConditionBelief","Belief","AI Original","Not recognized",0.568670792874321,0.548428463653802,0.587657431370758
+"MemoryConditionBelief","Belief","Human Forgery","AI-Generated",0.139768529026884,0.121955338547694,0.158947856844136
+"MemoryConditionBelief","Belief","Human Forgery","Human Forgery",0.0726273994102121,0.0598056344260156,0.0867047108643295
+"MemoryConditionBelief","Belief","Human Forgery","Human Original",0.22466208741756,0.204246305620502,0.246529037278402
+"MemoryConditionBelief","Belief","Human Forgery","Not recognized",0.562588848330655,0.537823961469123,0.587467973255972
+"MemoryConditionBelief","Belief","Human Original","AI-Generated",0.118715643144949,0.109600343697994,0.128472130167658
+"MemoryConditionBelief","Belief","Human Original","Human Forgery",0.0707172076428295,0.0638494210109649,0.0780524934465105
+"MemoryConditionBelief","Belief","Human Original","Human Original",0.246062406337893,0.234438926012582,0.257634231046349
+"MemoryConditionBelief","Belief","Human Original","Not recognized",0.564499286838456,0.55136342211152,0.577683415535565

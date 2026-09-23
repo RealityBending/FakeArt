@@ -128,11 +128,61 @@ mediation_grid <- sort(unique(round(c(seq(-0.6, 0.6, by = 0.05), seq(-0.12, 0.12
 mediation_info <- list(
   RealityBeauty = list(
     label = "Syntheticness by Phase-1 Beauty", family = "CHOCO",
-    outcome = "Reality", mediator = "Beauty_w", grid = mediation_grid
+    outcome = "Reality", mediator = "Beauty_w", grid = mediation_grid,
+    dpars = c("mu", "confright", "confleft")
   ),
   AuthenticityBeauty = list(
     label = "Authenticity by Phase-1 Beauty", family = "CHOCO",
-    outcome = "Authenticity", mediator = "Beauty_w", grid = mediation_grid
+    outcome = "Authenticity", mediator = "Beauty_w", grid = mediation_grid,
+    dpars = c("mu", "confright", "confleft")
+  ),
+  # Robustness: + label-free follow-up beauty, held at 0 (its participant
+  # mean) in every prediction; its own slope is extracted as a covariate slope.
+  RealityBeautyControl = list(
+    label = "Syntheticness by Phase-1 Beauty, controlling follow-up Beauty", family = "CHOCO",
+    outcome = "Reality", mediator = "Beauty_w", grid = mediation_grid,
+    dpars = c("mu", "confright", "confleft"), covariates = c(Beauty2_w = 0)
+  ),
+  AuthenticityBeautyControl = list(
+    label = "Authenticity by Phase-1 Beauty, controlling follow-up Beauty", family = "CHOCO",
+    outcome = "Authenticity", mediator = "Beauty_w", grid = mediation_grid,
+    dpars = c("mu", "confright", "confleft"), covariates = c(Beauty2_w = 0)
+  ),
+  # Not a mediation: the same grid machinery with `by` = Type (Old / New
+  # items), for the slope of artificiality on follow-up beauty per Type
+  # (grid_slopes()); mediation_effects() does not apply.
+  ArtificialityBeauty = list(
+    label = "Perceived Artificiality by follow-up Beauty", family = "CHOCO",
+    outcome = "PerceivedArtificiality", mediator = "Beauty2_w", by = "Type",
+    grid = mediation_grid, dpars = c("mu", "confright", "confleft")
+  )
+)
+
+# Joint appraisal mediators (models.R, RealityAppraisal / AuthenticityAppraisal):
+# get_appraisal_estimates() / appraisal_effects().
+appraisal_info <- list(
+  RealityAppraisal = list(
+    label = "Syntheticness by Phase-1 appraisal", family = "CHOCO", outcome = "Reality",
+    mediators = c("Beauty_w", "Valence_w", "Meaning_w", "Worth_w"), dpars = c("mu", "confright", "confleft")
+  ),
+  AuthenticityAppraisal = list(
+    label = "Authenticity by Phase-1 appraisal", family = "CHOCO", outcome = "Authenticity",
+    mediators = c("Beauty_w", "Valence_w", "Meaning_w", "Worth_w"), dpars = c("mu", "confright", "confleft")
+  )
+)
+
+# Item-level determinants (models.R, RealityItems / AuthenticityItems):
+# get_items_estimates().
+items_info <- list(
+  RealityItems = list(
+    label = "Syntheticness by item properties", family = "CHOCO", outcome = "Reality",
+    norms = c("Norms_Liking_z", "Norms_Valence_z", "Norms_Arousal_z", "Norms_Complexity_z", "Norms_Familiarity_z"),
+    dpars = c("mu", "confright", "confleft")
+  ),
+  AuthenticityItems = list(
+    label = "Authenticity by item properties", family = "CHOCO", outcome = "Authenticity",
+    norms = c("Norms_Liking_z", "Norms_Valence_z", "Norms_Arousal_z", "Norms_Complexity_z", "Norms_Familiarity_z"),
+    dpars = c("mu", "confright", "confleft")
   )
 )
 
@@ -212,20 +262,20 @@ get_convergence <- function(m) {
 
 # Marginal means ------------------------------------------------------------
 
-get_means <- function(m) {
+get_means <- function(m, by = "Condition") {
   if (m$family$family == "cumulative") {
     # Ordinal: probability of each category per condition
-    out <- estimate_means(m, by = "Condition", predict = "response", backend = "marginaleffects",
+    out <- estimate_means(m, by = by, predict = "response", backend = "marginaleffects",
                           test = NULL, iterations = 500) |>
       strip_model() |>
       as.data.frame()
   } else {
-    out <- estimate_means(m, by = "Condition", predict = "response", backend = "emmeans", test = NULL) |>
+    out <- estimate_means(m, by = by, predict = "response", backend = "emmeans", test = NULL) |>
       strip_model() |>
       as.data.frame()
   }
   names(out)[names(out) %in% c("Probability", "Mean", "Median")] <- "Estimate"
-  out[intersect(c("Condition", "Response", "Estimate", "CI_low", "CI_high"), names(out))]
+  out[intersect(c(by, "Response", "Estimate", "CI_low", "CI_high"), names(out))]
 }
 
 
@@ -380,10 +430,16 @@ get_estimates <- function(m, outcome, verbose = TRUE) {
   if (!is.null(mediation_info[[outcome]])) {
     return(get_mediation_estimates(m, outcome, verbose = verbose))
   }
+  if (!is.null(appraisal_info[[outcome]])) {
+    return(get_appraisal_estimates(m, outcome, verbose = verbose))
+  }
+  if (!is.null(items_info[[outcome]])) {
+    return(get_items_estimates(m, outcome, verbose = verbose))
+  }
   info <- outcome_info[[outcome]]
   if (is.null(info)) {
     stop("no registry entry for '", outcome, "' -- add one to outcome_info ",
-         "(a 3_models.qmd outcome), memory_info (a 4_memory.qmd model) or mediation_info ",
+         "(a 3_models.qmd outcome), memory_info (a 4_memory.qmd model), mediation_info, appraisal_info or items_info ",
          "in estimates.R before extracting it", call. = FALSE)
   }
   backend <- if (is.null(info$backend)) "emmeans" else info$backend
@@ -557,6 +613,7 @@ memory_observed <- function(m, by) {
 get_mediation_estimates <- function(m, outcome, verbose = TRUE) {
   info <- mediation_info[[outcome]]
   med <- info$mediator
+  by <- if (is.null(info$by)) "Condition" else info$by
   step <- function(what) if (verbose) cat("**", outcome, "-", what, ":", format(Sys.time()), "\n")
 
   est <- list(
@@ -564,6 +621,7 @@ get_mediation_estimates <- function(m, outcome, verbose = TRUE) {
     label = info$label,
     family = info$family,
     mediator = med,
+    by = by,
     created = Sys.time(),
     ndraws = brms::ndraws(m),
     nchains = brms::nchains(m)
@@ -573,26 +631,92 @@ get_mediation_estimates <- function(m, outcome, verbose = TRUE) {
   est$diag <- get_diagnostics(m, outcome, family = info$family)
   est$convergence <- get_convergence(m)
 
-  step("marginal means (at mediator = 0)")
-  est$means <- get_means(m)
+  step(paste0("marginal means (", by, ", covariates at 0)"))
+  est$means <- get_means(m, by = by)
 
-  step("contrasts (Condition, at mediator = 0)")
-  rez <- get_contrasts(m, outcome, contrast = "Condition")
+  step(paste0("contrasts (", by, ", covariates at 0)"))
+  rez <- get_contrasts(m, outcome, contrast = by)
   est$contrasts <- rez$dat_con
   est$contrasts_credible <- rez$rez_con
 
   step("predictions over the mediator grid")
   d <- model_data(m)
-  grid <- expand.grid(Condition = levels(d$Condition), x = info$grid)
-  names(grid)[2] <- med
-  grid$Condition <- factor(grid$Condition, levels = levels(d$Condition))
+  lv <- levels(d[[by]])
+  grid <- expand.grid(g = lv, x = info$grid)
+  names(grid) <- c(by, med)
+  grid[[by]] <- factor(grid[[by]], levels = lv)
+  for (cv in names(info$covariates)) grid[[cv]] <- info$covariates[[cv]]
   est$grid <- grid
   est$grid_draws <- brms::posterior_epred(m, newdata = grid, re_formula = NA) # draws x rows
+  # The same for the distributional parameters (response scale of each dpar),
+  # to show whether the label and beauty act on the choice (mu: probability of
+  # the right-hand side) or on the confidence within a side
+  est$grid_dpars <- lapply(setNames(nm = info$dpars), function(par) {
+    brms::posterior_epred(m, newdata = grid, re_formula = NA, dpar = par)
+  })
+
+  # Other covariates (e.g. Beauty2_w): predictions at their value +/- h, per
+  # level of `by`, mediator at 0 -> covariate_slopes() in the notebook
+  est$covariate_grid <- lapply(setNames(nm = names(info$covariates)), function(cv) {
+    h <- 0.05
+    g2 <- expand.grid(g = lv, delta = c(-h, h))
+    names(g2)[1] <- by
+    g2[[by]] <- factor(g2[[by]], levels = lv)
+    g2[[med]] <- 0
+    for (o in names(info$covariates)) g2[[o]] <- info$covariates[[o]]
+    g2[[cv]] <- g2[[cv]] + g2$delta
+    list(grid = g2, draws = brms::posterior_epred(m, newdata = g2, re_formula = NA),
+         dpars = lapply(setNames(nm = info$dpars), function(par) {
+           brms::posterior_epred(m, newdata = g2, re_formula = NA, dpar = par)
+         }))
+  })
 
   est$mediator_means <- stats::aggregate(
-    stats::as.formula(paste(med, "~ Participant + Condition")), data = d, FUN = mean
+    stats::as.formula(paste(med, "~ Participant +", by)), data = d, FUN = mean
   )
   est
+}
+
+# Slope of the prediction on the mediator at 0, per level of `by`, and the
+# pairwise differences between levels, per 0.1 of the mediator, x100 (% of the
+# outcome slider, or percentage points of a dpar). For models where
+# mediation_effects() does not apply (ArtificialityBeauty: by = Type).
+grid_slopes <- function(est, par = "response", h = 0.005) {
+  by <- if (is.null(est$by)) "Condition" else est$by
+  g <- est$grid
+  P <- if (par == "response") est$grid_draws else est$grid_dpars[[par]]
+  lv <- levels(g[[by]])
+  at <- function(l, x) P[, which(g[[by]] == l & abs(g[[est$mediator]] - x) < 1e-9)]
+  slope <- lapply(setNames(nm = lv), function(l) (at(l, h) - at(l, -h)) / (2 * h) * 0.1 * 100)
+  describe <- function(x) {
+    ci <- bayestestR::hdi(x, ci = 0.95)
+    data.frame(Median = stats::median(x), CI_low = ci$CI_low, CI_high = ci$CI_high,
+               pd = as.numeric(bayestestR::p_direction(x)))
+  }
+  pairs <- utils::combn(lv, 2)
+  rbind(
+    do.call(rbind, lapply(lv, function(l) cbind(Level = l, describe(slope[[l]])))),
+    do.call(rbind, lapply(seq_len(ncol(pairs)), function(k) {
+      cbind(Level = paste(pairs[2, k], "-", pairs[1, k]), describe(slope[[pairs[2, k]]] - slope[[pairs[1, k]]]))
+    }))
+  )
+}
+
+# The same for a covariate held constant in the grid (est$covariate_grid),
+# per 0.1 of the covariate.
+covariate_slopes <- function(est, covariate, par = "response") {
+  by <- if (is.null(est$by)) "Condition" else est$by
+  cg <- est$covariate_grid[[covariate]]
+  P <- if (par == "response") cg$draws else cg$dpars[[par]]
+  g <- cg$grid
+  lv <- levels(g[[by]])
+  h <- max(g$delta)
+  do.call(rbind, lapply(lv, function(l) {
+    x <- (P[, g[[by]] == l & g$delta > 0] - P[, g[[by]] == l & g$delta < 0]) / (2 * h) * 0.1 * 100
+    ci <- bayestestR::hdi(x, ci = 0.95)
+    data.frame(Level = l, Median = stats::median(x), CI_low = ci$CI_low, CI_high = ci$CI_high,
+               pd = as.numeric(bayestestR::p_direction(x)))
+  }))
 }
 
 # Mediation of the label effect by the mediator, from get_mediation_estimates().
@@ -608,11 +732,15 @@ get_mediation_estimates <- function(m, outcome, verbose = TRUE) {
 # approximation for a non-linear model; the grid step around 0 is 0.005.
 # Slopes: dE[Y]/dm at m = 0 per condition, and their differences (the
 # interaction on the response scale), per 0.1 of the mediator (10% of the
-# beauty slider). Everything is x100, i.e. in % of the belief slider.
-mediation_effects <- function(est, seed = 1234, h = 0.005) {
+# beauty slider). Everything is x100, i.e. in % of the belief slider (for
+# par = "mu" / "confright" / "confleft": in percentage points of that
+# parameter, from est$grid_dpars). The bootstrap of M_c uses the same seed
+# for every par, so the parameters share the same mediator draws.
+mediation_effects <- function(est, par = "response", seed = 1234, h = 0.005) {
   med <- est$mediator
   g <- est$grid
-  P <- est$grid_draws
+  P <- if (par == "response") est$grid_draws else est$grid_dpars[[par]]
+  if (is.null(P)) stop("no grid predictions for '", par, "' -- re-run ./hpc extract ", est$outcome, call. = FALSE)
   n <- nrow(P)
   conds <- levels(g$Condition)
 
@@ -664,6 +792,225 @@ mediation_effects <- function(est, seed = 1234, h = 0.005) {
   )
 
   list(effects = effects, slopes = slopes, mediator_draws = M)
+}
+
+
+# Joint appraisal mediators -------------------------------------------------
+# Belief ~ Condition * (Beauty_w + Valence_w + Meaning_w + Worth_w). A grid
+# over four mediators is out of the question, so the decomposition uses a
+# handful of population-level predictions (re_formula = NA), per draw:
+#   base      every condition at every condition's mean mediator vector M_c
+#             (the mean over participants of their per-condition means)
+#   slope     every condition at M_c0 +/- h on one mediator at a time, for
+#             every reference condition c0 (the slope of mediator k under
+#             condition c, evaluated where c0 leaves the mediators)
+#   cue       every condition at 0 +/- h on one mediator (the slope at the
+#             participant's average appraisal, for the "cue strength" tables)
+# appraisal_effects() combines them with a participant bootstrap of M_c.
+
+get_appraisal_estimates <- function(m, outcome, verbose = TRUE) {
+  info <- appraisal_info[[outcome]]
+  meds <- info$mediators
+  step <- function(what) if (verbose) cat("**", outcome, "-", what, ":", format(Sys.time()), "\n")
+
+  est <- list(outcome = outcome, label = info$label, family = info$family,
+              mediators = meds, by = "Condition", created = Sys.time(),
+              ndraws = brms::ndraws(m), nchains = brms::nchains(m))
+
+  step("diagnostics")
+  est$diag <- get_diagnostics(m, outcome, family = info$family)
+  est$convergence <- get_convergence(m)
+
+  step("marginal means and contrasts (mediators at 0)")
+  est$means <- get_means(m)
+  rez <- get_contrasts(m, outcome, contrast = "Condition")
+  est$contrasts <- rez$dat_con
+  est$contrasts_credible <- rez$rez_con
+
+  step("prediction points")
+  d <- model_data(m)
+  lv <- levels(d$Condition)
+  pm <- stats::aggregate(d[meds], by = list(Participant = d$Participant, Condition = d$Condition), FUN = mean)
+  est$mediator_means <- pm
+  M <- t(sapply(lv, function(cnd) colMeans(pm[pm$Condition == cnd, meds, drop = FALSE])))
+  h <- 0.01
+  rows <- list()
+  add <- function(type, cond, at, ref = NA, med = NA, delta = 0) {
+    r <- data.frame(type = type, Condition = cond, ref = ref, med = med, delta = delta)
+    for (k in meds) r[[k]] <- at[[k]]
+    rows[[length(rows) + 1]] <<- r
+  }
+  for (cnd in lv) for (c0 in lv) add("base", cnd, as.list(M[c0, ]), ref = c0)
+  for (cnd in lv) for (c0 in lv) for (k in meds) for (dl in c(-h, h)) {
+    at <- as.list(M[c0, ])
+    at[[k]] <- at[[k]] + dl
+    add("slope", cnd, at, ref = c0, med = k, delta = dl)
+  }
+  zero <- as.list(setNames(rep(0, length(meds)), meds))
+  for (cnd in lv) for (k in meds) for (dl in c(-h, h)) {
+    at <- zero
+    at[[k]] <- dl
+    add("cue", cnd, at, med = k, delta = dl)
+  }
+  pts <- do.call(rbind, rows)
+  pts$Condition <- factor(pts$Condition, levels = lv)
+  est$points <- pts
+  est$points_draws <- brms::posterior_epred(m, newdata = pts, re_formula = NA)
+  est$points_dpars <- lapply(setNames(nm = info$dpars), function(par) {
+    brms::posterior_epred(m, newdata = pts, re_formula = NA, dpar = par)
+  })
+  est
+}
+
+# Decomposition of each contrast c1 - c0, x100 (% of the belief slider, or
+# percentage points of a dpar):
+#   Direct            E[Y | c1, M_c0] - E[Y | c0, M_c0]
+#   Indirect (k)      slope_k(c1 | M_c0) x (M_k,c1 - M_k,c0): mediator k moved
+#                     as the label moves it, the others held where c0 leaves them
+#   Indirect (joint)  the sum over mediators (first-order; the exact
+#                     E[Y | c1, M_c1] - E[Y | c1, M_c0] at the mean M is
+#                     returned as "Indirect (joint, exact)" for comparison)
+#   Total             Direct + Indirect (joint)
+#   Mediator (k)      M_k,c1 - M_k,c0, in % of that rating's scale
+# M_c is bootstrapped over participants (one resample per draw), so the label
+# -> mediator paths carry their uncertainty. `cues`: slope of each mediator
+# under each condition at the participant's average appraisal, per +10% of
+# the rating, and the differences between conditions.
+appraisal_effects <- function(est, par = "response", seed = 1234) {
+  P <- if (par == "response") est$points_draws else est$points_dpars[[par]]
+  pts <- est$points
+  meds <- est$mediators
+  lv <- levels(pts$Condition)
+  n <- nrow(P)
+  col <- function(...) {
+    f <- list(...)
+    i <- which(Reduce(`&`, lapply(names(f), function(v) !is.na(pts[[v]]) & pts[[v]] == f[[v]])))
+    stopifnot(length(i) == 1)
+    P[, i]
+  }
+  h <- max(pts$delta)
+
+  pm <- est$mediator_means
+  set.seed(seed)
+  parts <- unique(as.character(pm$Participant))
+  boot <- lapply(seq_len(n), function(k) sample(parts, replace = TRUE))
+  Mb <- lapply(setNames(nm = lv), function(cnd) {
+    sub <- pm[pm$Condition == cnd, ]
+    X <- as.matrix(sub[meds])
+    rownames(X) <- as.character(sub$Participant)
+    # indexing by name keeps the duplicates of a with-replacement resample
+    t(vapply(boot, function(b) colMeans(X[b[b %in% rownames(X)], , drop = FALSE]), numeric(length(meds))))
+  })
+
+  describe <- function(x) {
+    ci <- bayestestR::hdi(x, ci = 0.95)
+    data.frame(Median = stats::median(x), CI_low = ci$CI_low, CI_high = ci$CI_high,
+               pd = as.numeric(bayestestR::p_direction(x)))
+  }
+  pairs <- strsplit(contrast_order, " - ", fixed = TRUE)
+  effects <- do.call(rbind, lapply(pairs, function(p) {
+    c1 <- p[1]
+    c0 <- p[2]
+    direct <- col(type = "base", Condition = c1, ref = c0) - col(type = "base", Condition = c0, ref = c0)
+    exact <- col(type = "base", Condition = c1, ref = c1) - col(type = "base", Condition = c1, ref = c0)
+    ind <- lapply(setNames(nm = meds), function(k) {
+      slope <- (col(type = "slope", Condition = c1, ref = c0, med = k, delta = h) -
+                col(type = "slope", Condition = c1, ref = c0, med = k, delta = -h)) / (2 * h)
+      slope * (Mb[[c1]][, k] - Mb[[c0]][, k])
+    })
+    joint <- Reduce(`+`, ind)
+    out <- rbind(
+      cbind(Path = "Total", describe(100 * (direct + joint))),
+      cbind(Path = "Direct", describe(100 * direct)),
+      cbind(Path = "Indirect (joint)", describe(100 * joint)),
+      cbind(Path = "Indirect (joint, exact)", describe(100 * exact)),
+      do.call(rbind, lapply(meds, function(k) cbind(Path = paste0("Indirect (", sub("_w$", "", k), ")"), describe(100 * ind[[k]])))),
+      do.call(rbind, lapply(meds, function(k) cbind(Path = paste0("Mediator (", sub("_w$", "", k), ")"), describe(100 * (Mb[[c1]][, k] - Mb[[c0]][, k])))))
+    )
+    cbind(Contrast = paste(c1, "-", c0), out)
+  }))
+
+  cue <- lapply(setNames(nm = meds), function(k) lapply(setNames(nm = lv), function(cnd) {
+    (col(type = "cue", Condition = cnd, med = k, delta = h) - col(type = "cue", Condition = cnd, med = k, delta = -h)) / (2 * h) * 0.1 * 100
+  }))
+  cues <- do.call(rbind, lapply(meds, function(k) rbind(
+    do.call(rbind, lapply(lv, function(cnd) cbind(Mediator = sub("_w$", "", k), Condition = cnd, describe(cue[[k]][[cnd]])))),
+    do.call(rbind, lapply(pairs, function(p) cbind(Mediator = sub("_w$", "", k), Condition = paste(p[1], "-", p[2]), describe(cue[[k]][[p[1]]] - cue[[k]][[p[2]]]))))
+  )))
+
+  list(effects = effects, cues = cues)
+}
+
+
+# Item-level determinants ----------------------------------------------------
+# Belief ~ Condition + Style + z-scored VAPS norms. Per draw, population-level
+# predictions averaged over Condition x Style (balanced design): at 0 +/- 0.5
+# SD on each norm, the others at 0 (slope per SD), and at 0 per Style (style
+# means). Plus the usual diagnostics and Condition contrasts.
+
+get_items_estimates <- function(m, outcome, verbose = TRUE) {
+  info <- items_info[[outcome]]
+  norms <- info$norms
+  step <- function(what) if (verbose) cat("**", outcome, "-", what, ":", format(Sys.time()), "\n")
+
+  est <- list(outcome = outcome, label = info$label, family = info$family,
+              norms = norms, created = Sys.time(),
+              ndraws = brms::ndraws(m), nchains = brms::nchains(m))
+
+  step("diagnostics")
+  est$diag <- get_diagnostics(m, outcome, family = info$family)
+  est$convergence <- get_convergence(m)
+
+  step("contrasts (Condition)")
+  rez <- get_contrasts(m, outcome, contrast = "Condition")
+  est$contrasts <- rez$dat_con
+
+  step("prediction points")
+  d <- model_data(m)
+  base <- expand.grid(Condition = levels(d$Condition), Style = levels(d$Style))
+  for (nm in norms) base[[nm]] <- 0
+  rows <- list(cbind(base, type = "style", norm = NA, delta = 0))
+  for (nm in norms) for (dl in c(-0.5, 0.5)) {
+    b <- base
+    b[[nm]] <- dl
+    rows[[length(rows) + 1]] <- cbind(b, type = "norm", norm = nm, delta = dl)
+  }
+  pts <- do.call(rbind, rows)
+  pts$Condition <- factor(pts$Condition, levels = levels(d$Condition))
+  pts$Style <- factor(pts$Style, levels = levels(d$Style))
+  est$points <- pts
+  est$points_draws <- brms::posterior_epred(m, newdata = pts, re_formula = NA)
+  est$points_dpars <- lapply(setNames(nm = info$dpars), function(par) {
+    brms::posterior_epred(m, newdata = pts, re_formula = NA, dpar = par)
+  })
+  est
+}
+
+# Slope per +1 SD of each norm and the mean per Style (both averaged over
+# conditions and, for the slopes, styles), and all pairwise Style
+# differences, x100 (% of the belief slider, or percentage points of a dpar).
+items_effects <- function(est, par = "response") {
+  P <- if (par == "response") est$points_draws else est$points_dpars[[par]]
+  pts <- est$points
+  describe <- function(x) {
+    ci <- bayestestR::hdi(x, ci = 0.95)
+    data.frame(Median = stats::median(x), CI_low = ci$CI_low, CI_high = ci$CI_high,
+               pd = as.numeric(bayestestR::p_direction(x)))
+  }
+  avg <- function(i) rowMeans(P[, i, drop = FALSE])
+  slopes <- do.call(rbind, lapply(est$norms, function(nm) {
+    x <- avg(which(pts$type == "norm" & pts$norm %in% nm & pts$delta > 0)) -
+      avg(which(pts$type == "norm" & pts$norm %in% nm & pts$delta < 0))
+    cbind(Predictor = sub("_z$", "", sub("^Norms_", "", nm)), describe(100 * x))
+  }))
+  styles <- levels(pts$Style)
+  sm <- lapply(setNames(nm = styles), function(st) avg(which(pts$type == "style" & pts$Style == st)))
+  means <- do.call(rbind, lapply(styles, function(st) cbind(Style = st, describe(100 * sm[[st]]))))
+  pairs <- utils::combn(styles, 2)
+  diffs <- do.call(rbind, lapply(seq_len(ncol(pairs)), function(k) {
+    cbind(Contrast = paste(pairs[2, k], "-", pairs[1, k]), describe(100 * (sm[[pairs[2, k]]] - sm[[pairs[1, k]]])))
+  }))
+  list(slopes = slopes, style_means = means, style_contrasts = diffs)
 }
 
 # Participant-level indices ---------------------------------------------------

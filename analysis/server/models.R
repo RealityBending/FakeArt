@@ -109,6 +109,91 @@ fa_prepare_beauty <- function(d) {
   d
 }
 
+# Robustness: the same, plus the follow-up beauty of the same artwork
+# (Beauty2_w, centred within participant), rated after the debrief and
+# unaffected by the label -- a label-free measure of how appealing the work is
+# to that person. If the Beauty_w slope and the label effects hold with it in
+# the model, the mediation is not "some works are just more appealing".
+# Participants who returned for the follow-up only (217 with Phase-2 data).
+fa_rhs_beauty_control <- "Condition * Beauty_w + Beauty2_w + (Condition * Beauty_w + Beauty2_w | Participant) + (Condition + Beauty_w | Item)"
+fa_rhs_beauty_control_slim <- "Condition * Beauty_w + Beauty2_w + (Condition * Beauty_w + Beauty2_w | Participant) + (1 | Item)"
+fa_rhs_beauty_control_extreme <- "Condition * Beauty_w + Beauty2_w + (1 | Participant)"
+
+fa_prepare_beauty_control <- function(d) {
+  d <- d[!is.na(d$Beauty) & !is.na(d$Beauty2), ]
+  d$Beauty_w <- d$Beauty - stats::ave(d$Beauty, d$Participant)
+  d$Beauty2_w <- d$Beauty2 - stats::ave(d$Beauty2, d$Participant)
+  d
+}
+
+# Perceived artificiality of the items judged "new" in the follow-up, by their
+# follow-up beauty (Beauty2_w, centred within participant over those rows),
+# for never-seen (New) vs. previously labelled (Old) items: does the "less
+# beautiful -> more artificial" inference work without any label?
+fa_rhs_artificiality <- "Type * Beauty2_w + (Type * Beauty2_w | Participant) + (Beauty2_w | Item)"
+fa_rhs_artificiality_slim <- "Type * Beauty2_w + (Type * Beauty2_w | Participant) + (1 | Item)"
+fa_rhs_artificiality_extreme <- "Type * Beauty2_w + (1 | Participant)"
+
+fa_prepare_artificiality <- function(d) {
+  d <- d[!is.na(d$Beauty2), ]
+  d$Beauty2_w <- d$Beauty2 - stats::ave(d$Beauty2, d$Participant)
+  d
+}
+
+# Which component of the Phase-1 appraisal carries the label effect on the
+# belief? All four ratings of the same trial as joint mediators, each
+# rescaled to 0-1 (fa_prepare_data() turned Valence into 1..7, Meaning into
+# 0..6 and Worth into an ordered factor) and centred within participant.
+# Worth is the divergent test: a downstream valuation, not expected to carry
+# a unique route to the belief. Kept tractable: label x rating interactions
+# as fixed effects only; random slopes for the label and the four ratings
+# over participants, the label only over items; precisions and the extreme /
+# midpoint probabilities without the interactions.
+fa_appraisal <- c("Beauty_w", "Valence_w", "Meaning_w", "Worth_w")
+fa_rhs_appraisal <- paste0(
+  "Condition * (", paste(fa_appraisal, collapse = " + "), ")",
+  " + (Condition + ", paste(fa_appraisal, collapse = " + "), " | Participant) + (Condition | Item)"
+)
+fa_rhs_appraisal_slim <- paste0(
+  "Condition * (", paste(fa_appraisal, collapse = " + "), ") + (1 | Participant) + (1 | Item)"
+)
+fa_rhs_appraisal_extreme <- paste0(
+  "Condition + ", paste(fa_appraisal, collapse = " + "), " + (1 | Participant)"
+)
+
+fa_prepare_appraisal <- function(d) {
+  d <- d[!is.na(d$Beauty) & !is.na(d$Valence) & !is.na(d$Meaning) & !is.na(d$Worth), ]
+  center <- function(x) x - stats::ave(x, d$Participant)
+  d$Beauty_w <- center(d$Beauty)
+  d$Valence_w <- center((d$Valence - 1) / 6)
+  d$Meaning_w <- center(d$Meaning / 6)
+  d$Worth_w <- center((as.numeric(d$Worth) - 1) / 5)
+  d
+}
+
+# Item-level determinants: style and the VAPS norms (independent norming
+# sample, so label- and participant-free), each norm z-scored over the 48
+# items. Random label slopes over participants; item intercepts absorb what
+# the norms do not explain. Descriptive: 48 items, 8 item-level predictors.
+fa_norms <- c("Norms_Liking", "Norms_Valence", "Norms_Arousal", "Norms_Complexity", "Norms_Familiarity")
+fa_rhs_items <- paste0(
+  "Condition + Style + ", paste0(fa_norms, "_z", collapse = " + "),
+  " + (Condition | Participant) + (1 | Item)"
+)
+fa_rhs_items_slim <- paste0(
+  "Condition + Style + ", paste0(fa_norms, "_z", collapse = " + "), " + (1 | Participant) + (1 | Item)"
+)
+
+fa_prepare_items <- function(d) {
+  items <- unique(d[c("Item", fa_norms)])
+  for (n in fa_norms) {
+    z <- (items[[n]] - mean(items[[n]])) / stats::sd(items[[n]])
+    d[[paste0(n, "_z")]] <- z[match(d$Item, items$Item)]
+  }
+  d$Style <- factor(d$Style)
+  d
+}
+
 
 fa_models <- list(
 
@@ -273,6 +358,66 @@ fa_models <- list(
     outcome = "Authenticity",
     prepare = fa_prepare_beauty,
     formula = function() fa_choco_beauty("Authenticity")
+  ),
+
+  # RealityBeautyControl / AuthenticityBeautyControl -------------------------
+  # Robustness: + label-free follow-up beauty (fa_prepare_beauty_control()).
+  RealityBeautyControl = list(
+    outcome = "Reality",
+    prepare = fa_prepare_beauty_control,
+    formula = function() {
+      fa_choco("Reality", fa_rhs_beauty_control, fa_rhs_beauty_control_slim, fa_rhs_beauty_control_extreme)
+    }
+  ),
+  AuthenticityBeautyControl = list(
+    outcome = "Authenticity",
+    prepare = fa_prepare_beauty_control,
+    formula = function() {
+      fa_choco("Authenticity", fa_rhs_beauty_control, fa_rhs_beauty_control_slim, fa_rhs_beauty_control_extreme)
+    }
+  ),
+
+  # RealityAppraisal / AuthenticityAppraisal --------------------------------
+  # Beauty, valence, meaning and worth of the same Phase-1 trial as joint
+  # mediators (fa_prepare_appraisal()); extracted by get_appraisal_estimates().
+  RealityAppraisal = list(
+    outcome = "Reality",
+    prepare = fa_prepare_appraisal,
+    formula = function() {
+      fa_choco("Reality", fa_rhs_appraisal, fa_rhs_appraisal_slim, fa_rhs_appraisal_extreme)
+    }
+  ),
+  AuthenticityAppraisal = list(
+    outcome = "Authenticity",
+    prepare = fa_prepare_appraisal,
+    formula = function() {
+      fa_choco("Authenticity", fa_rhs_appraisal, fa_rhs_appraisal_slim, fa_rhs_appraisal_extreme)
+    }
+  ),
+
+  # RealityItems / AuthenticityItems ----------------------------------------
+  # Style + VAPS norms (fa_prepare_items()); extracted by get_items_estimates().
+  RealityItems = list(
+    outcome = "Reality",
+    prepare = fa_prepare_items,
+    formula = function() fa_choco("Reality", fa_rhs_items, fa_rhs_items_slim)
+  ),
+  AuthenticityItems = list(
+    outcome = "Authenticity",
+    prepare = fa_prepare_items,
+    formula = function() fa_choco("Authenticity", fa_rhs_items, fa_rhs_items_slim)
+  ),
+
+  # ArtificialityBeauty -----------------------------------------------------
+  # Follow-up file: every item judged "new" (the only ones asked about
+  # artificiality), new items (never labelled) and missed old items.
+  ArtificialityBeauty = list(
+    outcome = "PerceivedArtificiality",
+    data = "memory",
+    prepare = fa_prepare_artificiality,
+    formula = function() {
+      fa_choco("PerceivedArtificiality", fa_rhs_artificiality, fa_rhs_artificiality_slim, fa_rhs_artificiality_extreme)
+    }
   ),
 
   # FOLLOW-UP -- memory session ===============================================

@@ -1,421 +1,541 @@
 "Model","Predictor","Level1","Response1","Level2","Response2","Median","CI_low","CI_high","pd","Credible"
-"MemoryBelief","Belief","Human Forgery","Human Original","Human Original","Human Original",-0.0315708544372465,-0.0527430746668308,-0.00983089610925846,0.99625,TRUE
-"MemoryBelief","Belief","AI Original","Human Original","Human Forgery","Human Original",-0.0489432330358787,-0.0727456927881555,-0.0261408983742625,1,TRUE
-"MemoryBelief","Belief","AI Original","Human Original","Human Original","Human Original",-0.0802332641940372,-0.0994607767139133,-0.0615331663279469,1,TRUE
-"MemoryBelief","Belief","AI Copy","Human Original","Human Forgery","Human Original",-0.0377137863519867,-0.0616528212307492,-0.0146332732104152,0.9995,TRUE
-"MemoryBelief","Belief","AI Copy","Human Original","Human Original","Human Original",-0.06899476552071,-0.0878645903910584,-0.0509172573121865,1,TRUE
-"MemoryBelief","Belief","AI Copy","Human Original","AI Original","Human Original",0.0111255947557774,-0.00864883054231159,0.0307161732638024,0.864,FALSE
-"MemoryBelief","Belief","None","Human Original","Human Forgery","Human Original",-0.109367769056107,-0.137476209176452,-0.0815042442659295,1,TRUE
-"MemoryBelief","Belief","None","Human Original","Human Original","Human Original",-0.140774621407026,-0.166849880080045,-0.113899918203367,1,TRUE
-"MemoryBelief","Belief","None","Human Original","AI Original","Human Original",-0.0601342478168142,-0.0832507137672689,-0.0376903070254311,1,TRUE
-"MemoryBelief","Belief","None","Human Original","AI Copy","Human Original",-0.0712238372683327,-0.0950985944235627,-0.0479967502163106,1,TRUE
-"MemoryBelief","Belief","Human Forgery","Human Forgery","Human Forgery","Human Original",-0.0889704938482761,-0.114338523572778,-0.0636678280574707,1,TRUE
-"MemoryBelief","Belief","Human Forgery","Human Forgery","Human Original","Human Original",-0.1201551576661,-0.141428025408744,-0.0999004177202193,1,TRUE
-"MemoryBelief","Belief","Human Forgery","Human Forgery","AI Original","Human Original",-0.040177226886331,-0.0605943373667259,-0.0199453313510211,1,TRUE
-"MemoryBelief","Belief","Human Forgery","Human Forgery","AI Copy","Human Original",-0.0511441820833549,-0.0711636107444052,-0.0312830190248946,1,TRUE
-"MemoryBelief","Belief","Human Forgery","Human Forgery","None","Human Original",0.0200760906664908,-0.000385144372430272,0.0408560661556349,0.97375,FALSE
-"MemoryBelief","Belief","Human Original","Human Forgery","Human Forgery","Human Original",-0.100952960770424,-0.12385249419017,-0.0805140462151496,1,TRUE
-"MemoryBelief","Belief","Human Original","Human Forgery","Human Original","Human Original",-0.132376004902705,-0.152023875640159,-0.114537999541251,1,TRUE
-"MemoryBelief","Belief","Human Original","Human Forgery","AI Original","Human Original",-0.0521874694105244,-0.0698565586747236,-0.0357686176165096,1,TRUE
-"MemoryBelief","Belief","Human Original","Human Forgery","AI Copy","Human Original",-0.0636130431004007,-0.0809120660341199,-0.046068997241297,1,TRUE
-"MemoryBelief","Belief","Human Original","Human Forgery","None","Human Original",0.00823394616923471,-0.00797319765263184,0.0232755401105788,0.83325,FALSE
-"MemoryBelief","Belief","AI Original","Human Forgery","Human Forgery","Human Original",-0.114401126771053,-0.139009171397731,-0.0923493036680827,1,TRUE
-"MemoryBelief","Belief","AI Original","Human Forgery","Human Original","Human Original",-0.145929896099759,-0.166373842442414,-0.126913825257944,1,TRUE
-"MemoryBelief","Belief","AI Original","Human Forgery","AI Original","Human Original",-0.0657947707899277,-0.0866597748148159,-0.0467182222166034,1,TRUE
-"MemoryBelief","Belief","AI Original","Human Forgery","AI Copy","Human Original",-0.0767377601255417,-0.0962899005175332,-0.0582486963060607,1,TRUE
-"MemoryBelief","Belief","AI Original","Human Forgery","None","Human Original",-0.00553155052566581,-0.0224506038087921,0.0118803871089272,0.7435,FALSE
-"MemoryBelief","Belief","AI Copy","Human Forgery","Human Forgery","Human Original",-0.100739558566482,-0.124267390456265,-0.0780227218795471,1,TRUE
-"MemoryBelief","Belief","AI Copy","Human Forgery","Human Original","Human Original",-0.13205291352146,-0.153187182512862,-0.112980028497378,1,TRUE
-"MemoryBelief","Belief","AI Copy","Human Forgery","AI Original","Human Original",-0.0517776709981912,-0.0705376272360831,-0.0331728207650116,1,TRUE
-"MemoryBelief","Belief","AI Copy","Human Forgery","AI Copy","Human Original",-0.0629641101194467,-0.0833860525561819,-0.0431280846370041,1,TRUE
-"MemoryBelief","Belief","AI Copy","Human Forgery","None","Human Original",0.00834956146199793,-0.00957504803343888,0.0259914236118224,0.8175,FALSE
-"MemoryBelief","Belief","None","Human Forgery","Human Forgery","Human Original",-0.146740408457554,-0.172506224551243,-0.122634385625421,1,TRUE
-"MemoryBelief","Belief","None","Human Forgery","Human Original","Human Original",-0.17800941369731,-0.201294988909463,-0.155073985736248,1,TRUE
-"MemoryBelief","Belief","None","Human Forgery","AI Original","Human Original",-0.0977233894679199,-0.118213278960675,-0.0785650956819432,1,TRUE
-"MemoryBelief","Belief","None","Human Forgery","AI Copy","Human Original",-0.109024003998763,-0.130693028622566,-0.0889453276968221,1,TRUE
-"MemoryBelief","Belief","None","Human Forgery","None","Human Original",-0.0373894535329807,-0.0468545536673931,-0.0300223207409969,1,TRUE
-"MemoryBelief","Belief","Human Forgery","Human Forgery","Human Original","Human Forgery",0.0122710189569267,-0.00239296678213033,0.0277899256660905,0.94675,FALSE
-"MemoryBelief","Belief","AI Original","Human Forgery","Human Forgery","Human Forgery",-0.0256361823662481,-0.0431884987834531,-0.00889769844066384,0.99925,TRUE
-"MemoryBelief","Belief","AI Original","Human Forgery","Human Original","Human Forgery",-0.0137229159482017,-0.025777968819732,-0.000508086988735771,0.978,TRUE
-"MemoryBelief","Belief","AI Copy","Human Forgery","Human Forgery","Human Forgery",-0.0117684622775138,-0.0291464453321869,0.00520332118428249,0.91475,FALSE
-"MemoryBelief","Belief","AI Copy","Human Forgery","Human Original","Human Forgery",0.000377649724371848,-0.0120067817234571,0.0136255589415583,0.52575,FALSE
-"MemoryBelief","Belief","AI Copy","Human Forgery","AI Original","Human Forgery",0.0139652995912069,-0.00125242631243486,0.0295323286285355,0.963,FALSE
-"MemoryBelief","Belief","None","Human Forgery","Human Forgery","Human Forgery",-0.0578267892581596,-0.075975273370392,-0.0407501326421849,1,TRUE
-"MemoryBelief","Belief","None","Human Forgery","Human Original","Human Forgery",-0.0455407130838428,-0.0578126007290392,-0.0333661705570155,1,TRUE
-"MemoryBelief","Belief","None","Human Forgery","AI Original","Human Forgery",-0.0319021631349212,-0.0469890998462955,-0.0184959334820183,1,TRUE
-"MemoryBelief","Belief","None","Human Forgery","AI Copy","Human Forgery",-0.0460189047813948,-0.0613563038827102,-0.0313920618472066,1,TRUE
-"MemoryBelief","Belief","Human Forgery","Not recognized","Human Forgery","Human Original",0.425060463255295,0.361814039760588,0.482011528016083,1,TRUE
-"MemoryBelief","Belief","Human Forgery","Not recognized","Human Original","Human Original",0.393949949205498,0.334132242135787,0.448402032402496,1,TRUE
-"MemoryBelief","Belief","Human Forgery","Not recognized","AI Original","Human Original",0.474444126441619,0.419432355237595,0.523076761021575,1,TRUE
-"MemoryBelief","Belief","Human Forgery","Not recognized","AI Copy","Human Original",0.463432300413224,0.408427001337089,0.513366150668188,1,TRUE
-"MemoryBelief","Belief","Human Forgery","Not recognized","None","Human Original",0.534673643348571,0.493585071340533,0.571126393372218,1,TRUE
-"MemoryBelief","Belief","Human Original","Not recognized","Human Forgery","Human Original",0.426993331775799,0.371349556264673,0.475894229637339,1,TRUE
-"MemoryBelief","Belief","Human Original","Not recognized","Human Original","Human Original",0.395470628863668,0.339062561855346,0.447647144252052,1,TRUE
-"MemoryBelief","Belief","Human Original","Not recognized","AI Original","Human Original",0.475569871225071,0.425217408502344,0.520288869499079,1,TRUE
-"MemoryBelief","Belief","Human Original","Not recognized","AI Copy","Human Original",0.464379787284547,0.411872910974226,0.510839848776078,1,TRUE
-"MemoryBelief","Belief","Human Original","Not recognized","None","Human Original",0.536115537644242,0.499190087383,0.566099519476083,1,TRUE
-"MemoryBelief","Belief","AI Original","Not recognized","Human Forgery","Human Original",0.435034343955344,0.377604498804804,0.487910528830551,1,TRUE
-"MemoryBelief","Belief","AI Original","Not recognized","Human Original","Human Original",0.403919341611941,0.344832334152565,0.458803883329874,1,TRUE
-"MemoryBelief","Belief","AI Original","Not recognized","AI Original","Human Original",0.484312431009353,0.428041511675708,0.535182201687215,1,TRUE
-"MemoryBelief","Belief","AI Original","Not recognized","AI Copy","Human Original",0.472561115942928,0.418917204884586,0.523059304042336,1,TRUE
-"MemoryBelief","Belief","AI Original","Not recognized","None","Human Original",0.544561268562917,0.503592120551892,0.579850278782343,1,TRUE
-"MemoryBelief","Belief","AI Copy","Not recognized","Human Forgery","Human Original",0.44406605288418,0.386741744752225,0.494551013970502,1,TRUE
-"MemoryBelief","Belief","AI Copy","Not recognized","Human Original","Human Original",0.412408212751247,0.353545363728686,0.464364084811135,1,TRUE
-"MemoryBelief","Belief","AI Copy","Not recognized","AI Original","Human Original",0.493075171064196,0.439511116671454,0.540111807659344,1,TRUE
-"MemoryBelief","Belief","AI Copy","Not recognized","AI Copy","Human Original",0.481721408986266,0.423806887692686,0.532261784491876,1,TRUE
-"MemoryBelief","Belief","AI Copy","Not recognized","None","Human Original",0.553521455172796,0.512366663334523,0.586541190040179,1,TRUE
-"MemoryBelief","Belief","None","Not recognized","Human Forgery","Human Original",0.68607396399174,0.655830774166872,0.709963283118068,1,TRUE
-"MemoryBelief","Belief","None","Not recognized","Human Original","Human Original",0.655300248205961,0.628280586084984,0.673298195097616,1,TRUE
-"MemoryBelief","Belief","None","Not recognized","AI Original","Human Original",0.735048355051602,0.708225327420464,0.754882642793838,1,TRUE
-"MemoryBelief","Belief","None","Not recognized","AI Copy","Human Original",0.723734402039031,0.697659319090296,0.744905955439161,1,TRUE
-"MemoryBelief","Belief","None","Not recognized","None","Human Original",0.79579263568021,0.761920376974623,0.820780224879692,1,TRUE
-"MemoryBelief","Belief","Human Forgery","Not recognized","Human Forgery","Human Forgery",0.514233089999921,0.461013477442184,0.562388650205146,1,TRUE
-"MemoryBelief","Belief","Human Forgery","Not recognized","Human Original","Human Forgery",0.526637962451859,0.478567076209367,0.572214422037241,1,TRUE
-"MemoryBelief","Belief","Human Forgery","Not recognized","AI Original","Human Forgery",0.5400431069696,0.491782454812515,0.584540591327889,1,TRUE
-"MemoryBelief","Belief","Human Forgery","Not recognized","AI Copy","Human Forgery",0.525877891683164,0.477074699306409,0.572063302108239,1,TRUE
-"MemoryBelief","Belief","Human Forgery","Not recognized","None","Human Forgery",0.572444854403417,0.530434795580892,0.60979417118739,1,TRUE
-"MemoryBelief","Belief","Human Original","Not recognized","Human Forgery","Human Forgery",0.515431764820547,0.470166031631568,0.558731597369225,1,TRUE
-"MemoryBelief","Belief","Human Original","Not recognized","Human Original","Human Forgery",0.527664116580579,0.483221876488571,0.569080116337494,1,TRUE
-"MemoryBelief","Belief","Human Original","Not recognized","AI Original","Human Forgery",0.541454007303055,0.497025066292724,0.5815828435223,1,TRUE
-"MemoryBelief","Belief","Human Original","Not recognized","AI Copy","Human Forgery",0.527006448288385,0.482550921478753,0.568761213529296,1,TRUE
-"MemoryBelief","Belief","Human Original","Not recognized","None","Human Forgery",0.573463527770404,0.536178253108658,0.605265469855034,1,TRUE
-"MemoryBelief","Belief","AI Original","Not recognized","Human Forgery","Human Forgery",0.524052893307378,0.47390340703249,0.570360593691447,1,TRUE
-"MemoryBelief","Belief","AI Original","Not recognized","Human Original","Human Forgery",0.536397728384179,0.488579837725108,0.580970507043081,1,TRUE
-"MemoryBelief","Belief","AI Original","Not recognized","AI Original","Human Forgery",0.54972555085328,0.50073237388069,0.594942061762052,1,TRUE
-"MemoryBelief","Belief","AI Original","Not recognized","AI Copy","Human Forgery",0.535822297588199,0.487435055868366,0.58100421883879,1,TRUE
-"MemoryBelief","Belief","AI Original","Not recognized","None","Human Forgery",0.581916121640763,0.541269377655187,0.618719986342998,1,TRUE
-"MemoryBelief","Belief","AI Copy","Not recognized","Human Forgery","Human Forgery",0.532933042570775,0.483561984765624,0.577399316405949,1,TRUE
-"MemoryBelief","Belief","AI Copy","Not recognized","Human Original","Human Forgery",0.545141181673831,0.496983974252661,0.588118907073007,1,TRUE
-"MemoryBelief","Belief","AI Copy","Not recognized","AI Original","Human Forgery",0.558932831256351,0.510874908709041,0.600735886230171,1,TRUE
-"MemoryBelief","Belief","AI Copy","Not recognized","AI Copy","Human Forgery",0.544675172209687,0.493850479697512,0.589287567578076,1,TRUE
-"MemoryBelief","Belief","AI Copy","Not recognized","None","Human Forgery",0.590889532736588,0.549130159309421,0.625071635554704,1,TRUE
-"MemoryBelief","Belief","None","Not recognized","Human Forgery","Human Forgery",0.774954622857189,0.750334591411363,0.794672062865656,1,TRUE
-"MemoryBelief","Belief","None","Not recognized","Human Original","Human Forgery",0.787493101323521,0.764817055455086,0.804009364450935,1,TRUE
-"MemoryBelief","Belief","None","Not recognized","AI Original","Human Forgery",0.800897174221873,0.77621138811584,0.81980924040327,1,TRUE
-"MemoryBelief","Belief","None","Not recognized","AI Copy","Human Forgery",0.78670491125845,0.76191034960774,0.805778032065959,1,TRUE
-"MemoryBelief","Belief","None","Not recognized","None","Human Forgery",0.833125793756815,0.80505617873764,0.8539221641225,1,TRUE
-"MemoryBelief","Belief","Human Forgery","Not recognized","Human Original","Not recognized",-0.0011743135132275,-0.0291501120905247,0.0251360918220485,0.5355,FALSE
-"MemoryBelief","Belief","AI Original","Not recognized","Human Forgery","Not recognized",0.00967208218129662,-0.0226109257473801,0.0408512307064225,0.72,FALSE
-"MemoryBelief","Belief","AI Original","Not recognized","Human Original","Not recognized",0.00836111095162773,-0.0175583089162957,0.0322347501471646,0.74525,FALSE
-"MemoryBelief","Belief","AI Copy","Not recognized","Human Forgery","Not recognized",0.0184454541305771,-0.0120394153559123,0.0502688872013718,0.876,FALSE
-"MemoryBelief","Belief","AI Copy","Not recognized","Human Original","Not recognized",0.0173041765487724,-0.00504630835478005,0.0406714812034482,0.92575,FALSE
-"MemoryBelief","Belief","AI Copy","Not recognized","AI Original","Not recognized",0.00931358756476813,-0.0181005764251659,0.0377336401554133,0.739,FALSE
-"MemoryBelief","Belief","None","Not recognized","Human Forgery","Not recognized",0.260546929747807,0.207100400486647,0.311705426169268,1,TRUE
-"MemoryBelief","Belief","None","Not recognized","Human Original","Not recognized",0.259760081835488,0.209258359231395,0.307287516069732,1,TRUE
-"MemoryBelief","Belief","None","Not recognized","AI Original","Not recognized",0.25141753772359,0.197541125215185,0.300756656374554,1,TRUE
-"MemoryBelief","Belief","None","Not recognized","AI Copy","Not recognized",0.2420077087269,0.191817608362571,0.291740724228133,1,TRUE
-"MemoryBelief","Belief","Human Forgery","Not recognized","Human Forgery","AI Original",0.498351629917306,0.439956275539548,0.552235825989471,1,TRUE
-"MemoryBelief","Belief","Human Forgery","Not recognized","Human Original","AI Original",0.508629871488669,0.455772071663983,0.556211262371582,1,TRUE
-"MemoryBelief","Belief","Human Forgery","Not recognized","AI Original","AI Original",0.444000292433934,0.383671101393183,0.499582510459773,1,TRUE
-"MemoryBelief","Belief","Human Forgery","Not recognized","AI Copy","AI Original",0.473676896185865,0.415776892082834,0.525029822614712,1,TRUE
-"MemoryBelief","Belief","Human Forgery","Not recognized","None","AI Original",0.563508567648603,0.521759431051217,0.600580721086672,1,TRUE
-"MemoryBelief","Belief","Human Original","Not recognized","Human Forgery","AI Original",0.499836847099715,0.447533384965931,0.54683236159826,1,TRUE
-"MemoryBelief","Belief","Human Original","Not recognized","Human Original","AI Original",0.510145961257131,0.460107821551114,0.55428066553261,1,TRUE
-"MemoryBelief","Belief","Human Original","Not recognized","AI Original","AI Original",0.44501215735812,0.386873260034099,0.495864694419143,1,TRUE
-"MemoryBelief","Belief","Human Original","Not recognized","AI Copy","AI Original",0.475071144503076,0.419092896838226,0.522754864468788,1,TRUE
-"MemoryBelief","Belief","Human Original","Not recognized","None","AI Original",0.564747732346255,0.527770233131833,0.596543398710424,1,TRUE
-"MemoryBelief","Belief","AI Original","Not recognized","Human Forgery","AI Original",0.508740559087547,0.453539776084394,0.558741505970434,1,TRUE
-"MemoryBelief","Belief","AI Original","Not recognized","Human Original","AI Original",0.517822467747033,0.465744448672262,0.565847559389096,1,TRUE
-"MemoryBelief","Belief","AI Original","Not recognized","AI Original","AI Original",0.453733920416396,0.389071434602426,0.511264071698154,1,TRUE
-"MemoryBelief","Belief","AI Original","Not recognized","AI Copy","AI Original",0.483261222524409,0.425365443894303,0.535779389479971,1,TRUE
-"MemoryBelief","Belief","AI Original","Not recognized","None","AI Original",0.57369824155672,0.532532158686716,0.609601796417963,1,TRUE
-"MemoryBelief","Belief","AI Copy","Not recognized","Human Forgery","AI Original",0.517741296039244,0.460653574815422,0.565292842424478,1,TRUE
-"MemoryBelief","Belief","AI Copy","Not recognized","Human Original","AI Original",0.527377561830493,0.473675843925938,0.572421012886823,1,TRUE
-"MemoryBelief","Belief","AI Copy","Not recognized","AI Original","AI Original",0.462501629024532,0.400817104141723,0.51560026900083,1,TRUE
-"MemoryBelief","Belief","AI Copy","Not recognized","AI Copy","AI Original",0.492215010085116,0.431968332248339,0.544239863932689,1,TRUE
-"MemoryBelief","Belief","AI Copy","Not recognized","None","AI Original",0.582269496270224,0.5408818838527,0.616853516263201,1,TRUE
-"MemoryBelief","Belief","None","Not recognized","Human Forgery","AI Original",0.75951607976209,0.730327745069626,0.782029539431475,1,TRUE
-"MemoryBelief","Belief","None","Not recognized","Human Original","AI Original",0.769235750886627,0.744424967346623,0.78711052777434,1,TRUE
-"MemoryBelief","Belief","None","Not recognized","AI Original","AI Original",0.704398389349046,0.673586568243657,0.727595985840011,1,TRUE
-"MemoryBelief","Belief","None","Not recognized","AI Copy","AI Original",0.733930730822827,0.70577882411149,0.755823765436916,1,TRUE
-"MemoryBelief","Belief","None","Not recognized","None","AI Original",0.824789878019503,0.793539074348211,0.848293079835144,1,TRUE
-"MemoryBelief","Belief","Human Forgery","Not recognized","Human Forgery","AI Copy",0.559810478073531,0.51096147195541,0.604535469772933,1,TRUE
-"MemoryBelief","Belief","Human Forgery","Not recognized","Human Original","AI Copy",0.570057080117985,0.524741534945765,0.611734390528581,1,TRUE
-"MemoryBelief","Belief","Human Forgery","Not recognized","AI Original","AI Copy",0.549656125868978,0.501443819044675,0.592206934783942,1,TRUE
-"MemoryBelief","Belief","Human Forgery","Not recognized","AI Copy","AI Copy",0.553587655721173,0.507791781914001,0.596779538834325,1,TRUE
-"MemoryBelief","Belief","Human Forgery","Not recognized","None","AI Copy",0.587936552212946,0.545549544338149,0.626690300119247,1,TRUE
-"MemoryBelief","Belief","Human Original","Not recognized","Human Forgery","AI Copy",0.560792477242893,0.51774903431773,0.599109928328723,1,TRUE
-"MemoryBelief","Belief","Human Original","Not recognized","Human Original","AI Copy",0.571056617581901,0.530156127057889,0.608232039284031,1,TRUE
-"MemoryBelief","Belief","Human Original","Not recognized","AI Original","AI Copy",0.55068619356241,0.508088454966802,0.58913044979177,1,TRUE
-"MemoryBelief","Belief","Human Original","Not recognized","AI Copy","AI Copy",0.555143950694434,0.51235985932029,0.593004394614626,1,TRUE
-"MemoryBelief","Belief","Human Original","Not recognized","None","AI Copy",0.5894328294763,0.551914107728241,0.622603987773313,1,TRUE
-"MemoryBelief","Belief","AI Original","Not recognized","Human Forgery","AI Copy",0.569078320354791,0.523595745830077,0.611942066641637,1,TRUE
-"MemoryBelief","Belief","AI Original","Not recognized","Human Original","AI Copy",0.579709334010554,0.535409510234829,0.620855892417448,1,TRUE
-"MemoryBelief","Belief","AI Original","Not recognized","AI Original","AI Copy",0.559448993423324,0.511905549153216,0.603602246441657,1,TRUE
-"MemoryBelief","Belief","AI Original","Not recognized","AI Copy","AI Copy",0.563340763598419,0.516963374148518,0.606187015467809,1,TRUE
-"MemoryBelief","Belief","AI Original","Not recognized","None","AI Copy",0.597888546866185,0.557203202977763,0.635950471542528,1,TRUE
-"MemoryBelief","Belief","AI Copy","Not recognized","Human Forgery","AI Copy",0.578173924722936,0.532132942797925,0.619500551596552,1,TRUE
-"MemoryBelief","Belief","AI Copy","Not recognized","Human Original","AI Copy",0.588455105953722,0.544373692472056,0.627624776778702,1,TRUE
-"MemoryBelief","Belief","AI Copy","Not recognized","AI Original","AI Copy",0.568224958418717,0.521629110028824,0.608884330003014,1,TRUE
-"MemoryBelief","Belief","AI Copy","Not recognized","AI Copy","AI Copy",0.5726772341136,0.525362482275076,0.614079346641404,1,TRUE
-"MemoryBelief","Belief","AI Copy","Not recognized","None","AI Copy",0.606671821391308,0.565169519553059,0.642168301337071,1,TRUE
-"MemoryBelief","Belief","None","Not recognized","Human Forgery","AI Copy",0.820407809498473,0.795997499002433,0.839338652239503,1,TRUE
-"MemoryBelief","Belief","None","Not recognized","Human Original","AI Copy",0.830874961364579,0.807833732634538,0.84820028967951,1,TRUE
-"MemoryBelief","Belief","None","Not recognized","AI Original","AI Copy",0.810150960493168,0.785672747526803,0.82884027225076,1,TRUE
-"MemoryBelief","Belief","None","Not recognized","AI Copy","AI Copy",0.814508849663568,0.791371367448964,0.832436453157918,1,TRUE
-"MemoryBelief","Belief","None","Not recognized","None","AI Copy",0.849145239600299,0.823333451029568,0.867899099183104,1,TRUE
-"MemoryBelief","Belief","Human Forgery","AI Original","Human Forgery","Human Original",-0.0735116760303594,-0.102106088345553,-0.0434022070147567,1,TRUE
-"MemoryBelief","Belief","Human Forgery","AI Original","Human Original","Human Original",-0.104708849826666,-0.129207492280641,-0.078342898850367,1,TRUE
-"MemoryBelief","Belief","Human Forgery","AI Original","AI Original","Human Original",-0.0242649882500857,-0.0494646713707826,0.00100935729386256,0.97,FALSE
-"MemoryBelief","Belief","Human Forgery","AI Original","AI Copy","Human Original",-0.0357881111042352,-0.0602163592024022,-0.00899075483062285,0.995,TRUE
-"MemoryBelief","Belief","Human Forgery","AI Original","None","Human Original",0.035561171546983,0.012494673631896,0.0615729066436725,0.99875,TRUE
-"MemoryBelief","Belief","Human Original","AI Original","Human Forgery","Human Original",-0.0828999048715772,-0.107633260488099,-0.0591289133183981,1,TRUE
-"MemoryBelief","Belief","Human Original","AI Original","Human Original","Human Original",-0.114332264895605,-0.136574454013298,-0.092848700852485,1,TRUE
-"MemoryBelief","Belief","Human Original","AI Original","AI Original","Human Original",-0.0341341603495461,-0.0546880850979713,-0.0143435284599687,0.99975,TRUE
-"MemoryBelief","Belief","Human Original","AI Original","AI Copy","Human Original",-0.0452390425010061,-0.0657949151198588,-0.0246367027849201,1,TRUE
-"MemoryBelief","Belief","Human Original","AI Original","None","Human Original",0.0259835133091414,0.0082239948036574,0.045504926454758,0.99725,TRUE
-"MemoryBelief","Belief","AI Original","AI Original","Human Forgery","Human Original",-0.0179855361841556,-0.0470432223314219,0.0112754800197716,0.8865,FALSE
-"MemoryBelief","Belief","AI Original","AI Original","Human Original","Human Original",-0.0495329920344924,-0.0740175698010146,-0.0229658718105585,0.99975,TRUE
-"MemoryBelief","Belief","AI Original","AI Original","AI Original","Human Original",0.0307048416384222,0.00349511763621547,0.0598671622240409,0.98575,TRUE
-"MemoryBelief","Belief","AI Original","AI Original","AI Copy","Human Original",0.0195135738177026,-0.00539564587172705,0.0477860472145145,0.93625,FALSE
-"MemoryBelief","Belief","AI Original","AI Original","None","Human Original",0.0910205444425885,0.0641804774603421,0.120677163813837,1,TRUE
-"MemoryBelief","Belief","AI Copy","AI Original","Human Forgery","Human Original",-0.0480192595207635,-0.0748013766058627,-0.0216260458363196,0.99975,TRUE
-"MemoryBelief","Belief","AI Copy","AI Original","Human Original","Human Original",-0.0795722401451242,-0.102666728892036,-0.0564167081087483,1,TRUE
-"MemoryBelief","Belief","AI Copy","AI Original","AI Original","Human Original",0.000768396699447935,-0.0232730908781427,0.0252904249890193,0.524,FALSE
-"MemoryBelief","Belief","AI Copy","AI Original","AI Copy","Human Original",-0.0103153280553446,-0.034484526896855,0.0154700002130073,0.788,FALSE
-"MemoryBelief","Belief","AI Copy","AI Original","None","Human Original",0.0609926853400653,0.0374037268837173,0.0860713733874985,1,TRUE
-"MemoryBelief","Belief","None","AI Original","Human Forgery","Human Original",-0.138129831981625,-0.164540123160175,-0.113551373775273,1,TRUE
-"MemoryBelief","Belief","None","AI Original","Human Original","Human Original",-0.169559021445286,-0.192482014449812,-0.146570290702946,1,TRUE
-"MemoryBelief","Belief","None","AI Original","AI Original","Human Original",-0.0892102507600447,-0.110396557395138,-0.0695277758877832,1,TRUE
-"MemoryBelief","Belief","None","AI Original","AI Copy","Human Original",-0.100345774756227,-0.122021147369826,-0.0798659316569733,1,TRUE
-"MemoryBelief","Belief","None","AI Original","None","Human Original",-0.0290172850764911,-0.0395787385204029,-0.0188381387473909,1,TRUE
-"MemoryBelief","Belief","Human Forgery","AI Original","Human Forgery","Human Forgery",0.0153415749525145,-0.00941445709564259,0.0419323396200436,0.88775,FALSE
-"MemoryBelief","Belief","Human Forgery","AI Original","Human Original","Human Forgery",0.0275260435831874,0.00791214523402245,0.0506051585739551,0.9975,TRUE
-"MemoryBelief","Belief","Human Forgery","AI Original","AI Original","Human Forgery",0.0411352041731617,0.0195461720100667,0.0663509602814057,1,TRUE
-"MemoryBelief","Belief","Human Forgery","AI Original","AI Copy","Human Forgery",0.0271409839944357,0.00522757167971029,0.0514867796955745,0.9925,TRUE
-"MemoryBelief","Belief","Human Forgery","AI Original","None","Human Forgery",0.0730754448963477,0.0523821914513158,0.0971557784991664,1,TRUE
-"MemoryBelief","Belief","Human Original","AI Original","Human Forgery","Human Forgery",0.00592731261453253,-0.0136499826632148,0.0257328511240566,0.7265,FALSE
-"MemoryBelief","Belief","Human Original","AI Original","Human Original","Human Forgery",0.0180376047026082,0.00281817993815227,0.0350173953475465,0.99225,TRUE
-"MemoryBelief","Belief","Human Original","AI Original","AI Original","Human Forgery",0.0316320183354596,0.0144157156481293,0.0503440542583353,1,TRUE
-"MemoryBelief","Belief","Human Original","AI Original","AI Copy","Human Forgery",0.0177835160996109,0.000245951841970211,0.0360515090891922,0.976,TRUE
-"MemoryBelief","Belief","Human Original","AI Original","None","Human Forgery",0.063674101652241,0.0485057478658827,0.0805442248200811,1,TRUE
-"MemoryBelief","Belief","AI Original","AI Original","Human Forgery","Human Forgery",0.0703653495133567,0.0455131407110454,0.0996879490066027,1,TRUE
-"MemoryBelief","Belief","AI Original","AI Original","Human Original","Human Forgery",0.0828390341567114,0.0605878826603458,0.108319112647117,1,TRUE
-"MemoryBelief","Belief","AI Original","AI Original","AI Original","Human Forgery",0.0962950947715073,0.0726897357149223,0.124917021929802,1,TRUE
-"MemoryBelief","Belief","AI Original","AI Original","AI Copy","Human Forgery",0.0823267983695801,0.0576322106321853,0.108693131010083,1,TRUE
-"MemoryBelief","Belief","AI Original","AI Original","None","Human Forgery",0.128306713774413,0.104377482162719,0.156451637042464,1,TRUE
-"MemoryBelief","Belief","AI Copy","AI Original","Human Forgery","Human Forgery",0.0409032880368191,0.0177190526810185,0.0656942617586311,0.9995,TRUE
-"MemoryBelief","Belief","AI Copy","AI Original","Human Original","Human Forgery",0.0529323179094498,0.0337440815822582,0.07476065880306,1,TRUE
-"MemoryBelief","Belief","AI Copy","AI Original","AI Original","Human Forgery",0.0666446013599371,0.0455634963266624,0.0900739179958323,1,TRUE
-"MemoryBelief","Belief","AI Copy","AI Original","AI Copy","Human Forgery",0.0527945726943044,0.0299885780122333,0.076815044058058,1,TRUE
-"MemoryBelief","Belief","AI Copy","AI Original","None","Human Forgery",0.0986065318687666,0.0776983332723367,0.122080696640568,1,TRUE
-"MemoryBelief","Belief","None","AI Original","Human Forgery","Human Forgery",-0.0491682047512225,-0.06770754488717,-0.0310988670149398,1,TRUE
-"MemoryBelief","Belief","None","AI Original","Human Original","Human Forgery",-0.0370208836252816,-0.0500027268871625,-0.0229665982756871,1,TRUE
-"MemoryBelief","Belief","None","AI Original","AI Original","Human Forgery",-0.02326575529262,-0.0391019664662608,-0.00911688652572088,0.99925,TRUE
-"MemoryBelief","Belief","None","AI Original","AI Copy","Human Forgery",-0.0376663265346718,-0.0538818389413744,-0.0213408153789276,1,TRUE
-"MemoryBelief","Belief","None","AI Original","None","Human Forgery",0.00844818309603063,0.000638373779408386,0.0179135748932158,0.98375,TRUE
-"MemoryBelief","Belief","Human Forgery","AI Original","Human Original","AI Original",0.00944054047178407,-0.00754842844291486,0.0280770066310058,0.8595,FALSE
-"MemoryBelief","Belief","AI Original","AI Original","Human Forgery","AI Original",0.0553603869832245,0.0326648291007892,0.0787148869220975,1,TRUE
-"MemoryBelief","Belief","AI Original","AI Original","Human Original","AI Original",0.0647335438738359,0.0465061784378063,0.0851918894212086,1,TRUE
-"MemoryBelief","Belief","AI Copy","AI Original","Human Forgery","AI Original",0.0253618586710678,0.00413944422475076,0.046314631430514,0.99025,TRUE
-"MemoryBelief","Belief","AI Copy","AI Original","Human Original","AI Original",0.0348979421955944,0.0186525024959633,0.0518592601753215,1,TRUE
-"MemoryBelief","Belief","AI Copy","AI Original","AI Original","AI Original",-0.0297445885746655,-0.0518566404491268,-0.00877687447780981,0.99825,TRUE
-"MemoryBelief","Belief","None","AI Original","Human Forgery","AI Original",-0.0643868169162801,-0.0910277641627618,-0.0407253649375804,1,TRUE
-"MemoryBelief","Belief","None","AI Original","Human Original","AI Original",-0.0552134779651542,-0.0755660445770369,-0.0357390028348617,1,TRUE
-"MemoryBelief","Belief","None","AI Original","AI Original","AI Original",-0.119920620977284,-0.150362217966762,-0.0921691721293805,1,TRUE
-"MemoryBelief","Belief","None","AI Original","AI Copy","AI Original",-0.0899391820452502,-0.116375948612817,-0.0655887429502073,1,TRUE
-"MemoryBelief","Belief","Human Forgery","AI Copy","Human Forgery","Human Original",-0.134198710688591,-0.160095066713664,-0.109312318389825,1,TRUE
-"MemoryBelief","Belief","Human Forgery","AI Copy","Human Original","Human Original",-0.165381414963669,-0.18735246598578,-0.144468485905074,1,TRUE
-"MemoryBelief","Belief","Human Forgery","AI Copy","AI Original","Human Original",-0.0851789682397728,-0.105183717331908,-0.0661224652219675,1,TRUE
-"MemoryBelief","Belief","Human Forgery","AI Copy","AI Copy","Human Original",-0.0964530846086182,-0.117010465656006,-0.0767685691593037,1,TRUE
-"MemoryBelief","Belief","Human Forgery","AI Copy","None","Human Original",-0.0252778652741267,-0.0411767248421424,-0.00845643854000799,0.99775,TRUE
-"MemoryBelief","Belief","Human Original","AI Copy","Human Forgery","Human Original",-0.144503698193934,-0.168034720016109,-0.123687169810118,1,TRUE
-"MemoryBelief","Belief","Human Original","AI Copy","Human Original","Human Original",-0.175780582793309,-0.196353392459736,-0.157128249890779,1,TRUE
-"MemoryBelief","Belief","Human Original","AI Copy","AI Original","Human Original",-0.0954329718624612,-0.114099766312031,-0.0797250318501804,1,TRUE
-"MemoryBelief","Belief","Human Original","AI Copy","AI Copy","Human Original",-0.106754817448028,-0.125294978532944,-0.0896950723827876,1,TRUE
-"MemoryBelief","Belief","Human Original","AI Copy","None","Human Original",-0.0352336958902151,-0.0485903304403163,-0.0238298453255474,1,TRUE
-"MemoryBelief","Belief","AI Original","AI Copy","Human Forgery","Human Original",-0.123973363216618,-0.147538074058181,-0.101822574090583,1,TRUE
-"MemoryBelief","Belief","AI Original","AI Copy","Human Original","Human Original",-0.155469477794312,-0.176094342040773,-0.136061699642034,1,TRUE
-"MemoryBelief","Belief","AI Original","AI Copy","AI Original","Human Original",-0.0751065168006319,-0.0953643901905648,-0.0567795169526812,1,TRUE
-"MemoryBelief","Belief","AI Original","AI Copy","AI Copy","Human Original",-0.0861965619877615,-0.105442368044056,-0.0674283272111832,1,TRUE
-"MemoryBelief","Belief","AI Original","AI Copy","None","Human Original",-0.0149710103199259,-0.0307984874865561,0.000875306489735164,0.971,FALSE
-"MemoryBelief","Belief","AI Copy","AI Copy","Human Forgery","Human Original",-0.128243961201375,-0.151545341216,-0.106874830040168,1,TRUE
-"MemoryBelief","Belief","AI Copy","AI Copy","Human Original","Human Original",-0.159595797462778,-0.179960296725048,-0.140983418363644,1,TRUE
-"MemoryBelief","Belief","AI Copy","AI Copy","AI Original","Human Original",-0.0794599179346461,-0.0984382075507089,-0.0621020247564545,1,TRUE
-"MemoryBelief","Belief","AI Copy","AI Copy","AI Copy","Human Original",-0.090857557812266,-0.110265750015566,-0.0720799288002959,1,TRUE
-"MemoryBelief","Belief","AI Copy","AI Copy","None","Human Original",-0.019177555488042,-0.0350309492373125,-0.00438161536864069,0.99575,TRUE
-"MemoryBelief","Belief","None","AI Copy","Human Forgery","Human Original",-0.162693396994653,-0.187792720211102,-0.139747588219199,1,TRUE
-"MemoryBelief","Belief","None","AI Copy","Human Original","Human Original",-0.193859807851638,-0.216245351604417,-0.172778137495346,1,TRUE
-"MemoryBelief","Belief","None","AI Copy","AI Original","Human Original",-0.113465760619463,-0.133395890945728,-0.095910257028962,1,TRUE
-"MemoryBelief","Belief","None","AI Copy","AI Copy","Human Original",-0.1246969296912,-0.145291935608719,-0.106353488572449,1,TRUE
-"MemoryBelief","Belief","None","AI Copy","None","Human Original",-0.0532467632533562,-0.0634439807967781,-0.045534602812578,1,TRUE
-"MemoryBelief","Belief","Human Forgery","AI Copy","Human Forgery","Human Forgery",-0.0454510207742451,-0.0644290306817436,-0.0264310898282707,1,TRUE
-"MemoryBelief","Belief","Human Forgery","AI Copy","Human Original","Human Forgery",-0.0331316754511337,-0.0467456999387627,-0.018760989706235,0.99975,TRUE
-"MemoryBelief","Belief","Human Forgery","AI Copy","AI Original","Human Forgery",-0.0196193062608555,-0.0355224387331152,-0.0041026731091629,0.99225,TRUE
-"MemoryBelief","Belief","Human Forgery","AI Copy","AI Copy","Human Forgery",-0.0337925482503849,-0.0499364074584167,-0.0170724047551365,1,TRUE
-"MemoryBelief","Belief","Human Forgery","AI Copy","None","Human Forgery",0.0121494324056668,0.000115241456869917,0.0266050476726455,0.9765,TRUE
-"MemoryBelief","Belief","Human Original","AI Copy","Human Forgery","Human Forgery",-0.0556658977221385,-0.0720798070883237,-0.0402602812925457,1,TRUE
-"MemoryBelief","Belief","Human Original","AI Copy","Human Original","Human Forgery",-0.0435278468782504,-0.0537607420208518,-0.0332773333552396,1,TRUE
-"MemoryBelief","Belief","Human Original","AI Copy","AI Original","Human Forgery",-0.02983256593155,-0.0428570408010611,-0.01811651407783,1,TRUE
-"MemoryBelief","Belief","Human Original","AI Copy","AI Copy","Human Forgery",-0.0437915527206149,-0.0578295892652362,-0.0312263961529983,1,TRUE
-"MemoryBelief","Belief","Human Original","AI Copy","None","Human Forgery",0.00211278687645053,-0.00659106700244829,0.0104620746621965,0.691,FALSE
-"MemoryBelief","Belief","AI Original","AI Copy","Human Forgery","Human Forgery",-0.0353998106573886,-0.0531827842451537,-0.0178432899674974,1,TRUE
-"MemoryBelief","Belief","AI Original","AI Copy","Human Original","Human Forgery",-0.0229677030125942,-0.0348317996812793,-0.0101887012494386,0.99975,TRUE
-"MemoryBelief","Belief","AI Original","AI Copy","AI Original","Human Forgery",-0.00941308801585913,-0.0248771064902103,0.00585591128269325,0.8875,FALSE
-"MemoryBelief","Belief","AI Original","AI Copy","AI Copy","Human Forgery",-0.0231535848068552,-0.0385444048513049,-0.00850328486257639,0.99925,TRUE
-"MemoryBelief","Belief","AI Original","AI Copy","None","Human Forgery",0.0225436111193195,0.010657476985901,0.0358084897216812,1,TRUE
-"MemoryBelief","Belief","AI Copy","AI Copy","Human Forgery","Human Forgery",-0.0395841176660913,-0.0570064915554024,-0.0227858183172223,1,TRUE
-"MemoryBelief","Belief","AI Copy","AI Copy","Human Original","Human Forgery",-0.027254671056329,-0.0389305081859563,-0.0155902903056903,1,TRUE
-"MemoryBelief","Belief","AI Copy","AI Copy","AI Original","Human Forgery",-0.013704378532408,-0.0282325291598733,-0.000363189242329242,0.9775,TRUE
-"MemoryBelief","Belief","AI Copy","AI Copy","AI Copy","Human Forgery",-0.0277814953229423,-0.0433535254539695,-0.0129247084035418,0.99975,TRUE
-"MemoryBelief","Belief","AI Copy","AI Copy","None","Human Forgery",0.0181438767080135,0.00696889718482241,0.0304353864487864,0.99925,TRUE
-"MemoryBelief","Belief","None","AI Copy","Human Forgery","Human Forgery",-0.0735750267295349,-0.0905107954370614,-0.0581527900837196,1,TRUE
-"MemoryBelief","Belief","None","AI Copy","Human Original","Human Forgery",-0.0614081325294435,-0.0720468617757714,-0.0510973047385675,1,TRUE
-"MemoryBelief","Belief","None","AI Copy","AI Original","Human Forgery",-0.0477461197159866,-0.0615333209437045,-0.0359346465206872,1,TRUE
-"MemoryBelief","Belief","None","AI Copy","AI Copy","Human Forgery",-0.0619308043392095,-0.0761720596819489,-0.0487941601819278,1,TRUE
-"MemoryBelief","Belief","None","AI Copy","None","Human Forgery",-0.0158760816826771,-0.0212109793560357,-0.0109800965862842,1,TRUE
-"MemoryBelief","Belief","Human Forgery","AI Copy","Human Forgery","AI Original",-0.0607238438312728,-0.0855736415187695,-0.0381538470722108,1,TRUE
-"MemoryBelief","Belief","Human Forgery","AI Copy","Human Original","AI Original",-0.0512057755798857,-0.0693064539295791,-0.0344155060534947,1,TRUE
-"MemoryBelief","Belief","Human Forgery","AI Copy","AI Original","AI Original",-0.115998360070459,-0.143706921553264,-0.0919964627130343,1,TRUE
-"MemoryBelief","Belief","Human Forgery","AI Copy","AI Copy","AI Original",-0.0860494499522885,-0.109955069483677,-0.0645008263849949,1,TRUE
-"MemoryBelief","Belief","Human Forgery","AI Copy","None","AI Original",0.00372124537576301,-0.010529937159163,0.0188088921490743,0.70075,FALSE
-"MemoryBelief","Belief","Human Original","AI Copy","Human Forgery","AI Original",-0.0710529598417932,-0.0938017451106094,-0.0523177921665277,1,TRUE
-"MemoryBelief","Belief","Human Original","AI Copy","Human Original","AI Original",-0.061413414988606,-0.0773418865436893,-0.0477756031649607,1,TRUE
-"MemoryBelief","Belief","Human Original","AI Copy","AI Original","AI Original",-0.126250961930052,-0.152955320592311,-0.10373840979188,1,TRUE
-"MemoryBelief","Belief","Human Original","AI Copy","AI Copy","AI Original",-0.0963128065772366,-0.118086628531161,-0.0772796320497443,1,TRUE
-"MemoryBelief","Belief","Human Original","AI Copy","None","AI Original",-0.00629571489431044,-0.0177463471224769,0.00338334399989472,0.89675,FALSE
-"MemoryBelief","Belief","AI Original","AI Copy","Human Forgery","AI Original",-0.0506481197593378,-0.0745086004652557,-0.0298940557509031,1,TRUE
-"MemoryBelief","Belief","AI Original","AI Copy","Human Original","AI Original",-0.0410634937598292,-0.0588976123715352,-0.0250382156324635,1,TRUE
-"MemoryBelief","Belief","AI Original","AI Copy","AI Original","AI Original",-0.105705717002678,-0.133442467123238,-0.0817278905524799,1,TRUE
-"MemoryBelief","Belief","AI Original","AI Copy","AI Copy","AI Original",-0.0759144797755801,-0.0984077557959845,-0.0548662393479004,1,TRUE
-"MemoryBelief","Belief","AI Original","AI Copy","None","AI Original",0.0140186772167111,-7.29613272771905e-06,0.0275965759648763,0.97475,FALSE
-"MemoryBelief","Belief","AI Copy","AI Copy","Human Forgery","AI Original",-0.0548630053826191,-0.0777878436030743,-0.034595662899453,1,TRUE
-"MemoryBelief","Belief","AI Copy","AI Copy","Human Original","AI Original",-0.0453428316052765,-0.0624514343800145,-0.029989956120597,1,TRUE
-"MemoryBelief","Belief","AI Copy","AI Copy","AI Original","AI Original",-0.110010907102335,-0.137249671449686,-0.0870368283410608,1,TRUE
-"MemoryBelief","Belief","AI Copy","AI Copy","AI Copy","AI Original",-0.0802372922914201,-0.103577956757813,-0.0593859151242711,1,TRUE
-"MemoryBelief","Belief","AI Copy","AI Copy","None","AI Original",0.00980287014263284,-0.00387825826834054,0.0227954588212152,0.921,FALSE
-"MemoryBelief","Belief","None","AI Copy","Human Forgery","AI Original",-0.0889255038143256,-0.112480348758327,-0.0694161923438327,1,TRUE
-"MemoryBelief","Belief","None","AI Copy","Human Original","AI Original",-0.0793598444743415,-0.0957714774572855,-0.0656863340516364,1,TRUE
-"MemoryBelief","Belief","None","AI Copy","AI Original","AI Original",-0.144173653051986,-0.171949912789722,-0.121072967132972,1,TRUE
-"MemoryBelief","Belief","None","AI Copy","AI Copy","AI Original",-0.114227344506775,-0.137163847799793,-0.0945707843735199,1,TRUE
-"MemoryBelief","Belief","None","AI Copy","None","AI Original",-0.0241510982208309,-0.0336912406629199,-0.017166502033108,1,TRUE
-"MemoryBelief","Belief","Human Forgery","AI Copy","Human Original","AI Copy",0.0102010574769893,-0.000860436423526187,0.0234371290943165,0.961,FALSE
-"MemoryBelief","Belief","AI Original","AI Copy","Human Forgery","AI Copy",0.0102282843398098,-0.0052631049633877,0.0247550670271891,0.914,FALSE
-"MemoryBelief","Belief","AI Original","AI Copy","Human Original","AI Copy",0.0204558480226818,0.0103491658698445,0.0315603130127974,1,TRUE
+"MemoryBelief","Belief","AI Copy","AI Copy","AI Original","AI Copy",-0.00438195101492464,-0.0172516405247417,0.00827496440842906,0.747,FALSE
 "MemoryBelief","Belief","AI Copy","AI Copy","Human Forgery","AI Copy",0.00597018256321578,-0.00860480666449818,0.0195638012472531,0.79025,FALSE
 "MemoryBelief","Belief","AI Copy","AI Copy","Human Original","AI Copy",0.0160342888735958,0.00682918566780354,0.026571931942608,1,TRUE
-"MemoryBelief","Belief","AI Copy","AI Copy","AI Original","AI Copy",-0.00438195101492464,-0.0172516405247417,0.00827496440842906,0.747,FALSE
+"MemoryBelief","Belief","AI Original","AI Copy","Human Forgery","AI Copy",0.0102282843398098,-0.0052631049633877,0.0247550670271891,0.914,FALSE
+"MemoryBelief","Belief","AI Original","AI Copy","Human Original","AI Copy",0.0204558480226818,0.0103491658698445,0.0315603130127974,1,TRUE
+"MemoryBelief","Belief","Human Forgery","AI Copy","Human Original","AI Copy",0.0102010574769893,-0.000860436423526187,0.0234371290943165,0.961,FALSE
+"MemoryBelief","Belief","None","AI Copy","AI Copy","AI Copy",-0.0339999827058884,-0.0455161452230811,-0.0240599667526717,1,TRUE
+"MemoryBelief","Belief","None","AI Copy","AI Original","AI Copy",-0.0383624867151105,-0.0506355817391449,-0.0275287001391686,1,TRUE
 "MemoryBelief","Belief","None","AI Copy","Human Forgery","AI Copy",-0.0280370277112503,-0.0420998895974458,-0.0170138646030872,1,TRUE
 "MemoryBelief","Belief","None","AI Copy","Human Original","AI Copy",-0.0179346137461218,-0.0250507511904754,-0.0111513283469861,1,TRUE
-"MemoryBelief","Belief","None","AI Copy","AI Original","AI Copy",-0.0383624867151105,-0.0506355817391449,-0.0275287001391686,1,TRUE
-"MemoryBelief","Belief","None","AI Copy","AI Copy","AI Copy",-0.0339999827058884,-0.0455161452230811,-0.0240599667526717,1,TRUE
-"MemoryCondition","Condition","Human Forgery","Human Original","Human Original","Human Original",-0.00838029195276221,-0.0262605120839576,0.010082133052912,0.81575,FALSE
-"MemoryCondition","Condition","AI-Generated","Human Original","Human Forgery","Human Original",-0.00440547337696988,-0.0229559938946891,0.0139213383247109,0.68875,FALSE
-"MemoryCondition","Condition","AI-Generated","Human Original","Human Original","Human Original",-0.0130200912592565,-0.0307929559304137,0.00534171400904822,0.91425,FALSE
-"MemoryCondition","Condition","New Items","Human Original","Human Forgery","Human Original",-0.158511360856411,-0.184567991981195,-0.132929180104368,1,TRUE
-"MemoryCondition","Condition","New Items","Human Original","AI-Generated","Human Original",-0.153840146749415,-0.180598337027978,-0.12839190186664,1,TRUE
-"MemoryCondition","Condition","New Items","Human Original","Human Original","Human Original",-0.166598167693475,-0.193140570912727,-0.141055399336086,1,TRUE
-"MemoryCondition","Condition","Human Forgery","Human Forgery","Human Forgery","Human Original",-0.151734953678232,-0.172381577009709,-0.132115621916361,1,TRUE
-"MemoryCondition","Condition","Human Forgery","Human Forgery","AI-Generated","Human Original",-0.147142051418263,-0.167657367993873,-0.12853798014261,1,TRUE
-"MemoryCondition","Condition","Human Forgery","Human Forgery","New Items","Human Original",0.00667286699930822,-0.00771683018067086,0.0206388529446329,0.822,FALSE
-"MemoryCondition","Condition","Human Forgery","Human Forgery","Human Original","Human Original",-0.15977983058918,-0.179901836335813,-0.141366479293011,1,TRUE
-"MemoryCondition","Condition","AI-Generated","Human Forgery","Human Forgery","Human Original",-0.153404381998654,-0.173062469243039,-0.134761578642517,1,TRUE
-"MemoryCondition","Condition","AI-Generated","Human Forgery","AI-Generated","Human Original",-0.148642110799023,-0.169747979621608,-0.129526206179821,1,TRUE
-"MemoryCondition","Condition","AI-Generated","Human Forgery","New Items","Human Original",0.00472065895525815,-0.00883667352123836,0.0195001169676506,0.753,FALSE
-"MemoryCondition","Condition","AI-Generated","Human Forgery","Human Original","Human Original",-0.161655211211228,-0.181839589655607,-0.142923492959117,1,TRUE
-"MemoryCondition","Condition","New Items","Human Forgery","Human Forgery","Human Original",-0.201990585805718,-0.224439974601624,-0.180982834521972,1,TRUE
-"MemoryCondition","Condition","New Items","Human Forgery","AI-Generated","Human Original",-0.197449459290735,-0.220365566657896,-0.176568696986493,1,TRUE
-"MemoryCondition","Condition","New Items","Human Forgery","New Items","Human Original",-0.0434856093694016,-0.0513561736393993,-0.0368266794737981,1,TRUE
-"MemoryCondition","Condition","New Items","Human Forgery","Human Original","Human Original",-0.210186722532512,-0.233080112594517,-0.189066453987447,1,TRUE
-"MemoryCondition","Condition","Human Original","Human Forgery","Human Forgery","Human Original",-0.155168824271049,-0.175730012715916,-0.136636070100447,1,TRUE
-"MemoryCondition","Condition","Human Original","Human Forgery","AI-Generated","Human Original",-0.15056060614957,-0.171131181494618,-0.132426571335923,1,TRUE
-"MemoryCondition","Condition","Human Original","Human Forgery","New Items","Human Original",0.00302642155687251,-0.0109773229153324,0.016870032227279,0.67025,FALSE
-"MemoryCondition","Condition","Human Original","Human Forgery","Human Original","Human Original",-0.163650118055392,-0.18533689333637,-0.144200396641069,1,TRUE
-"MemoryCondition","Condition","Human Forgery","Human Forgery","Human Original","Human Forgery",0.00353373945974535,-0.00738805275082233,0.0151899977385643,0.727,FALSE
-"MemoryCondition","Condition","AI-Generated","Human Forgery","Human Forgery","Human Forgery",-0.00158629883963471,-0.0130090086866782,0.00967356475135549,0.60625,FALSE
-"MemoryCondition","Condition","AI-Generated","Human Forgery","Human Original","Human Forgery",0.00194812715434711,-0.00932725898872459,0.0127572323311077,0.63375,FALSE
-"MemoryCondition","Condition","New Items","Human Forgery","Human Forgery","Human Forgery",-0.050180869565617,-0.0611824787887451,-0.0398321663512833,1,TRUE
-"MemoryCondition","Condition","New Items","Human Forgery","AI-Generated","Human Forgery",-0.0484250832151071,-0.059446671733214,-0.0383460418568209,1,TRUE
-"MemoryCondition","Condition","New Items","Human Forgery","Human Original","Human Forgery",-0.04654678908804,-0.0570056611631134,-0.0367932170916111,1,TRUE
-"MemoryCondition","Condition","Human Forgery","AI-Generated","Human Forgery","Human Original",-0.0793538530938849,-0.102903515119882,-0.0545883807939339,1,TRUE
-"MemoryCondition","Condition","Human Forgery","AI-Generated","AI-Generated","Human Original",-0.0746763099944749,-0.0972046466621818,-0.0515283847284261,1,TRUE
-"MemoryCondition","Condition","Human Forgery","AI-Generated","New Items","Human Original",0.0792799794354709,0.0575640207710967,0.101210588694406,1,TRUE
-"MemoryCondition","Condition","Human Forgery","AI-Generated","Human Original","Human Original",-0.087601748237278,-0.110400321023426,-0.0640139460157427,1,TRUE
-"MemoryCondition","Condition","AI-Generated","AI-Generated","Human Forgery","Human Original",-0.0732611751110937,-0.0952578126189281,-0.04965480748713,1,TRUE
-"MemoryCondition","Condition","AI-Generated","AI-Generated","AI-Generated","Human Original",-0.0681398400046394,-0.0930844035802655,-0.0441565437153966,1,TRUE
-"MemoryCondition","Condition","AI-Generated","AI-Generated","New Items","Human Original",0.0851949053322394,0.0631382283120555,0.108580592743391,1,TRUE
-"MemoryCondition","Condition","AI-Generated","AI-Generated","Human Original","Human Original",-0.0813532828846403,-0.1051308159193,-0.0574253914650363,1,TRUE
-"MemoryCondition","Condition","New Items","AI-Generated","Human Forgery","Human Original",-0.182049256217047,-0.20543297448633,-0.15886743912363,1,TRUE
-"MemoryCondition","Condition","New Items","AI-Generated","AI-Generated","Human Original",-0.177381582105937,-0.201342715084579,-0.154554880822072,1,TRUE
-"MemoryCondition","Condition","New Items","AI-Generated","New Items","Human Original",-0.0236845313628513,-0.031591868385834,-0.0160522213803219,1,TRUE
-"MemoryCondition","Condition","New Items","AI-Generated","Human Original","Human Original",-0.190304091437638,-0.214658751282643,-0.166789570283654,1,TRUE
-"MemoryCondition","Condition","Human Original","AI-Generated","Human Forgery","Human Original",-0.0707175915589547,-0.0931962270111983,-0.0474049994494981,1,TRUE
-"MemoryCondition","Condition","Human Original","AI-Generated","AI-Generated","Human Original",-0.0661307744530626,-0.0896873875468619,-0.0428862170566984,1,TRUE
-"MemoryCondition","Condition","Human Original","AI-Generated","New Items","Human Original",0.0878274143934621,0.0647242480965254,0.110634919566487,1,TRUE
-"MemoryCondition","Condition","Human Original","AI-Generated","Human Original","Human Original",-0.0791609915151261,-0.104390734030891,-0.0538136748376511,1,TRUE
-"MemoryCondition","Condition","Human Forgery","AI-Generated","Human Forgery","Human Forgery",0.0724618234436133,0.0541146775255846,0.0931052405373553,1,TRUE
-"MemoryCondition","Condition","Human Forgery","AI-Generated","AI-Generated","Human Forgery",0.0741118819939748,0.0566836320859331,0.0932035957620548,1,TRUE
-"MemoryCondition","Condition","Human Forgery","AI-Generated","New Items","Human Forgery",0.122783296010735,0.104371084259588,0.142257747564005,1,TRUE
-"MemoryCondition","Condition","Human Forgery","AI-Generated","Human Original","Human Forgery",0.0759977952775941,0.0584221609764194,0.0960388413717659,1,TRUE
-"MemoryCondition","Condition","AI-Generated","AI-Generated","Human Forgery","Human Forgery",0.0786001607175401,0.0605174005717711,0.0988235661272346,1,TRUE
-"MemoryCondition","Condition","AI-Generated","AI-Generated","AI-Generated","Human Forgery",0.0801203643945649,0.0614946237646772,0.101909273912401,1,TRUE
-"MemoryCondition","Condition","AI-Generated","AI-Generated","New Items","Human Forgery",0.128813278889446,0.110226742049695,0.149560560684563,1,TRUE
-"MemoryCondition","Condition","AI-Generated","AI-Generated","Human Original","Human Forgery",0.0820969355750292,0.0639593057432921,0.102577183547805,1,TRUE
-"MemoryCondition","Condition","New Items","AI-Generated","Human Forgery","Human Forgery",-0.0303041309507882,-0.0423883543113105,-0.0176426845153549,1,TRUE
-"MemoryCondition","Condition","New Items","AI-Generated","AI-Generated","Human Forgery",-0.0286705594224539,-0.0411924956001405,-0.0166782982301412,1,TRUE
-"MemoryCondition","Condition","New Items","AI-Generated","New Items","Human Forgery",0.0198071074464222,0.0141154203638506,0.0266560380209051,1,TRUE
-"MemoryCondition","Condition","New Items","AI-Generated","Human Original","Human Forgery",-0.0267132181581701,-0.0382688260715458,-0.0147679513322651,1,TRUE
-"MemoryCondition","Condition","Human Original","AI-Generated","Human Forgery","Human Forgery",0.0809266174923342,0.0622816369833132,0.100954813481237,1,TRUE
-"MemoryCondition","Condition","Human Original","AI-Generated","AI-Generated","Human Forgery",0.0824509687775148,0.0648286313662019,0.102520204570289,1,TRUE
-"MemoryCondition","Condition","Human Original","AI-Generated","New Items","Human Forgery",0.131377084581715,0.112084872511488,0.151697393792628,1,TRUE
-"MemoryCondition","Condition","Human Original","AI-Generated","Human Original","Human Forgery",0.0847119592569519,0.0659510817089133,0.105540954583183,1,TRUE
-"MemoryCondition","Condition","Human Forgery","AI-Generated","Human Original","AI-Generated",-0.00830671330425485,-0.024101639526674,0.00747361387345336,0.84975,FALSE
+"MemoryBelief","Belief","AI Copy","AI Copy","AI Copy","AI Original",-0.0802372922914201,-0.103577956757813,-0.0593859151242711,1,TRUE
+"MemoryBelief","Belief","AI Copy","AI Copy","AI Original","AI Original",-0.110010907102335,-0.137249671449686,-0.0870368283410608,1,TRUE
+"MemoryBelief","Belief","AI Copy","AI Copy","Human Forgery","AI Original",-0.0548630053826191,-0.0777878436030743,-0.034595662899453,1,TRUE
+"MemoryBelief","Belief","AI Copy","AI Copy","Human Original","AI Original",-0.0453428316052765,-0.0624514343800145,-0.029989956120597,1,TRUE
+"MemoryBelief","Belief","AI Copy","AI Copy","None","AI Original",0.00980287014263284,-0.00387825826834054,0.0227954588212152,0.921,FALSE
+"MemoryBelief","Belief","AI Original","AI Copy","AI Copy","AI Original",-0.0759144797755801,-0.0984077557959845,-0.0548662393479004,1,TRUE
+"MemoryBelief","Belief","AI Original","AI Copy","AI Original","AI Original",-0.105705717002678,-0.133442467123238,-0.0817278905524799,1,TRUE
+"MemoryBelief","Belief","AI Original","AI Copy","Human Forgery","AI Original",-0.0506481197593378,-0.0745086004652557,-0.0298940557509031,1,TRUE
+"MemoryBelief","Belief","AI Original","AI Copy","Human Original","AI Original",-0.0410634937598292,-0.0588976123715352,-0.0250382156324635,1,TRUE
+"MemoryBelief","Belief","AI Original","AI Copy","None","AI Original",0.0140186772167111,-7.29613272771905e-06,0.0275965759648763,0.97475,FALSE
+"MemoryBelief","Belief","Human Forgery","AI Copy","AI Copy","AI Original",-0.0860494499522885,-0.109955069483677,-0.0645008263849949,1,TRUE
+"MemoryBelief","Belief","Human Forgery","AI Copy","AI Original","AI Original",-0.115998360070459,-0.143706921553264,-0.0919964627130343,1,TRUE
+"MemoryBelief","Belief","Human Forgery","AI Copy","Human Forgery","AI Original",-0.0607238438312728,-0.0855736415187695,-0.0381538470722108,1,TRUE
+"MemoryBelief","Belief","Human Forgery","AI Copy","Human Original","AI Original",-0.0512057755798857,-0.0693064539295791,-0.0344155060534947,1,TRUE
+"MemoryBelief","Belief","Human Forgery","AI Copy","None","AI Original",0.00372124537576301,-0.010529937159163,0.0188088921490743,0.70075,FALSE
+"MemoryBelief","Belief","Human Original","AI Copy","AI Copy","AI Original",-0.0963128065772366,-0.118086628531161,-0.0772796320497443,1,TRUE
+"MemoryBelief","Belief","Human Original","AI Copy","AI Original","AI Original",-0.126250961930052,-0.152955320592311,-0.10373840979188,1,TRUE
+"MemoryBelief","Belief","Human Original","AI Copy","Human Forgery","AI Original",-0.0710529598417932,-0.0938017451106094,-0.0523177921665277,1,TRUE
+"MemoryBelief","Belief","Human Original","AI Copy","Human Original","AI Original",-0.061413414988606,-0.0773418865436893,-0.0477756031649607,1,TRUE
+"MemoryBelief","Belief","Human Original","AI Copy","None","AI Original",-0.00629571489431044,-0.0177463471224769,0.00338334399989472,0.89675,FALSE
+"MemoryBelief","Belief","None","AI Copy","AI Copy","AI Original",-0.114227344506775,-0.137163847799793,-0.0945707843735199,1,TRUE
+"MemoryBelief","Belief","None","AI Copy","AI Original","AI Original",-0.144173653051986,-0.171949912789722,-0.121072967132972,1,TRUE
+"MemoryBelief","Belief","None","AI Copy","Human Forgery","AI Original",-0.0889255038143256,-0.112480348758327,-0.0694161923438327,1,TRUE
+"MemoryBelief","Belief","None","AI Copy","Human Original","AI Original",-0.0793598444743415,-0.0957714774572855,-0.0656863340516364,1,TRUE
+"MemoryBelief","Belief","None","AI Copy","None","AI Original",-0.0241510982208309,-0.0336912406629199,-0.017166502033108,1,TRUE
+"MemoryBelief","Belief","AI Copy","AI Copy","AI Copy","Human Forgery",-0.0277814953229423,-0.0433535254539695,-0.0129247084035418,0.99975,TRUE
+"MemoryBelief","Belief","AI Copy","AI Copy","AI Original","Human Forgery",-0.013704378532408,-0.0282325291598733,-0.000363189242329242,0.9775,TRUE
+"MemoryBelief","Belief","AI Copy","AI Copy","Human Forgery","Human Forgery",-0.0395841176660913,-0.0570064915554024,-0.0227858183172223,1,TRUE
+"MemoryBelief","Belief","AI Copy","AI Copy","Human Original","Human Forgery",-0.027254671056329,-0.0389305081859563,-0.0155902903056903,1,TRUE
+"MemoryBelief","Belief","AI Copy","AI Copy","None","Human Forgery",0.0181438767080135,0.00696889718482241,0.0304353864487864,0.99925,TRUE
+"MemoryBelief","Belief","AI Original","AI Copy","AI Copy","Human Forgery",-0.0231535848068552,-0.0385444048513049,-0.00850328486257639,0.99925,TRUE
+"MemoryBelief","Belief","AI Original","AI Copy","AI Original","Human Forgery",-0.00941308801585913,-0.0248771064902103,0.00585591128269325,0.8875,FALSE
+"MemoryBelief","Belief","AI Original","AI Copy","Human Forgery","Human Forgery",-0.0353998106573886,-0.0531827842451537,-0.0178432899674974,1,TRUE
+"MemoryBelief","Belief","AI Original","AI Copy","Human Original","Human Forgery",-0.0229677030125942,-0.0348317996812793,-0.0101887012494386,0.99975,TRUE
+"MemoryBelief","Belief","AI Original","AI Copy","None","Human Forgery",0.0225436111193195,0.010657476985901,0.0358084897216812,1,TRUE
+"MemoryBelief","Belief","Human Forgery","AI Copy","AI Copy","Human Forgery",-0.0337925482503849,-0.0499364074584167,-0.0170724047551365,1,TRUE
+"MemoryBelief","Belief","Human Forgery","AI Copy","AI Original","Human Forgery",-0.0196193062608555,-0.0355224387331152,-0.0041026731091629,0.99225,TRUE
+"MemoryBelief","Belief","Human Forgery","AI Copy","Human Forgery","Human Forgery",-0.0454510207742451,-0.0644290306817436,-0.0264310898282707,1,TRUE
+"MemoryBelief","Belief","Human Forgery","AI Copy","Human Original","Human Forgery",-0.0331316754511337,-0.0467456999387627,-0.018760989706235,0.99975,TRUE
+"MemoryBelief","Belief","Human Forgery","AI Copy","None","Human Forgery",0.0121494324056668,0.000115241456869917,0.0266050476726455,0.9765,TRUE
+"MemoryBelief","Belief","Human Original","AI Copy","AI Copy","Human Forgery",-0.0437915527206149,-0.0578295892652362,-0.0312263961529983,1,TRUE
+"MemoryBelief","Belief","Human Original","AI Copy","AI Original","Human Forgery",-0.02983256593155,-0.0428570408010611,-0.01811651407783,1,TRUE
+"MemoryBelief","Belief","Human Original","AI Copy","Human Forgery","Human Forgery",-0.0556658977221385,-0.0720798070883237,-0.0402602812925457,1,TRUE
+"MemoryBelief","Belief","Human Original","AI Copy","Human Original","Human Forgery",-0.0435278468782504,-0.0537607420208518,-0.0332773333552396,1,TRUE
+"MemoryBelief","Belief","Human Original","AI Copy","None","Human Forgery",0.00211278687645053,-0.00659106700244829,0.0104620746621965,0.691,FALSE
+"MemoryBelief","Belief","None","AI Copy","AI Copy","Human Forgery",-0.0619308043392095,-0.0761720596819489,-0.0487941601819278,1,TRUE
+"MemoryBelief","Belief","None","AI Copy","AI Original","Human Forgery",-0.0477461197159866,-0.0615333209437045,-0.0359346465206872,1,TRUE
+"MemoryBelief","Belief","None","AI Copy","Human Forgery","Human Forgery",-0.0735750267295349,-0.0905107954370614,-0.0581527900837196,1,TRUE
+"MemoryBelief","Belief","None","AI Copy","Human Original","Human Forgery",-0.0614081325294435,-0.0720468617757714,-0.0510973047385675,1,TRUE
+"MemoryBelief","Belief","None","AI Copy","None","Human Forgery",-0.0158760816826771,-0.0212109793560357,-0.0109800965862842,1,TRUE
+"MemoryBelief","Belief","AI Copy","AI Copy","AI Copy","Human Original",-0.090857557812266,-0.110265750015566,-0.0720799288002959,1,TRUE
+"MemoryBelief","Belief","AI Copy","AI Copy","AI Original","Human Original",-0.0794599179346461,-0.0984382075507089,-0.0621020247564545,1,TRUE
+"MemoryBelief","Belief","AI Copy","AI Copy","Human Forgery","Human Original",-0.128243961201375,-0.151545341216,-0.106874830040168,1,TRUE
+"MemoryBelief","Belief","AI Copy","AI Copy","Human Original","Human Original",-0.159595797462778,-0.179960296725048,-0.140983418363644,1,TRUE
+"MemoryBelief","Belief","AI Copy","AI Copy","None","Human Original",-0.019177555488042,-0.0350309492373125,-0.00438161536864069,0.99575,TRUE
+"MemoryBelief","Belief","AI Original","AI Copy","AI Copy","Human Original",-0.0861965619877615,-0.105442368044056,-0.0674283272111832,1,TRUE
+"MemoryBelief","Belief","AI Original","AI Copy","AI Original","Human Original",-0.0751065168006319,-0.0953643901905648,-0.0567795169526812,1,TRUE
+"MemoryBelief","Belief","AI Original","AI Copy","Human Forgery","Human Original",-0.123973363216618,-0.147538074058181,-0.101822574090583,1,TRUE
+"MemoryBelief","Belief","AI Original","AI Copy","Human Original","Human Original",-0.155469477794312,-0.176094342040773,-0.136061699642034,1,TRUE
+"MemoryBelief","Belief","AI Original","AI Copy","None","Human Original",-0.0149710103199259,-0.0307984874865561,0.000875306489735164,0.971,FALSE
+"MemoryBelief","Belief","Human Forgery","AI Copy","AI Copy","Human Original",-0.0964530846086182,-0.117010465656006,-0.0767685691593037,1,TRUE
+"MemoryBelief","Belief","Human Forgery","AI Copy","AI Original","Human Original",-0.0851789682397728,-0.105183717331908,-0.0661224652219675,1,TRUE
+"MemoryBelief","Belief","Human Forgery","AI Copy","Human Forgery","Human Original",-0.134198710688591,-0.160095066713664,-0.109312318389825,1,TRUE
+"MemoryBelief","Belief","Human Forgery","AI Copy","Human Original","Human Original",-0.165381414963669,-0.18735246598578,-0.144468485905074,1,TRUE
+"MemoryBelief","Belief","Human Forgery","AI Copy","None","Human Original",-0.0252778652741267,-0.0411767248421424,-0.00845643854000799,0.99775,TRUE
+"MemoryBelief","Belief","Human Original","AI Copy","AI Copy","Human Original",-0.106754817448028,-0.125294978532944,-0.0896950723827876,1,TRUE
+"MemoryBelief","Belief","Human Original","AI Copy","AI Original","Human Original",-0.0954329718624612,-0.114099766312031,-0.0797250318501804,1,TRUE
+"MemoryBelief","Belief","Human Original","AI Copy","Human Forgery","Human Original",-0.144503698193934,-0.168034720016109,-0.123687169810118,1,TRUE
+"MemoryBelief","Belief","Human Original","AI Copy","Human Original","Human Original",-0.175780582793309,-0.196353392459736,-0.157128249890779,1,TRUE
+"MemoryBelief","Belief","Human Original","AI Copy","None","Human Original",-0.0352336958902151,-0.0485903304403163,-0.0238298453255474,1,TRUE
+"MemoryBelief","Belief","None","AI Copy","AI Copy","Human Original",-0.1246969296912,-0.145291935608719,-0.106353488572449,1,TRUE
+"MemoryBelief","Belief","None","AI Copy","AI Original","Human Original",-0.113465760619463,-0.133395890945728,-0.095910257028962,1,TRUE
+"MemoryBelief","Belief","None","AI Copy","Human Forgery","Human Original",-0.162693396994653,-0.187792720211102,-0.139747588219199,1,TRUE
+"MemoryBelief","Belief","None","AI Copy","Human Original","Human Original",-0.193859807851638,-0.216245351604417,-0.172778137495346,1,TRUE
+"MemoryBelief","Belief","None","AI Copy","None","Human Original",-0.0532467632533562,-0.0634439807967781,-0.045534602812578,1,TRUE
+"MemoryBelief","Belief","AI Copy","AI Original","AI Original","AI Original",-0.0297445885746655,-0.0518566404491268,-0.00877687447780981,0.99825,TRUE
+"MemoryBelief","Belief","AI Copy","AI Original","Human Forgery","AI Original",0.0253618586710678,0.00413944422475076,0.046314631430514,0.99025,TRUE
+"MemoryBelief","Belief","AI Copy","AI Original","Human Original","AI Original",0.0348979421955944,0.0186525024959633,0.0518592601753215,1,TRUE
+"MemoryBelief","Belief","AI Original","AI Original","Human Forgery","AI Original",0.0553603869832245,0.0326648291007892,0.0787148869220975,1,TRUE
+"MemoryBelief","Belief","AI Original","AI Original","Human Original","AI Original",0.0647335438738359,0.0465061784378063,0.0851918894212086,1,TRUE
+"MemoryBelief","Belief","Human Forgery","AI Original","Human Original","AI Original",0.00944054047178407,-0.00754842844291486,0.0280770066310058,0.8595,FALSE
+"MemoryBelief","Belief","None","AI Original","AI Copy","AI Original",-0.0899391820452502,-0.116375948612817,-0.0655887429502073,1,TRUE
+"MemoryBelief","Belief","None","AI Original","AI Original","AI Original",-0.119920620977284,-0.150362217966762,-0.0921691721293805,1,TRUE
+"MemoryBelief","Belief","None","AI Original","Human Forgery","AI Original",-0.0643868169162801,-0.0910277641627618,-0.0407253649375804,1,TRUE
+"MemoryBelief","Belief","None","AI Original","Human Original","AI Original",-0.0552134779651542,-0.0755660445770369,-0.0357390028348617,1,TRUE
+"MemoryBelief","Belief","AI Copy","AI Original","AI Copy","Human Forgery",0.0527945726943044,0.0299885780122333,0.076815044058058,1,TRUE
+"MemoryBelief","Belief","AI Copy","AI Original","AI Original","Human Forgery",0.0666446013599371,0.0455634963266624,0.0900739179958323,1,TRUE
+"MemoryBelief","Belief","AI Copy","AI Original","Human Forgery","Human Forgery",0.0409032880368191,0.0177190526810185,0.0656942617586311,0.9995,TRUE
+"MemoryBelief","Belief","AI Copy","AI Original","Human Original","Human Forgery",0.0529323179094498,0.0337440815822582,0.07476065880306,1,TRUE
+"MemoryBelief","Belief","AI Copy","AI Original","None","Human Forgery",0.0986065318687666,0.0776983332723367,0.122080696640568,1,TRUE
+"MemoryBelief","Belief","AI Original","AI Original","AI Copy","Human Forgery",0.0823267983695801,0.0576322106321853,0.108693131010083,1,TRUE
+"MemoryBelief","Belief","AI Original","AI Original","AI Original","Human Forgery",0.0962950947715073,0.0726897357149223,0.124917021929802,1,TRUE
+"MemoryBelief","Belief","AI Original","AI Original","Human Forgery","Human Forgery",0.0703653495133567,0.0455131407110454,0.0996879490066027,1,TRUE
+"MemoryBelief","Belief","AI Original","AI Original","Human Original","Human Forgery",0.0828390341567114,0.0605878826603458,0.108319112647117,1,TRUE
+"MemoryBelief","Belief","AI Original","AI Original","None","Human Forgery",0.128306713774413,0.104377482162719,0.156451637042464,1,TRUE
+"MemoryBelief","Belief","Human Forgery","AI Original","AI Copy","Human Forgery",0.0271409839944357,0.00522757167971029,0.0514867796955745,0.9925,TRUE
+"MemoryBelief","Belief","Human Forgery","AI Original","AI Original","Human Forgery",0.0411352041731617,0.0195461720100667,0.0663509602814057,1,TRUE
+"MemoryBelief","Belief","Human Forgery","AI Original","Human Forgery","Human Forgery",0.0153415749525145,-0.00941445709564259,0.0419323396200436,0.88775,FALSE
+"MemoryBelief","Belief","Human Forgery","AI Original","Human Original","Human Forgery",0.0275260435831874,0.00791214523402245,0.0506051585739551,0.9975,TRUE
+"MemoryBelief","Belief","Human Forgery","AI Original","None","Human Forgery",0.0730754448963477,0.0523821914513158,0.0971557784991664,1,TRUE
+"MemoryBelief","Belief","Human Original","AI Original","AI Copy","Human Forgery",0.0177835160996109,0.000245951841970211,0.0360515090891922,0.976,TRUE
+"MemoryBelief","Belief","Human Original","AI Original","AI Original","Human Forgery",0.0316320183354596,0.0144157156481293,0.0503440542583353,1,TRUE
+"MemoryBelief","Belief","Human Original","AI Original","Human Forgery","Human Forgery",0.00592731261453253,-0.0136499826632148,0.0257328511240566,0.7265,FALSE
+"MemoryBelief","Belief","Human Original","AI Original","Human Original","Human Forgery",0.0180376047026082,0.00281817993815227,0.0350173953475465,0.99225,TRUE
+"MemoryBelief","Belief","Human Original","AI Original","None","Human Forgery",0.063674101652241,0.0485057478658827,0.0805442248200811,1,TRUE
+"MemoryBelief","Belief","None","AI Original","AI Copy","Human Forgery",-0.0376663265346718,-0.0538818389413744,-0.0213408153789276,1,TRUE
+"MemoryBelief","Belief","None","AI Original","AI Original","Human Forgery",-0.02326575529262,-0.0391019664662608,-0.00911688652572088,0.99925,TRUE
+"MemoryBelief","Belief","None","AI Original","Human Forgery","Human Forgery",-0.0491682047512225,-0.06770754488717,-0.0310988670149398,1,TRUE
+"MemoryBelief","Belief","None","AI Original","Human Original","Human Forgery",-0.0370208836252816,-0.0500027268871625,-0.0229665982756871,1,TRUE
+"MemoryBelief","Belief","None","AI Original","None","Human Forgery",0.00844818309603063,0.000638373779408386,0.0179135748932158,0.98375,TRUE
+"MemoryBelief","Belief","AI Copy","AI Original","AI Copy","Human Original",-0.0103153280553446,-0.034484526896855,0.0154700002130073,0.788,FALSE
+"MemoryBelief","Belief","AI Copy","AI Original","AI Original","Human Original",0.000768396699447935,-0.0232730908781427,0.0252904249890193,0.524,FALSE
+"MemoryBelief","Belief","AI Copy","AI Original","Human Forgery","Human Original",-0.0480192595207635,-0.0748013766058627,-0.0216260458363196,0.99975,TRUE
+"MemoryBelief","Belief","AI Copy","AI Original","Human Original","Human Original",-0.0795722401451242,-0.102666728892036,-0.0564167081087483,1,TRUE
+"MemoryBelief","Belief","AI Copy","AI Original","None","Human Original",0.0609926853400653,0.0374037268837173,0.0860713733874985,1,TRUE
+"MemoryBelief","Belief","AI Original","AI Original","AI Copy","Human Original",0.0195135738177026,-0.00539564587172705,0.0477860472145145,0.93625,FALSE
+"MemoryBelief","Belief","AI Original","AI Original","AI Original","Human Original",0.0307048416384222,0.00349511763621547,0.0598671622240409,0.98575,TRUE
+"MemoryBelief","Belief","AI Original","AI Original","Human Forgery","Human Original",-0.0179855361841556,-0.0470432223314219,0.0112754800197716,0.8865,FALSE
+"MemoryBelief","Belief","AI Original","AI Original","Human Original","Human Original",-0.0495329920344924,-0.0740175698010146,-0.0229658718105585,0.99975,TRUE
+"MemoryBelief","Belief","AI Original","AI Original","None","Human Original",0.0910205444425885,0.0641804774603421,0.120677163813837,1,TRUE
+"MemoryBelief","Belief","Human Forgery","AI Original","AI Copy","Human Original",-0.0357881111042352,-0.0602163592024022,-0.00899075483062285,0.995,TRUE
+"MemoryBelief","Belief","Human Forgery","AI Original","AI Original","Human Original",-0.0242649882500857,-0.0494646713707826,0.00100935729386256,0.97,FALSE
+"MemoryBelief","Belief","Human Forgery","AI Original","Human Forgery","Human Original",-0.0735116760303594,-0.102106088345553,-0.0434022070147567,1,TRUE
+"MemoryBelief","Belief","Human Forgery","AI Original","Human Original","Human Original",-0.104708849826666,-0.129207492280641,-0.078342898850367,1,TRUE
+"MemoryBelief","Belief","Human Forgery","AI Original","None","Human Original",0.035561171546983,0.012494673631896,0.0615729066436725,0.99875,TRUE
+"MemoryBelief","Belief","Human Original","AI Original","AI Copy","Human Original",-0.0452390425010061,-0.0657949151198588,-0.0246367027849201,1,TRUE
+"MemoryBelief","Belief","Human Original","AI Original","AI Original","Human Original",-0.0341341603495461,-0.0546880850979713,-0.0143435284599687,0.99975,TRUE
+"MemoryBelief","Belief","Human Original","AI Original","Human Forgery","Human Original",-0.0828999048715772,-0.107633260488099,-0.0591289133183981,1,TRUE
+"MemoryBelief","Belief","Human Original","AI Original","Human Original","Human Original",-0.114332264895605,-0.136574454013298,-0.092848700852485,1,TRUE
+"MemoryBelief","Belief","Human Original","AI Original","None","Human Original",0.0259835133091414,0.0082239948036574,0.045504926454758,0.99725,TRUE
+"MemoryBelief","Belief","None","AI Original","AI Copy","Human Original",-0.100345774756227,-0.122021147369826,-0.0798659316569733,1,TRUE
+"MemoryBelief","Belief","None","AI Original","AI Original","Human Original",-0.0892102507600447,-0.110396557395138,-0.0695277758877832,1,TRUE
+"MemoryBelief","Belief","None","AI Original","Human Forgery","Human Original",-0.138129831981625,-0.164540123160175,-0.113551373775273,1,TRUE
+"MemoryBelief","Belief","None","AI Original","Human Original","Human Original",-0.169559021445286,-0.192482014449812,-0.146570290702946,1,TRUE
+"MemoryBelief","Belief","None","AI Original","None","Human Original",-0.0290172850764911,-0.0395787385204029,-0.0188381387473909,1,TRUE
+"MemoryBelief","Belief","AI Copy","Human Forgery","AI Original","Human Forgery",0.0139652995912069,-0.00125242631243486,0.0295323286285355,0.963,FALSE
+"MemoryBelief","Belief","AI Copy","Human Forgery","Human Forgery","Human Forgery",-0.0117684622775138,-0.0291464453321869,0.00520332118428249,0.91475,FALSE
+"MemoryBelief","Belief","AI Copy","Human Forgery","Human Original","Human Forgery",0.000377649724371848,-0.0120067817234571,0.0136255589415583,0.52575,FALSE
+"MemoryBelief","Belief","AI Original","Human Forgery","Human Forgery","Human Forgery",-0.0256361823662481,-0.0431884987834531,-0.00889769844066384,0.99925,TRUE
+"MemoryBelief","Belief","AI Original","Human Forgery","Human Original","Human Forgery",-0.0137229159482017,-0.025777968819732,-0.000508086988735771,0.978,TRUE
+"MemoryBelief","Belief","Human Forgery","Human Forgery","Human Original","Human Forgery",0.0122710189569267,-0.00239296678213033,0.0277899256660905,0.94675,FALSE
+"MemoryBelief","Belief","None","Human Forgery","AI Copy","Human Forgery",-0.0460189047813948,-0.0613563038827102,-0.0313920618472066,1,TRUE
+"MemoryBelief","Belief","None","Human Forgery","AI Original","Human Forgery",-0.0319021631349212,-0.0469890998462955,-0.0184959334820183,1,TRUE
+"MemoryBelief","Belief","None","Human Forgery","Human Forgery","Human Forgery",-0.0578267892581596,-0.075975273370392,-0.0407501326421849,1,TRUE
+"MemoryBelief","Belief","None","Human Forgery","Human Original","Human Forgery",-0.0455407130838428,-0.0578126007290392,-0.0333661705570155,1,TRUE
+"MemoryBelief","Belief","AI Copy","Human Forgery","AI Copy","Human Original",-0.0629641101194467,-0.0833860525561819,-0.0431280846370041,1,TRUE
+"MemoryBelief","Belief","AI Copy","Human Forgery","AI Original","Human Original",-0.0517776709981912,-0.0705376272360831,-0.0331728207650116,1,TRUE
+"MemoryBelief","Belief","AI Copy","Human Forgery","Human Forgery","Human Original",-0.100739558566482,-0.124267390456265,-0.0780227218795471,1,TRUE
+"MemoryBelief","Belief","AI Copy","Human Forgery","Human Original","Human Original",-0.13205291352146,-0.153187182512862,-0.112980028497378,1,TRUE
+"MemoryBelief","Belief","AI Copy","Human Forgery","None","Human Original",0.00834956146199793,-0.00957504803343888,0.0259914236118224,0.8175,FALSE
+"MemoryBelief","Belief","AI Original","Human Forgery","AI Copy","Human Original",-0.0767377601255417,-0.0962899005175332,-0.0582486963060607,1,TRUE
+"MemoryBelief","Belief","AI Original","Human Forgery","AI Original","Human Original",-0.0657947707899277,-0.0866597748148159,-0.0467182222166034,1,TRUE
+"MemoryBelief","Belief","AI Original","Human Forgery","Human Forgery","Human Original",-0.114401126771053,-0.139009171397731,-0.0923493036680827,1,TRUE
+"MemoryBelief","Belief","AI Original","Human Forgery","Human Original","Human Original",-0.145929896099759,-0.166373842442414,-0.126913825257944,1,TRUE
+"MemoryBelief","Belief","AI Original","Human Forgery","None","Human Original",-0.00553155052566581,-0.0224506038087921,0.0118803871089272,0.7435,FALSE
+"MemoryBelief","Belief","Human Forgery","Human Forgery","AI Copy","Human Original",-0.0511441820833549,-0.0711636107444052,-0.0312830190248946,1,TRUE
+"MemoryBelief","Belief","Human Forgery","Human Forgery","AI Original","Human Original",-0.040177226886331,-0.0605943373667259,-0.0199453313510211,1,TRUE
+"MemoryBelief","Belief","Human Forgery","Human Forgery","Human Forgery","Human Original",-0.0889704938482761,-0.114338523572778,-0.0636678280574707,1,TRUE
+"MemoryBelief","Belief","Human Forgery","Human Forgery","Human Original","Human Original",-0.1201551576661,-0.141428025408744,-0.0999004177202193,1,TRUE
+"MemoryBelief","Belief","Human Forgery","Human Forgery","None","Human Original",0.0200760906664908,-0.000385144372430272,0.0408560661556349,0.97375,FALSE
+"MemoryBelief","Belief","Human Original","Human Forgery","AI Copy","Human Original",-0.0636130431004007,-0.0809120660341199,-0.046068997241297,1,TRUE
+"MemoryBelief","Belief","Human Original","Human Forgery","AI Original","Human Original",-0.0521874694105244,-0.0698565586747236,-0.0357686176165096,1,TRUE
+"MemoryBelief","Belief","Human Original","Human Forgery","Human Forgery","Human Original",-0.100952960770424,-0.12385249419017,-0.0805140462151496,1,TRUE
+"MemoryBelief","Belief","Human Original","Human Forgery","Human Original","Human Original",-0.132376004902705,-0.152023875640159,-0.114537999541251,1,TRUE
+"MemoryBelief","Belief","Human Original","Human Forgery","None","Human Original",0.00823394616923471,-0.00797319765263184,0.0232755401105788,0.83325,FALSE
+"MemoryBelief","Belief","None","Human Forgery","AI Copy","Human Original",-0.109024003998763,-0.130693028622566,-0.0889453276968221,1,TRUE
+"MemoryBelief","Belief","None","Human Forgery","AI Original","Human Original",-0.0977233894679199,-0.118213278960675,-0.0785650956819432,1,TRUE
+"MemoryBelief","Belief","None","Human Forgery","Human Forgery","Human Original",-0.146740408457554,-0.172506224551243,-0.122634385625421,1,TRUE
+"MemoryBelief","Belief","None","Human Forgery","Human Original","Human Original",-0.17800941369731,-0.201294988909463,-0.155073985736248,1,TRUE
+"MemoryBelief","Belief","None","Human Forgery","None","Human Original",-0.0373894535329807,-0.0468545536673931,-0.0300223207409969,1,TRUE
+"MemoryBelief","Belief","AI Copy","Human Original","AI Original","Human Original",0.0111255947557774,-0.00864883054231159,0.0307161732638024,0.864,FALSE
+"MemoryBelief","Belief","AI Copy","Human Original","Human Forgery","Human Original",-0.0377137863519867,-0.0616528212307492,-0.0146332732104152,0.9995,TRUE
+"MemoryBelief","Belief","AI Copy","Human Original","Human Original","Human Original",-0.06899476552071,-0.0878645903910584,-0.0509172573121865,1,TRUE
+"MemoryBelief","Belief","AI Original","Human Original","Human Forgery","Human Original",-0.0489432330358787,-0.0727456927881555,-0.0261408983742625,1,TRUE
+"MemoryBelief","Belief","AI Original","Human Original","Human Original","Human Original",-0.0802332641940372,-0.0994607767139133,-0.0615331663279469,1,TRUE
+"MemoryBelief","Belief","Human Forgery","Human Original","Human Original","Human Original",-0.0315708544372465,-0.0527430746668308,-0.00983089610925846,0.99625,TRUE
+"MemoryBelief","Belief","None","Human Original","AI Copy","Human Original",-0.0712238372683327,-0.0950985944235627,-0.0479967502163106,1,TRUE
+"MemoryBelief","Belief","None","Human Original","AI Original","Human Original",-0.0601342478168142,-0.0832507137672689,-0.0376903070254311,1,TRUE
+"MemoryBelief","Belief","None","Human Original","Human Forgery","Human Original",-0.109367769056107,-0.137476209176452,-0.0815042442659295,1,TRUE
+"MemoryBelief","Belief","None","Human Original","Human Original","Human Original",-0.140774621407026,-0.166849880080045,-0.113899918203367,1,TRUE
+"MemoryBelief","Belief","AI Copy","Not recognized","AI Copy","AI Copy",0.5726772341136,0.525362482275076,0.614079346641404,1,TRUE
+"MemoryBelief","Belief","AI Copy","Not recognized","AI Original","AI Copy",0.568224958418717,0.521629110028824,0.608884330003014,1,TRUE
+"MemoryBelief","Belief","AI Copy","Not recognized","Human Forgery","AI Copy",0.578173924722936,0.532132942797925,0.619500551596552,1,TRUE
+"MemoryBelief","Belief","AI Copy","Not recognized","Human Original","AI Copy",0.588455105953722,0.544373692472056,0.627624776778702,1,TRUE
+"MemoryBelief","Belief","AI Copy","Not recognized","None","AI Copy",0.606671821391308,0.565169519553059,0.642168301337071,1,TRUE
+"MemoryBelief","Belief","AI Original","Not recognized","AI Copy","AI Copy",0.563340763598419,0.516963374148518,0.606187015467809,1,TRUE
+"MemoryBelief","Belief","AI Original","Not recognized","AI Original","AI Copy",0.559448993423324,0.511905549153216,0.603602246441657,1,TRUE
+"MemoryBelief","Belief","AI Original","Not recognized","Human Forgery","AI Copy",0.569078320354791,0.523595745830077,0.611942066641637,1,TRUE
+"MemoryBelief","Belief","AI Original","Not recognized","Human Original","AI Copy",0.579709334010554,0.535409510234829,0.620855892417448,1,TRUE
+"MemoryBelief","Belief","AI Original","Not recognized","None","AI Copy",0.597888546866185,0.557203202977763,0.635950471542528,1,TRUE
+"MemoryBelief","Belief","Human Forgery","Not recognized","AI Copy","AI Copy",0.553587655721173,0.507791781914001,0.596779538834325,1,TRUE
+"MemoryBelief","Belief","Human Forgery","Not recognized","AI Original","AI Copy",0.549656125868978,0.501443819044675,0.592206934783942,1,TRUE
+"MemoryBelief","Belief","Human Forgery","Not recognized","Human Forgery","AI Copy",0.559810478073531,0.51096147195541,0.604535469772933,1,TRUE
+"MemoryBelief","Belief","Human Forgery","Not recognized","Human Original","AI Copy",0.570057080117985,0.524741534945765,0.611734390528581,1,TRUE
+"MemoryBelief","Belief","Human Forgery","Not recognized","None","AI Copy",0.587936552212946,0.545549544338149,0.626690300119247,1,TRUE
+"MemoryBelief","Belief","Human Original","Not recognized","AI Copy","AI Copy",0.555143950694434,0.51235985932029,0.593004394614626,1,TRUE
+"MemoryBelief","Belief","Human Original","Not recognized","AI Original","AI Copy",0.55068619356241,0.508088454966802,0.58913044979177,1,TRUE
+"MemoryBelief","Belief","Human Original","Not recognized","Human Forgery","AI Copy",0.560792477242893,0.51774903431773,0.599109928328723,1,TRUE
+"MemoryBelief","Belief","Human Original","Not recognized","Human Original","AI Copy",0.571056617581901,0.530156127057889,0.608232039284031,1,TRUE
+"MemoryBelief","Belief","Human Original","Not recognized","None","AI Copy",0.5894328294763,0.551914107728241,0.622603987773313,1,TRUE
+"MemoryBelief","Belief","None","Not recognized","AI Copy","AI Copy",0.814508849663568,0.791371367448964,0.832436453157918,1,TRUE
+"MemoryBelief","Belief","None","Not recognized","AI Original","AI Copy",0.810150960493168,0.785672747526803,0.82884027225076,1,TRUE
+"MemoryBelief","Belief","None","Not recognized","Human Forgery","AI Copy",0.820407809498473,0.795997499002433,0.839338652239503,1,TRUE
+"MemoryBelief","Belief","None","Not recognized","Human Original","AI Copy",0.830874961364579,0.807833732634538,0.84820028967951,1,TRUE
+"MemoryBelief","Belief","None","Not recognized","None","AI Copy",0.849145239600299,0.823333451029568,0.867899099183104,1,TRUE
+"MemoryBelief","Belief","AI Copy","Not recognized","AI Copy","AI Original",0.492215010085116,0.431968332248339,0.544239863932689,1,TRUE
+"MemoryBelief","Belief","AI Copy","Not recognized","AI Original","AI Original",0.462501629024532,0.400817104141723,0.51560026900083,1,TRUE
+"MemoryBelief","Belief","AI Copy","Not recognized","Human Forgery","AI Original",0.517741296039244,0.460653574815422,0.565292842424478,1,TRUE
+"MemoryBelief","Belief","AI Copy","Not recognized","Human Original","AI Original",0.527377561830493,0.473675843925938,0.572421012886823,1,TRUE
+"MemoryBelief","Belief","AI Copy","Not recognized","None","AI Original",0.582269496270224,0.5408818838527,0.616853516263201,1,TRUE
+"MemoryBelief","Belief","AI Original","Not recognized","AI Copy","AI Original",0.483261222524409,0.425365443894303,0.535779389479971,1,TRUE
+"MemoryBelief","Belief","AI Original","Not recognized","AI Original","AI Original",0.453733920416396,0.389071434602426,0.511264071698154,1,TRUE
+"MemoryBelief","Belief","AI Original","Not recognized","Human Forgery","AI Original",0.508740559087547,0.453539776084394,0.558741505970434,1,TRUE
+"MemoryBelief","Belief","AI Original","Not recognized","Human Original","AI Original",0.517822467747033,0.465744448672262,0.565847559389096,1,TRUE
+"MemoryBelief","Belief","AI Original","Not recognized","None","AI Original",0.57369824155672,0.532532158686716,0.609601796417963,1,TRUE
+"MemoryBelief","Belief","Human Forgery","Not recognized","AI Copy","AI Original",0.473676896185865,0.415776892082834,0.525029822614712,1,TRUE
+"MemoryBelief","Belief","Human Forgery","Not recognized","AI Original","AI Original",0.444000292433934,0.383671101393183,0.499582510459773,1,TRUE
+"MemoryBelief","Belief","Human Forgery","Not recognized","Human Forgery","AI Original",0.498351629917306,0.439956275539548,0.552235825989471,1,TRUE
+"MemoryBelief","Belief","Human Forgery","Not recognized","Human Original","AI Original",0.508629871488669,0.455772071663983,0.556211262371582,1,TRUE
+"MemoryBelief","Belief","Human Forgery","Not recognized","None","AI Original",0.563508567648603,0.521759431051217,0.600580721086672,1,TRUE
+"MemoryBelief","Belief","Human Original","Not recognized","AI Copy","AI Original",0.475071144503076,0.419092896838226,0.522754864468788,1,TRUE
+"MemoryBelief","Belief","Human Original","Not recognized","AI Original","AI Original",0.44501215735812,0.386873260034099,0.495864694419143,1,TRUE
+"MemoryBelief","Belief","Human Original","Not recognized","Human Forgery","AI Original",0.499836847099715,0.447533384965931,0.54683236159826,1,TRUE
+"MemoryBelief","Belief","Human Original","Not recognized","Human Original","AI Original",0.510145961257131,0.460107821551114,0.55428066553261,1,TRUE
+"MemoryBelief","Belief","Human Original","Not recognized","None","AI Original",0.564747732346255,0.527770233131833,0.596543398710424,1,TRUE
+"MemoryBelief","Belief","None","Not recognized","AI Copy","AI Original",0.733930730822827,0.70577882411149,0.755823765436916,1,TRUE
+"MemoryBelief","Belief","None","Not recognized","AI Original","AI Original",0.704398389349046,0.673586568243657,0.727595985840011,1,TRUE
+"MemoryBelief","Belief","None","Not recognized","Human Forgery","AI Original",0.75951607976209,0.730327745069626,0.782029539431475,1,TRUE
+"MemoryBelief","Belief","None","Not recognized","Human Original","AI Original",0.769235750886627,0.744424967346623,0.78711052777434,1,TRUE
+"MemoryBelief","Belief","None","Not recognized","None","AI Original",0.824789878019503,0.793539074348211,0.848293079835144,1,TRUE
+"MemoryBelief","Belief","AI Copy","Not recognized","AI Copy","Human Forgery",0.544675172209687,0.493850479697512,0.589287567578076,1,TRUE
+"MemoryBelief","Belief","AI Copy","Not recognized","AI Original","Human Forgery",0.558932831256351,0.510874908709041,0.600735886230171,1,TRUE
+"MemoryBelief","Belief","AI Copy","Not recognized","Human Forgery","Human Forgery",0.532933042570775,0.483561984765624,0.577399316405949,1,TRUE
+"MemoryBelief","Belief","AI Copy","Not recognized","Human Original","Human Forgery",0.545141181673831,0.496983974252661,0.588118907073007,1,TRUE
+"MemoryBelief","Belief","AI Copy","Not recognized","None","Human Forgery",0.590889532736588,0.549130159309421,0.625071635554704,1,TRUE
+"MemoryBelief","Belief","AI Original","Not recognized","AI Copy","Human Forgery",0.535822297588199,0.487435055868366,0.58100421883879,1,TRUE
+"MemoryBelief","Belief","AI Original","Not recognized","AI Original","Human Forgery",0.54972555085328,0.50073237388069,0.594942061762052,1,TRUE
+"MemoryBelief","Belief","AI Original","Not recognized","Human Forgery","Human Forgery",0.524052893307378,0.47390340703249,0.570360593691447,1,TRUE
+"MemoryBelief","Belief","AI Original","Not recognized","Human Original","Human Forgery",0.536397728384179,0.488579837725108,0.580970507043081,1,TRUE
+"MemoryBelief","Belief","AI Original","Not recognized","None","Human Forgery",0.581916121640763,0.541269377655187,0.618719986342998,1,TRUE
+"MemoryBelief","Belief","Human Forgery","Not recognized","AI Copy","Human Forgery",0.525877891683164,0.477074699306409,0.572063302108239,1,TRUE
+"MemoryBelief","Belief","Human Forgery","Not recognized","AI Original","Human Forgery",0.5400431069696,0.491782454812515,0.584540591327889,1,TRUE
+"MemoryBelief","Belief","Human Forgery","Not recognized","Human Forgery","Human Forgery",0.514233089999921,0.461013477442184,0.562388650205146,1,TRUE
+"MemoryBelief","Belief","Human Forgery","Not recognized","Human Original","Human Forgery",0.526637962451859,0.478567076209367,0.572214422037241,1,TRUE
+"MemoryBelief","Belief","Human Forgery","Not recognized","None","Human Forgery",0.572444854403417,0.530434795580892,0.60979417118739,1,TRUE
+"MemoryBelief","Belief","Human Original","Not recognized","AI Copy","Human Forgery",0.527006448288385,0.482550921478753,0.568761213529296,1,TRUE
+"MemoryBelief","Belief","Human Original","Not recognized","AI Original","Human Forgery",0.541454007303055,0.497025066292724,0.5815828435223,1,TRUE
+"MemoryBelief","Belief","Human Original","Not recognized","Human Forgery","Human Forgery",0.515431764820547,0.470166031631568,0.558731597369225,1,TRUE
+"MemoryBelief","Belief","Human Original","Not recognized","Human Original","Human Forgery",0.527664116580579,0.483221876488571,0.569080116337494,1,TRUE
+"MemoryBelief","Belief","Human Original","Not recognized","None","Human Forgery",0.573463527770404,0.536178253108658,0.605265469855034,1,TRUE
+"MemoryBelief","Belief","None","Not recognized","AI Copy","Human Forgery",0.78670491125845,0.76191034960774,0.805778032065959,1,TRUE
+"MemoryBelief","Belief","None","Not recognized","AI Original","Human Forgery",0.800897174221873,0.77621138811584,0.81980924040327,1,TRUE
+"MemoryBelief","Belief","None","Not recognized","Human Forgery","Human Forgery",0.774954622857189,0.750334591411363,0.794672062865656,1,TRUE
+"MemoryBelief","Belief","None","Not recognized","Human Original","Human Forgery",0.787493101323521,0.764817055455086,0.804009364450935,1,TRUE
+"MemoryBelief","Belief","None","Not recognized","None","Human Forgery",0.833125793756815,0.80505617873764,0.8539221641225,1,TRUE
+"MemoryBelief","Belief","AI Copy","Not recognized","AI Copy","Human Original",0.481721408986266,0.423806887692686,0.532261784491876,1,TRUE
+"MemoryBelief","Belief","AI Copy","Not recognized","AI Original","Human Original",0.493075171064196,0.439511116671454,0.540111807659344,1,TRUE
+"MemoryBelief","Belief","AI Copy","Not recognized","Human Forgery","Human Original",0.44406605288418,0.386741744752225,0.494551013970502,1,TRUE
+"MemoryBelief","Belief","AI Copy","Not recognized","Human Original","Human Original",0.412408212751247,0.353545363728686,0.464364084811135,1,TRUE
+"MemoryBelief","Belief","AI Copy","Not recognized","None","Human Original",0.553521455172796,0.512366663334523,0.586541190040179,1,TRUE
+"MemoryBelief","Belief","AI Original","Not recognized","AI Copy","Human Original",0.472561115942928,0.418917204884586,0.523059304042336,1,TRUE
+"MemoryBelief","Belief","AI Original","Not recognized","AI Original","Human Original",0.484312431009353,0.428041511675708,0.535182201687215,1,TRUE
+"MemoryBelief","Belief","AI Original","Not recognized","Human Forgery","Human Original",0.435034343955344,0.377604498804804,0.487910528830551,1,TRUE
+"MemoryBelief","Belief","AI Original","Not recognized","Human Original","Human Original",0.403919341611941,0.344832334152565,0.458803883329874,1,TRUE
+"MemoryBelief","Belief","AI Original","Not recognized","None","Human Original",0.544561268562917,0.503592120551892,0.579850278782343,1,TRUE
+"MemoryBelief","Belief","Human Forgery","Not recognized","AI Copy","Human Original",0.463432300413224,0.408427001337089,0.513366150668188,1,TRUE
+"MemoryBelief","Belief","Human Forgery","Not recognized","AI Original","Human Original",0.474444126441619,0.419432355237595,0.523076761021575,1,TRUE
+"MemoryBelief","Belief","Human Forgery","Not recognized","Human Forgery","Human Original",0.425060463255295,0.361814039760588,0.482011528016083,1,TRUE
+"MemoryBelief","Belief","Human Forgery","Not recognized","Human Original","Human Original",0.393949949205498,0.334132242135787,0.448402032402496,1,TRUE
+"MemoryBelief","Belief","Human Forgery","Not recognized","None","Human Original",0.534673643348571,0.493585071340533,0.571126393372218,1,TRUE
+"MemoryBelief","Belief","Human Original","Not recognized","AI Copy","Human Original",0.464379787284547,0.411872910974226,0.510839848776078,1,TRUE
+"MemoryBelief","Belief","Human Original","Not recognized","AI Original","Human Original",0.475569871225071,0.425217408502344,0.520288869499079,1,TRUE
+"MemoryBelief","Belief","Human Original","Not recognized","Human Forgery","Human Original",0.426993331775799,0.371349556264673,0.475894229637339,1,TRUE
+"MemoryBelief","Belief","Human Original","Not recognized","Human Original","Human Original",0.395470628863668,0.339062561855346,0.447647144252052,1,TRUE
+"MemoryBelief","Belief","Human Original","Not recognized","None","Human Original",0.536115537644242,0.499190087383,0.566099519476083,1,TRUE
+"MemoryBelief","Belief","None","Not recognized","AI Copy","Human Original",0.723734402039031,0.697659319090296,0.744905955439161,1,TRUE
+"MemoryBelief","Belief","None","Not recognized","AI Original","Human Original",0.735048355051602,0.708225327420464,0.754882642793838,1,TRUE
+"MemoryBelief","Belief","None","Not recognized","Human Forgery","Human Original",0.68607396399174,0.655830774166872,0.709963283118068,1,TRUE
+"MemoryBelief","Belief","None","Not recognized","Human Original","Human Original",0.655300248205961,0.628280586084984,0.673298195097616,1,TRUE
+"MemoryBelief","Belief","None","Not recognized","None","Human Original",0.79579263568021,0.761920376974623,0.820780224879692,1,TRUE
+"MemoryBelief","Belief","AI Copy","Not recognized","AI Original","Not recognized",0.00931358756476813,-0.0181005764251659,0.0377336401554133,0.739,FALSE
+"MemoryBelief","Belief","AI Copy","Not recognized","Human Forgery","Not recognized",0.0184454541305771,-0.0120394153559123,0.0502688872013718,0.876,FALSE
+"MemoryBelief","Belief","AI Copy","Not recognized","Human Original","Not recognized",0.0173041765487724,-0.00504630835478005,0.0406714812034482,0.92575,FALSE
+"MemoryBelief","Belief","AI Original","Not recognized","Human Forgery","Not recognized",0.00967208218129662,-0.0226109257473801,0.0408512307064225,0.72,FALSE
+"MemoryBelief","Belief","AI Original","Not recognized","Human Original","Not recognized",0.00836111095162773,-0.0175583089162957,0.0322347501471646,0.74525,FALSE
+"MemoryBelief","Belief","Human Forgery","Not recognized","Human Original","Not recognized",-0.0011743135132275,-0.0291501120905247,0.0251360918220485,0.5355,FALSE
+"MemoryBelief","Belief","None","Not recognized","AI Copy","Not recognized",0.2420077087269,0.191817608362571,0.291740724228133,1,TRUE
+"MemoryBelief","Belief","None","Not recognized","AI Original","Not recognized",0.25141753772359,0.197541125215185,0.300756656374554,1,TRUE
+"MemoryBelief","Belief","None","Not recognized","Human Forgery","Not recognized",0.260546929747807,0.207100400486647,0.311705426169268,1,TRUE
+"MemoryBelief","Belief","None","Not recognized","Human Original","Not recognized",0.259760081835488,0.209258359231395,0.307287516069732,1,TRUE
 "MemoryCondition","Condition","AI-Generated","AI-Generated","Human Forgery","AI-Generated",0.0061209234590921,-0.00971708766093662,0.0217221446007552,0.76125,FALSE
 "MemoryCondition","Condition","AI-Generated","AI-Generated","Human Original","AI-Generated",-0.00233032276856969,-0.0183824032822548,0.0137822212644618,0.6175,FALSE
-"MemoryCondition","Condition","New Items","AI-Generated","Human Forgery","AI-Generated",-0.103044144181974,-0.125136835399685,-0.0811303990767183,1,TRUE
+"MemoryCondition","Condition","Human Forgery","AI-Generated","Human Original","AI-Generated",-0.00830671330425485,-0.024101639526674,0.00747361387345336,0.84975,FALSE
 "MemoryCondition","Condition","New Items","AI-Generated","AI-Generated","AI-Generated",-0.109240354458573,-0.132547039107081,-0.0870419269732971,1,TRUE
+"MemoryCondition","Condition","New Items","AI-Generated","Human Forgery","AI-Generated",-0.103044144181974,-0.125136835399685,-0.0811303990767183,1,TRUE
 "MemoryCondition","Condition","New Items","AI-Generated","Human Original","AI-Generated",-0.111546769699475,-0.134446148734232,-0.0883864058262254,1,TRUE
-"MemoryCondition","Condition","Human Forgery","Not recognized","Human Forgery","Human Original",0.355586159559125,0.303055442593322,0.405289777985371,1,TRUE
-"MemoryCondition","Condition","Human Forgery","Not recognized","AI-Generated","Human Original",0.359810627981119,0.310859607884798,0.408457858864852,1,TRUE
-"MemoryCondition","Condition","Human Forgery","Not recognized","New Items","Human Original",0.514099855828386,0.484248930011936,0.541706186394149,1,TRUE
-"MemoryCondition","Condition","Human Forgery","Not recognized","Human Original","Human Original",0.346686337116106,0.298938246060653,0.3962344311932,1,TRUE
-"MemoryCondition","Condition","AI-Generated","Not recognized","Human Forgery","Human Original",0.355583539844161,0.305705915381924,0.403734056292318,1,TRUE
-"MemoryCondition","Condition","AI-Generated","Not recognized","AI-Generated","Human Original",0.360070872399491,0.307375276441986,0.410443300165855,1,TRUE
-"MemoryCondition","Condition","AI-Generated","Not recognized","New Items","Human Original",0.514372853934945,0.483928299208605,0.5438275802804,1,TRUE
-"MemoryCondition","Condition","AI-Generated","Not recognized","Human Original","Human Original",0.347588785607999,0.297765398339204,0.396202435084219,1,TRUE
-"MemoryCondition","Condition","New Items","Not recognized","Human Forgery","Human Original",0.667321345057407,0.649244375245857,0.684523666225144,1,TRUE
-"MemoryCondition","Condition","New Items","Not recognized","AI-Generated","Human Original",0.672062129310534,0.653171805745858,0.688864461396015,1,TRUE
-"MemoryCondition","Condition","New Items","Not recognized","New Items","Human Original",0.826057044548091,0.801692516140437,0.84645109476878,1,TRUE
-"MemoryCondition","Condition","New Items","Not recognized","Human Original","Human Original",0.658924557068836,0.640205512036781,0.677029963522152,1,TRUE
-"MemoryCondition","Condition","Human Original","Not recognized","Human Forgery","Human Original",0.342987198230741,0.292921333522817,0.390589235037721,1,TRUE
-"MemoryCondition","Condition","Human Original","Not recognized","AI-Generated","Human Original",0.347048776915856,0.297341616283309,0.394850197955999,1,TRUE
-"MemoryCondition","Condition","Human Original","Not recognized","New Items","Human Original",0.500897375525219,0.47110554467784,0.529846204066558,1,TRUE
-"MemoryCondition","Condition","Human Original","Not recognized","Human Original","Human Original",0.334369322553983,0.282142937756104,0.38525245405726,1,TRUE
-"MemoryCondition","Condition","Human Forgery","Not recognized","Human Forgery","Human Forgery",0.507010520292799,0.468819770840755,0.545435995428853,1,TRUE
-"MemoryCondition","Condition","Human Forgery","Not recognized","AI-Generated","Human Forgery",0.508940835484684,0.470392120688913,0.545631424088924,1,TRUE
-"MemoryCondition","Condition","Human Forgery","Not recognized","New Items","Human Forgery",0.557428275093447,0.525499480559546,0.589765289906289,1,TRUE
-"MemoryCondition","Condition","Human Forgery","Not recognized","Human Original","Human Forgery",0.510672085635734,0.473292260479296,0.54778695627618,1,TRUE
-"MemoryCondition","Condition","AI-Generated","Not recognized","Human Forgery","Human Forgery",0.507343293292886,0.469333542362284,0.546408981135163,1,TRUE
-"MemoryCondition","Condition","AI-Generated","Not recognized","AI-Generated","Human Forgery",0.509242163230556,0.468699868213389,0.547825576722511,1,TRUE
-"MemoryCondition","Condition","AI-Generated","Not recognized","New Items","Human Forgery",0.557667571867868,0.52449918271998,0.59016386519031,1,TRUE
-"MemoryCondition","Condition","AI-Generated","Not recognized","Human Original","Human Forgery",0.510903680017381,0.473267831941788,0.548018994132101,1,TRUE
-"MemoryCondition","Condition","New Items","Not recognized","Human Forgery","Human Forgery",0.819364959666594,0.803512194839056,0.833361660602521,1,TRUE
-"MemoryCondition","Condition","New Items","Not recognized","AI-Generated","Human Forgery",0.820923691521427,0.805280265223481,0.834712612149734,1,TRUE
-"MemoryCondition","Condition","New Items","Not recognized","New Items","Human Forgery",0.869677158511642,0.850905186399171,0.88473353239137,1,TRUE
-"MemoryCondition","Condition","New Items","Not recognized","Human Original","Human Forgery",0.822799679635404,0.807797589221463,0.836394999602416,1,TRUE
-"MemoryCondition","Condition","Human Original","Not recognized","Human Forgery","Human Forgery",0.494318246464791,0.455496439084503,0.532582838036933,1,TRUE
-"MemoryCondition","Condition","Human Original","Not recognized","AI-Generated","Human Forgery",0.496021180242531,0.45714970839668,0.532530606791958,1,TRUE
-"MemoryCondition","Condition","Human Original","Not recognized","New Items","Human Forgery",0.544559208930945,0.511272601606866,0.576653861782078,1,TRUE
-"MemoryCondition","Condition","Human Original","Not recognized","Human Original","Human Forgery",0.497855317325319,0.458940082586811,0.535425041113682,1,TRUE
-"MemoryCondition","Condition","Human Forgery","Not recognized","Human Forgery","AI-Generated",0.434200104477841,0.387073656344514,0.481574130219998,1,TRUE
-"MemoryCondition","Condition","Human Forgery","Not recognized","AI-Generated","AI-Generated",0.429016227383216,0.381489857207017,0.474013128379133,1,TRUE
-"MemoryCondition","Condition","Human Forgery","Not recognized","New Items","AI-Generated",0.53752090878323,0.507563028122083,0.567329802949823,1,TRUE
-"MemoryCondition","Condition","Human Forgery","Not recognized","Human Original","AI-Generated",0.426467210499592,0.379041725297361,0.471337054652629,1,TRUE
-"MemoryCondition","Condition","AI-Generated","Not recognized","Human Forgery","AI-Generated",0.434190143764716,0.388751787041113,0.481393063738932,1,TRUE
+"MemoryCondition","Condition","AI-Generated","AI-Generated","AI-Generated","Human Forgery",0.0801203643945649,0.0614946237646772,0.101909273912401,1,TRUE
+"MemoryCondition","Condition","AI-Generated","AI-Generated","Human Forgery","Human Forgery",0.0786001607175401,0.0605174005717711,0.0988235661272346,1,TRUE
+"MemoryCondition","Condition","AI-Generated","AI-Generated","Human Original","Human Forgery",0.0820969355750292,0.0639593057432921,0.102577183547805,1,TRUE
+"MemoryCondition","Condition","AI-Generated","AI-Generated","New Items","Human Forgery",0.128813278889446,0.110226742049695,0.149560560684563,1,TRUE
+"MemoryCondition","Condition","Human Forgery","AI-Generated","AI-Generated","Human Forgery",0.0741118819939748,0.0566836320859331,0.0932035957620548,1,TRUE
+"MemoryCondition","Condition","Human Forgery","AI-Generated","Human Forgery","Human Forgery",0.0724618234436133,0.0541146775255846,0.0931052405373553,1,TRUE
+"MemoryCondition","Condition","Human Forgery","AI-Generated","Human Original","Human Forgery",0.0759977952775941,0.0584221609764194,0.0960388413717659,1,TRUE
+"MemoryCondition","Condition","Human Forgery","AI-Generated","New Items","Human Forgery",0.122783296010735,0.104371084259588,0.142257747564005,1,TRUE
+"MemoryCondition","Condition","Human Original","AI-Generated","AI-Generated","Human Forgery",0.0824509687775148,0.0648286313662019,0.102520204570289,1,TRUE
+"MemoryCondition","Condition","Human Original","AI-Generated","Human Forgery","Human Forgery",0.0809266174923342,0.0622816369833132,0.100954813481237,1,TRUE
+"MemoryCondition","Condition","Human Original","AI-Generated","Human Original","Human Forgery",0.0847119592569519,0.0659510817089133,0.105540954583183,1,TRUE
+"MemoryCondition","Condition","Human Original","AI-Generated","New Items","Human Forgery",0.131377084581715,0.112084872511488,0.151697393792628,1,TRUE
+"MemoryCondition","Condition","New Items","AI-Generated","AI-Generated","Human Forgery",-0.0286705594224539,-0.0411924956001405,-0.0166782982301412,1,TRUE
+"MemoryCondition","Condition","New Items","AI-Generated","Human Forgery","Human Forgery",-0.0303041309507882,-0.0423883543113105,-0.0176426845153549,1,TRUE
+"MemoryCondition","Condition","New Items","AI-Generated","Human Original","Human Forgery",-0.0267132181581701,-0.0382688260715458,-0.0147679513322651,1,TRUE
+"MemoryCondition","Condition","New Items","AI-Generated","New Items","Human Forgery",0.0198071074464222,0.0141154203638506,0.0266560380209051,1,TRUE
+"MemoryCondition","Condition","AI-Generated","AI-Generated","AI-Generated","Human Original",-0.0681398400046394,-0.0930844035802655,-0.0441565437153966,1,TRUE
+"MemoryCondition","Condition","AI-Generated","AI-Generated","Human Forgery","Human Original",-0.0732611751110937,-0.0952578126189281,-0.04965480748713,1,TRUE
+"MemoryCondition","Condition","AI-Generated","AI-Generated","Human Original","Human Original",-0.0813532828846403,-0.1051308159193,-0.0574253914650363,1,TRUE
+"MemoryCondition","Condition","AI-Generated","AI-Generated","New Items","Human Original",0.0851949053322394,0.0631382283120555,0.108580592743391,1,TRUE
+"MemoryCondition","Condition","Human Forgery","AI-Generated","AI-Generated","Human Original",-0.0746763099944749,-0.0972046466621818,-0.0515283847284261,1,TRUE
+"MemoryCondition","Condition","Human Forgery","AI-Generated","Human Forgery","Human Original",-0.0793538530938849,-0.102903515119882,-0.0545883807939339,1,TRUE
+"MemoryCondition","Condition","Human Forgery","AI-Generated","Human Original","Human Original",-0.087601748237278,-0.110400321023426,-0.0640139460157427,1,TRUE
+"MemoryCondition","Condition","Human Forgery","AI-Generated","New Items","Human Original",0.0792799794354709,0.0575640207710967,0.101210588694406,1,TRUE
+"MemoryCondition","Condition","Human Original","AI-Generated","AI-Generated","Human Original",-0.0661307744530626,-0.0896873875468619,-0.0428862170566984,1,TRUE
+"MemoryCondition","Condition","Human Original","AI-Generated","Human Forgery","Human Original",-0.0707175915589547,-0.0931962270111983,-0.0474049994494981,1,TRUE
+"MemoryCondition","Condition","Human Original","AI-Generated","Human Original","Human Original",-0.0791609915151261,-0.104390734030891,-0.0538136748376511,1,TRUE
+"MemoryCondition","Condition","Human Original","AI-Generated","New Items","Human Original",0.0878274143934621,0.0647242480965254,0.110634919566487,1,TRUE
+"MemoryCondition","Condition","New Items","AI-Generated","AI-Generated","Human Original",-0.177381582105937,-0.201342715084579,-0.154554880822072,1,TRUE
+"MemoryCondition","Condition","New Items","AI-Generated","Human Forgery","Human Original",-0.182049256217047,-0.20543297448633,-0.15886743912363,1,TRUE
+"MemoryCondition","Condition","New Items","AI-Generated","Human Original","Human Original",-0.190304091437638,-0.214658751282643,-0.166789570283654,1,TRUE
+"MemoryCondition","Condition","New Items","AI-Generated","New Items","Human Original",-0.0236845313628513,-0.031591868385834,-0.0160522213803219,1,TRUE
+"MemoryCondition","Condition","AI-Generated","Human Forgery","Human Forgery","Human Forgery",-0.00158629883963471,-0.0130090086866782,0.00967356475135549,0.60625,FALSE
+"MemoryCondition","Condition","AI-Generated","Human Forgery","Human Original","Human Forgery",0.00194812715434711,-0.00932725898872459,0.0127572323311077,0.63375,FALSE
+"MemoryCondition","Condition","Human Forgery","Human Forgery","Human Original","Human Forgery",0.00353373945974535,-0.00738805275082233,0.0151899977385643,0.727,FALSE
+"MemoryCondition","Condition","New Items","Human Forgery","AI-Generated","Human Forgery",-0.0484250832151071,-0.059446671733214,-0.0383460418568209,1,TRUE
+"MemoryCondition","Condition","New Items","Human Forgery","Human Forgery","Human Forgery",-0.050180869565617,-0.0611824787887451,-0.0398321663512833,1,TRUE
+"MemoryCondition","Condition","New Items","Human Forgery","Human Original","Human Forgery",-0.04654678908804,-0.0570056611631134,-0.0367932170916111,1,TRUE
+"MemoryCondition","Condition","AI-Generated","Human Forgery","AI-Generated","Human Original",-0.148642110799023,-0.169747979621608,-0.129526206179821,1,TRUE
+"MemoryCondition","Condition","AI-Generated","Human Forgery","Human Forgery","Human Original",-0.153404381998654,-0.173062469243039,-0.134761578642517,1,TRUE
+"MemoryCondition","Condition","AI-Generated","Human Forgery","Human Original","Human Original",-0.161655211211228,-0.181839589655607,-0.142923492959117,1,TRUE
+"MemoryCondition","Condition","AI-Generated","Human Forgery","New Items","Human Original",0.00472065895525815,-0.00883667352123836,0.0195001169676506,0.753,FALSE
+"MemoryCondition","Condition","Human Forgery","Human Forgery","AI-Generated","Human Original",-0.147142051418263,-0.167657367993873,-0.12853798014261,1,TRUE
+"MemoryCondition","Condition","Human Forgery","Human Forgery","Human Forgery","Human Original",-0.151734953678232,-0.172381577009709,-0.132115621916361,1,TRUE
+"MemoryCondition","Condition","Human Forgery","Human Forgery","Human Original","Human Original",-0.15977983058918,-0.179901836335813,-0.141366479293011,1,TRUE
+"MemoryCondition","Condition","Human Forgery","Human Forgery","New Items","Human Original",0.00667286699930822,-0.00771683018067086,0.0206388529446329,0.822,FALSE
+"MemoryCondition","Condition","Human Original","Human Forgery","AI-Generated","Human Original",-0.15056060614957,-0.171131181494618,-0.132426571335923,1,TRUE
+"MemoryCondition","Condition","Human Original","Human Forgery","Human Forgery","Human Original",-0.155168824271049,-0.175730012715916,-0.136636070100447,1,TRUE
+"MemoryCondition","Condition","Human Original","Human Forgery","Human Original","Human Original",-0.163650118055392,-0.18533689333637,-0.144200396641069,1,TRUE
+"MemoryCondition","Condition","Human Original","Human Forgery","New Items","Human Original",0.00302642155687251,-0.0109773229153324,0.016870032227279,0.67025,FALSE
+"MemoryCondition","Condition","New Items","Human Forgery","AI-Generated","Human Original",-0.197449459290735,-0.220365566657896,-0.176568696986493,1,TRUE
+"MemoryCondition","Condition","New Items","Human Forgery","Human Forgery","Human Original",-0.201990585805718,-0.224439974601624,-0.180982834521972,1,TRUE
+"MemoryCondition","Condition","New Items","Human Forgery","Human Original","Human Original",-0.210186722532512,-0.233080112594517,-0.189066453987447,1,TRUE
+"MemoryCondition","Condition","New Items","Human Forgery","New Items","Human Original",-0.0434856093694016,-0.0513561736393993,-0.0368266794737981,1,TRUE
+"MemoryCondition","Condition","AI-Generated","Human Original","Human Forgery","Human Original",-0.00440547337696988,-0.0229559938946891,0.0139213383247109,0.68875,FALSE
+"MemoryCondition","Condition","AI-Generated","Human Original","Human Original","Human Original",-0.0130200912592565,-0.0307929559304137,0.00534171400904822,0.91425,FALSE
+"MemoryCondition","Condition","Human Forgery","Human Original","Human Original","Human Original",-0.00838029195276221,-0.0262605120839576,0.010082133052912,0.81575,FALSE
+"MemoryCondition","Condition","New Items","Human Original","AI-Generated","Human Original",-0.153840146749415,-0.180598337027978,-0.12839190186664,1,TRUE
+"MemoryCondition","Condition","New Items","Human Original","Human Forgery","Human Original",-0.158511360856411,-0.184567991981195,-0.132929180104368,1,TRUE
+"MemoryCondition","Condition","New Items","Human Original","Human Original","Human Original",-0.166598167693475,-0.193140570912727,-0.141055399336086,1,TRUE
 "MemoryCondition","Condition","AI-Generated","Not recognized","AI-Generated","AI-Generated",0.428588428191134,0.379155842227952,0.47704222793431,1,TRUE
-"MemoryCondition","Condition","AI-Generated","Not recognized","New Items","AI-Generated",0.537962959044267,0.506254120274434,0.568347816723179,1,TRUE
+"MemoryCondition","Condition","AI-Generated","Not recognized","Human Forgery","AI-Generated",0.434190143764716,0.388751787041113,0.481393063738932,1,TRUE
 "MemoryCondition","Condition","AI-Generated","Not recognized","Human Original","AI-Generated",0.426458796263558,0.378143388314638,0.473138724430033,1,TRUE
-"MemoryCondition","Condition","New Items","Not recognized","Human Forgery","AI-Generated",0.746453465247269,0.727930964190328,0.762797310986625,1,TRUE
-"MemoryCondition","Condition","New Items","Not recognized","AI-Generated","AI-Generated",0.740466386429953,0.72184539898384,0.756793636218996,1,TRUE
-"MemoryCondition","Condition","New Items","Not recognized","New Items","AI-Generated",0.849914553710613,0.827532203160578,0.867686159687183,1,TRUE
-"MemoryCondition","Condition","New Items","Not recognized","Human Original","AI-Generated",0.738369389774539,0.720035077168157,0.754144114270605,1,TRUE
-"MemoryCondition","Condition","Human Original","Not recognized","Human Forgery","AI-Generated",0.421076248629178,0.374308830178649,0.466837373399762,1,TRUE
+"MemoryCondition","Condition","AI-Generated","Not recognized","New Items","AI-Generated",0.537962959044267,0.506254120274434,0.568347816723179,1,TRUE
+"MemoryCondition","Condition","Human Forgery","Not recognized","AI-Generated","AI-Generated",0.429016227383216,0.381489857207017,0.474013128379133,1,TRUE
+"MemoryCondition","Condition","Human Forgery","Not recognized","Human Forgery","AI-Generated",0.434200104477841,0.387073656344514,0.481574130219998,1,TRUE
+"MemoryCondition","Condition","Human Forgery","Not recognized","Human Original","AI-Generated",0.426467210499592,0.379041725297361,0.471337054652629,1,TRUE
+"MemoryCondition","Condition","Human Forgery","Not recognized","New Items","AI-Generated",0.53752090878323,0.507563028122083,0.567329802949823,1,TRUE
 "MemoryCondition","Condition","Human Original","Not recognized","AI-Generated","AI-Generated",0.41567031002006,0.368382820455162,0.460736831922684,1,TRUE
-"MemoryCondition","Condition","Human Original","Not recognized","New Items","AI-Generated",0.52478034275751,0.492696988026933,0.554717233021608,1,TRUE
+"MemoryCondition","Condition","Human Original","Not recognized","Human Forgery","AI-Generated",0.421076248629178,0.374308830178649,0.466837373399762,1,TRUE
 "MemoryCondition","Condition","Human Original","Not recognized","Human Original","AI-Generated",0.412938420891471,0.36342362326842,0.461119894630165,1,TRUE
-"MemoryCondition","Condition","Human Forgery","Not recognized","Human Original","Not recognized",0.0131778687335223,-0.00734958375422261,0.0324898253853261,0.89975,FALSE
+"MemoryCondition","Condition","Human Original","Not recognized","New Items","AI-Generated",0.52478034275751,0.492696988026933,0.554717233021608,1,TRUE
+"MemoryCondition","Condition","New Items","Not recognized","AI-Generated","AI-Generated",0.740466386429953,0.72184539898384,0.756793636218996,1,TRUE
+"MemoryCondition","Condition","New Items","Not recognized","Human Forgery","AI-Generated",0.746453465247269,0.727930964190328,0.762797310986625,1,TRUE
+"MemoryCondition","Condition","New Items","Not recognized","Human Original","AI-Generated",0.738369389774539,0.720035077168157,0.754144114270605,1,TRUE
+"MemoryCondition","Condition","New Items","Not recognized","New Items","AI-Generated",0.849914553710613,0.827532203160578,0.867686159687183,1,TRUE
+"MemoryCondition","Condition","AI-Generated","Not recognized","AI-Generated","Human Forgery",0.509242163230556,0.468699868213389,0.547825576722511,1,TRUE
+"MemoryCondition","Condition","AI-Generated","Not recognized","Human Forgery","Human Forgery",0.507343293292886,0.469333542362284,0.546408981135163,1,TRUE
+"MemoryCondition","Condition","AI-Generated","Not recognized","Human Original","Human Forgery",0.510903680017381,0.473267831941788,0.548018994132101,1,TRUE
+"MemoryCondition","Condition","AI-Generated","Not recognized","New Items","Human Forgery",0.557667571867868,0.52449918271998,0.59016386519031,1,TRUE
+"MemoryCondition","Condition","Human Forgery","Not recognized","AI-Generated","Human Forgery",0.508940835484684,0.470392120688913,0.545631424088924,1,TRUE
+"MemoryCondition","Condition","Human Forgery","Not recognized","Human Forgery","Human Forgery",0.507010520292799,0.468819770840755,0.545435995428853,1,TRUE
+"MemoryCondition","Condition","Human Forgery","Not recognized","Human Original","Human Forgery",0.510672085635734,0.473292260479296,0.54778695627618,1,TRUE
+"MemoryCondition","Condition","Human Forgery","Not recognized","New Items","Human Forgery",0.557428275093447,0.525499480559546,0.589765289906289,1,TRUE
+"MemoryCondition","Condition","Human Original","Not recognized","AI-Generated","Human Forgery",0.496021180242531,0.45714970839668,0.532530606791958,1,TRUE
+"MemoryCondition","Condition","Human Original","Not recognized","Human Forgery","Human Forgery",0.494318246464791,0.455496439084503,0.532582838036933,1,TRUE
+"MemoryCondition","Condition","Human Original","Not recognized","Human Original","Human Forgery",0.497855317325319,0.458940082586811,0.535425041113682,1,TRUE
+"MemoryCondition","Condition","Human Original","Not recognized","New Items","Human Forgery",0.544559208930945,0.511272601606866,0.576653861782078,1,TRUE
+"MemoryCondition","Condition","New Items","Not recognized","AI-Generated","Human Forgery",0.820923691521427,0.805280265223481,0.834712612149734,1,TRUE
+"MemoryCondition","Condition","New Items","Not recognized","Human Forgery","Human Forgery",0.819364959666594,0.803512194839056,0.833361660602521,1,TRUE
+"MemoryCondition","Condition","New Items","Not recognized","Human Original","Human Forgery",0.822799679635404,0.807797589221463,0.836394999602416,1,TRUE
+"MemoryCondition","Condition","New Items","Not recognized","New Items","Human Forgery",0.869677158511642,0.850905186399171,0.88473353239137,1,TRUE
+"MemoryCondition","Condition","AI-Generated","Not recognized","AI-Generated","Human Original",0.360070872399491,0.307375276441986,0.410443300165855,1,TRUE
+"MemoryCondition","Condition","AI-Generated","Not recognized","Human Forgery","Human Original",0.355583539844161,0.305705915381924,0.403734056292318,1,TRUE
+"MemoryCondition","Condition","AI-Generated","Not recognized","Human Original","Human Original",0.347588785607999,0.297765398339204,0.396202435084219,1,TRUE
+"MemoryCondition","Condition","AI-Generated","Not recognized","New Items","Human Original",0.514372853934945,0.483928299208605,0.5438275802804,1,TRUE
+"MemoryCondition","Condition","Human Forgery","Not recognized","AI-Generated","Human Original",0.359810627981119,0.310859607884798,0.408457858864852,1,TRUE
+"MemoryCondition","Condition","Human Forgery","Not recognized","Human Forgery","Human Original",0.355586159559125,0.303055442593322,0.405289777985371,1,TRUE
+"MemoryCondition","Condition","Human Forgery","Not recognized","Human Original","Human Original",0.346686337116106,0.298938246060653,0.3962344311932,1,TRUE
+"MemoryCondition","Condition","Human Forgery","Not recognized","New Items","Human Original",0.514099855828386,0.484248930011936,0.541706186394149,1,TRUE
+"MemoryCondition","Condition","Human Original","Not recognized","AI-Generated","Human Original",0.347048776915856,0.297341616283309,0.394850197955999,1,TRUE
+"MemoryCondition","Condition","Human Original","Not recognized","Human Forgery","Human Original",0.342987198230741,0.292921333522817,0.390589235037721,1,TRUE
+"MemoryCondition","Condition","Human Original","Not recognized","Human Original","Human Original",0.334369322553983,0.282142937756104,0.38525245405726,1,TRUE
+"MemoryCondition","Condition","Human Original","Not recognized","New Items","Human Original",0.500897375525219,0.47110554467784,0.529846204066558,1,TRUE
+"MemoryCondition","Condition","New Items","Not recognized","AI-Generated","Human Original",0.672062129310534,0.653171805745858,0.688864461396015,1,TRUE
+"MemoryCondition","Condition","New Items","Not recognized","Human Forgery","Human Original",0.667321345057407,0.649244375245857,0.684523666225144,1,TRUE
+"MemoryCondition","Condition","New Items","Not recognized","Human Original","Human Original",0.658924557068836,0.640205512036781,0.677029963522152,1,TRUE
+"MemoryCondition","Condition","New Items","Not recognized","New Items","Human Original",0.826057044548091,0.801692516140437,0.84645109476878,1,TRUE
 "MemoryCondition","Condition","AI-Generated","Not recognized","Human Forgery","Not recognized",0.00015191741224696,-0.0206972496067296,0.0208293281028555,0.5055,FALSE
 "MemoryCondition","Condition","AI-Generated","Not recognized","Human Original","Not recognized",0.0132153682776215,-0.00690155331221419,0.0342585814670902,0.901,FALSE
-"MemoryCondition","Condition","New Items","Not recognized","Human Forgery","Not recognized",0.31224734032561,0.267078771357177,0.355148990048253,1,TRUE
+"MemoryCondition","Condition","Human Forgery","Not recognized","Human Original","Not recognized",0.0131778687335223,-0.00734958375422261,0.0324898253853261,0.89975,FALSE
 "MemoryCondition","Condition","New Items","Not recognized","AI-Generated","Not recognized",0.312225449653628,0.266493010403952,0.355945356847363,1,TRUE
+"MemoryCondition","Condition","New Items","Not recognized","Human Forgery","Not recognized",0.31224734032561,0.267078771357177,0.355148990048253,1,TRUE
 "MemoryCondition","Condition","New Items","Not recognized","Human Original","Not recognized",0.324995954361772,0.280195652495504,0.368621436247643,1,TRUE
+"MemoryConditionBelief","Belief","AI Original","AI-Generated","AI Copy","AI-Generated",0.0297173495342672,0.00765264871348096,0.0528707274633759,0.99625,TRUE
+"MemoryConditionBelief","Belief","Human Forgery","AI-Generated","AI Copy","AI-Generated",-0.0184477480349625,-0.0417933209920264,0.00515496465760228,0.943,FALSE
+"MemoryConditionBelief","Belief","Human Forgery","AI-Generated","AI Original","AI-Generated",-0.0486512559421654,-0.0730171242574408,-0.0231613543920198,1,TRUE
+"MemoryConditionBelief","Belief","Human Original","AI-Generated","AI Copy","AI-Generated",-0.0395358551797204,-0.0574863774134934,-0.0218174471812189,1,TRUE
+"MemoryConditionBelief","Belief","Human Original","AI-Generated","AI Original","AI-Generated",-0.0695416258402038,-0.0892559772632515,-0.050130992167423,1,TRUE
+"MemoryConditionBelief","Belief","Human Original","AI-Generated","Human Forgery","AI-Generated",-0.0209240758516552,-0.0422231828298194,-0.000506636177321852,0.97775,TRUE
+"MemoryConditionBelief","Belief","AI Copy","AI-Generated","AI Copy","Not recognized",-0.424355256486955,-0.452853972131276,-0.396121575350889,1,TRUE
+"MemoryConditionBelief","Belief","AI Copy","AI-Generated","AI Original","Not recognized",-0.410286522683921,-0.433853532022481,-0.386264681163963,1,TRUE
+"MemoryConditionBelief","Belief","AI Copy","AI-Generated","Human Forgery","Not recognized",-0.404106845164547,-0.432643346866433,-0.376032843492412,1,TRUE
+"MemoryConditionBelief","Belief","AI Copy","AI-Generated","Human Original","Not recognized",-0.405856609024782,-0.426473381889215,-0.386594058849236,1,TRUE
+"MemoryConditionBelief","Belief","AI Original","AI-Generated","AI Copy","Not recognized",-0.394671870393819,-0.419489576229178,-0.370312477226662,1,TRUE
+"MemoryConditionBelief","Belief","AI Original","AI-Generated","AI Original","Not recognized",-0.380913361645164,-0.410931258352423,-0.347855418391435,1,TRUE
+"MemoryConditionBelief","Belief","AI Original","AI-Generated","Human Forgery","Not recognized",-0.374633285650673,-0.403804713022367,-0.345529710180211,1,TRUE
+"MemoryConditionBelief","Belief","AI Original","AI-Generated","Human Original","Not recognized",-0.376331294722835,-0.396692161228262,-0.355780940923361,1,TRUE
+"MemoryConditionBelief","Belief","Human Forgery","AI-Generated","AI Copy","Not recognized",-0.442853382690136,-0.468790576369749,-0.417219751876488,1,TRUE
+"MemoryConditionBelief","Belief","Human Forgery","AI-Generated","AI Original","Not recognized",-0.428889139036491,-0.454156346296779,-0.401456812776959,1,TRUE
+"MemoryConditionBelief","Belief","Human Forgery","AI-Generated","Human Forgery","Not recognized",-0.422876676499466,-0.45921030195503,-0.386262020425786,1,TRUE
+"MemoryConditionBelief","Belief","Human Forgery","AI-Generated","Human Original","Not recognized",-0.424295656167936,-0.44681305831788,-0.401157995867578,1,TRUE
+"MemoryConditionBelief","Belief","Human Original","AI-Generated","AI Copy","Not recognized",-0.464082366813168,-0.484751160406022,-0.443204961659796,1,TRUE
+"MemoryConditionBelief","Belief","Human Original","AI-Generated","AI Original","Not recognized",-0.44988834579949,-0.471071624513096,-0.427825728625153,1,TRUE
+"MemoryConditionBelief","Belief","Human Original","AI-Generated","Human Forgery","Not recognized",-0.443751761860948,-0.469531177659845,-0.418054072551327,1,TRUE
+"MemoryConditionBelief","Belief","Human Original","AI-Generated","Human Original","Not recognized",-0.445694030865926,-0.464447960799824,-0.426227582070638,1,TRUE
+"MemoryConditionBelief","Belief","AI Copy","Human Forgery","AI Copy","AI-Generated",-0.0954514350405528,-0.114177525894559,-0.076462096269451,1,TRUE
+"MemoryConditionBelief","Belief","AI Copy","Human Forgery","AI Original","AI-Generated",-0.125476876342278,-0.144988820748888,-0.106241719364435,1,TRUE
+"MemoryConditionBelief","Belief","AI Copy","Human Forgery","Human Forgery","AI-Generated",-0.0768025797452564,-0.0984940169843813,-0.0564429687665981,1,TRUE
+"MemoryConditionBelief","Belief","AI Copy","Human Forgery","Human Original","AI-Generated",-0.0559439575180951,-0.0696664338337236,-0.0422742661783738,1,TRUE
+"MemoryConditionBelief","Belief","AI Original","Human Forgery","AI Copy","AI-Generated",-0.10621187051329,-0.12346131553067,-0.0886702383261202,1,TRUE
+"MemoryConditionBelief","Belief","AI Original","Human Forgery","AI Original","AI-Generated",-0.135768524391416,-0.156920163397965,-0.115976459885638,1,TRUE
+"MemoryConditionBelief","Belief","AI Original","Human Forgery","Human Forgery","AI-Generated",-0.0875437799499387,-0.108424734245608,-0.0668587829781272,1,TRUE
+"MemoryConditionBelief","Belief","AI Original","Human Forgery","Human Original","AI-Generated",-0.066584304042334,-0.0799920554514853,-0.0529159183198762,1,TRUE
+"MemoryConditionBelief","Belief","Human Forgery","Human Forgery","AI Copy","AI-Generated",-0.0854333080030555,-0.105450615423626,-0.0662860360712419,1,TRUE
+"MemoryConditionBelief","Belief","Human Forgery","Human Forgery","AI Original","AI-Generated",-0.115462374520768,-0.136142687812198,-0.0947694418704589,1,TRUE
+"MemoryConditionBelief","Belief","Human Forgery","Human Forgery","Human Forgery","AI-Generated",-0.0672316635037531,-0.0920549054321282,-0.0428187545536438,1,TRUE
+"MemoryConditionBelief","Belief","Human Forgery","Human Forgery","Human Original","AI-Generated",-0.0461898869589984,-0.0619215974422572,-0.0293127300465778,1,TRUE
+"MemoryConditionBelief","Belief","Human Original","Human Forgery","AI Copy","AI-Generated",-0.0876123222179271,-0.103687942355996,-0.0711878366030102,1,TRUE
+"MemoryConditionBelief","Belief","Human Original","Human Forgery","AI Original","AI-Generated",-0.117130693911269,-0.135916095638974,-0.100199121766599,1,TRUE
+"MemoryConditionBelief","Belief","Human Original","Human Forgery","Human Forgery","AI-Generated",-0.0688516629306233,-0.0889770732010875,-0.0502459902099844,1,TRUE
+"MemoryConditionBelief","Belief","Human Original","Human Forgery","Human Original","AI-Generated",-0.0479663448916111,-0.0606347633944873,-0.0350689619586545,1,TRUE
+"MemoryConditionBelief","Belief","AI Original","Human Forgery","AI Copy","Human Forgery",-0.0106259163956494,-0.0250064336819395,0.00325918160964815,0.93525,FALSE
+"MemoryConditionBelief","Belief","Human Forgery","Human Forgery","AI Copy","Human Forgery",0.0100144483354075,-0.00653446106277184,0.0264973070509647,0.87575,FALSE
+"MemoryConditionBelief","Belief","Human Forgery","Human Forgery","AI Original","Human Forgery",0.0202521200422356,0.00424637514487701,0.0374612902394054,0.99375,TRUE
+"MemoryConditionBelief","Belief","Human Original","Human Forgery","AI Copy","Human Forgery",0.00796433046635012,-0.00459694383307672,0.0195833899826258,0.8995,FALSE
+"MemoryConditionBelief","Belief","Human Original","Human Forgery","AI Original","Human Forgery",0.0185690583982378,0.00606895881955816,0.030515374159629,0.99875,TRUE
+"MemoryConditionBelief","Belief","Human Original","Human Forgery","Human Forgery","Human Forgery",-0.00203144275597256,-0.0170770547524725,0.0128996087393004,0.59875,FALSE
+"MemoryConditionBelief","Belief","AI Copy","Human Forgery","AI Copy","Not recognized",-0.520026402794459,-0.54271685564171,-0.496469865696095,1,TRUE
+"MemoryConditionBelief","Belief","AI Copy","Human Forgery","AI Original","Not recognized",-0.505859842780899,-0.526813667224431,-0.483395874591746,1,TRUE
+"MemoryConditionBelief","Belief","AI Copy","Human Forgery","Human Forgery","Not recognized",-0.499664220541549,-0.526002055206122,-0.473966142548336,1,TRUE
+"MemoryConditionBelief","Belief","AI Copy","Human Forgery","Human Original","Not recognized",-0.501383352160693,-0.517596666852975,-0.485646590749988,1,TRUE
+"MemoryConditionBelief","Belief","AI Original","Human Forgery","AI Copy","Not recognized",-0.530493783311993,-0.5521209088607,-0.509995797454106,1,TRUE
+"MemoryConditionBelief","Belief","AI Original","Human Forgery","AI Original","Not recognized",-0.51669551341813,-0.539748617491362,-0.491699235343222,1,TRUE
+"MemoryConditionBelief","Belief","AI Original","Human Forgery","Human Forgery","Not recognized",-0.510484378800949,-0.536518175835322,-0.483586250350714,1,TRUE
+"MemoryConditionBelief","Belief","AI Original","Human Forgery","Human Original","Not recognized",-0.512218626167917,-0.528498322483985,-0.495403895770618,1,TRUE
+"MemoryConditionBelief","Belief","Human Forgery","Human Forgery","AI Copy","Not recognized",-0.510340549217026,-0.532494314998368,-0.487328019016233,1,TRUE
+"MemoryConditionBelief","Belief","Human Forgery","Human Forgery","AI Original","Not recognized",-0.495851905943951,-0.518613622076338,-0.472337280110299,1,TRUE
+"MemoryConditionBelief","Belief","Human Forgery","Human Forgery","Human Forgery","Not recognized",-0.489757707089274,-0.52043758604651,-0.459361064390864,1,TRUE
+"MemoryConditionBelief","Belief","Human Forgery","Human Forgery","Human Original","Not recognized",-0.491936676938339,-0.51036438442908,-0.472351425586215,1,TRUE
+"MemoryConditionBelief","Belief","Human Original","Human Forgery","AI Copy","Not recognized",-0.512204628889581,-0.532272535130424,-0.492462273853447,1,TRUE
+"MemoryConditionBelief","Belief","Human Original","Human Forgery","AI Original","Not recognized",-0.497929414506172,-0.518269731390845,-0.476560524866474,1,TRUE
+"MemoryConditionBelief","Belief","Human Original","Human Forgery","Human Forgery","Not recognized",-0.491849185892792,-0.517102015808491,-0.466148910225508,1,TRUE
+"MemoryConditionBelief","Belief","Human Original","Human Forgery","Human Original","Not recognized",-0.493761858072719,-0.510172442240508,-0.476832158423525,1,TRUE
+"MemoryConditionBelief","Belief","AI Copy","Human Original","AI Copy","AI-Generated",0.0376640704891814,0.0132929248675869,0.0634070766674924,0.99875,TRUE
+"MemoryConditionBelief","Belief","AI Copy","Human Original","AI Original","AI-Generated",0.00802527232726688,-0.015367817670131,0.0303179937401097,0.7475,FALSE
+"MemoryConditionBelief","Belief","AI Copy","Human Original","Human Forgery","AI-Generated",0.056301621734291,0.0318671912262746,0.0802324037864389,1,TRUE
+"MemoryConditionBelief","Belief","AI Copy","Human Original","Human Original","AI-Generated",0.0770673953787978,0.0589089023599592,0.0959281268424774,1,TRUE
+"MemoryConditionBelief","Belief","AI Original","Human Original","AI Copy","AI-Generated",0.032559605036594,0.0106094565969425,0.0548539342490588,0.997,TRUE
+"MemoryConditionBelief","Belief","AI Original","Human Original","AI Original","AI-Generated",0.00271520152534444,-0.023517886034312,0.0297940159254395,0.58625,FALSE
+"MemoryConditionBelief","Belief","AI Original","Human Original","Human Forgery","AI-Generated",0.0510007204310114,0.0257040798669082,0.0756974523241148,1,TRUE
+"MemoryConditionBelief","Belief","AI Original","Human Original","Human Original","AI-Generated",0.072114261124826,0.0535330066265272,0.091424460823663,1,TRUE
+"MemoryConditionBelief","Belief","Human Forgery","Human Original","AI Copy","AI-Generated",0.0663233007531632,0.0407911891076932,0.0931163454913227,1,TRUE
+"MemoryConditionBelief","Belief","Human Forgery","Human Original","AI Original","AI-Generated",0.0369621934752455,0.00932833677252668,0.0633610657200144,0.9955,TRUE
+"MemoryConditionBelief","Belief","Human Forgery","Human Original","Human Forgery","AI-Generated",0.085074111089864,0.0535249686271557,0.116055655288804,1,TRUE
+"MemoryConditionBelief","Belief","Human Forgery","Human Original","Human Original","AI-Generated",0.105697443687683,0.0838647903605813,0.129375590929379,1,TRUE
+"MemoryConditionBelief","Belief","Human Original","Human Original","AI Copy","AI-Generated",0.0877822830780423,0.069111794748244,0.106520888269829,1,TRUE
+"MemoryConditionBelief","Belief","Human Original","Human Original","AI Original","AI-Generated",0.0578074634399459,0.0375664961961606,0.0780653399384638,1,TRUE
+"MemoryConditionBelief","Belief","Human Original","Human Original","Human Forgery","AI-Generated",0.106341781795195,0.0844130403403979,0.12726471883595,1,TRUE
+"MemoryConditionBelief","Belief","Human Original","Human Original","Human Original","AI-Generated",0.127355679671518,0.110205165542619,0.144109233557891,1,TRUE
+"MemoryConditionBelief","Belief","AI Copy","Human Original","AI Copy","Human Forgery",0.133101323978023,0.113247259023328,0.153779935741289,1,TRUE
+"MemoryConditionBelief","Belief","AI Copy","Human Original","AI Original","Human Forgery",0.143823517106787,0.12497134471336,0.1625527099135,1,TRUE
+"MemoryConditionBelief","Belief","AI Copy","Human Original","Human Forgery","Human Forgery",0.123459278394881,0.102989380333835,0.144934788770311,1,TRUE
+"MemoryConditionBelief","Belief","AI Copy","Human Original","Human Original","Human Forgery",0.125068710245831,0.108104007912687,0.142942196879891,1,TRUE
+"MemoryConditionBelief","Belief","AI Original","Human Original","AI Copy","Human Forgery",0.12821386722957,0.109429474131985,0.147569376778947,1,TRUE
+"MemoryConditionBelief","Belief","AI Original","Human Original","AI Original","Human Forgery",0.138987435012364,0.117930875292958,0.159359234645772,1,TRUE
+"MemoryConditionBelief","Belief","AI Original","Human Original","Human Forgery","Human Forgery",0.118503288005269,0.0962923777927074,0.139202971787829,1,TRUE
+"MemoryConditionBelief","Belief","AI Original","Human Original","Human Original","Human Forgery",0.120297364173431,0.102099453919978,0.138640396508448,1,TRUE
+"MemoryConditionBelief","Belief","Human Forgery","Human Original","AI Copy","Human Forgery",0.161920787478349,0.138953564806512,0.18562360257802,1,TRUE
+"MemoryConditionBelief","Belief","Human Forgery","Human Original","AI Original","Human Forgery",0.172487041979842,0.149849851561998,0.196371348285664,1,TRUE
+"MemoryConditionBelief","Belief","Human Forgery","Human Original","Human Forgery","Human Forgery",0.152269129744936,0.125848462945908,0.179439288678486,1,TRUE
+"MemoryConditionBelief","Belief","Human Forgery","Human Original","Human Original","Human Forgery",0.154011583095196,0.131890195951102,0.177158733736729,1,TRUE
+"MemoryConditionBelief","Belief","Human Original","Human Original","AI Copy","Human Forgery",0.183140637383403,0.167852609902239,0.198392077948197,1,TRUE
+"MemoryConditionBelief","Belief","Human Original","Human Original","AI Original","Human Forgery",0.193879186572606,0.178808315756554,0.208786772196222,1,TRUE
+"MemoryConditionBelief","Belief","Human Original","Human Original","Human Forgery","Human Forgery",0.17320668256932,0.155884233586779,0.19112236820302,1,TRUE
+"MemoryConditionBelief","Belief","Human Original","Human Original","Human Original","Human Forgery",0.17531157055548,0.160363215055685,0.190224680546216,1,TRUE
+"MemoryConditionBelief","Belief","AI Original","Human Original","AI Copy","Human Original",-0.00475508716793291,-0.0284445115720316,0.0182864878975309,0.66125,FALSE
+"MemoryConditionBelief","Belief","Human Forgery","Human Original","AI Copy","Human Original",0.0288541027407895,0.00272086118574206,0.0558016607541469,0.98525,TRUE
+"MemoryConditionBelief","Belief","Human Forgery","Human Original","AI Original","Human Original",0.0337286177708278,0.00727588889807631,0.060715495002858,0.994,TRUE
+"MemoryConditionBelief","Belief","Human Original","Human Original","AI Copy","Human Original",0.0499898152689703,0.0292187862574833,0.0707154039029318,1,TRUE
+"MemoryConditionBelief","Belief","Human Original","Human Original","AI Original","Human Original",0.0548507645466927,0.0341056484063688,0.0759651315684854,1,TRUE
+"MemoryConditionBelief","Belief","Human Original","Human Original","Human Forgery","Human Original",0.0214492287255672,-0.00336209186947045,0.0451919060541264,0.95225,FALSE
+"MemoryConditionBelief","Belief","AI Copy","Human Original","AI Copy","Not recognized",-0.386937571141182,-0.417369747921227,-0.35648250732747,1,TRUE
+"MemoryConditionBelief","Belief","AI Copy","Human Original","AI Original","Not recognized",-0.372410633984719,-0.396919022622689,-0.346623118658791,1,TRUE
+"MemoryConditionBelief","Belief","AI Copy","Human Original","Human Forgery","Not recognized",-0.366450815988557,-0.395478317308152,-0.337106502230411,1,TRUE
+"MemoryConditionBelief","Belief","AI Copy","Human Original","Human Original","Not recognized",-0.368463952618854,-0.388061736908436,-0.347354380965309,1,TRUE
+"MemoryConditionBelief","Belief","AI Original","Human Original","AI Copy","Not recognized",-0.391500138152073,-0.416812076578353,-0.367965722333927,1,TRUE
+"MemoryConditionBelief","Belief","AI Original","Human Original","AI Original","Not recognized",-0.377846529446013,-0.40843236069071,-0.344840579910556,1,TRUE
+"MemoryConditionBelief","Belief","AI Original","Human Original","Human Forgery","Not recognized",-0.371437562963675,-0.40018611040517,-0.342447884649427,1,TRUE
+"MemoryConditionBelief","Belief","AI Original","Human Original","Human Original","Not recognized",-0.373318923886444,-0.393975504559977,-0.3523589427671,1,TRUE
+"MemoryConditionBelief","Belief","Human Forgery","Human Original","AI Copy","Not recognized",-0.357862341182936,-0.386645143464415,-0.329887212224183,1,TRUE
+"MemoryConditionBelief","Belief","Human Forgery","Human Original","AI Original","Not recognized",-0.343758455931218,-0.372030920485872,-0.314833415020425,1,TRUE
+"MemoryConditionBelief","Belief","Human Forgery","Human Original","Human Forgery","Not recognized",-0.337824623740789,-0.377795621028551,-0.296198389108924,1,TRUE
+"MemoryConditionBelief","Belief","Human Forgery","Human Original","Human Original","Not recognized",-0.339826016997192,-0.364067590722745,-0.314296682644581,1,TRUE
+"MemoryConditionBelief","Belief","Human Original","Human Original","AI Copy","Not recognized",-0.336722822620438,-0.35836151957386,-0.314645398970245,1,TRUE
+"MemoryConditionBelief","Belief","Human Original","Human Original","AI Original","Not recognized",-0.322719735017924,-0.344728876017739,-0.299760619473391,1,TRUE
+"MemoryConditionBelief","Belief","Human Original","Human Original","Human Forgery","Not recognized",-0.316562468473223,-0.344065485906638,-0.288789800038605,1,TRUE
+"MemoryConditionBelief","Belief","Human Original","Human Original","Human Original","Not recognized",-0.318482731743462,-0.340816259832505,-0.295793403827443,1,TRUE
+"MemoryConditionBelief","Belief","AI Original","Not recognized","AI Copy","Not recognized",-0.0143135208465445,-0.0422642840646864,0.0133927792992784,0.84775,FALSE
+"MemoryConditionBelief","Belief","Human Forgery","Not recognized","AI Copy","Not recognized",-0.0202537057140839,-0.0517770632782237,0.0104208299584034,0.90125,FALSE
+"MemoryConditionBelief","Belief","Human Forgery","Not recognized","AI Original","Not recognized",-0.00611943832594741,-0.0375002000701358,0.0266181684696313,0.65,FALSE
+"MemoryConditionBelief","Belief","Human Original","Not recognized","AI Copy","Not recognized",-0.0182982767031064,-0.0416837015123714,0.00383814099152174,0.94425,FALSE
+"MemoryConditionBelief","Belief","Human Original","Not recognized","AI Original","Not recognized",-0.00416566125133389,-0.0278415168396366,0.0206034990467779,0.63625,FALSE
+"MemoryConditionBelief","Belief","Human Original","Not recognized","Human Forgery","Not recognized",0.00199209543052825,-0.0256300467623263,0.0288890893879187,0.554,FALSE

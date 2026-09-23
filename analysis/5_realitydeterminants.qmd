@@ -24,32 +24,58 @@ library(tidyverse)
 library(easystats)
 library(patchwork)
 
-# Same rows and centring as the fits (models.R, fa_prepare_beauty())
-dftask <- read.csv("../data/data_task.csv") |>
-  filter(!is.na(Beauty)) |>
-  mutate(Condition = fct_relevel(Condition, "Human Original", "Human Forgery", "AI-Generated"))
-center <- function(d, outcome) {
-  d |>
-    filter(!is.na(.data[[outcome]])) |>
-    mutate(Beauty_w = Beauty - mean(Beauty), .by = "Participant")
-}
 
 cols <- c(
   "Human Original" = "#F51D56",
   "Human Forgery" = "#F5A41D",
-  "AI-Generated" = "#1D9AF5")
+  "AI-Generated" = "#1D9AF5",
+  # Type of follow-up item (ArtificialityBeauty)
+  "Old" = "#8E24AA",
+  "New" = "#607D8B")
 
 source("server/estimates.R") # mediation_info, mediation_effects(), prep_contrasts()
 source("report.R")           # make_asis(), make_tables(), make_markdown(), read_estimates()
 
-estimates <- read_estimates(names(mediation_info))
+estimates <- read_estimates(c(names(mediation_info), names(appraisal_info), names(items_info)))
 # The label effects of the main models (Condition * Emotion), for comparison
 reference <- read_estimates(c("Beauty", "Reality", "Authenticity"))
 provenance_table(c(estimates, reference))
 
 # The mediation, once per model (bootstrap of the label -> beauty path over
-# participants, one resample per posterior draw)
-mediation <- lapply(estimates, mediation_effects)
+# participants, one resample per posterior draw), on the mean response and on
+# the main CHOCO parameters (same bootstrap draws for all)
+# (ArtificialityBeauty is not a mediation: by = Type, see its own section)
+main_models <- c("RealityBeauty", "AuthenticityBeauty")
+control_models <- c(RealityBeauty = "RealityBeautyControl", AuthenticityBeauty = "AuthenticityBeautyControl")
+mediation <- lapply(estimates[c(main_models, control_models)], mediation_effects)
+choco_pars <- c("mu", "confright", "confleft")
+mediation_pars <- lapply(estimates[main_models], function(e) {
+  lapply(setNames(nm = choco_pars), function(p) mediation_effects(e, par = p))
+})
+# Joint appraisal mediators and item properties (their own sections)
+appraisal_models <- c(Syntheticness = "RealityAppraisal", Authenticity = "AuthenticityAppraisal")
+appraisal <- lapply(estimates[appraisal_models], function(e) {
+  lapply(setNames(nm = c("response", choco_pars)), function(p) appraisal_effects(e, par = p))
+})
+items_models <- c(Syntheticness = "RealityItems", Authenticity = "AuthenticityItems")
+items <- lapply(estimates[items_models], function(e) {
+  lapply(setNames(nm = c("response", "mu")), function(p) items_effects(e, par = p))
+})
+
+# Plain-language names of the CHOCO parameters, per belief (right = the "1" end)
+par_labels <- list(
+  RealityBeauty = c(response = "Mean response (syntheticness)",
+                    mu = "p(Human side) [mu]",
+                    confright = "Confidence on the Human side [confright]",
+                    confleft = "Confidence on the AI side [confleft]"),
+  AuthenticityBeauty = c(response = "Mean response (authenticity)",
+                         mu = "p(Original side) [mu]",
+                         confright = "Confidence on the Original side [confright]",
+                         confleft = "Confidence on the Copy side [confleft]"),
+  ArtificialityBeauty = c(response = "Mean response (perceived artificiality)",
+                          mu = "p(Artificial side) [mu]",
+                          confright = "Confidence on the Artificial side [confright]",
+                          confleft = "Confidence on the Human side [confleft]"))
 ```
 
 ## How to read this report
@@ -65,6 +91,10 @@ The reverse path (belief → beauty) cannot be tested: the only Phase-1
 | --- | --- | --- | --- |
 | **RealityBeauty** | `Reality` (syntheticness; 0 = AI-Generated, 1 = Human Creation) | `Condition * Beauty_w` | 317 participants × 48 trials |
 | **AuthenticityBeauty** | `Authenticity` (0 = Copy / Forgery, 1 = Original) | `Condition * Beauty_w` | same |
+| **RealityBeautyControl**, **AuthenticityBeautyControl** | as above | `Condition * Beauty_w + Beauty2_w` | 217 follow-up participants × 48 trials |
+| **RealityAppraisal**, **AuthenticityAppraisal** | as above | `Condition * (Beauty_w + Valence_w + Meaning_w + Worth_w)` | 317 participants × 48 trials |
+| **RealityItems**, **AuthenticityItems** | as above | `Condition + Style + z(VAPS norms)` | 317 participants × 48 trials |
+| **ArtificialityBeauty** | `PerceivedArtificiality` (0 = Very Human, 1 = Very Artificial), follow-up | `Type * Beauty2_w` (Type = Old / New item) | 220 participants, every item judged "new" |
 
 Both are CHOCO models with `Condition * Beauty_w` on `mu`, `confright` and
 `confleft` (random `Condition * Beauty_w` slopes over participants,
@@ -79,8 +109,12 @@ otherwise, as posterior medians with 95% CI (HDI for the mediation) and the
 probability of direction (`pd`); "credible" = CI excludes 0:
 
 - **Predicted belief by beauty**: the population-level prediction per label
-  across `Beauty_w`, with the observed binned means. The ticks on the x-axis
-  are the mean `Beauty_w` under each label (the label → beauty path).
+  across `Beauty_w` (random effects at 0, 95% CI), for the mean response
+  (the expected value of the CHOCO mixture) and for its three main
+  parameters: `mu`, the probability of answering on the right-hand side of
+  the slider (Human / Original), and `confright` / `confleft`, the confidence
+  (distance from the midpoint) of the answers on each side. They show whether
+  the label and beauty act on the *choice* or on the *confidence* in it.
 - **Label contrasts at average beauty**: the label effect with beauty held at
   the participant's mean (`Beauty_w = 0`), for every CHOCO parameter. Compare
   with the label effect of the main model (no beauty term), shown alongside.
@@ -98,6 +132,45 @@ probability of direction (`pd`); "credible" = CI excludes 0:
     moves it, the label held fixed);
   - *Proportion mediated*: Indirect / Total, only meaningful when the Total
     is credible.
+- **Mediation by parameter**: the same Total / Direct / Indirect effects on
+  `mu`, `confright` and `confleft` (percentage points of each parameter).
+
+**Appraisal components.** Beauty is only one of the four Phase-1 ratings,
+and the others were lowered by the labels too. The appraisal models enter
+beauty, valence, meaning and worth of the same trial as *joint* mediators
+(each rescaled to 0-1 and centred within participant), with their
+interaction with the label. For each contrast: the direct effect, the joint
+indirect effect (all four ratings shifted as the label shifts them) and the
+*unique* indirect effect of each rating (only that rating shifted, the others
+held where the reference label leaves them: slope under the target label ×
+the label's shift in that rating, bootstrapped over participants). Worth is
+a divergent test: a downstream valuation, not expected to carry a unique
+route to the belief. Within participants, beauty correlates .76 with
+valence, .62 with worth and .44 with meaning, so unique effects of the
+collinear ratings are estimated less precisely than the joint one.
+
+**Item properties.** Style and the VAPS norms (liking, valence, arousal,
+complexity, familiarity; z-scored over the 48 items) as item-level
+predictors: which artworks are judged synthetic or copied, independently of
+the label and of the participant's own ratings. Descriptive (48 items).
+
+Two further sections address the objection that beauty and belief could
+share a common cause (some works are simply more appealing, and look more
+human, to a given person), and whether the "less beautiful → more
+artificial" inference needs a label at all:
+
+- **Robustness: label-free beauty.** The same models on the follow-up
+  participants, with the follow-up beauty of the same artwork (`Beauty2_w`,
+  centred within participant) added as a covariate. It was rated ~47 days
+  later, after the debrief, and the label had no effect on it: a label-free
+  measure of how appealing the work is to that person. Predictions and
+  mediation are computed at `Beauty2_w = 0`. If the Phase-1 beauty slope and
+  the direct / indirect effects hold, the mediation is not reducible to
+  stable appeal.
+- **Never-labelled artworks.** In the follow-up, artworks judged "new" were
+  rated for how easily they could be AI-generated. The 48 new items never
+  carried a label; the model gives the slope of perceived artificiality on
+  follow-up beauty for new vs. old (missed) items.
 
 Caveats: predictions are evaluated at the mean beauty per label (an
 approximation for a non-linear model) and at the population level (random
@@ -136,7 +209,10 @@ make_asis(
 ```{r}
 # Helpers shared by both model sections
 
+# Credible / Effect (sign) / formatted columns. The mediation tables' own
+# "Effect" (Total, Direct, ...) is kept as "Path".
 format_effects <- function(dat) {
+  if ("Effect" %in% names(dat)) dat <- rename(dat, Path = Effect)
   dat |>
     mutate(Credible = sign(CI_low) == sign(CI_high),
            Effect = ifelse(!Credible, "n.s.", ifelse(Median < 0, "Negative", "Positive")),
@@ -146,30 +222,31 @@ format_effects <- function(dat) {
            pd_fmt = insight::format_pd(pd, name = NULL))
 }
 
-plot_predictions <- function(name, outcome, ylab) {
+plot_predictions <- function(name, xlab = "Phase-1 beauty relative to the participant's mean (Beauty_w)") {
   est <- estimates[[name]]
-  P <- est$grid_draws
-  pred <- cbind(est$grid,
-                Median = apply(P, 2, median),
-                CI_low = apply(P, 2, quantile, 0.025),
-                CI_high = apply(P, 2, quantile, 0.975))
-  obs <- center(dftask, outcome) |>
-    mutate(Bin = cut(Beauty_w, breaks = quantile(Beauty_w, seq(0, 1, 0.1)), include.lowest = TRUE)) |>
-    summarise(Beauty_w = mean(Beauty_w), y = mean(.data[[outcome]]), n = n(), .by = c("Condition", "Bin"))
-  ticks <- est$mediator_means |> summarise(Beauty_w = mean(Beauty_w), .by = "Condition")
+  by <- if (is.null(est$by)) "Condition" else est$by
+  labs_par <- par_labels[[name]]
+  mats <- c(list(response = est$grid_draws), est$grid_dpars[choco_pars])
+  pred <- bind_rows(lapply(names(mats), function(p) {
+    P <- mats[[p]]
+    cbind(est$grid, Parameter = labs_par[[p]],
+          Median = apply(P, 2, median),
+          CI_low = apply(P, 2, quantile, 0.025),
+          CI_high = apply(P, 2, quantile, 0.975))
+  })) |>
+    mutate(Parameter = factor(Parameter, levels = labs_par))
 
-  ggplot(pred, aes(x = Beauty_w, color = Condition, fill = Condition)) +
+  ggplot(pred, aes(x = .data[[est$mediator]], color = .data[[by]], fill = .data[[by]])) +
     geom_ribbon(aes(ymin = 100 * CI_low, ymax = 100 * CI_high), alpha = 0.15, color = NA) +
     geom_line(aes(y = 100 * Median), linewidth = 1) +
-    geom_point(data = obs, aes(y = 100 * y), size = 1.8, alpha = 0.7) +
-    geom_rug(data = ticks, aes(x = Beauty_w), sides = "b", length = grid::unit(0.05, "npc"), linewidth = 1) +
+    facet_wrap(~Parameter, scales = "free_y") +
     scale_color_manual(values = cols) +
     scale_fill_manual(values = cols) +
-    labs(x = "Phase-1 beauty relative to the participant's mean (Beauty_w)",
-         y = ylab, color = "Label", fill = "Label",
-         caption = "Lines: population-level prediction (95% CI). Points: observed means per decile of Beauty_w. Ticks: mean Beauty_w per label.") +
+    labs(x = xlab, y = "Predicted value (%)",
+         color = ifelse(by == "Condition", "Label", by), fill = ifelse(by == "Condition", "Label", by),
+         caption = "Population-level predictions (random effects at 0) with 95% CI.") +
     theme_minimal() +
-    theme(legend.position = "top")
+    theme(legend.position = "top", strip.text = element_text(face = "bold"))
 }
 
 section_tables <- function(name, reference_name) {
@@ -188,8 +265,17 @@ section_tables <- function(name, reference_name) {
                 sprintf("%s: label contrasts at average beauty (%% of the slider for response and the probability parameters)", est$label)),
     make_tables(format_effects(med$slopes), c("Condition", "Diff", "CI", "pd_fmt", "Effect"),
                 sprintf("%s: change per +10%% of Phase-1 beauty (%% of the belief slider), per label and between labels", est$label)),
-    make_tables(format_effects(med$effects), c("Contrast", "Effect", "Diff", "CI", "pd_fmt"),
-                sprintf("%s: mediation of the label effect by Phase-1 beauty", est$label))
+    make_tables(format_effects(med$effects), c("Contrast", "Path", "Diff", "CI", "pd_fmt", "Effect"),
+                sprintf("%s: mediation of the label effect by Phase-1 beauty", est$label)),
+    make_tables(
+      bind_rows(lapply(choco_pars, function(p) {
+        mutate(mediation_pars[[name]][[p]]$effects, Parameter = par_labels[[name]][[p]])
+      })) |>
+        filter(Effect %in% c("Total", "Direct", "Indirect")) |>
+        format_effects() |>
+        arrange(Contrast),
+      c("Contrast", "Parameter", "Path", "Diff", "CI", "pd_fmt", "Effect"),
+      sprintf("%s: mediation by CHOCO parameter (percentage points of each parameter)", est$label))
   )
 }
 ```
@@ -197,10 +283,10 @@ section_tables <- function(name, reference_name) {
 ## Syntheticness
 
 ```{r}
-#| fig-width: 8
-#| fig-height: 5.5
+#| fig-width: 10
+#| fig-height: 7.5
 
-plot_predictions("RealityBeauty", "Reality", "Predicted syntheticness (0 = AI, 100 = Human)")
+plot_predictions("RealityBeauty")
 ```
 
 ```{r}
@@ -212,16 +298,190 @@ section_tables("RealityBeauty", "Reality")
 ## Authenticity
 
 ```{r}
-#| fig-width: 8
-#| fig-height: 5.5
+#| fig-width: 10
+#| fig-height: 7.5
 
-plot_predictions("AuthenticityBeauty", "Authenticity", "Predicted authenticity (0 = Copy, 100 = Original)")
+plot_predictions("AuthenticityBeauty")
 ```
 
 ```{r}
 #| results: asis
 
 section_tables("AuthenticityBeauty", "Authenticity")
+```
+
+## Appraisal components
+
+```{r}
+#| fig-width: 10
+#| fig-height: 5.5
+
+dat_app <- bind_rows(lapply(names(appraisal_models), function(o) {
+  mutate(appraisal[[o]]$response$effects, Belief = o)
+})) |>
+  mutate(Contrast = fct_relevel(Contrast, contrast_order))
+
+dat_app |>
+  filter(Path %in% c("Direct", "Indirect (Beauty)", "Indirect (Valence)", "Indirect (Meaning)", "Indirect (Worth)")) |>
+  mutate(Path = fct_relevel(Path, "Direct", "Indirect (Beauty)", "Indirect (Valence)", "Indirect (Meaning)", "Indirect (Worth)")) |>
+  ggplot(aes(x = Median, y = Path, xmin = CI_low, xmax = CI_high, color = Path)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_pointrange() +
+  facet_grid(Belief ~ Contrast) +
+  scale_y_discrete(limits = rev) +
+  scale_color_manual(values = c("Direct" = "#7E57C2", "Indirect (Beauty)" = "#E91E63", "Indirect (Valence)" = "#FF9800",
+                                "Indirect (Meaning)" = "#26A69A", "Indirect (Worth)" = "#795548"), guide = "none") +
+  labs(x = "Effect of the label (% of the belief slider, 95% HDI)", y = NULL) +
+  theme_minimal() +
+  theme(strip.text = element_text(face = "bold"))
+```
+
+```{r}
+#| results: asis
+
+tab_app <- dat_app |>
+  mutate(Contrast = paste0(Belief, ": ", Contrast)) |>
+  format_effects() |>
+  mutate(Path = fct_relevel(Path, "Total", "Direct", "Indirect (joint)", "Indirect (joint, exact)")) |>
+  arrange(Contrast, Path)
+
+tab_cues <- bind_rows(lapply(names(appraisal_models), function(o) {
+  mutate(appraisal[[o]]$response$cues, Contrast = o)
+})) |>
+  format_effects()
+
+tab_app_pars <- bind_rows(lapply(names(appraisal_models), function(o) {
+  bind_rows(lapply(choco_pars, function(p) {
+    mutate(appraisal[[o]][[p]]$effects, Parameter = par_labels[[main_models[match(o, names(appraisal_models))]]][[p]])
+  })) |>
+    mutate(Contrast = paste0(o, ": ", Contrast))
+})) |>
+  filter(Path %in% c("Direct", "Indirect (Beauty)", "Indirect (Valence)", "Indirect (Meaning)", "Indirect (Worth)")) |>
+  format_effects() |>
+  arrange(Contrast, Parameter, Path)
+
+make_asis(
+  make_tables(tab_app, c("Contrast", "Path", "Diff", "CI", "pd_fmt", "Effect"),
+              "Decomposition of the label effect by the four Phase-1 ratings (% of the belief slider; Mediator rows: % of that rating's scale)"),
+  make_tables(tab_cues, c("Contrast", "Mediator", "Condition", "Diff", "CI", "pd_fmt", "Effect"),
+              "Unique change in the belief per +10% of each rating, the others held constant, per label and between labels"),
+  make_tables(tab_app_pars, c("Contrast", "Parameter", "Path", "Diff", "CI", "pd_fmt", "Effect"),
+              "Direct and unique indirect effects on the CHOCO parameters (percentage points)")
+)
+```
+
+## Robustness: label-free beauty
+
+The same decomposition with the follow-up beauty of the artwork as a
+covariate (participants who returned for the follow-up), next to the main
+models (all participants). *Mediator (a)* is in % of the beauty slider, the
+other paths in % of the belief slider.
+
+```{r}
+#| results: asis
+
+dat_rob <- bind_rows(lapply(main_models, function(n) {
+  outcome <- ifelse(n == "RealityBeauty", "Syntheticness", "Authenticity")
+  bind_rows(
+    mutate(mediation[[n]]$effects, Model = "Main (all participants)"),
+    mutate(mediation[[control_models[[n]]]]$effects, Model = "+ follow-up beauty (follow-up participants)")
+  ) |>
+    mutate(Contrast = paste0(outcome, ": ", Contrast))
+})) |>
+  filter(Effect %in% c("Mediator (a)", "Total", "Direct", "Indirect")) |>
+  format_effects() |>
+  mutate(Path = fct_relevel(Path, "Mediator (a)", "Total", "Direct", "Indirect")) |>
+  arrange(Contrast, Path, desc(Model))
+
+dat_rob_slopes <- bind_rows(lapply(main_models, function(n) {
+  outcome <- ifelse(n == "RealityBeauty", "Syntheticness", "Authenticity")
+  bind_rows(
+    mutate(mediation[[n]]$slopes, Model = "Main", Predictor = "Phase-1 beauty"),
+    mutate(mediation[[control_models[[n]]]]$slopes, Model = "+ follow-up beauty", Predictor = "Phase-1 beauty"),
+    mutate(rename(covariate_slopes(estimates[[control_models[[n]]]], "Beauty2_w"), Condition = Level),
+           Model = "+ follow-up beauty", Predictor = "Follow-up beauty")
+  ) |>
+    mutate(Contrast = outcome)
+})) |>
+  format_effects()
+
+make_asis(
+  make_tables(dat_rob, c("Contrast", "Path", "Model", "Diff", "CI", "pd_fmt", "Effect"),
+              "Mediation of the label effect by Phase-1 beauty, with and without controlling for follow-up beauty"),
+  make_tables(dat_rob_slopes, c("Contrast", "Predictor", "Model", "Condition", "Diff", "CI", "pd_fmt", "Effect"),
+              "Change in the belief per +10% of beauty (% of the belief slider), per label and between labels")
+)
+```
+
+## Never-labelled artworks: perceived artificiality
+
+```{r}
+#| fig-width: 10
+#| fig-height: 7.5
+
+plot_predictions("ArtificialityBeauty", xlab = "Follow-up beauty relative to the participant's mean (Beauty2_w)")
+```
+
+```{r}
+#| results: asis
+
+est_art <- estimates$ArtificialityBeauty
+dat_art <- bind_rows(lapply(c("response", choco_pars), function(p) {
+  mutate(grid_slopes(est_art, par = p), Contrast = par_labels$ArtificialityBeauty[[p]])
+})) |>
+  format_effects()
+dat_art_type <- prep_contrasts(est_art$contrasts, est_art$outcome) |>
+  filter(Parameter %in% c("response", "mu", "confright", "confleft"))
+make_asis(
+  make_tables(dat_art_type, c("Contrast", "Parameter", "Diff", "CI", "pd_fmt", "Effect"),
+              "Perceived artificiality: New - Old items at average follow-up beauty (% of the slider / of the parameter)"),
+  make_tables(dat_art, c("Contrast", "Level", "Diff", "CI", "pd_fmt", "Effect"),
+              "Change in perceived artificiality per +10% of follow-up beauty, for old (missed) and new (never labelled) items, and their difference")
+)
+```
+
+## Item properties
+
+```{r}
+#| fig-width: 9
+#| fig-height: 4.5
+
+dat_items <- bind_rows(lapply(names(items_models), function(o) {
+  bind_rows(
+    mutate(items[[o]]$response$slopes, Parameter = "Mean response"),
+    mutate(items[[o]]$mu$slopes, Parameter = par_labels[[main_models[match(o, names(items_models))]]][["mu"]])
+  ) |>
+    mutate(Belief = o)
+}))
+
+dat_items |>
+  ggplot(aes(x = Median, y = Predictor, xmin = CI_low, xmax = CI_high)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_pointrange(color = "#37474F") +
+  facet_grid(Belief ~ Parameter, scales = "free_x") +
+  scale_y_discrete(limits = rev) +
+  labs(x = "Change per +1 SD of the normative rating (percentage points, 95% HDI)", y = "VAPS norm") +
+  theme_minimal() +
+  theme(strip.text = element_text(face = "bold"))
+```
+
+```{r}
+#| results: asis
+
+make_asis(
+  make_tables(format_effects(mutate(dat_items, Contrast = paste0(Belief, " - ", Parameter))),
+              c("Contrast", "Predictor", "Diff", "CI", "pd_fmt", "Effect"),
+              "Change per +1 SD of each VAPS norm, the others held constant (averaged over labels and styles)"),
+  make_tables(bind_rows(lapply(names(items_models), function(o) mutate(items[[o]]$response$style_means, Contrast = o))) |>
+                format_effects(),
+              c("Contrast", "Style", "Diff", "CI"),
+              "Predicted belief per style (% of the slider, norms at their mean, averaged over labels)"),
+  make_tables(bind_rows(lapply(names(items_models), function(o) {
+                mutate(items[[o]]$response$style_contrasts, Style = Contrast, Contrast = o)
+              })) |> format_effects(),
+              c("Contrast", "Style", "Diff", "CI", "pd_fmt", "Effect"),
+              "Differences between styles (% of the belief slider)")
+)
 ```
 
 ## Summary
@@ -235,7 +495,7 @@ dat_med <- bind_rows(lapply(names(mediation), function(n) {
 }))
 
 dat_med |>
-  filter(Effect %in% c("Total", "Direct", "Indirect")) |>
+  filter(Model %in% main_models, Effect %in% c("Total", "Direct", "Indirect")) |>
   mutate(Effect = fct_relevel(Effect, "Total", "Direct", "Indirect"),
          Contrast = fct_relevel(Contrast, contrast_order),
          Outcome = str_remove(Outcome, " by Phase-1 Beauty")) |>
@@ -272,13 +532,37 @@ make_asis(lines)
 Files written:
 
 - `data/results_determinants_mediation.csv`: mediator path, total, direct, indirect effect and proportion mediated per model × contrast.
-- `data/results_determinants_slopes.csv`: beauty slopes per label and their differences.
+- `data/results_determinants_slopes.csv`: beauty slopes per label and their differences (and, for the control models, the follow-up beauty slope).
+- `data/results_determinants_artificiality.csv`: slopes of perceived artificiality on follow-up beauty per item type, response and CHOCO parameters.
+- `data/results_determinants_appraisal.csv`: decomposition by the four Phase-1 ratings (total, direct, joint and unique indirect effects, rating shifts), response and CHOCO parameters.
+- `data/results_determinants_items.csv`: slopes per SD of each VAPS norm and style differences.
 - `data/results_determinants_contrasts.csv`: label contrasts at average beauty, every CHOCO parameter.
 
 ```{r}
 write.csv(dat_med, "../data/results_determinants_mediation.csv", row.names = FALSE)
-bind_rows(lapply(names(mediation), function(n) mutate(mediation[[n]]$slopes, Model = n, .before = 1))) |>
+bind_rows(
+  bind_rows(lapply(names(mediation), function(n) mutate(mediation[[n]]$slopes, Model = n, Predictor = "Beauty_w", .before = 1))),
+  bind_rows(lapply(control_models, function(n) {
+    mutate(rename(covariate_slopes(estimates[[n]], "Beauty2_w"), Condition = Level), Model = n, Predictor = "Beauty2_w", .before = 1)
+  }))
+) |>
   write.csv("../data/results_determinants_slopes.csv", row.names = FALSE)
+bind_rows(lapply(c("response", choco_pars), function(p) mutate(grid_slopes(estimates$ArtificialityBeauty, par = p), Parameter = p, .before = 1))) |>
+  write.csv("../data/results_determinants_artificiality.csv", row.names = FALSE)
+bind_rows(lapply(names(appraisal_models), function(o) {
+  bind_rows(lapply(names(appraisal[[o]]), function(p) mutate(appraisal[[o]][[p]]$effects, Belief = o, Parameter = p, .before = 1)))
+})) |>
+  write.csv("../data/results_determinants_appraisal.csv", row.names = FALSE)
+bind_rows(lapply(names(items_models), function(o) {
+  bind_rows(lapply(names(items[[o]]), function(p) {
+    bind_rows(
+      mutate(rename(items[[o]][[p]]$slopes, Term = Predictor), Type = "Norm slope (per SD)"),
+      mutate(rename(items[[o]][[p]]$style_contrasts, Term = Contrast), Type = "Style difference")
+    ) |>
+      mutate(Belief = o, Parameter = p, .before = 1)
+  }))
+})) |>
+  write.csv("../data/results_determinants_items.csv", row.names = FALSE)
 bind_rows(lapply(estimates, function(e) {
   prep_contrasts(e$contrasts, e$outcome) |>
     mutate(Model = e$outcome) |>

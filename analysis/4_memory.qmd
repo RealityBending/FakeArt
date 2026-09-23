@@ -57,7 +57,7 @@ provenance_table(estimates)
 
 ## How to read this report
 
-Two Bayesian categorical mixed models of what participants remembered in the
+Three Bayesian categorical mixed models of what participants remembered in the
 follow-up session (220 participants × 96 items = 21,120 rows: 48 seen in Phase 1,
 48 new).
 
@@ -65,9 +65,14 @@ follow-up session (220 participants × 96 items = 21,120 rows: 48 seen in Phase 
 | --- | --- | --- | --- |
 | **Memory of Condition** | `AnswerCondition`: which label the participant recalls being shown | `Condition`: the label actually shown in Phase 1 | Human Original, Human Forgery, AI-Generated, **New Items** (never seen) |
 | **Memory of Beliefs** | `AnswerBelief`: what the participant recalls believing the artwork was | `Belief`: what they actually reported believing in Phase 2 | Human Original, Human Forgery, AI Original, AI Copy, None |
+| **Memory of the Condition by Belief** | `AnswerCondition` | `Condition` **+** `Belief` (additive; old items with a recorded belief only, 10,416 rows) | Belief: Human Original, Human Forgery, AI Original, AI Copy |
 
-Both outcomes include **Not recognized** (item judged "new"): correct for
-`New Items`, forgetting for the seen levels.
+All outcomes include **Not recognized** (item judged "new"): correct for
+`New Items`, forgetting for the seen levels. The third model asks whether the
+recalled label is reconstructed from one's own Phase-2 belief: its `Belief`
+means and contrasts are averaged over the label actually shown (computed over
+the observed trials, see `memory_observed()` in `server/estimates.R`), so a
+`Belief` effect is the effect of the belief with the label held constant.
 
 Each section: figure of the probability of each answer per level, convergence,
 marginal means, contrasts (coloured tables of interest + the complete set), and
@@ -286,6 +291,81 @@ make_contrasts(c, condition="Human Original",
 make_memory_summary(estimates$MemoryBelief)
 ```
 
+## Memory of the Condition by Belief
+
+Does the recalled label follow what the participant came to believe about the
+artwork (Phase 2), once the label actually shown is controlled for?
+
+```{r}
+dat_cb <- estimates$MemoryConditionBelief$means |>
+  mutate(group = make_group(Response))
+
+dat_cb |>
+  ggplot(aes(x = Belief, y = Median, color = Response)) +
+  geom_line(aes(group = group), position = position_dodge(width = 0.1), linewidth = 1,
+            show.legend = FALSE) +
+  geom_pointrange(aes(group = group, ymin = CI_low, ymax = CI_high), position = position_dodge(width = 0.1),
+                  key_glyph = "point") +
+  scale_y_continuous(label = scales::percent, limits = c(0, 1), expand = c(0, 0)) +
+  scale_color_manual(values = cols) +
+  guides(color = guide_legend(override.aes = list(size = 3))) +
+  labs(y = "Proportion of answers (averaged over the label shown)", color = "Recalled label",
+       x = "Own belief in Phase 2", title = "Memory of the Condition by Belief") +
+  theme_minimal()
+```
+
+```{r}
+make_memory_tables(estimates$MemoryConditionBelief)
+```
+
+```{r}
+c <- estimates$MemoryConditionBelief$contrasts
+make_contrasts(c, answer = "AI-Generated",
+               title = "Memory of the Condition by Belief: recalling 'AI-Generated', by own belief")
+make_contrasts(c, answer = "Human Original",
+               title = "Memory of the Condition by Belief: recalling 'Human Original', by own belief")
+make_contrasts(c, answer = "Human Forgery",
+               title = "Memory of the Condition by Belief: recalling 'Human Forgery', by own belief")
+```
+
+Among **recognised** items only (each answer probability divided by the
+probability of recognising the item, per draw), and the difference from the
+Human Original belief:
+
+```{r}
+#| results: asis
+
+D <- estimates$MemoryConditionBelief$draws # draws x Belief x answer
+rec <- 1 - D[, , "Not recognized"]
+describe_pp <- function(x) {
+  ci <- bayestestR::eti(x)
+  data.frame(Median = 100 * median(x), CI_low = 100 * ci$CI_low, CI_high = 100 * ci$CI_high,
+             pd = as.numeric(bayestestR::p_direction(x)))
+}
+dat_rec <- bind_rows(lapply(setdiff(dimnames(D)[[3]], "Not recognized"), function(a) {
+  bind_rows(lapply(dimnames(D)[[2]], function(b) {
+    p <- D[, b, a] / rec[, b]
+    p0 <- D[, "Human Original", a] / rec[, "Human Original"]
+    cbind(data.frame(Answer = a, Belief = b),
+          setNames(describe_pp(p)[1:3], c("P", "P_low", "P_high")),
+          describe_pp(p - p0))
+  }))
+})) |>
+  mutate(P = sprintf("%s [%s, %s]", insight::format_value(P), insight::format_value(P_low), insight::format_value(P_high)),
+         Diff = ifelse(Belief == "Human Original", "", insight::format_value(Median)),
+         CI = ifelse(Belief == "Human Original", "", sprintf("[%s, %s]", insight::format_value(CI_low), insight::format_value(CI_high))),
+         pd_fmt = ifelse(Belief == "Human Original", "", insight::format_pd(pd, name = NULL)),
+         Effect = ifelse(Belief == "Human Original", "",
+                         ifelse(sign(CI_low) != sign(CI_high), "n.s.", ifelse(Median < 0, "Negative", "Positive")))) |>
+  rename(Contrast = Answer)
+make_tables(dat_rec, c("Contrast", "Belief", "P", "Diff", "CI", "pd_fmt", "Effect"),
+            "Memory of the Condition by Belief: P(recalled label | recognised), in %, and difference from the Human Original belief (percentage points)")
+```
+
+```{r}
+make_memory_summary(estimates$MemoryConditionBelief)
+```
+
 ## Summary
 
 - `data/results_memory_contrasts.csv`: every contrast (level × answer pair), probability scale, with `pd` and `Credible`.
@@ -317,7 +397,7 @@ write.csv(results_memory_means, "../data/results_memory_means.csv", row.names = 
 make_tables(bind_rows(lapply(unname(estimates), `[[`, "diag")),
             c("Model", "Family", "N_obs", "N_participants", "Chains", "Draws",
               "Max_Rhat", "Min_ESS_ratio", "Divergent_pct", "Criterion"),
-            "Convergence of both memory models")
+            "Convergence of the memory models")
 ```
 
 ```{r}
