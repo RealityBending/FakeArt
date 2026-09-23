@@ -1,0 +1,288 @@
+---
+title: "FakeArt - Determinants of Reality Beliefs"
+editor: source
+editor_options:
+  chunk_output_type: console
+format:
+  html:
+    code-fold: true
+    self-contained: false
+    toc: true
+    keep-md: true
+---
+
+<!-- Estimates are computed on the cluster (`./hpc extract RealityBeauty AuthenticityBeauty`, see server/estimates.R: mediation_info, get_mediation_estimates()) and read from models/estimates/. The mediation itself (mediation_effects()) runs here, on the stored predictions. -->
+
+## Data Preparation
+
+```{r}
+#| warning: false
+#| code-fold: false
+#| error: false
+
+library(tidyverse)
+library(easystats)
+library(patchwork)
+
+# Same rows and centring as the fits (models.R, fa_prepare_beauty())
+dftask <- read.csv("../data/data_task.csv") |>
+  filter(!is.na(Beauty)) |>
+  mutate(Condition = fct_relevel(Condition, "Human Original", "Human Forgery", "AI-Generated"))
+center <- function(d, outcome) {
+  d |>
+    filter(!is.na(.data[[outcome]])) |>
+    mutate(Beauty_w = Beauty - mean(Beauty), .by = "Participant")
+}
+
+cols <- c(
+  "Human Original" = "#F51D56",
+  "Human Forgery" = "#F5A41D",
+  "AI-Generated" = "#1D9AF5")
+
+source("server/estimates.R") # mediation_info, mediation_effects(), prep_contrasts()
+source("report.R")           # make_asis(), make_tables(), make_markdown(), read_estimates()
+
+estimates <- read_estimates(names(mediation_info))
+# The label effects of the main models (Condition * Emotion), for comparison
+reference <- read_estimates(c("Beauty", "Reality", "Authenticity"))
+provenance_table(c(estimates, reference))
+
+# The mediation, once per model (bootstrap of the label -> beauty path over
+# participants, one resample per posterior draw)
+mediation <- lapply(estimates, mediation_effects)
+```
+
+## How to read this report
+
+The question is whether the labels lower the Phase-2 reality beliefs
+**directly**, or **through the lower beauty they induced in Phase 1**
+(label → beauty → belief). The label is randomised and beauty is rated
+before the belief, so the label → belief effect decomposes as a mediation.
+The reverse path (belief → beauty) cannot be tested: the only Phase-1
+"belief" is the label itself.
+
+| model | outcome | predictors | data |
+| --- | --- | --- | --- |
+| **RealityBeauty** | `Reality` (syntheticness; 0 = AI-Generated, 1 = Human Creation) | `Condition * Beauty_w` | 317 participants × 48 trials |
+| **AuthenticityBeauty** | `Authenticity` (0 = Copy / Forgery, 1 = Original) | `Condition * Beauty_w` | same |
+
+Both are CHOCO models with `Condition * Beauty_w` on `mu`, `confright` and
+`confleft` (random `Condition * Beauty_w` slopes over participants,
+`Condition + Beauty_w` over items), on the precisions (item intercept only)
+and on `pex` / `bex` / `pmid` (participant intercept only). `Beauty_w` is the
+Phase-1 beauty centred within participant: its slope is "this artwork vs.
+my other artworks", and it is 0 at a participant's average beauty. There is
+no Emotion term.
+
+What each section reports, all in **% of the belief slider** unless stated
+otherwise, as posterior medians with 95% CI (HDI for the mediation) and the
+probability of direction (`pd`); "credible" = CI excludes 0:
+
+- **Predicted belief by beauty**: the population-level prediction per label
+  across `Beauty_w`, with the observed binned means. The ticks on the x-axis
+  are the mean `Beauty_w` under each label (the label → beauty path).
+- **Label contrasts at average beauty**: the label effect with beauty held at
+  the participant's mean (`Beauty_w = 0`), for every CHOCO parameter. Compare
+  with the label effect of the main model (no beauty term), shown alongside.
+- **Beauty slopes**: the change in the belief per +10% of the beauty slider,
+  per label, and the differences between labels (the interaction on the
+  response scale: does a "fake" label weaken the beauty cue?).
+- **Mediation**, for each contrast `c1 - c0`, with `E[Y | c, m]` the
+  prediction under label `c` at beauty `m`, and `M_c` the mean `Beauty_w`
+  under label `c`:
+  - *Mediator (a)*: `M_c1 - M_c0`, in % of the **beauty** slider;
+  - *Total*: `E[Y | c1, M_c1] - E[Y | c0, M_c0]`;
+  - *Direct*: `E[Y | c1, M_c0] - E[Y | c0, M_c0]` (the label, beauty held
+    where the reference label leaves it);
+  - *Indirect*: `E[Y | c1, M_c1] - E[Y | c1, M_c0]` (beauty moved as the label
+    moves it, the label held fixed);
+  - *Proportion mediated*: Indirect / Total, only meaningful when the Total
+    is credible.
+
+Caveats: predictions are evaluated at the mean beauty per label (an
+approximation for a non-linear model) and at the population level (random
+effects at 0); measurement error in beauty attenuates the slope, so the
+indirect effect is a lower bound; beauty is not randomised, so a
+person-specific appeal of the artwork could drive both beauty and belief
+(the planned control is follow-up beauty, `Beauty2`).
+
+## Convergence
+
+```{r}
+#| results: asis
+
+convergence_by_class <- function(est) {
+  est$convergence |>
+    mutate(Class = case_when(
+      startsWith(variable, "b_") | startsWith(variable, "Intercept") ~ "b (fixed effects)",
+      startsWith(variable, "sd_") ~ "sd (random-effect SDs)",
+      startsWith(variable, "cor_") ~ "cor (random-effect correlations)",
+      .default = "other")) |>
+    summarise(N = n(), Max_Rhat = round(max(rhat, na.rm = TRUE), 3),
+              Min_ESS_bulk = round(min(ess_bulk, na.rm = TRUE)), .by = "Class") |>
+    mutate(Model = est$outcome, .before = 1)
+}
+
+make_asis(
+  make_tables(bind_rows(lapply(estimates, `[[`, "diag")),
+              c("Model", "Family", "N_obs", "N_participants", "Chains", "Draws", "Max_Rhat", "Min_ESS_ratio", "Divergent_pct"),
+              "Convergence of the determinants models"),
+  make_tables(bind_rows(lapply(estimates, convergence_by_class)),
+              c("Model", "Class", "N", "Max_Rhat", "Min_ESS_bulk"),
+              "Convergence by parameter class (the fixed effects are what the report uses)")
+)
+```
+
+```{r}
+# Helpers shared by both model sections
+
+format_effects <- function(dat) {
+  dat |>
+    mutate(Credible = sign(CI_low) == sign(CI_high),
+           Effect = ifelse(!Credible, "n.s.", ifelse(Median < 0, "Negative", "Positive")),
+           Diff = insight::format_value(Median, zap_small = TRUE),
+           CI = sprintf("[%s, %s]", insight::format_value(CI_low, zap_small = TRUE),
+                        insight::format_value(CI_high, zap_small = TRUE)),
+           pd_fmt = insight::format_pd(pd, name = NULL))
+}
+
+plot_predictions <- function(name, outcome, ylab) {
+  est <- estimates[[name]]
+  P <- est$grid_draws
+  pred <- cbind(est$grid,
+                Median = apply(P, 2, median),
+                CI_low = apply(P, 2, quantile, 0.025),
+                CI_high = apply(P, 2, quantile, 0.975))
+  obs <- center(dftask, outcome) |>
+    mutate(Bin = cut(Beauty_w, breaks = quantile(Beauty_w, seq(0, 1, 0.1)), include.lowest = TRUE)) |>
+    summarise(Beauty_w = mean(Beauty_w), y = mean(.data[[outcome]]), n = n(), .by = c("Condition", "Bin"))
+  ticks <- est$mediator_means |> summarise(Beauty_w = mean(Beauty_w), .by = "Condition")
+
+  ggplot(pred, aes(x = Beauty_w, color = Condition, fill = Condition)) +
+    geom_ribbon(aes(ymin = 100 * CI_low, ymax = 100 * CI_high), alpha = 0.15, color = NA) +
+    geom_line(aes(y = 100 * Median), linewidth = 1) +
+    geom_point(data = obs, aes(y = 100 * y), size = 1.8, alpha = 0.7) +
+    geom_rug(data = ticks, aes(x = Beauty_w), sides = "b", length = grid::unit(0.05, "npc"), linewidth = 1) +
+    scale_color_manual(values = cols) +
+    scale_fill_manual(values = cols) +
+    labs(x = "Phase-1 beauty relative to the participant's mean (Beauty_w)",
+         y = ylab, color = "Label", fill = "Label",
+         caption = "Lines: population-level prediction (95% CI). Points: observed means per decile of Beauty_w. Ticks: mean Beauty_w per label.") +
+    theme_minimal() +
+    theme(legend.position = "top")
+}
+
+section_tables <- function(name, reference_name) {
+  est <- estimates[[name]]
+  med <- mediation[[name]]
+
+  con <- prep_contrasts(est$contrasts, est$outcome) |>
+    filter(Parameter %in% c("response", "mu", "confright", "confleft", "pex", "bex", "pmid"))
+  ref <- prep_contrasts(reference[[reference_name]]$contrasts, reference_name) |>
+    filter(Parameter == "response") |>
+    mutate(Parameter = "response (main model, no beauty term)")
+  con <- bind_rows(con, ref) |> arrange(Contrast)
+
+  make_asis(
+    make_tables(con, c("Contrast", "Parameter", "Diff", "CI", "pd_fmt", "Effect"),
+                sprintf("%s: label contrasts at average beauty (%% of the slider for response and the probability parameters)", est$label)),
+    make_tables(format_effects(med$slopes), c("Condition", "Diff", "CI", "pd_fmt", "Effect"),
+                sprintf("%s: change per +10%% of Phase-1 beauty (%% of the belief slider), per label and between labels", est$label)),
+    make_tables(format_effects(med$effects), c("Contrast", "Effect", "Diff", "CI", "pd_fmt"),
+                sprintf("%s: mediation of the label effect by Phase-1 beauty", est$label))
+  )
+}
+```
+
+## Syntheticness
+
+```{r}
+#| fig-width: 8
+#| fig-height: 5.5
+
+plot_predictions("RealityBeauty", "Reality", "Predicted syntheticness (0 = AI, 100 = Human)")
+```
+
+```{r}
+#| results: asis
+
+section_tables("RealityBeauty", "Reality")
+```
+
+## Authenticity
+
+```{r}
+#| fig-width: 8
+#| fig-height: 5.5
+
+plot_predictions("AuthenticityBeauty", "Authenticity", "Predicted authenticity (0 = Copy, 100 = Original)")
+```
+
+```{r}
+#| results: asis
+
+section_tables("AuthenticityBeauty", "Authenticity")
+```
+
+## Summary
+
+```{r}
+#| fig-width: 10
+#| fig-height: 5
+
+dat_med <- bind_rows(lapply(names(mediation), function(n) {
+  mutate(mediation[[n]]$effects, Model = n, Outcome = estimates[[n]]$label)
+}))
+
+dat_med |>
+  filter(Effect %in% c("Total", "Direct", "Indirect")) |>
+  mutate(Effect = fct_relevel(Effect, "Total", "Direct", "Indirect"),
+         Contrast = fct_relevel(Contrast, contrast_order),
+         Outcome = str_remove(Outcome, " by Phase-1 Beauty")) |>
+  ggplot(aes(x = Median, y = Effect, xmin = CI_low, xmax = CI_high, color = Effect)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_pointrange() +
+  facet_grid(Outcome ~ Contrast) +
+  scale_y_discrete(limits = rev) +
+  scale_color_manual(values = c("Total" = "#212121", "Direct" = "#7E57C2", "Indirect" = "#26A69A"), guide = "none") +
+  labs(x = "Effect of the label (% of the belief slider, 95% HDI)", y = NULL) +
+  theme_minimal() +
+  theme(strip.text = element_text(face = "bold"))
+```
+
+Auto-generated summary of the mediation (for text readers):
+
+```{r}
+#| results: asis
+
+fmt <- function(d, e) {
+  r <- d[d$Effect == e, ]
+  sprintf("%s [%s, %s]", insight::format_value(r$Median), insight::format_value(r$CI_low), insight::format_value(r$CI_high))
+}
+lines <- unlist(lapply(split(dat_med, list(dat_med$Outcome, dat_med$Contrast), drop = TRUE), function(d) {
+  total_credible <- with(d[d$Effect == "Total", ], sign(CI_low) == sign(CI_high))
+  sprintf("- **%s, %s**: total %s, direct %s, indirect %s%s (label effect on beauty: %s%% of the beauty slider).",
+          d$Outcome[1], d$Contrast[1], fmt(d, "Total"), fmt(d, "Direct"), fmt(d, "Indirect"),
+          if (total_credible) paste0("; ", fmt(d, "Proportion mediated"), "% mediated") else "; total not credible, proportion not interpretable",
+          fmt(d, "Mediator (a)"))
+}))
+make_asis(lines)
+```
+
+Files written:
+
+- `data/results_determinants_mediation.csv`: mediator path, total, direct, indirect effect and proportion mediated per model × contrast.
+- `data/results_determinants_slopes.csv`: beauty slopes per label and their differences.
+- `data/results_determinants_contrasts.csv`: label contrasts at average beauty, every CHOCO parameter.
+
+```{r}
+write.csv(dat_med, "../data/results_determinants_mediation.csv", row.names = FALSE)
+bind_rows(lapply(names(mediation), function(n) mutate(mediation[[n]]$slopes, Model = n, .before = 1))) |>
+  write.csv("../data/results_determinants_slopes.csv", row.names = FALSE)
+bind_rows(lapply(estimates, function(e) {
+  prep_contrasts(e$contrasts, e$outcome) |>
+    mutate(Model = e$outcome) |>
+    select(Model, Contrast, Parameter, Difference, CI_low, CI_high, Difference_pct, CI_low_pct, CI_high_pct, pd, Credible, Effect)
+})) |>
+  write.csv("../data/results_determinants_contrasts.csv", row.names = FALSE)
+```

@@ -19,6 +19,10 @@
 #                         ones, with the Phase-1/2 data of old items joined on)
 #             fit_model.R loads and prepares the file named here
 #             (fa_prepare_data() / fa_prepare_memory()).
+#   subset    (optional) function(data) data: rows to keep (e.g. old items only)
+#   prepare   (optional) function(data) data: derived predictors (e.g. a
+#             within-participant centred covariate); both are applied in
+#             fit_model.R after the outcome's NA rows are dropped
 #   formula   a function returning the brms bf(). A function rather than the
 #             object so that sourcing this file costs nothing and only the
 #             model actually being fitted is built.
@@ -62,18 +66,47 @@ fa_f <- function(lhs, rhs = fa_rhs_full) {
 # CHOCO: every distributional parameter modelled. Used for the analog sliders
 # (Beauty, Beauty2, Reality, Authenticity, PerceivedArtificiality), which show
 # the choice-plus-confidence bimodality with mass at 0, 0.5 and 1.
-fa_choco <- function(outcome) {
+# The right-hand sides default to the Condition * Emotion design; the
+# determinants-of-belief models pass their own.
+fa_choco <- function(outcome, rhs = fa_rhs_full, rhs_slim = fa_rhs_slim,
+                     rhs_extreme = "Condition + (1 | Participant)") {
   brms::bf(
-    fa_f(outcome),
-    fa_f("confright"),
-    fa_f("confleft"),
-    fa_f("precright", fa_rhs_slim),
-    fa_f("precleft", fa_rhs_slim),
-    pex ~ Condition + (1 | Participant),
-    bex ~ Condition + (1 | Participant),
-    pmid ~ Condition + (1 | Participant),
+    fa_f(outcome, rhs),
+    fa_f("confright", rhs),
+    fa_f("confleft", rhs),
+    fa_f("precright", rhs_slim),
+    fa_f("precleft", rhs_slim),
+    fa_f("pex", rhs_extreme),
+    fa_f("bex", rhs_extreme),
+    fa_f("pmid", rhs_extreme),
     family = cogmod::cogmod_choco()
   )
+}
+
+# Determinants of reality beliefs: the Phase-2 belief on the label and the
+# Phase-1 beauty of the same trial (Beauty_w, centred within participant, see
+# fa_prepare_beauty()), with their interaction -- does beauty still inform the
+# belief once the image carries a "fake" label? Emotion is left out (the design
+# is balanced, so the Condition effect stays comparable to the overall
+# contrasts of Reality / Authenticity). Beauty_w varies within item as well,
+# so the item block gets its slope, without the interaction.
+fa_rhs_beauty <- "Condition * Beauty_w + (Condition * Beauty_w | Participant) + (Condition + Beauty_w | Item)"
+fa_rhs_beauty_slim <- "Condition * Beauty_w + (Condition * Beauty_w | Participant) + (1 | Item)"
+fa_rhs_beauty_extreme <- "Condition * Beauty_w + (1 | Participant)"
+
+fa_choco_beauty <- function(outcome) {
+  fa_choco(outcome, fa_rhs_beauty, fa_rhs_beauty_slim, fa_rhs_beauty_extreme)
+}
+
+# Phase-1 beauty centred within participant, over the trials the model uses,
+# so its slope is "this artwork vs. my other artworks" and the participant
+# intercepts absorb between-person differences in the beauty level. The label
+# is randomised within participant, so the label effect on Beauty_w is the
+# label effect on Beauty.
+fa_prepare_beauty <- function(d) {
+  d <- d[!is.na(d$Beauty), ]
+  d$Beauty_w <- d$Beauty - stats::ave(d$Beauty, d$Participant)
+  d
 }
 
 
@@ -218,6 +251,30 @@ fa_models <- list(
     formula = function() fa_choco("Authenticity")
   ),
 
+  # PHASE 2 -- determinants of reality beliefs ================================
+  # Does the label act on the belief directly, or through the lower beauty it
+  # induced in Phase 1 (label -> Beauty -> belief)? Beauty is rated before the
+  # belief, and the label is randomised, so the decomposition is a mediation:
+  # the natural direct and indirect effects are computed from these fits'
+  # predictions over a Beauty_w grid (estimates.R, mediation_info and
+  # mediation_effects()). Read by the "Determinants of Reality Beliefs"
+  # section of the manuscript. The label-free controls (Beauty2) and
+  # artificiality of new items are the planned next models.
+
+  # RealityBeauty -----------------------------------------------------------
+  RealityBeauty = list(
+    outcome = "Reality",
+    prepare = fa_prepare_beauty,
+    formula = function() fa_choco_beauty("Reality")
+  ),
+
+  # AuthenticityBeauty ------------------------------------------------------
+  AuthenticityBeauty = list(
+    outcome = "Authenticity",
+    prepare = fa_prepare_beauty,
+    formula = function() fa_choco_beauty("Authenticity")
+  ),
+
   # FOLLOW-UP -- memory session ===============================================
   # Only the 220 participants who returned have these columns; the rest are
   # NA in data_task.csv.
@@ -314,6 +371,33 @@ fa_models <- list(
         family = brms::categorical(link = "logit")
       )
     }
+  ),
+
+  # MemoryConditionBelief ------------------------------------------------------
+  # Is the recalled label reconstructed from one's own Phase-2 belief? The
+  # descriptives say so (recognised items judged "AI Original" are recalled
+  # as "AI-Generated" 47% of the time, against 26% for items judged "Human
+  # Original") while the actual label predicts nothing (MemoryCondition). This
+  # puts both in one model: AnswerCondition on the label actually shown *and*
+  # the participant's own belief, so the Belief contrasts are the effect of
+  # the belief with the label held constant.
+  #
+  # Old items only, with a recorded belief (subset below): new items have
+  # neither a label nor a belief, and keeping them would make "New Items" and
+  # Belief "None" the same 10,560 rows. 220 x 48 - 144 = 10,416 rows.
+  # Additive, not Condition * Belief: the 12 cells would leave the rarer
+  # label x belief combinations with a handful of trials per participant.
+  MemoryConditionBelief = list(
+    outcome = "AnswerCondition",
+    data = "memory",
+    subset = function(d) d[d$Type == "Old" & d$Belief != "None", ],
+    formula = function() {
+      brms::bf(
+        AnswerCondition ~ Condition + Belief +
+          (1 + Condition + Belief | Participant) + (1 + Condition + Belief | Item),
+        family = brms::categorical(link = "logit")
+      )
+    }
   )
 )
 
@@ -340,7 +424,7 @@ fa_prepare_data <- function(dftask) {
   dftask
 }
 
-# The follow-up file (data = "memory"). Mirrors the top of 5_memory.qmd: the
+# The follow-up file (data = "memory"). Mirrors the top of 4_memory.qmd: the
 # first level of each factor is the reference category, both for the
 # categorical outcomes (brms takes the first level as the baseline of the
 # multinomial logit) and for the predictors.

@@ -111,6 +111,12 @@ if (!identical(tolower(n_participants), "all")) {
 # 7 participants, follow-up only for 220, gaze only for QC-passing trials;
 # the memory file has no NA in its categorical outcomes, so it is kept whole).
 data <- dftask[!is.na(dftask[[spec$outcome]]), ]
+# A model may restrict itself further (models.R `subset`, e.g. old items
+# only); levels it drops would otherwise enter the design as empty columns.
+if (!is.null(spec$subset)) data <- droplevels(spec$subset(data))
+# ...and/or derive predictors (models.R `prepare`, e.g. within-participant
+# centring), computed on the rows the model keeps.
+if (!is.null(spec$prepare)) data <- droplevels(spec$prepare(data))
 cat("participants:", length(unique(data$Participant)), " items:", length(unique(data$Item)),
     " rows:", nrow(data), "\n")
 

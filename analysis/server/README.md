@@ -284,7 +284,7 @@ different iteration count is a resubmit, never a refit. `FA_SEED` (default
 FA_SEED=99 ./hpc extract Beauty
 ```
 
-### Participant-level indices (`5_correlates.qmd`)
+### Participant-level indices (`7_correlates.qmd`)
 
 `./hpc individual <model|all>` runs the same job with `FA_WHAT=individual`:
 only `get_individual()` (estimates.R), for the dpars listed in the model's
@@ -312,7 +312,7 @@ Every rating and gaze model has the design `Condition * Emotion` (3 labels ×
 `(Condition | Item)` on the main and most distributional parameters. The
 memory models are `Condition` only, on the follow-up file. Names match the
 files the notebooks read (`models/<name>.rds`: `3_models.qmd` for the first
-thirteen, `5_memory.qmd` for the memory ones).
+thirteen, `4_memory.qmd` for the memory ones, `5_realitydeterminants.qmd` for `RealityBeauty` / `AuthenticityBeauty`).
 
 | model | outcome | family | notes |
 | --- | --- | --- | --- |
@@ -330,6 +330,9 @@ thirteen, `5_memory.qmd` for the memory ones).
 | `SelfRelevance` | `SelfRelevance` (ordered 0..6) | `cumulative()` | follow-up |
 | `Artificiality` | `PerceivedArtificiality` | `cogmod_choco()` | follow-up, "new" items only (~6,000 rows) |
 | `MemoryCondition` | `AnswerCondition` (4 categories) | `categorical()` | **`data = "memory"`**; `~ Condition + (1 + Condition \| Participant) + (1 + Condition \| Item)`, `Condition` has a 4th level `New Items`; 220 × 96 = 21,120 rows |
+| `MemoryConditionBelief` | `AnswerCondition` | `categorical()` | `data = "memory"`, `subset` = old items with a Phase-2 belief (10,416 rows); `~ Condition + Belief`, both slopes by participant and item |
+| `RealityBeauty` | `Reality` | `cogmod_choco()` | `prepare = fa_prepare_beauty` (Phase-1 `Beauty` centred within participant → `Beauty_w`); `Condition * Beauty_w` on mu/conf, `(Condition * Beauty_w \| Participant) + (Condition + Beauty_w \| Item)`; extracted by `get_mediation_estimates()` |
+| `AuthenticityBeauty` | `Authenticity` | `cogmod_choco()` | as `RealityBeauty` |
 
 Priors start from `cogmod_priors(f, data)` for the cogmod families (since
 cogmod 0.3.3 dev of 2026-09-20 it covers CHOCO and Discrete-Beta:
@@ -342,7 +345,7 @@ Nothing the family helper set is overwritten. Starting values are
 `cogmod_inits(f, data)` for the cogmod families (a data-informed init
 function, one draw per chain) and `init = 0` for native ones.
 
-Adding a model is one entry in `models.R` and nothing else. If it needs a
+Adding a model is one entry in `models.R` and nothing else. An entry may also set `subset` (rows to keep) and/or `prepare` (derived predictors, e.g. within-participant centring), both `function(data) data`, applied in `fit_model.R` after the outcome's NA rows are dropped. If it needs a
 data file other than the Phase-1 trial file, set its `data` slot and, for a
 new file, add a loader branch in `fit_model.R` and a `fa_prepare_*()` in
 `models.R` (as `data = "memory"` does).
@@ -358,7 +361,7 @@ fits refuse to start below cogmod 0.3.3; an older 0.3.3 *build* fails in
 `fa_inits()`, and `./hpc install cogmod` fixes both). **The distributional
 parameter names are unchanged**
 (`mu`, `confright`, `confleft`, `precright`, `precleft`, `pex`, `bex`, `pmid`;
-`mu`, `phi`, `pzero`), so `3_models.qmd` and `4_correlates.qmd` read a refit
+`mu`, `phi`, `pzero`), so `3_models.qmd` and `7_correlates.qmd` read a refit
 exactly as they read the old fits. The `cumulative()` fits also carry the
 `disc` parameter the notebooks use.
 
