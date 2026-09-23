@@ -1,7 +1,8 @@
-# Runs get_estimates() (estimates.R) on FA_MODELS_DIR/combined/<FA_MODEL>.rds
-# and writes FA_MODELS_DIR/estimates/<FA_MODEL>.rds. Submitted by
-# `./hpc extract <model>`; read-only on the fit, so safe to re-run.
+# Runs one estimates.R driver on FA_MODELS_DIR/combined/<FA_MODEL>.rds and
+# writes FA_MODELS_DIR/<FA_WHAT>/<FA_MODEL>.rds. Read-only on the fit.
 #
+#   FA_WHAT   estimates (get_estimates(), `./hpc extract`) or
+#             individual (get_individual(), `./hpc individual`)
 #   FA_SEED   RNG seed for the sampled parts (default 1234)
 
 library(brms)
@@ -21,11 +22,15 @@ name <- spec$name
 seed <- as.integer(Sys.getenv("FA_SEED", unset = "1234"))
 set.seed(seed)
 
+what <- Sys.getenv("FA_WHAT", unset = "estimates")
+driver <- switch(what, estimates = get_estimates, individual = get_individual,
+                 stop("FA_WHAT must be 'estimates' or 'individual', not '", what, "'", call. = FALSE))
+
 models_dir <- Sys.getenv("FA_MODELS_DIR", unset = "models")
-est_dir <- file.path(models_dir, "estimates")
+est_dir <- file.path(models_dir, what)
 dir.create(est_dir, recursive = TRUE, showWarnings = FALSE)
 
-cat("**", name, ":", format(Sys.time()), "\n")
+cat("**", name, "-", what, ":", format(Sys.time()), "\n")
 cat("** seed:", seed, "\n")
 
 # Combined fit, else a hand-placed <model>.rds (never a shard)
@@ -53,7 +58,7 @@ if (brms::ndraws(m) < 1000) {
        call. = FALSE)
 }
 
-est <- get_estimates(m, outcome = name)
+est <- driver(m, outcome = name)
 est$fit_file <- basename(fit_file)
 est$seed <- seed
 

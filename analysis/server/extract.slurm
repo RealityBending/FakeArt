@@ -10,7 +10,7 @@
 #SBATCH --mail-type=END,FAIL
 
 # One job per model (FA_MODEL): runs extract_model.R, reading
-# models/combined/<model>.rds and writing models/estimates/<model>.rds.
+# models/combined/<model>.rds and writing models/<FA_WHAT>/<model>.rds.
 # 128G because MemoryBelief (marginaleffects, 300 contrasts) OOMed at 64G;
 # the emmeans models fit in 64G (`--mem=` to override). No --time: general's 8 h.
 
@@ -18,10 +18,10 @@ PROJECT_DIR="${FA_USERS_DIR:-$SLURM_SUBMIT_DIR}"
 export FA_MODELS_DIR="${FA_MODELS_DIR:-$PROJECT_DIR/models}"
 
 cd "$PROJECT_DIR" || exit 1
-mkdir -p "$FA_MODELS_DIR/estimates"
+mkdir -p "$FA_MODELS_DIR/${FA_WHAT:-estimates}"
 
 echo "Running on $(hostname)"
-echo "Model: ${FA_MODEL:-<unset>}"
+echo "Model: ${FA_MODEL:-<unset>} (${FA_WHAT:-estimates})"
 echo "Models directory: $FA_MODELS_DIR"
 echo "Job started at: $(date '+%Y-%m-%d %H:%M:%S')"
 

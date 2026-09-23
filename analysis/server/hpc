@@ -12,6 +12,7 @@
 #   ./hpc fit <model|all> [..]  one array job per model (extra args -> sbatch)
 #   ./hpc combine <model|all>   merge a model's shards, add loo (shards kept)
 #   ./hpc extract <model|all>   means/contrasts/figure data -> models/estimates/
+#   ./hpc individual <model|all> participant-level indices -> models/individual/
 #   ./hpc queue                 squeue for this user
 #   ./hpc progress [model]      iteration counts + REPORT lines from the .out logs
 #   ./hpc log [jobid|model]     tail the newest .out/.err in scratch
@@ -231,14 +232,14 @@ submit_per_model() {
   local extra="" v val
   for v in FA_NPARTICIPANTS FA_WARMUP FA_SAMPLES FA_THIN FA_CHAINS FA_DATA \
            FA_CRITERION FA_CRITERION_NDRAWS FA_DELETE_SHARDS FA_COGMOD_MIN \
-           FA_SEED; do
+           FA_SEED FA_WHAT; do
     eval "val=\${$v:-}"
     [ -n "$val" ] && extra="${extra},${v}='${val}'"
   done
   # fit is an array (%A = array job id, %a = task); combine and extract are
   # single jobs (%j).
   local logid="%A_%a"
-  case "$tag" in combine|extract) logid="%j" ;; esac
+  case "$tag" in combine|extract|individual) logid="%j" ;; esac
   # ONE ssh connection for the whole set, not one per model. Artemis' sshd
   # rate-limits rapid connections, and `./hpc extract all` (15 models) hit it
   # repeatedly on 2026-09-22: several models were silently not submitted, each
@@ -279,7 +280,13 @@ cmd_combine() {
 # outcome_info entry in estimates.R -- those two fail fast and say so.
 cmd_extract() {
   local want="${1:-}"; shift || true
-  submit_per_model extract.slurm extract "$want" "$@"
+  FA_WHAT=estimates submit_per_model extract.slurm extract "$want" "$@"
+}
+
+# Same job, get_individual() only: a few minutes and a few GB per model.
+cmd_individual() {
+  local want="${1:-}"; shift || true
+  FA_WHAT=individual submit_per_model extract.slurm individual "$want" --mem=32G "$@"
 }
 
 cmd_queue() {
@@ -426,6 +433,7 @@ case "${1:-}" in
   fit)        shift; cmd_fit "$@" ;;
   combine)    shift; cmd_combine "$@" ;;
   extract)    shift; cmd_extract "$@" ;;
+  individual) shift; cmd_individual "$@" ;;
   queue)      shift; cmd_queue "$@" ;;
   progress)   shift; cmd_progress "$@" ;;
   log)        shift; cmd_log "$@" ;;

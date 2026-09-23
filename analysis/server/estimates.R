@@ -21,11 +21,13 @@ if (!exists("%||%", envir = baseenv())) {
 #   marginal_emo    the same by Condition x Emotion
 #   discrete        list(iterations=): predicted response-category proportions
 #   density         list(iterations=, by=): per-draw predictive densities
+#   individual      dpars for get_individual() (participant-level indices)
 outcome_info <- list(
   Beauty = list(
     label = "Beauty", family = "CHOCO",
     scale = "analog slider rescaled to 0 (Ugly) - 1 (Beautiful)",
-    marginal = TRUE, marginal_emo = TRUE
+    marginal = TRUE, marginal_emo = TRUE,
+    individual = c("mu", "confright", "confleft", "precright", "precleft")
   ),
   Beauty2 = list(
     label = "Beauty (follow-up)", family = "CHOCO",
@@ -35,12 +37,14 @@ outcome_info <- list(
   Reality = list(
     label = "Syntheticness", family = "CHOCO",
     scale = "slider rescaled to 0 (AI-Generated) - 1 (Human Creation); higher = judged more human",
-    marginal = TRUE
+    marginal = TRUE,
+    individual = c("mu", "confright", "confleft", "precright", "precleft")
   ),
   Authenticity = list(
     label = "Authenticity", family = "CHOCO",
     scale = "slider rescaled to 0 (Copy / Forgery) - 1 (Original Creation)",
-    marginal = TRUE
+    marginal = TRUE,
+    individual = c("mu", "confright", "confleft", "precright", "precleft")
   ),
   Artificiality = list(
     label = "Perceived Artificiality", family = "CHOCO",
@@ -50,17 +54,20 @@ outcome_info <- list(
   Valence = list(
     label = "Valence", family = "Discrete Beta (k = 7)",
     scale = "7-point pictorial scale coded 1 (Negative) - 7 (Positive); `response` differences are reported in % of the 6-point range",
-    range = 6, discrete = list(iterations = 100)
+    range = 6, discrete = list(iterations = 100),
+    individual = c("mu", "phi")
   ),
   Meaning = list(
     label = "Meaning", family = "Discrete Beta (k = 6) with zero hurdle",
     scale = "0 (Not at all) - 6 (Very much); `response` differences are reported in % of the 6-point range; `pzero` is the probability of answering exactly 0",
-    range = 6, discrete = list(iterations = 100)
+    range = 6, discrete = list(iterations = 100),
+    individual = c("mu", "phi", "pzero")
   ),
   Worth = list(
     label = "Worth", family = "Cumulative (ordinal)",
     scale = "6 ordered categories $0, $10, $100, $1,000, $10,000, $100,000; `response - <k>` rows are differences in the probability of choosing category k",
-    backend = "marginaleffects", discrete = list(iterations = 100)
+    backend = "marginaleffects", discrete = list(iterations = 100),
+    individual = c("mu", "disc")
   ),
   SelfRelevance = list(
     label = "Self-Relevance", family = "Cumulative (ordinal)",
@@ -92,8 +99,6 @@ outcome_info <- list(
     density = list(iterations = 500, by = c("Condition", "Emotion"))
   )
 )
-
-extra_contrast_title <- "contrasts between stimulus emotion quadrants"
 
 # 4_memory.qmd categorical models. `by` = the factor contrasted and plotted.
 memory_info <- list(
@@ -455,4 +460,119 @@ get_memory_estimates <- function(m, outcome, verbose = TRUE) {
   ))
 
   est
+}
+
+
+# Participant-level indices ---------------------------------------------------
+# For each participant and dpar, on the link scale, averaged over Emotion, with
+# item effects excluded (items are assigned to conditions per participant):
+#   Baseline  Human Original
+#   Forgery   Human Forgery - Human Original
+#   AI        AI-Generated  - Human Original
+# A dpar whose participant term has no Condition slope (e.g. Worth's `disc`)
+# gets a Baseline only. Returns the posterior Mean and SD of each index, and
+# SD_rel: the SD of the index relative to the sample mean of the same draw,
+# i.e. without the uncertainty of the population effect shared by all
+# participants.
+
+# The `( ... | Participant)` term of a dpar's formula, as a re_formula.
+participant_term <- function(m, dpar) {
+  f <- if (dpar == "mu") m$formula$formula else m$formula$pforms[[dpar]]
+  f <- paste(deparse(f), collapse = " ")
+  term <- regmatches(f, regexpr("\\([^()]*\\|\\s*Participant\\s*\\)", f))
+  if (length(term) == 0) stop("no participant term for dpar '", dpar, "'", call. = FALSE)
+  stats::as.formula(paste("~", term))
+}
+
+get_individual <- function(m, outcome, verbose = TRUE) {
+  if (!is.null(memory_info[[outcome]])) return(get_memory_individual(m, outcome, verbose))
+  params <- outcome_info[[outcome]]$individual
+  if (is.null(params)) {
+    stop("no `individual` dpars for '", outcome, "' in outcome_info", call. = FALSE)
+  }
+  step <- function(what) if (verbose) cat("**", outcome, "-", what, ":", format(Sys.time()), "\n")
+
+  d <- m$data
+  grid <- expand.grid(
+    Participant = sort(unique(as.character(d$Participant))),
+    Condition = levels(factor(d$Condition)),
+    Emotion = levels(factor(d$Emotion)),
+    stringsAsFactors = FALSE
+  )
+  participants <- unique(grid$Participant)
+  # Columns of the prediction matrix per condition, one block per emotion,
+  # participants in the same order within each block.
+  blocks <- lapply(split(seq_len(nrow(grid)), grid$Condition), function(i) split(i, grid$Emotion[i]))
+
+  rez <- lapply(params, function(p) {
+    step(p)
+    re <- participant_term(m, p)
+    eta <- brms::posterior_linpred(m, newdata = grid, dpar = p, transform = FALSE, re_formula = re)
+    cond <- lapply(blocks, function(b) Reduce(`+`, lapply(b, function(j) eta[, j, drop = FALSE])) / length(b))
+    base <- cond[["Human Original"]]
+    idx <- list(Baseline = base)
+    if (grepl("Condition", deparse(re))) {
+      idx$Forgery <- cond[["Human Forgery"]] - base
+      idx$AI <- cond[["AI-Generated"]] - base
+    }
+    bind_rows(lapply(names(idx), function(k) data.frame(
+      Participant = participants, Parameter = p, Index = k,
+      Mean = colMeans(idx[[k]]),
+      SD = apply(idx[[k]], 2, stats::sd),
+      SD_rel = apply(idx[[k]] - rowMeans(idx[[k]]), 2, stats::sd)
+    )))
+  })
+
+  list(
+    outcome = outcome,
+    created = Sys.time(),
+    ndraws = brms::ndraws(m),
+    individual = bind_rows(rez)
+  )
+}
+
+
+# Memory models: participant-level recognition, accuracy and response
+# tendencies from the predicted answer probabilities (item effects excluded),
+# on the logit scale. Accuracy and tendencies are conditional on recognition:
+#   Recognition  Hits (old items recognised), False alarms (new items "seen")
+#   Accuracy     Correct: P(recalled answer = actual level), averaged over levels
+#   Tendency     P(answer = k), averaged over the actual levels
+
+get_memory_individual <- function(m, outcome, verbose = TRUE) {
+  by <- memory_info[[outcome]]$by
+  d <- m$data
+  levels_by <- levels(factor(d[[by]]))
+  grid <- expand.grid(Participant = sort(unique(as.character(d$Participant))),
+                      Level = levels_by, stringsAsFactors = FALSE)
+  names(grid)[2] <- by
+  participants <- unique(grid$Participant)
+
+  if (verbose) cat("**", outcome, "- predictions :", format(Sys.time()), "\n")
+  p <- brms::posterior_epred(m, newdata = grid, re_formula = participant_term(m, "mu"))
+  P <- function(level, answer) p[, grid[[by]] == level, answer] # draws x participants
+
+  old <- setdiff(levels_by, c("New Items", "None"))
+  answers <- setdiff(dimnames(p)[[3]], "Not recognized")
+  recognised <- lapply(setNames(nm = old), function(l) 1 - P(l, "Not recognized"))
+  given_recognised <- function(l, a) P(l, a) / recognised[[l]]
+  average <- function(x) Reduce(`+`, x) / length(x)
+
+  idx <- list()
+  if ("New Items" %in% levels_by) {
+    idx[["Recognition_Hits"]] <- average(recognised)
+    idx[["Recognition_False alarms"]] <- 1 - P("New Items", "Not recognized")
+  }
+  idx[["Accuracy_Correct"]] <- average(lapply(intersect(old, answers), function(l) given_recognised(l, l)))
+  for (a in answers) idx[[paste0("Tendency_", a)]] <- average(lapply(old, function(l) given_recognised(l, a)))
+
+  logit <- function(x) stats::qlogis(pmin(pmax(x, 1e-6), 1 - 1e-6))
+  rez <- bind_rows(lapply(names(idx), function(k) {
+    x <- logit(idx[[k]])
+    data.frame(Participant = participants, Parameter = sub("_.*", "", k), Index = sub("^[^_]*_", "", k),
+               Mean = colMeans(x), SD = apply(x, 2, stats::sd),
+               SD_rel = apply(x - rowMeans(x), 2, stats::sd))
+  }))
+
+  list(outcome = outcome, created = Sys.time(), ndraws = brms::ndraws(m), individual = rez)
 }

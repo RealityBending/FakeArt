@@ -284,6 +284,19 @@ different iteration count is a resubmit, never a refit. `FA_SEED` (default
 FA_SEED=99 ./hpc extract Beauty
 ```
 
+### Participant-level indices (`5_correlates.qmd`)
+
+`./hpc individual <model|all>` runs the same job with `FA_WHAT=individual`:
+only `get_individual()` (estimates.R), for the dpars listed in the model's
+`individual` field of `outcome_info`, written to `models/individual/`. It
+leaves `models/estimates/` untouched and takes under a minute per model
+(`--mem=32G`).
+
+```bash
+./hpc individual Beauty
+./hpc pull 'individual/*.rds'
+```
+
 ## Models
 
 `models.R` holds one entry per model: the outcome column it is fitted to, a

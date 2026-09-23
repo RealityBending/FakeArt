@@ -2,14 +2,15 @@
 # server/estimates.R turns fits into numbers (on the cluster); this turns those
 # numbers into output. Not in server/ because `./hpc push` mirrors server/*.R.
 
-# Read models/estimates/<name>.rds (written by `./hpc extract`, fetched with
-# `./hpc pull 'estimates/*.rds'`).
-read_estimates <- function(names) {
+# Read models/<dir>/<name>.rds, written on the cluster by `./hpc extract`
+# (dir = "estimates") or `./hpc individual` (dir = "individual").
+read_estimates <- function(names, dir = "estimates") {
+  job <- if (dir == "estimates") "extract" else dir
   lapply(setNames(nm = names), function(o) {
-    f <- file.path("models", "estimates", paste0(o, ".rds"))
+    f <- file.path("models", dir, paste0(o, ".rds"))
     if (!file.exists(f)) {
-      stop(f, " is missing. Run `./hpc extract ", o, "` in analysis/server, ",
-           "then `./hpc pull 'estimates/*.rds'`.", call. = FALSE)
+      stop(f, " is missing. Run `./hpc ", job, " ", o, "` in analysis/server, ",
+           "then `./hpc pull '", dir, "/*.rds'`.", call. = FALSE)
     }
     readRDS(f)
   })
@@ -18,14 +19,14 @@ read_estimates <- function(names) {
 # Which fit and extraction each set of estimates came from.
 provenance_table <- function(estimates) {
   knitr::kable(
-    data.frame(
+    Filter(\(x) !all(is.na(x)), data.frame(
       Model = names(estimates),
       Fit = vapply(estimates, function(e) if (is.null(e$fit_file)) NA_character_ else e$fit_file, ""),
       Draws = vapply(estimates, function(e) e$ndraws, numeric(1)),
-      Max_Rhat = vapply(estimates, function(e) e$diag$Max_Rhat, numeric(1)),
+      Max_Rhat = vapply(estimates, function(e) e$diag$Max_Rhat %||% NA_real_, numeric(1)),
       Extracted = vapply(estimates, function(e) format(e$created, "%Y-%m-%d %H:%M"), ""),
       row.names = NULL
-    ),
+    )),
     caption = "Provenance of the estimates read by this report.", format = "pipe"
   )
 }

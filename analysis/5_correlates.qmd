@@ -9,463 +9,843 @@ format:
     self-contained: false
     toc: true
     keep-md: true
-execute:
-  cache: true
 ---
+
+<!-- Participant-level indices are computed on the cluster (`./hpc individual`, get_individual() in server/estimates.R) and read from models/individual/. -->
 
 ## Data Preparation
 
 ```{r}
 #| warning: false
-#| error: false
+#| code-fold: false
 
 library(tidyverse)
 library(easystats)
 library(patchwork)
 library(ggside)
-library(ggdist)
-library(brms)
-library(cogmod)
+library(ggnewscale)
 
-options(mc.cores = parallel::detectCores() - 2)
+source("server/estimates.R") # outcome_info
+source("report.R")           # read_estimates(), provenance_table(), make_tables()
 
-df <- read.csv("../data/data_participants.csv")
+dfsub <- read.csv("../data/data_participants.csv")
+
+cols_index <- c("Baseline" = "#E91E63", "Forgery" = "#F5A41D", "AI" = "#1D9AF5")
+fmt_r <- function(x) sub("^(-?)0\\.", "\\1.", sprintf("%.2f", x)) # .45, -.07
+
+# Models with participant-level indices, in the order of 3_models.qmd
+models <- intersect(c("Beauty", "Valence", "Meaning", "Worth", "Reality", "Authenticity", "Beauty2", "SelfRelevance", "Artificiality"),
+                    names(Filter(function(x) !is.null(x$individual), outcome_info)))
+individual <- read_estimates(models, dir = "individual")
+provenance_table(individual)
+
+# One row per Participant x Model x Parameter x Index (posterior Mean and SD),
+# features ordered by model, parameter (registry order) and index
+df_long <- bind_rows(lapply(individual, function(e) mutate(e$individual, Model = e$outcome))) |>
+  mutate(Model = factor(Model, levels = models),
+         Parameter = factor(Parameter, levels = unique(unlist(lapply(outcome_info[models], `[[`, "individual")))),
+         Index = factor(Index, levels = c("Baseline", "Forgery", "AI"))) |>
+  arrange(Model, Parameter, Index) |>
+  mutate(Feature = fct_inorder(paste(Model, Parameter, Index, sep = "_")))
+features <- levels(df_long$Feature)
+
+# One column per feature (posterior means)
+df_wide <- df_long |>
+  select(Participant, Feature, Mean) |>
+  pivot_wider(names_from = Feature, values_from = Mean)
+```
+
+Participant characteristics used as correlates. Gender is coded 0 = female,
+1 = male (the 2 "other" excluded), so its correlations are point-biserial;
+education and AI use are ordinal ranks. Questionnaire scores are missing for
+participants who failed that questionnaire's attention check.
+
+```{r}
+#| label: traits
+
+traits <- c("Age" = "Demographics", "Gender (male)" = "Demographics", "Education" = "Demographics",
+            "Art expertise" = "Demographics",
+            "AI knowledge" = "AI attitudes", "AI use" = "AI attitudes", "AI attitudes (positive)" = "AI attitudes",
+            "AI attitudes (negative)" = "AI attitudes", "AI art realism" = "AI attitudes", "Manipulation distrust" = "AI attitudes",
+            "Visual imagery (VVIQ)" = "Imagery & mood", "Depression" = "Imagery & mood",
+            "Anxiety" = "Imagery & mood", "Life satisfaction" = "Imagery & mood")
+
+df_traits <- dfsub |>
+  transmute(Participant,
+            Age,
+            `Gender (male)` = case_when(Gender == "Male" ~ 1, Gender == "Female" ~ 0),
+            Education = as.numeric(factor(Education, levels = c("High school", "Bachelor", "Master", "Doctorate"))),
+            `Art expertise` = Art_Expertise,
+            `AI knowledge` = BAIT_AI_Knowledge,
+            `AI use` = as.numeric(factor(BAIT_AI_Use, levels = c("Never", "A few times per month", "A few times per week",
+                                                                 "Once a day", "A few times per day"))),
+            `AI attitudes (positive)` = BAIT_Positive,
+            `AI attitudes (negative)` = BAIT_Negative,
+            `AI art realism` = BAIT_ArtRealistic,
+            `Manipulation distrust` = ManipulationDistrust,
+            `Visual imagery (VVIQ)` = VVIQ_Total,
+            Depression = PHQ4_Depression,
+            Anxiety = PHQ4_Anxiety,
+            `Life satisfaction` = LifeSatisfaction,
+            across(c(starts_with("MINT_"), -MINT_AttentionCheck))) |>
+  rename_with(\(x) str_replace(x, "^MINT_", "MINT "), starts_with("MINT_"))
+traits <- c(traits, setNames(rep("Interoception", sum(startsWith(names(df_traits), "MINT"))),
+                             grep("^MINT", names(df_traits), value = TRUE)))
+trait_vars <- data.frame(Score = names(traits), Row = names(traits), RowGroup = unname(traits))
+
+# Order variables by the similarity of their correlation profiles (rows of m):
+# hierarchical clustering, branches reordered by average correlation
+cluster_order <- function(m) {
+  if (nrow(m) < 3) return(rownames(m))
+  dend <- reorder(as.dendrogram(hclust(dist(m), method = "average")), rowMeans(m, na.rm = TRUE))
+  rownames(m)[order.dendrogram(dend)]
+}
+
+# Correlations between row and column variables (data frames with Score, the
+# column name in `data`, and the Row / RowGroup or Column / ColGroup it is shown
+# as), FDR-corrected across the whole table. Within each group, rows are
+# ordered by cluster_order() (RowKey); columns keep their given order.
+cor_grid <- function(data, rows, cols) {
+  d <- data |>
+    correlation(select = rows$Score, select2 = cols$Score, p_adjust = "none") |>
+    as.data.frame() |>
+    mutate(p_fdr = p.adjust(p, method = "fdr"),
+           Label = paste0(fmt_r(r), ifelse(p_fdr < .05, "*", "")),
+           Row = rows$Row[match(Parameter1, rows$Score)],
+           RowGroup = factor(rows$RowGroup[match(Parameter1, rows$Score)], levels = unique(rows$RowGroup)),
+           Column = factor(cols$Column[match(Parameter2, cols$Score)], levels = unique(cols$Column)),
+           ColGroup = factor(cols$ColGroup[match(Parameter2, cols$Score)], levels = unique(cols$ColGroup)))
+  row_levels <- unlist(lapply(split(d, d$RowGroup), \(g) {
+    m <- xtabs(r ~ Parameter1 + Parameter2, data = g)
+    cluster_order(unclass(m))
+  }), use.names = FALSE)
+  mutate(d, RowKey = factor(Parameter1, levels = row_levels))
+}
+
+cor_markdown <- function(d, title) {
+  d |>
+    mutate(Col = paste(ColGroup, Column, sep = ": ")) |>
+    arrange(ColGroup, Column, RowGroup, RowKey) |>
+    mutate(Row = paste(RowGroup, Row, sep = ": ")) |>
+    select(Row, Col, Label) |>
+    pivot_wider(names_from = Col, values_from = Label) |>
+    make_markdown(title) |>
+    make_asis()
+}
+
+# col_fill: optional strip colours per column group (named by ColGroup), in
+# which case the column-group strips are drawn below the columns
+cor_heatmap <- function(d, base_size = 13, text_size = 3.4, col_fill = NULL) {
+  facets <- if (is.null(col_fill)) {
+    facet_grid(RowGroup ~ ColGroup, scales = "free", space = "free")
+  } else {
+    ggh4x::facet_grid2(RowGroup ~ ColGroup, scales = "free", space = "free", switch = "x",
+                       strip = ggh4x::strip_themed(
+                         background_x = ggh4x::elem_list_rect(fill = unname(col_fill[levels(droplevels(d$ColGroup))]), colour = NA),
+                         text_x = ggh4x::elem_list_text(colour = "white", face = "bold")))
+  }
+  d |>
+    ggplot(aes(x = Column, y = fct_rev(RowKey))) +
+    geom_tile(aes(fill = r), color = "white") +
+    geom_text(aes(label = Label, fontface = ifelse(p < .05, "bold", "plain")), size = text_size) +
+    facets +
+    scale_fill_gradient2(low = "#1D9AF5", mid = "white", high = "#F51D56", midpoint = 0, limits = c(-0.5, 0.5),
+                         breaks = c(-0.5, -0.25, 0, 0.25, 0.5), labels = fmt_r, oob = scales::squish, name = "Correlation") +
+    scale_x_discrete(position = "top") +
+    scale_y_discrete(labels = setNames(d$Row, d$Parameter1)) +
+    labs(x = NULL, y = NULL) +
+    theme_minimal(base_size = base_size) +
+    theme(axis.text.x.top = element_text(angle = 45, hjust = 0, vjust = 0),
+          panel.grid = element_blank(),
+          strip.text = element_text(face = "bold"),
+          strip.text.y = element_text(angle = 0, hjust = 0),
+          legend.position = "bottom", legend.key.width = unit(3, "lines"))
+}
+```
+
+## Individual Indices
+
+For each participant and distributional parameter, on the link scale, averaged
+over the four emotion quadrants and excluding item effects:
+
+- **Baseline**: the parameter in the Human Original condition
+- **Forgery**: Human Forgery − Human Original
+- **AI**: AI-Generated − Human Original
+
+Parameters without a participant-level label effect in the model (Worth's
+`disc`) have a Baseline only. For Worth, `mu` is the latent location relative
+to the shared thresholds and `disc` the participant's discrimination (response
+precision), analogous to `phi` / `prec` in the other models.
+
+Models not included (yet):
+
+- **Beauty2** (follow-up): 220 participants; waiting for a rule on how the
+  analyses handle participants missing from some models.
+- **SelfRelevance** (follow-up): a moderator of the label effect (RQ3) rather
+  than an outcome of it; also 220 participants.
+- **Artificiality** (follow-up): only old items judged new, i.e. about 9
+  trials per label per participant (some none), selected by forgetting.
+- **Gaze** (Entropy, Laterality, Centeredness, Max. Shift): no population
+  label effect, a sample-count covariate to fix in the prediction grid, and
+  274 participants.
+- **MemoryCondition, MemoryBelief**: categorical models without Emotion, so no
+  baselines and contrasts; their recognition, accuracy and tendency indices are
+  assessed separately (see Memory).
+
+`Between_SD` is the SD of the participants' posterior means; `Posterior_SD`
+the average posterior SD of a participant's index relative to the sample
+(`SD_rel`, which excludes the uncertainty of the population effect).
+
+```{r}
+#| label: individual-summary
+
+summary_ind <- df_long |>
+  summarise(N = n(),
+            Average = mean(Mean),
+            Between_SD = sd(Mean),
+            Posterior_SD = mean(SD_rel),
+            .by = c(Model, Parameter, Index)) |>
+  arrange(Model, Parameter, Index) |>
+  mutate(across(where(is.numeric) & !N, \(x) insight::format_value(x)))
+
+make_tables(summary_ind, names(summary_ind), "Participant-level indices (link scale)")
+```
+
+```{r}
+#| label: fig-individual
+#| fig-cap: "Distribution of the participants' posterior means per index, on the link scale of each parameter."
+#| fig-width: 16
+#| fig-height: 18
+
+df_long |>
+  ggplot(aes(x = Mean, fill = Index)) +
+  geom_histogram(bins = 40) +
+  geom_vline(xintercept = 0, linetype = "dotted") +
+  facet_wrap(~ Feature, scales = "free", ncol = 6, labeller = as_labeller(\(x) str_replace_all(x, "_", " "))) +
+  scale_fill_manual(values = cols_index) +
+  labs(x = "Posterior mean (link scale)", y = "Participants") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+## Reliability
+
+D-vour (`performance::performance_dvour()`): the variability of the
+participants' posterior means relative to their average posterior
+uncertainty, $\sigma_B^2 / (\sigma_B^2 + \mu_{SD}^2)$, with the posterior SD
+taken relative to the sample (`SD_rel`). > .75: strong individual differences;
+~ .5: use with caution; < .5: dominated by uncertainty. 95% CIs from 2,000
+bootstrap resamples of participants. The posterior SD also carries the
+uncertainty of the model's hyperparameters, so D-vour is likely conservative
+for the contrasts.
+
+```{r}
+#| label: reliability
+
+# The indices as a modelbased::estimate_grouplevel() table
+as_grouplevel <- function(d) {
+  out <- data.frame(Group = "Participant", Level = d$Participant, Parameter = d$Feature,
+                    Coefficient = d$Mean, SD = d$SD_rel)
+  attr(out, "coef_name") <- "Coefficient"
+  class(out) <- c("estimate_grouplevel", "data.frame")
+  out
+}
+dvour <- function(d) performance::performance_dvour(as_grouplevel(d))[c("Parameter", "D_vour")]
+
+# D-vour per Feature with 95% CI from bootstrap resamples of participants. The
+# bootstrap applies performance_dvour()'s formula, sd^2 / (sd^2 + mean(SD)^2),
+# to participant x feature matrices (same result, a fraction of the time).
+get_dvour <- function(df, n_boot = 2000) {
+  wide <- function(v) pivot_wider(df[c("Participant", "Feature", v)], names_from = Feature, values_from = all_of(v))
+  M <- as.matrix(wide("Mean")[-1])
+  S <- as.matrix(wide("SD_rel")[-1])
+  boot <- replicate(n_boot, {
+    i <- sample(nrow(M), replace = TRUE)
+    v <- apply(M[i, , drop = FALSE], 2, var, na.rm = TRUE)
+    v / (v + colMeans(S[i, , drop = FALSE], na.rm = TRUE)^2)
+  })
+  ci <- data.frame(Parameter = colnames(M),
+                   CI_low = apply(boot, 1, quantile, 0.025),
+                   CI_high = apply(boot, 1, quantile, 0.975))
+  dvour(df) |>
+    left_join(ci, by = "Parameter") |>
+    mutate(Feature = factor(Parameter, levels = levels(df$Feature)), Parameter = NULL) |>
+    left_join(distinct(df, Feature, Model, Parameter, Index), by = "Feature")
+}
+
+set.seed(1234)
+df_rel <- get_dvour(df_long)
+
+df_rel |>
+  mutate(across(c(D_vour, CI_low, CI_high), \(x) insight::format_value(x))) |>
+  make_tables(c("Model", "Parameter", "Index", "D_vour", "CI_low", "CI_high"),
+              "Reliability (D-vour) of the participant-level indices")
+```
+
+```{r}
+#| label: fig-reliability
+#| fig-cap: "Reliability (D-vour) of each participant-level index, with 95% bootstrap CI. Dashed lines at .5 and .75."
+#| fig-width: 9
+#| fig-height: 11
+
+df_rel |>
+  ggplot(aes(x = D_vour, y = fct_rev(Parameter), color = Index)) +
+  geom_vline(xintercept = c(0.5, 0.75), linetype = "dashed", color = "grey70") +
+  geom_pointrange(aes(xmin = CI_low, xmax = CI_high), position = position_dodge(width = 0.6, reverse = TRUE)) +
+  facet_grid(Model ~ ., scales = "free_y", space = "free_y") +
+  scale_color_manual(values = cols_index) +
+  scale_x_continuous(limits = c(0, 1), expand = c(0, 0.01)) +
+  labs(x = "D-vour", y = NULL, color = NULL) +
+  theme_minimal() +
+  theme(legend.position = "top", strip.text.y = element_text(angle = 0, face = "bold"))
+```
+
+```{r}
+#| label: fig-caterpillar
+#| fig-cap: "Participants' posterior means (±1 posterior SD relative to the sample) for the `mu` indices, sorted, with the distribution of the posterior means on top and the reliability (D-vour) of each index. Wide bars relative to the spread of the points mean low reliability."
+#| fig-width: 12
+#| fig-height: 21
+
+df_long |>
+  filter(Parameter == "mu") |>
+  mutate(Rank = rank(Mean, ties.method = "first"), .by = Feature) |>
+  ggplot(aes(x = Mean, y = Rank, color = Index)) +
+  geom_vline(xintercept = 0, linetype = "dotted") +
+  geom_linerange(aes(xmin = Mean - SD_rel, xmax = Mean + SD_rel), alpha = 0.3) +
+  geom_point(size = 0.6) +
+  geom_xsidedensity(aes(y = after_stat(scaled), fill = Index), color = NA, alpha = 0.6) +
+  geom_text(data = filter(df_rel, Parameter == "mu"), aes(x = -Inf, y = Inf, label = paste("D-vour =", fmt_r(D_vour))),
+            hjust = -0.1, vjust = 1.5, size = 3.5, fontface = "bold") +
+  facet_wrap(~ Feature, scales = "free_x", ncol = 3, labeller = as_labeller(\(x) str_replace_all(x, "_", " "))) +
+  scale_color_manual(values = cols_index) +
+  scale_fill_manual(values = cols_index) +
+  scale_xsidey_continuous(breaks = NULL) +
+  labs(x = "Posterior mean (link scale)", y = "Participants (sorted)") +
+  theme_minimal() +
+  theme(legend.position = "none", axis.text.y = element_blank(), ggside.panel.scale = 0.25)
 ```
 
 
-## Individual Parameters
+
+## Structure
+
+### Correlation Matrix
 
 
-::: {.callout-note}
-## Two constraints on which models appear below
+```{r}
+#| label: correlation
 
-**Current-API fits only.** No compatibility shim is carried here (unlike
-`3_models.qmd`): a pre-0.3 cogmod fit is rejected by `require_new_fit()` with a
-message telling you to refit it. `Valence` and `Meaning` are therefore commented out
-of the task list until they have been through `./hpc fit` + `./hpc pull`. Read back
-from `analysis/models/` on 2026-09-21, they are the only two left on the old API
-(15 chains / 6,000 draws / family `betadiscrete`); `Beauty`, `Authenticity`,
-`Reality`, `Beauty2` and `Artificiality` are all 8 chains / 4,000 draws /
-`cogmod_choco`.
+df_cor <- df_wide |>
+  select(all_of(features)) |>
+  correlation(p_adjust = "none", redundant = TRUE) |>
+  cor_sort()
+order <- levels(df_cor$Parameter1)
 
-**`Worth` and `SelfRelevance` are new-API but a superseded parametrisation.** Both
-local files still carry `(Condition * Emotion | Item)`, retired on 2026-09-21 in
-favour of `(Condition | Item)` (`analysis/server/AGENT.md` 4.3a); the corrected
-arrays are jobs `11403591` / `11403592`. `require_new_fit()` warns about this rather
-than stopping -- the numbers are valid, just from the parametrisation that was
-deliberately replaced -- so re-pull both before anything from them is reported.
+df_cor <- as.data.frame(df_cor) |>
+  mutate(Parameter1 = factor(Parameter1, levels = order),
+         Parameter2 = factor(Parameter2, levels = order)) |>
+  filter(as.integer(Parameter1) > as.integer(Parameter2))
 
-**Ordinal outcomes go through `predict = "link"`.** `Worth` and `SelfRelevance` are
-`cumulative()`, so on the response scale they return one row *per response category*
-per cell (6 money categories x 3 conditions per participant) rather than the single
-value the rest of this notebook expects -- feeding them through anyway is what
-corrupted the previous `data_grouplevel.csv`, which ended up holding only `Beauty`
-and `Valence`. The latent linear predictor gives exactly one value per cell. The
-categorical memory models are still excluded: see **Plan** below.
+df_cor |>
+  mutate(r = fmt_r(r)) |>
+  select(Parameter1, Parameter2, r) |>
+  pivot_wider(names_from = Parameter2, values_from = r) |>
+  arrange(Parameter1) |>
+  make_markdown("Correlations between participant-level indices") |>
+  make_asis()
+```
 
-**`SelfRelevance` is follow-up-only (220 of 324 participants)**, so enabling it puts
-`NA` into `df_wide` for the 104 who did not return. `n_factors()`,
-`factor_analysis()` and `bootEGA()` will either drop those rows or refuse; decide how
-to handle that before reading the feature-reduction output.
+```{r}
+#| label: fig-correlation
+#| fig-cap: "Correlations between participant-level indices, clustered. Lower triangle: Pearson r (bold: p < .05, uncorrected). Diagonal: D-vour (orange = low, green = high)."
+#| fig-width: 22
+#| fig-height: 21
+
+lab <- function(x) str_replace_all(x, c("_" = " ", " Baseline" = " (Baseline)", " Forgery$" = " (Forgery)", " AI$" = " (AI)"))
+
+df_diag <- df_rel |>
+  mutate(x = factor(Feature, levels = order), y = x, label = fmt_r(D_vour))
+
+df_cor |>
+  ggplot(aes(x = Parameter2, y = Parameter1)) +
+  geom_tile(aes(fill = r), color = "white") +
+  geom_text(aes(label = fmt_r(r), fontface = ifelse(p < .05, "bold", "plain")), size = 1.9) +
+  scale_fill_gradient2(low = "#1D9AF5", mid = "white", high = "#F51D56", midpoint = 0, limits = c(-1, 1), name = "Correlation") +
+  ggnewscale::new_scale_fill() +
+  geom_tile(data = df_diag, aes(x = x, y = y, fill = D_vour), color = "white") +
+  geom_text(data = df_diag, aes(x = x, y = y, label = label), size = 1.9, fontface = "italic") +
+  scale_fill_gradient(low = "#FF9800", high = "#4CAF50", limits = c(0, 1), name = "Reliability") +
+  scale_x_discrete(limits = order, labels = lab, drop = FALSE) +
+  scale_y_discrete(limits = rev(order), labels = lab, drop = FALSE) +
+  coord_fixed() +
+  labs(x = NULL, y = NULL) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), panel.grid = element_blank())
+```
+
+### Exploratory Graph Analysis
+
+Bootstrapped hierarchical EGA (`EGAnet::bootEGA(EGA.type = "hierEGA")`, 500
+parametric bootstraps, pairwise-complete correlations) on the indices with
+D-vour > 1/3. Higher-order communities use Leiden (modularity); lower-order
+communities use EGAnet's recommended Louvain with consensus clustering. Item
+stability is the share of bootstraps in which an index lands in its empirical
+community. The dimension scores for the correlates come from this single EGA
+(no second round on a stability-filtered set).
+
+::: {.callout-note collapse="true" title="Why not Leiden at both levels"}
+The lower order of hierarchical EGA is Louvain's *first* aggregation level;
+Leiden returns only its final, fully aggregated partition. With Leiden at both
+levels (tried 2026-09-23, 100 bootstraps), the lower order merges into 4
+communities (Phase-1 appraisal and precision; Phase-1 label sensitivity;
+Phase-2 location and confidence; Phase-2 precision), close to the higher order
+above, and the higher order becomes a single community in 74% of bootstraps:
+the hierarchy disappears. That 4-community partition is itself stable (the
+modal solution in 67% of bootstraps, against 32% for the 9-community lower
+order here), so it is the natural choice if a coarser, single-level reduction
+is ever preferred.
 :::
 
-```{r}
-#| label: grouplevel-require-new
-#| code-summary: "Refuse pre-0.3 cogmod fits"
+Node labels: **Bea**uty, **Val**ence, **Mea**ning, **Wor**th, **Syn**theticness
+(`Reality`), **Aut**henticity; `cR` / `cL` = confright / confleft, `pR` / `pL` =
+precright / precleft, `p0` = pzero; **B** = Baseline, **F** = Forgery,
+**AI** = AI-Generated.
 
-# This notebook deliberately does NOT carry the compatibility shim that
-# 3_models.qmd has (chunk `helpers`, aliasing posterior_epred_choco ->
-# posterior_epred_cogmod_choco). Only fits made with the current cogmod API are
-# analysed here.
-#
-# brms resolves a custom family's post-processing by the family *name* stored in
-# the fit. cogmod 0.3 renamed `choco` -> `cogmod_choco` and `betadiscrete` ->
-# `cogmod_betadiscrete`, so a July 2026 fit fails with the unhelpful message
-# "Unable to compute predict" (verified 2026-09-21). This turns that into a
-# message that says what to do.
-require_new_fit <- function(m, name) {
-  # Only a custom family carries $name (the cogmod ones); a native brms family
-  # such as cumulative() has $family and no $name at all, so read both -- an
-  # unguarded m$family$name is NULL there and `NULL %in% ...` is length zero,
-  # which errors rather than passing.
-  fam <- c(m$family$name, m$family$family)[1]
-  if (isTRUE(fam %in% c("choco", "betadiscrete"))) {
-    stop("models/", name, ".rds was fitted with cogmod < 0.3 (family '", fam,
-      "'). This notebook analyses current-API fits only -- refit it with ",
-      "`./hpc fit ", name, "` (analysis/server/) and `./hpc pull`.",
-      call. = FALSE
-    )
-  }
-  # A fit can be new-API and still be a superseded parametrisation. The two
-  # cumulative models carried `(Condition * Emotion | Item)` until 2026-09-21;
-  # Emotion is a property of the item, so those slopes had no within-item
-  # variation and were only a reparametrisation of the item intercept. They were
-  # changed to `(Condition | Item)` and refitted (AGENT.md 4.3a), the old files
-  # being moved to models/superseded_itemslopes/ on the cluster. Warn rather than
-  # stop: the numbers are valid, just from the retired parametrisation.
-  if (grepl("Emotion *\\| *Item", paste(deparse(m$formula$formula), collapse = " "))) {
-    warning("models/", name, ".rds still has the superseded item term ",
-      "(Condition * Emotion | Item); the corrected fit uses (Condition | Item). ",
-      "Re-pull it (`./hpc combine ", name, "` / `./hpc pull`) before reporting.",
-      call. = FALSE, immediate. = TRUE
-    )
-  }
-  invisible(m)
+```{r}
+#| label: ega
+#| warning: false
+#| message: false
+
+library(EGAnet) # also registers the plot methods when ega-fit comes from the cache
+
+short <- function(x) {
+  x |>
+    str_replace_all(c("^Beauty" = "Bea", "^Valence" = "Val", "^Meaning" = "Mea", "^Worth" = "Wor",
+                      "^Reality" = "Syn", "^Authenticity" = "Aut",
+                      "_confright" = "_cR", "_confleft" = "_cL", "_precright" = "_pR", "_precleft" = "_pL",
+                      "_pzero" = "_p0", "_Baseline$" = "_B", "_Forgery$" = "_F")) |>
+    str_replace_all("_", " ")
 }
+
+ega_features <- as.character(df_rel$Feature[df_rel$D_vour > 1/3])
+d_ega <- setNames(df_wide[ega_features], short(ega_features))
 ```
 
 ```{r}
-#| label: grouplevel-helper
-#| code-summary: "get_grouplevel(): participant-level baselines and contrasts"
+#| label: ega-fit
+#| warning: false
+#| message: false
+#| cache: true
+#| cache.extra: !expr rlang::hash(d_ega)
 
-# Per-participant marginal means and condition contrasts, for every distributional
-# parameter of `m`. Returns one row per Participant x Parameter:
-#
-#   Baseline_<par>   marginal mean in the Human Original condition
-#   AIOri_<par>      AI-Generated  - Human Original
-#   AIForg_<par>     AI-Generated  - Human Forgery
-#   ForgOri_<par>    Human Forgery - Human Original
-#
-# WHY THERE IS NO BATCHING (measured 2026-09-21 on the refitted Beauty.rds, 4,000
-# draws, 0.71 GB in RAM). An earlier version split the participants into batches of
-# 50 and looped over them. That is pure overhead:
-#
-#   n participants |   50   100   200   324
-#   estimate_means | 19.4  19.2  21.5  24.0   s
-#   peak RAM       | 4962  5077  5077  5078   Mb
-#
-# The ~20 s is fixed per-call setup, not posterior work -- it is also flat in
-# `iterations` (100 -> 500 draws: 16.3 -> 18.6 s), which is why the production value
-# of 500 is used here rather than the 100 the old code used "for speed during
-# testing". Peak RAM is dominated by the fit object, not the prediction grid, so
-# batching bought no memory either. Batched and unbatched results are bit-identical
-# (max |Median diff| = max |MAD diff| = 0 over all Participant x Condition cells),
-# the design being balanced so the reference grid does not move with batch
-# composition.
-#
-# CAUTION if that is ever revisited: both the flatness and the identity depend on
-# that balance. A model with a continuous covariate varying between participants --
-# `Gaze_nSamples` in the four gaze models -- would take a different batch-mean
-# reference value in each batch.
+# Cached (~3 min); invalidated whenever the selected indices change
+ega <- EGAnet::hierEGA(d_ega, higher.algorithm = "leiden", plot.EGA = FALSE)
+ega_boot <- EGAnet::bootEGA(d_ega, EGA.type = "hierEGA", algorithm = "leiden", iter = 500,
+                            seed = 1234, ncores = max(1, parallel::detectCores() - 2),
+                            plot.itemStability = FALSE, verbose = FALSE)
+```
 
-get_grouplevel <- function(m, outcome, extra_params = c("response", "mu"),
-                           iterations = 500) {
-  data <- insight::get_data(m)
+```{r}
+#| label: ega-tables
 
-  params <- unique(c(extra_params, insight::find_auxiliary(m)))
-  # pex / bex / pmid (CHOCO extreme- and midpoint-inflation) are modelled as
-  # `~ Condition + (1 | Participant)`, and `disc` (ordinal discrimination) as
-  # `~ 1 + (1 | Participant) + (1 | Item)`: a participant intercept but no
-  # participant-specific Condition slope, so their per-participant contrasts carry
-  # no individual-difference signal. Dropped rather than paid for.
-  params <- setdiff(params, c("pex", "bex", "pmid", "disc"))
+stab <- ega_boot$stability
+df_ega <- data.frame(Index = names(d_ega), Feature = ega_features,
+                     Lower = ega$lower_order$wc,
+                     Higher = ega$higher_order$wc[as.character(ega$lower_order$wc)],
+                     Stability_Lower = stab$lower_order$item.stability$item.stability$empirical.dimensions[names(d_ega)],
+                     Stability_Higher = stab$higher_order$item.stability$item.stability$empirical.dimensions[names(d_ega)]) |>
+  arrange(Higher, Lower)
 
-  short <- function(p) str_replace(p, "response", "resp")
-  abbr <- function(x) {
-    case_when(
-      x == "AI-Generated" ~ "AI",
-      x == "Human Original" ~ "Ori",
-      .default = "Forg"
-    )
-  }
+df_ega |>
+  mutate(across(starts_with("Stability"), \(x) insight::format_value(x))) |>
+  make_tables(names(df_ega), "Hierarchical EGA: community membership and item stability")
 
-  # modelbased names the estimate column after what was asked for: `Median` for
-  # predict = "response", but `Mu` for predict = "mu", `Confright` for
-  # predict = "confright", and so on (verified 2026-09-21 on Valence:
-  # predict="response" -> [Participant, Condition, MAD, Median], predict="mu" ->
-  # [Participant, Condition, MAD, Mu]). So a rename to a common name IS needed.
-  #
-  # What the previous version got wrong was renaming *every* non-id column, which
-  # for the cumulative and categorical families silently destroyed the data: they
-  # return one row per response category plus a `Response` column, whose category
-  # labels then landed in a second column also called "Median".
-  #
-  # So: rename the estimate column whatever it is called, but only when there is
-  # exactly one of it, and refuse anything returning more than one row per cell.
-  # Row multiplicity is the property that actually breaks the pipeline, and it does
-  # not care what metadata columns modelbased adds.
-  check_estimate <- function(x, id_cols, what) {
-    x <- as.data.frame(x)
-    if (anyDuplicated(x[id_cols]) > 0) {
-      stop("get_grouplevel(): ", outcome, " / ", p, ": ", what,
-        " returned more than one row per [", paste(id_cols, collapse = " x "),
-        "] cell. Outcomes whose response scale is a vector of category ",
-        "probabilities (cumulative / categorical families) cannot be summarised ",
-        "this way -- use predict = \"link\" for the ordinal models, and see the ",
-        "plan in 5_correlates.qmd.",
-        call. = FALSE
-      )
-    }
-    if (!"MAD" %in% names(x)) {
-      stop("get_grouplevel(): ", outcome, " / ", p, ": ", what,
-        " returned no MAD column; `dispersion = TRUE` should give one.",
-        call. = FALSE
-      )
-    }
-    estimate <- setdiff(names(x), c(id_cols, "MAD"))
-    if (length(estimate) != 1) {
-      stop("get_grouplevel(): ", outcome, " / ", p, ": ", what,
-        " returned ", length(estimate), " candidate estimate columns [",
-        paste(estimate, collapse = ", "), "]; expected exactly one.",
-        call. = FALSE
-      )
-    }
-    names(x)[names(x) == estimate] <- "Median"
-    x
-  }
+bind_rows(
+  mutate(as.data.frame(ega_boot$lower_order$frequency), Order = "Lower"),
+  mutate(as.data.frame(ega_boot$higher_order$frequency), Order = "Higher")
+) |>
+  make_tables(c("Order", "# of Factors", "Frequency"), "Number of communities across bootstraps")
+```
 
-  out <- vector("list", length(params))
-  names(out) <- params
+```{r}
+#| label: fig-ega-stability
+#| fig-cap: "Item stability: share of the 500 bootstraps in which each index is assigned to its empirical community, at the lower (left) and higher (right) order. Colour: lower-order community; shape: higher-order community. Dashed line at .70."
+#| fig-width: 11
+#| fig-height: 8
 
-  for (p in params) {
-    cat("  ", format(Sys.time(), "%H:%M:%S"), "  ", outcome, " / ", p, "\n", sep = "")
+df_ega |>
+  pivot_longer(starts_with("Stability"), names_to = "Order", names_prefix = "Stability_", values_to = "Stability") |>
+  mutate(Order = factor(Order, levels = c("Lower", "Higher")),
+         Lower = factor(Lower), Higher = factor(Higher),
+         Index = factor(Index, levels = rev(df_ega$Index))) |>
+  ggplot(aes(x = Stability, y = Index, color = Lower, shape = Higher)) +
+  geom_vline(xintercept = 0.7, linetype = "dashed", color = "grey70") +
+  geom_segment(aes(x = 0, xend = Stability, yend = Index), color = "grey85") +
+  geom_point(size = 3) +
+  facet_wrap(~Order) +
+  scale_x_continuous(limits = c(0, 1), breaks = c(0, 0.25, 0.5, 0.75, 1), expand = c(0.02, 0.02)) +
+  labs(x = "Item stability", y = NULL, color = "Lower-order\ncommunity", shape = "Higher-order\ncommunity") +
+  theme_minimal() +
+  theme(strip.text = element_text(face = "bold"), panel.spacing = unit(2, "lines"))
+```
 
-    baseline <- estimate_means(m,
-      by = c("Participant", "Condition"), backend = "marginaleffects",
-      iterations = iterations, data = data, test = NULL, ci = NULL,
-      dispersion = TRUE, predict = p
-    ) |>
-      check_estimate(c("Participant", "Condition"), "estimate_means()") |>
-      filter(Condition == "Human Original") |>
-      mutate(Parameter = paste0("Baseline_", short(p))) |>
-      select(Participant, Parameter, Median, MAD)
+```{r}
+#| label: fig-ega-network
+#| fig-cap: "Hierarchical EGA network of the participant-level indices (empirical sample). Bottom: indices coloured by lower-order community (edges: partial correlations, green positive, red negative); top: lower-order communities grouped into higher-order communities."
+#| fig-width: 14
+#| fig-height: 11
+#| warning: false
+#| message: false
 
-    contrasts <- estimate_contrasts(m,
-      contrast = "Condition", by = "Participant", backend = "marginaleffects",
-      iterations = iterations, data = data, test = NULL, ci = NULL,
-      dispersion = TRUE, predict = p
-    ) |>
-      check_estimate(c("Participant", "Level1", "Level2"), "estimate_contrasts()") |>
-      mutate(Parameter = paste0(abbr(Level1), abbr(Level2), "_", short(p))) |>
-      select(Participant, Parameter, Median, MAD)
+plot(ega, plot.type = "multilevel", label.size = 3.5, node.size = 9)
+```
 
-    out[[p]] <- bind_rows(baseline, contrasts)
-  }
+```{r}
+#| label: ega-communities
 
-  bind_rows(out) |> mutate(Outcome = outcome)
+# Tentative labels, keyed by a characteristic member so they follow the
+# content if the community numbering changes
+labels_lower <- c("Bea mu B" = "Aesthetic\nsensitivity", "Bea mu AI" = "Anti-fake\nbias",
+                  "Val phi B" = "Rating\nconsistency", "Bea cL B" = "Ugliness\nextremity",
+                  "Syn mu B" = "Realness\ntendency", "Syn cR B" = "Realness\nconviction",
+                  "Syn cL B" = "Fakeness\nconviction", "Syn pR B" = "Realness\nconsistency",
+                  "Syn pL B" = "Fakeness\nconsistency")
+labels_higher <- c("Bea mu B" = "Aesthetic appraisal", "Syn mu B" = "Realness beliefs",
+                   "Syn pR B" = "Belief consistency")
+community_label <- function(members, labels) {
+  key <- intersect(names(labels), members)
+  if (length(key) == 1) labels[[key]] else paste(members[1], "...")
 }
+
+tree_items <- df_ega |> mutate(x = row_number(), Lower = factor(Lower), Higher = factor(Higher))
+tree_higher <- summarise(tree_items, Label = community_label(Index, labels_higher), .by = Higher)
+
+# Community colours (edit here), keyed by label: one hue family per higher-order
+# community (dark shade), lighter shades for its lower-order communities.
+# Unlabelled communities are grey.
+colors_higher <- c("Aesthetic appraisal" = "#4A148C",
+                   "Realness beliefs"    = "#004D40",
+                   "Belief consistency"  = "#3E2723")
+colors_lower <- c("Aesthetic sensitivity" = "#6F1FA7",
+                  "Anti-fake bias"        = "#942AC3",
+                  "Rating consistency"    = "#BA34DF",
+                  "Ugliness extremity"    = "#E040FB",
+                  "Realness tendency"     = "#0C7573",
+                  "Realness conviction"   = "#199DA6",
+                  "Fakeness conviction"   = "#26C6DA",
+                  "Realness consistency"  = "#6F5751",
+                  "Fakeness consistency"  = "#A1887F")
+tree_lower <- summarise(tree_items, Label = str_replace_all(community_label(Index, labels_lower), "\n", " "), .by = Lower)
+pal_lower <- setNames(coalesce(unname(colors_lower[tree_lower$Label]), "grey50"), tree_lower$Lower)
+pal_higher <- setNames(coalesce(unname(colors_higher[tree_higher$Label]), "grey30"), paste0("H", tree_higher$Higher))
+
+# Direction of each connection: sign of the index's network loading on its
+# lower-order community, and of the community's loading on its higher-order one
+loads_lower <- ega$parameters$lower_loadings
+loads_higher <- suppressMessages(EGAnet::net.loads(ega$higher_order))$std
+edge_sign <- function(x) factor(ifelse(x < 0, "Negative", "Positive"), levels = c("Positive", "Negative"))
+tree_items <- mutate(tree_items, Sign = edge_sign(loads_lower[cbind(Index, as.character(Lower))]))
+
+# Network scores (one row per participant, in the order of df_wide)
+scores_lower <- ega$parameters$lower_scores
+scores_higher <- EGAnet::net.scores(scores_lower, A = ega$higher_order)$scores$std.scores
+r_higher <- cor(scores_higher, use = "pairwise.complete.obs")
+tree_arcs <- as.data.frame(t(combn(colnames(r_higher), 2))) |>
+  setNames(c("From", "To")) |>
+  mutate(r = r_higher[cbind(From, To)],
+         Color = ifelse(r > 0, "#F51D56", "#1D9AF5"),
+         Pair = paste(From, To))
 ```
 
-```{r}
-#| label: grouplevel-compute
-#| eval: false
-
-# SEQUENTIAL ON PURPOSE. Each fit is 0.7-1.0 GB in memory and peak usage during
-# prediction is ~5 GB, so exactly one model is held at a time (readRDS -> compute ->
-# rm -> gc).
-#
-# Do NOT reach for future::multisession here. Its default `future.globals.maxSize`
-# is 500 MiB and every one of these fits is larger than that, so exporting one to a
-# worker aborts before any work is done. If this ever does need parallelising, the
-# axis is one model per separate R *process* (callr, or one Rscript per model),
-# never a socket cluster that has to serialise the fit.
-#
-# Runtime: ~50 s per model x parameter (one estimate_means + one
-# estimate_contrasts), i.e. ~20 min for the five models below. That is why this
-# stays local rather than becoming an HPC array job -- the scaffolding would cost
-# more than the run.
-
-# CHOCO models: `response` is a mixture over eight dpars, so it is genuinely
-# distinct from `mu` (the probability of being on the right-hand side) -- both are
-# extracted. `confright/confleft/precright/precleft` come from find_auxiliary().
-#
-# Cumulative models: `predict = "link"` gives the latent shift, one value per
-# Participant x Condition (verified 2026-09-21: 30 rows for 10 participants x 3
-# conditions, against 180 on the response scale). `disc` is dropped inside
-# get_grouplevel(). See the plan below for why link rather than response.
-tasks <- list(
-  list(model = "Beauty",        outcome = "Beauty",        extra_params = c("response", "mu")),
-  list(model = "Authenticity",  outcome = "Authenticity",  extra_params = c("response", "mu")),
-  list(model = "Reality",       outcome = "Reality",       extra_params = c("response", "mu")),
-  list(model = "Worth",         outcome = "Worth",         extra_params = "link"),
-  list(model = "SelfRelevance", outcome = "SelfRelevance", extra_params = "link")
-
-  # NOT REFITTED YET -- still the July 2026 fits, which require_new_fit() rejects.
-  # Re-enable each one after `./hpc fit <model>` + `./hpc pull`.
-  #
-  # Valence: Discrete Beta with pzero fixed at 0, so the only free dpars are mu and
-  # phi. E[Y] is a monotone function of mu with no hurdle to decouple them, so
-  # `response` and `mu` are near-duplicates -- take mu (the model's own location
-  # parameter, on the same [0,1] latent scale as CHOCO's mu, hence comparable
-  # across outcomes) and let find_auxiliary() add phi.
-  # list(model = "Valence", outcome = "Valence", extra_params = "mu"),
-  #
-  # Meaning: Discrete Beta *with* a hurdle (pzero has the full design), so
-  # E[Y] = (1 - pzero) * E[Y | Y > 0] and `response` does move independently of
-  # `mu`. Both are worth keeping here, unlike Valence.
-  # list(model = "Meaning", outcome = "Meaning", extra_params = c("response", "mu")),
-  #
-  # Never in the original set; both are refitted and available if wanted. Note both
-  # are follow-up-only (220 participants), like SelfRelevance.
-  # list(model = "Beauty2",       outcome = "Beauty2",       extra_params = c("response", "mu")),
-  # list(model = "Artificiality", outcome = "Artificiality", extra_params = c("response", "mu")),
-  #
-  # Categorical; needs cell-specific bias scores, not this helper. See the plan.
-  # list(model = "MemoryCondition", outcome = "Memory", extra_params = "response")
-)
-
-df_individual <- bind_rows(lapply(tasks, function(task) {
-  cat("\n== ", task$outcome, " ==\n", sep = "")
-  m <- readRDS(paste0("models/", task$model, ".rds"))
-  on.exit({
-    rm(m)
-    gc(verbose = FALSE)
-  })
-  require_new_fit(m, task$model)
-  get_grouplevel(m, outcome = task$outcome, extra_params = task$extra_params)
-}))
-
-write.csv(df_individual, "../data/data_grouplevel.csv", row.names = FALSE)
-```
-
-### Plan: ordinal and categorical outcomes
-
-#### Ordinal (`Worth`, `SelfRelevance`) -- resolved, using the latent scale
-
-A `cumulative()` model's Condition effect is by construction a single shift of the
-latent variable underlying the ordered categories, so `predict = "link"` returns
-exactly one value per Participant x Condition and contributes 4 features per outcome
-like everything else. Verified 2026-09-21: 30 rows for 10 participants x 3
-conditions on `link`, against 180 (`Worth`) and 210 (`SelfRelevance`) on the response
-scale. The numbers sit on the latent logit scale rather than in log-money, so a
-baseline is interpretable only relative to the thresholds -- immaterial here, since
-every feature is standardised before the factor analysis.
-
-The obvious worry about the latent scale is heavy tails: a participant who always
-answers "$0" or always "$100,000" sits far beyond the outer thresholds, and after
-`standardize()` a handful of such people could dominate the Pearson correlations
-feeding `factor_analysis()` and `bootEGA()`. Measured on `Worth` (324 participants,
-500 draws, 2026-09-21), that does not happen:
-
-| parameter | min | med | max | skew | kurt | abs(z) > 3 |
-| --- | --- | --- | --- | --- | --- | --- |
-| Baseline_link | -18.0 | -0.99 | 15.8 | 0.06 | -0.41 | 0 |
-| AIOri_link | -18.4 | -4.62 | 3.24 | -0.77 | 0.87 | 4 |
-| AIForg_link | -14.2 | -1.72 | 6.42 | -0.77 | 1.99 | 3 |
-| ForgOri_link | -11.7 | -2.81 | 2.59 | -0.61 | 0.77 | 2 |
-
-The baseline is near-symmetric with no outliers at all; the contrasts carry 2-4 of
-324 (0.6-1.2%), barely above the ~0.4 a normal would give. The range is wide, but
-that is the logit scale, not pathology.
-
-Two alternatives were considered and rejected:
-
-- *Expected score*: weight each category probability by the category's numeric value
-  (0..5 on the money ladder, 0..6 for self-relevance) and sum. Keeps the response
-  scale interpretable, but needs an extra reduction step and a choice of category
-  scores -- and for the money ladder 0..5 and log10(dollars) are affine equivalents,
-  so the choice is anyway immaterial after standardisation. Measured against option
-  1 on `Worth`: the expected score is itself well behaved (skew 0.31, no outliers)
-  but **Spearman with the link baseline is 0.9962**, so the two rank participants
-  near-identically and the extra machinery buys nothing. Worth revisiting only if a
-  reviewer wants the baseline in dollars.
-- *One feature per category*: faithful but 6 categories x 4 quantities = 24 features
-  for `Worth` alone against 6 for a CHOCO outcome, which would let one outcome
-  dominate `n_factors()`, `factor_analysis()` and the EGA network. Only worth it if
-  the question is specifically *which* part of the money distribution the label
-  moves.
-
-#### Categorical (`MemoryCondition`) -- still open
-
-Does not fit any of the above: its categories are unordered, so there is no latent
-shift and no sensible expected score. The right participant-level quantities are
-**bias scores defined on specific cells** of the response matrix rather than a
-reduction over them -- per participant:
-
-- P(answer `AI-Generated` | item was labelled `Human Original`) -- a false-AI
-  attribution rate;
-- P(answer `Not recognized` | item is old) -- a miss rate;
-- P(answer anything but `Not recognized` | item is `New Items`) -- a false-alarm
-  rate.
-
-These come from *filtering* `estimate_means(..., predict = "response")` to the
-`Response` x `Condition` combinations of interest, so they need a separate small
-helper rather than a variant of `get_grouplevel()`. Blocked on `MemoryCondition`
-being fitted and pulled (submitted as job `11403593`, see `analysis/server/AGENT.md`
-section 5).
-
-The `check_estimate()` guard stays regardless: it is what turns an unsupported
-outcome from silent corruption into an error.
-
-### Reliability
+Community labels. Phase 1: *Aesthetic sensitivity* (the Baseline level of all
+four ratings: finding the Originals beautiful, pleasant, meaningful and
+valuable), *Anti-fake bias* (the AI, and Forgery for Worth, contrasts: how much
+a non-original label lowers the ratings), *Rating consistency* (the precision
+of the ratings) and *Ugliness extremity* (how far into "not beautiful" a
+participant goes, and how consistently, when they choose that side). Phase 2:
+*Realness tendency* (the propensity to judge the works human and original),
+*Realness* / *Fakeness conviction* (how extreme the judgments are on the human
+/ original and on the AI / copy side) and *Realness* / *Fakeness consistency*
+(their precision).
 
 ```{r}
-df_individual <- read.csv("../data/data_grouplevel.csv")
-```
+#| label: fig-ega-matrix
+#| fig-cap: "Correlations and hierarchical structure of the indices entering the EGA (D-vour > 1/3), in community order. Lower half: Pearson r (bold: p < .05, uncorrected). Diagonal: D-vour. Upper half: each index connects to its lower-order community, and each lower-order community to its higher-order community (edge width: item stability; dashed: negative network loading). Arcs: correlations between the higher-order network scores (red positive, blue negative)."
+#| fig-width: 20
+#| fig-height: 19.5
 
+# Layout: the indices sit along the diagonal in tree order. A point at position s
+# along the diagonal and depth d away from it (towards the upper right) is drawn
+# at x = s + d, y = n + 1 - s + d; the correlation cells fill the lower-left half.
+n <- nrow(tree_items)
+mid <- (n + 1) / 2
+d_lower <- 4.5
+d_higher <- 8.5
+to_xy <- function(df) mutate(df, x = s + d, y = n + 1 - s + d)
 
-### Feature Reduction
-
-```{r}
-# Point estimates: the input to every analysis below.
-df_wide <- df_individual |>
-  mutate(Parameter = paste0(Outcome, "_", Parameter)) |>
-  select(Participant, Parameter, Median) |>
-  pivot_wider(names_from = "Parameter", values_from = "Median") |>
-  standardize(exclude = "Participant")
-
-# Posterior dispersion of the same quantities, same columns in the same order.
-# Kept for the reliability analysis: a participant-level effect with a wide
-# posterior carries less information than one with a narrow posterior, and the
-# ratio of between-participant variance to mean within-participant (posterior)
-# variance is what makes these estimates' reliability quantifiable at all.
-# Built here, before the factor scores are appended to df_wide below.
-df_mad <- df_individual |>
-  mutate(Parameter = paste0(Outcome, "_", Parameter)) |>
-  select(Participant, Parameter, MAD) |>
-  pivot_wider(names_from = "Parameter", values_from = "MAD") |>
-  select(all_of(names(df_wide)))
-
-nfac <- n_factors(select(df_wide, -Participant))
-plot(nfac)
-
-rez <- factor_analysis(select(df_wide, -Participant), n = 4, sort = TRUE)
-plot(rez)
-
-df_wide <- cbind(df_wide, predict(rez))
-```
-
-```{r}
-df_wide |>
+# Correlations and reliability, in tree order
+tri_cor <- df_wide[tree_items$Feature] |>
   correlation(p_adjust = "none", redundant = TRUE) |>
-  cor_sort() |>
-  mutate(Sig = ifelse(p < .05, "Significant", "N.S.")) |>
-  ggplot(aes(x=Parameter1, y=Parameter2)) +
-  geom_tile(aes(fill = r, alpha = Sig)) +
-  scale_fill_gradient2(low = "#1D9AF5", mid = "white", high = "#F51D56", midpoint = 0, limits = c(-1, 1)) +
-  scale_alpha_manual(values = c("Significant" = 1, "N.S." = 1)) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  as.data.frame() |>
+  mutate(i = match(Parameter2, tree_items$Feature), j = match(Parameter1, tree_items$Feature)) |>
+  filter(j > i)
+tri_diag <- tree_items |>
+  left_join(select(df_rel, Feature, D_vour), by = "Feature") |>
+  mutate(Color = pal_lower[as.character(Lower)])
+
+# Tree nodes, pulled towards the middle of the diagonal so that they stay above it
+tri_lower <- tree_items |>
+  summarise(s = mid + 0.8 * (mean(x) - mid), Higher = first(Higher), Stability = mean(Stability_Higher),
+            Label = community_label(Index, labels_lower), .by = Lower) |>
+  mutate(d = d_lower, Color = pal_lower[as.character(Lower)],
+         Sign = edge_sign(loads_higher[cbind(as.character(Lower), as.character(Higher))])) |>
+  to_xy()
+tri_higher <- tri_lower |>
+  summarise(s = mid + 0.6 * (mean(s) - mid), .by = Higher) |>
+  left_join(select(tree_higher, Higher, Label), by = "Higher") |>
+  mutate(d = d_higher, Color = pal_higher[paste0("H", Higher)]) |>
+  to_xy()
+
+# Edges: smooth steps from one depth to the next
+curve <- function(s0, d0, s1, d1, t = seq(0, 1, length.out = 50)) {
+  data.frame(s = s0 + (s1 - s0) * (3 * t^2 - 2 * t^3), d = d0 + (d1 - d0) * t)
+}
+tri_edges <- bind_rows(
+  transmute(tree_items, Edge = paste("i", x), s0 = x, d0 = 0.5, Lower, Sign,
+            s1 = tri_lower$s[match(Lower, tri_lower$Lower)], d1 = d_lower, Stability = Stability_Lower),
+  transmute(tri_lower, Edge = paste("l", Lower), s0 = s, d0 = d_lower, Lower, Sign,
+            s1 = tri_higher$s[match(Higher, tri_higher$Higher)], d1 = d_higher, Stability)
+) |>
+  reframe(curve(s0, d0, s1, d1), .by = c(Edge, Lower, Sign, Stability)) |>
+  mutate(Color = pal_lower[as.character(Lower)]) |>
+  to_xy()
+
+# Correlations between higher-order scores: arcs bulging away from the diagonal
+tri_arcs <- tree_arcs |>
+  mutate(s1 = tri_higher$s[match(From, tri_higher$Higher)], s2 = tri_higher$s[match(To, tri_higher$Higher)],
+         h = 1.5 + 0.15 * abs(s2 - s1)) # clears the node boxes; grows with the span so nested arcs barely cross
+tri_arc_paths <- tri_arcs |>
+  reframe(t = seq(0, 1, length.out = 60), .by = c(Pair, r, Color, s1, s2, h)) |>
+  mutate(s = s1 + t * (s2 - s1), d = d_higher + h * sin(pi * t)) |>
+  to_xy()
+tri_arc_labels <- tri_arcs |>
+  mutate(s = (s1 + s2) / 2, d = d_higher + h) |>
+  to_xy()
+
+p_ega_matrix <- ggplot() +
+  # Correlations (lower-left half)
+  geom_tile(data = tri_cor, aes(x = i, y = n + 1 - j, fill = r), color = "white") +
+  geom_text(data = tri_cor, aes(x = i, y = n + 1 - j, label = fmt_r(r), fontface = ifelse(p < .05, "bold", "plain")), size = 3.7) +
+  scale_fill_gradient2(low = "#1D9AF5", mid = "white", high = "#F51D56", midpoint = 0, limits = c(-1, 1), breaks = c(-1, 0, 1), name = "Correlation",
+                       guide = guide_colourbar(order = 1)) +
+  new_scale_fill() +
+  # Reliability (diagonal)
+  geom_tile(data = tri_diag, aes(x = x, y = n + 1 - x, fill = D_vour), color = "white") +
+  geom_text(data = tri_diag, aes(x = x, y = n + 1 - x, label = fmt_r(D_vour)), size = 3.7, fontface = "italic") +
+  scale_fill_gradient(low = "#FF9800", high = "#4CAF50", limits = c(0, 1), breaks = c(0, 0.5, 1), name = "Reliability",
+                      guide = guide_colourbar(order = 2)) +
+  new_scale_fill() +
+  # Index labels (rows on the left, columns at the bottom)
+  geom_text(data = tri_diag, aes(x = 0.3, y = n + 1 - x, label = lab(Feature), color = Color), hjust = 1, size = 4.8) +
+  geom_text(data = tri_diag, aes(x = x, y = 0.3, label = lab(Feature), color = Color), angle = 45, hjust = 1, vjust = 1, size = 4.8) +
+  # Tree (upper-right half)
+  geom_path(data = tri_edges, aes(x = x, y = y, group = Edge, color = Color, linewidth = Stability, linetype = Sign), alpha = 0.7) +
+  scale_linewidth_continuous(range = c(0.2, 2.5), limits = c(0, 1), breaks = c(0.2, 0.8), name = "Stability",
+                             guide = guide_legend(order = 4, direction = "vertical")) +
+  scale_linetype_manual(values = c("Positive" = "solid", "Negative" = "22"), name = "Loading", drop = FALSE,
+                        guide = guide_legend(order = 3, direction = "vertical")) +
+  new_scale("linewidth") +
+  geom_path(data = tri_arc_paths, aes(x = x, y = y, group = Pair, color = Color, linewidth = pmin(abs(r), 0.5)), alpha = 0.8) +
+  scale_linewidth_continuous(range = c(0.8, 3), limits = c(0, 0.5), guide = "none") +
+  geom_label(data = tri_lower, aes(x = x, y = y, label = Label, fill = Color), color = "white", fontface = "bold",
+             size = 4.8, lineheight = 0.9, label.r = unit(0.4, "lines"), label.padding = unit(0.4, "lines"), linewidth = 0) +
+  geom_label(data = tri_higher, aes(x = x, y = y, label = Label, fill = Color), color = "white", fontface = "bold",
+             size = 6.2, label.r = unit(0.5, "lines"), label.padding = unit(0.55, "lines"), linewidth = 0) +
+  geom_label(data = tri_arc_labels, aes(x = x, y = y, label = fmt_r(r), color = Color),
+             fill = "white", size = 6, fontface = "bold", linewidth = 0) +
+  scale_color_identity() +
+  scale_fill_identity() +
+  coord_fixed(clip = "off") +
+  scale_x_continuous(limits = c(-5.4, max(tri_arc_paths$x, tri_higher$x) + 2.6), expand = c(0, 0)) +
+  scale_y_continuous(limits = c(-5.3, max(tri_arc_paths$y, tri_edges$y) + 0.8), expand = c(0, 0)) +
+  theme_void(base_size = 20) +
+  theme(legend.position = "inside", legend.position.inside = c(0.99, 0.99), legend.justification = c(1, 1),
+        legend.direction = "horizontal", legend.box = "horizontal", legend.box.just = "top",
+        legend.title.position = "top", legend.title = element_text(size = 17), legend.text = element_text(size = 14),
+        legend.key.width = unit(1.6, "lines"), legend.key.height = unit(0.9, "lines"),
+        legend.spacing.x = unit(1.5, "lines"))
+p_ega_matrix
+```
+
+
+## Memory
+
+Participant-level indices from the two follow-up memory models (220
+participants), from the predicted answer probabilities with item effects
+excluded, on the logit scale. Accuracy and tendencies are conditional on the
+item being recognised:
+
+- **Recognition**: *Hits*, the probability of recognising an old item
+  (averaged over its labels); *False alarms*, of calling a new item seen
+  (label model only).
+- **Accuracy**: the probability of recalling the correct label
+  (MemoryCondition) or one's own Phase-2 belief (MemoryBelief), averaged over
+  the actual labels / beliefs.
+- **Tendency**: the probability of recalling an item as each category,
+  whatever it actually was.
+
+Only their reliability is assessed here; they are not part of the structure
+analyses above. MemoryCondition's participant-level correlations are its
+worst-converged parameters (max Rhat 1.13).
+
+```{r}
+#| label: memory-reliability
+
+memory_models <- names(memory_info)
+df_mem <- read_estimates(memory_models, dir = "individual") |>
+  lapply(\(e) mutate(e$individual, Model = e$outcome)) |>
+  bind_rows() |>
+  mutate(Model = factor(Model, levels = memory_models),
+         Parameter = factor(Parameter, levels = c("Recognition", "Accuracy", "Tendency")),
+         Index = fct_inorder(Index)) |>
+  arrange(Model, Parameter) |>
+  mutate(Feature = fct_inorder(paste(Model, Parameter, Index, sep = "_")))
+
+set.seed(1234)
+df_mem_rel <- get_dvour(df_mem) |>
+  left_join(summarise(df_mem, Probability = mean(plogis(Mean)), .by = Feature), by = "Feature")
+
+df_mem_rel |>
+  mutate(across(c(Probability, D_vour, CI_low, CI_high), \(x) insight::format_value(x))) |>
+  make_tables(c("Model", "Parameter", "Index", "Probability", "D_vour", "CI_low", "CI_high"),
+              "Reliability (D-vour) of the memory indices (Probability: sample average)")
 ```
 
 ```{r}
-library(tidygraph)
-library(ggraph)
-library(EGAnet)
+#| label: fig-memory-reliability
+#| fig-cap: "Reliability (D-vour) of the memory indices, with 95% bootstrap CI. Dashed lines at .5 and .75."
+#| fig-width: 9
+#| fig-height: 6
 
-rez <- EGAnet::bootEGA(select(df_wide, -Participant), EGA.type
- = "EGA",  corr  = "pearson", plot.itemStability = FALSE)
-plot(rez)
+df_mem_rel |>
+  ggplot(aes(x = D_vour, y = fct_rev(Index), color = Parameter)) +
+  geom_vline(xintercept = c(0.5, 0.75), linetype = "dashed", color = "grey70") +
+  geom_pointrange(aes(xmin = CI_low, xmax = CI_high)) +
+  facet_grid(Model ~ ., scales = "free_y", space = "free_y") +
+  scale_color_manual(values = c("Recognition" = "#607D8B", "Accuracy" = "#4CAF50", "Tendency" = "#9C27B0")) +
+  scale_x_continuous(limits = c(0, 1), expand = c(0, 0.01)) +
+  labs(x = "D-vour", y = NULL, color = NULL) +
+  theme_minimal() +
+  theme(legend.position = "top", strip.text.y = element_text(angle = 0, face = "bold"))
 ```
 
+The memory indices with D-vour > 1/3 (all but the two accuracy indices, which
+are dominated by uncertainty) are used as correlates, on the logit scale:
+*Recognition* (hits and false alarms), and the tendency to recall a recognised
+item's label (*Recalled label*) or one's own Phase-2 belief (*Recalled
+belief*) as each category. Within a model the tendencies sum to 1, so they are
+not independent of each other.
+
+```{r}
+#| label: memory-correlates
+
+mem_vars <- df_mem_rel |>
+  filter(D_vour > 1/3) |>
+  transmute(Score = as.character(Feature), Column = as.character(Index),
+            ColGroup = case_when(Parameter == "Recognition" ~ "Recognition",
+                                 Model == "MemoryCondition" ~ "Recalled label",
+                                 .default = "Recalled belief"))
+df_mem_wide <- df_mem |>
+  filter(Feature %in% mem_vars$Score) |>
+  select(Participant, Feature, Mean) |>
+  pivot_wider(names_from = Feature, values_from = Mean)
+
+df_mem_cor <- df_mem_wide |>
+  left_join(df_traits, by = "Participant") |>
+  cor_grid(trait_vars, mem_vars)
+cor_markdown(df_mem_cor, "Correlations between memory indices and participant characteristics (*: FDR-corrected p < .05)")
+```
+
+```{r}
+#| label: fig-memory-correlates
+#| fig-cap: "Correlations between the reliable memory indices (columns) and participant characteristics (220 participants), ordered within each group by the similarity of their correlation profiles. Bold: p < .05 (uncorrected); *: p < .05 after FDR correction across the whole table."
+#| fig-width: 11
+#| fig-height: 12
+
+cor_heatmap(df_mem_cor)
+```
 
 ## Correlates
 
+Correlations between the dimension scores (the EGA network scores of the
+higher-order communities, *Overall*, and of their lower-order communities) and
+the participant characteristics (see Data Preparation) and reliable memory
+indices (see Memory; 220 participants). Phase-2 scores are missing for the 7
+participants without Phase-2 data.
+
+The scores follow the direction of the loadings: a high *Anti-fake bias* score
+is a *higher* AI (and Forgery) − Original contrast, i.e. a smaller penalty for
+the non-original labels. *Belief consistency* (the precision of the Phase-2
+judgments) is left out: none of its scores correlates with any of these
+variables (all |r| ≤ .11).
+
 ```{r}
-df_all <- full_join(df, df_wide, by = "Participant")
+#| label: correlates
+
+# Dimension scores: higher-order ("Overall") and lower-order, grouped by higher-order community
+dim_vars <- bind_rows(
+  transmute(tree_higher, Score = paste0("H", Higher), Higher, Column = "Overall"),
+  tree_items |>
+    summarise(Column = str_replace_all(community_label(Index, labels_lower), "\n", " "), .by = c(Lower, Higher)) |>
+    transmute(Score = paste0("L", Lower), Higher, Column)
+) |>
+  mutate(ColGroup = tree_higher$Label[match(Higher, tree_higher$Higher)]) |>
+  arrange(Higher, Column != "Overall") |>
+  filter(ColGroup != labels_higher[["Syn pR B"]]) # Belief consistency: no correlates
+
+# Strip colours: those of the higher-order communities in the EGA figure
+fill_higher <- setNames(pal_higher[paste0("H", tree_higher$Higher)], tree_higher$Label)
+
+df_scores <- bind_cols(Participant = df_wide$Participant,
+                       setNames(as.data.frame(scores_higher), paste0("H", colnames(scores_higher))),
+                       setNames(as.data.frame(scores_lower), paste0("L", colnames(scores_lower))))
+
+# Rows: participant characteristics, then the memory indices
+row_vars <- bind_rows(trait_vars, transmute(mem_vars, Score, Row = Column, RowGroup = ColGroup))
+
+df_correlates <- df_scores |>
+  left_join(df_traits, by = "Participant") |>
+  left_join(df_mem_wide, by = "Participant") |>
+  cor_grid(row_vars, dim_vars)
+cor_markdown(df_correlates, "Correlations between dimension scores and participant characteristics and memory indices (*: FDR-corrected p < .05)")
 ```
 
 ```{r}
-select(df_all, all_of(names(df_wide))) |>
-  correlation(
-    data2 = select(df_all,
-                   ManipulationDistrust,
-                   BAIT_ArtRealistic, BAIT_Positive, BAIT_Negative, BAIT_Total,
-                   starts_with("MINT"), -MINT_AttentionCheck), p_adjust = "none") |>
-  cor_sort() |>
-  mutate(Sig = ifelse(p < .05, "Significant", "N.S.")) |>
-  ggplot(aes(x=Parameter1, y=Parameter2)) +
-  geom_tile(aes(fill = r, alpha = Sig)) +
-  scale_fill_gradient2(low = "#1D9AF5", mid = "white", high = "#F51D56", midpoint = 0, limits = c(-1, 1)) +
-  scale_alpha_manual(values = c("Significant" = 1, "N.S." = 0.2)) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+#| label: fig-correlates
+#| fig-cap: "Correlations between the dimension scores (columns, grouped by higher-order community; Overall = the higher-order score) and participant characteristics and follow-up memory indices (rows; ordered within each group by the similarity of their correlation profiles). Bold: p < .05 (uncorrected); *: p < .05 after FDR correction across the whole table."
+#| fig-width: 10.5
+#| fig-height: 15.5
+
+cor_heatmap(df_correlates, col_fill = fill_higher)
+```
+
+### Figure 3
+
+```{r}
+#| label: fig-figure3
+#| fig-cap: "Structure and correlates of the participant-level indices. Top: correlations between the indices entering the EGA (lower half), their reliability (diagonal) and their hierarchical community structure (upper half). Bottom: correlations between the community scores and participant characteristics and follow-up memory indices."
+#| fig-alt: "Top: triangular correlation matrix of the participant-level indices with a tree of their lower- and higher-order communities drawn above the diagonal. Bottom: heatmap of correlations between the community scores and participant characteristics and memory indices."
+#| fig-width: 20
+#| fig-height: 33.9
+
+# Manuscript Figure 3. The legend of the matrix (top) also covers the correlates (bottom).
+# free(): the matrix is not aligned with the heatmap's panels, so that it can use the full width
+figure3 <- free(p_ega_matrix) /
+  (cor_heatmap(df_correlates, base_size = 20, text_size = 5.2, col_fill = fill_higher) +
+     theme(legend.position = "none", plot.margin = margin(t = 0.1, unit = "in"))) +
+  plot_layout(heights = c(19.4, 14.5))
+
+figure3
+
+ggsave("figures/figure3.png", figure3, width = 20, height = 33.9, dpi = 300, bg = "white")
 ```
