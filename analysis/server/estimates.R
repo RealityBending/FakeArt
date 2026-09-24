@@ -126,10 +126,12 @@ memory_info <- list(
 # centred mediator sit (for mediation_effects()).
 mediation_grid <- sort(unique(round(c(seq(-0.6, 0.6, by = 0.05), seq(-0.12, 0.12, by = 0.005)), 3)))
 mediation_info <- list(
+  # individual: dpars whose participant-level mediator slope 7_correlates.qmd
+  # uses (get_mediation_individual(), `./hpc individual RealityBeauty`)
   RealityBeauty = list(
     label = "Syntheticness by Phase-1 Beauty", family = "CHOCO",
     outcome = "Reality", mediator = "Beauty_w", grid = mediation_grid,
-    dpars = c("mu", "confright", "confleft")
+    dpars = c("mu", "confright", "confleft"), individual = "mu"
   ),
   AuthenticityBeauty = list(
     label = "Authenticity by Phase-1 Beauty", family = "CHOCO",
@@ -1036,6 +1038,7 @@ participant_term <- function(m, dpar) {
 
 get_individual <- function(m, outcome, verbose = TRUE) {
   if (!is.null(memory_info[[outcome]])) return(get_memory_individual(m, outcome, verbose))
+  if (!is.null(mediation_info[[outcome]]$individual)) return(get_mediation_individual(m, outcome, verbose))
   params <- outcome_info[[outcome]]$individual
   if (is.null(params)) {
     stop("no `individual` dpars for '", outcome, "' in outcome_info", call. = FALSE)
@@ -1079,6 +1082,36 @@ get_individual <- function(m, outcome, verbose = TRUE) {
     ndraws = brms::ndraws(m),
     individual = bind_rows(rez)
   )
+}
+
+# Mediation models: each participant's slope of the belief on the mediator
+# (Index "Slope"), on the link scale per unit of the mediator (the whole 0-1
+# slider), averaged over the labels, from the participant term only. For
+# RealityBeauty's mu: how strongly a participant takes beauty as a sign of
+# human authorship. The linear predictor is linear in the mediator, so the
+# difference between mediator = 1 and 0 is the slope itself.
+get_mediation_individual <- function(m, outcome, verbose = TRUE) {
+  info <- mediation_info[[outcome]]
+  step <- function(what) if (verbose) cat("**", outcome, "-", what, ":", format(Sys.time()), "\n")
+  d <- m$data
+  participants <- sort(unique(as.character(d$Participant)))
+  grid <- expand.grid(Participant = participants, Condition = levels(factor(d$Condition)),
+                      .x = c(0, 1), stringsAsFactors = FALSE)
+  names(grid)[names(grid) == ".x"] <- info$mediator
+  at <- function(cond, x) which(grid$Condition == cond & grid[[info$mediator]] == x) # participant order
+
+  rez <- lapply(info$individual, function(p) {
+    step(p)
+    eta <- brms::posterior_linpred(m, newdata = grid, dpar = p, transform = FALSE,
+                                   re_formula = participant_term(m, p))
+    conds <- unique(grid$Condition)
+    s <- Reduce(`+`, lapply(conds, function(k) eta[, at(k, 1), drop = FALSE] - eta[, at(k, 0), drop = FALSE])) / length(conds)
+    data.frame(Participant = participants, Parameter = p, Index = "Slope",
+               Mean = colMeans(s), SD = apply(s, 2, stats::sd),
+               SD_rel = apply(s - rowMeans(s), 2, stats::sd))
+  })
+
+  list(outcome = outcome, created = Sys.time(), ndraws = brms::ndraws(m), individual = bind_rows(rez))
 }
 
 

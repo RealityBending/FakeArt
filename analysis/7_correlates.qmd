@@ -30,21 +30,23 @@ source("report.R")           # read_estimates(), provenance_table(), make_tables
 
 dfsub <- read.csv("../data/data_participants.csv")
 
-cols_index <- c("Baseline" = "#E91E63", "Forgery" = "#F5A41D", "AI" = "#1D9AF5")
+cols_index <- c("Baseline" = "#E91E63", "Forgery" = "#F5A41D", "AI" = "#1D9AF5", "Slope" = "#8E24AA")
 fmt_r <- function(x) sub("^(-?)0\\.", "\\1.", sprintf("%.2f", x)) # .45, -.07
 
-# Models with participant-level indices, in the order of 3_models.qmd
+# Models with participant-level indices, in the order of 3_models.qmd, then the
+# determinants models (5_realitydeterminants.qmd) with a participant-level slope
 models <- intersect(c("Beauty", "Valence", "Meaning", "Worth", "Reality", "Authenticity", "Beauty2", "SelfRelevance", "Artificiality"),
                     names(Filter(function(x) !is.null(x$individual), outcome_info)))
-individual <- read_estimates(models, dir = "individual")
+slope_models <- names(Filter(function(x) !is.null(x$individual), mediation_info))
+individual <- read_estimates(c(models, slope_models), dir = "individual")
 provenance_table(individual)
 
 # One row per Participant x Model x Parameter x Index (posterior Mean and SD),
 # features ordered by model, parameter (registry order) and index
 df_long <- bind_rows(lapply(individual, function(e) mutate(e$individual, Model = e$outcome))) |>
-  mutate(Model = factor(Model, levels = models),
-         Parameter = factor(Parameter, levels = unique(unlist(lapply(outcome_info[models], `[[`, "individual")))),
-         Index = factor(Index, levels = c("Baseline", "Forgery", "AI"))) |>
+  mutate(Model = factor(Model, levels = c(models, slope_models)),
+         Parameter = factor(Parameter, levels = unique(unlist(lapply(c(outcome_info[models], mediation_info[slope_models]), `[[`, "individual")))),
+         Index = factor(Index, levels = names(cols_index))) |>
   arrange(Model, Parameter, Index) |>
   mutate(Feature = fct_inorder(paste(Model, Parameter, Index, sep = "_")))
 features <- levels(df_long$Feature)
@@ -177,7 +179,31 @@ Parameters without a participant-level label effect in the model (Worth's
 to the shared thresholds and `disc` the participant's discrimination (response
 precision), analogous to `phi` / `prec` in the other models.
 
+One index comes from the determinants models of `5_realitydeterminants.qmd`:
+
+- **RealityBeauty `mu` Slope**: the participant's slope of the syntheticness
+  choice (`mu`, the probability of answering on the "Human" side) on their own
+  Phase-1 beauty (centred within participant), per full range of the beauty
+  slider, averaged over the labels: how strongly the participant takes beauty
+  as a sign of human authorship (the "beautiful = human" inference).
+
 Models not included (yet):
+
+- **ArtificialityBeauty** (follow-up; *to consider*): the analogous slope of
+  perceived artificiality on follow-up beauty (items judged new) is the most
+  reliable participant-level slope of the determinants models (D-vour .67
+  [.62, .71] in a check on its 2026-09-23 fit, against .44 for the
+  RealityBeauty slope) and it correlates with the RealityBeauty slope across
+  sessions, ~47 days apart and on different items (r = −.24 [−.36, −.11], n =
+  217; roughly −.44 once corrected for both reliabilities). A candidate once
+  the rule for participants missing from some models (220 here) is settled
+  (see Beauty2); until then, a cross-session validation of the RealityBeauty
+  slope. The other determinants models were checked and left out: the label
+  modulation of the slopes (D-vour ≤ .11), the per-rating slopes of the
+  Appraisal models (≤ .28; collinear mediators), AuthenticityBeauty's slope
+  (.29), the *BeautyControl models (their Phase-1 beauty slope correlates .99
+  with RealityBeauty's; follow-up beauty slopes .24 / .32) and the Items
+  models (label slopes only, which duplicate the indices above).
 
 - **Beauty2** (follow-up): 220 participants; waiting for a rule on how the
   analyses handle participants missing from some models.
@@ -304,7 +330,7 @@ df_rel |>
 #| label: fig-caterpillar
 #| fig-cap: "Participants' posterior means (±1 posterior SD relative to the sample) for the `mu` indices, sorted, with the distribution of the posterior means on top and the reliability (D-vour) of each index. Wide bars relative to the spread of the points mean low reliability."
 #| fig-width: 12
-#| fig-height: 21
+#| fig-height: 24.5
 
 df_long |>
   filter(Parameter == "mu") |>
@@ -393,6 +419,14 @@ stability is the share of bootstraps in which an index lands in its empirical
 community. The dimension scores for the correlates come from this single EGA
 (no second round on a stability-filtered set).
 
+The beauty slope of syntheticness (RealityBeauty `mu` Slope) is left out
+although its D-vour exceeds 1/3: it is nearly orthogonal to every other index
+(all |r| ≤ .18, see the correlation matrix), so it forms no community of its
+own. With it included (tried 2026-09-24) the empirical EGA placed it, weakly,
+in *Anti-fake bias* and left every other index where it was, but in bootstrap
+samples where it is isolated, `bootEGA()` fails. It enters the correlates
+directly instead.
+
 ::: {.callout-note collapse="true" title="Why not Leiden at both levels"}
 The lower order of hierarchical EGA is Louvain's *first* aggregation level;
 Leiden returns only its final, fully aggregated partition. With Leiden at both
@@ -427,7 +461,9 @@ short <- function(x) {
     str_replace_all("_", " ")
 }
 
-ega_features <- as.character(df_rel$Feature[df_rel$D_vour > 1/3])
+# The determinants slope is left out (see the text above) and enters the
+# correlates directly
+ega_features <- as.character(df_rel$Feature[df_rel$D_vour > 1/3 & !df_rel$Model %in% slope_models])
 d_ega <- setNames(df_wide[ega_features], short(ega_features))
 ```
 
@@ -701,7 +737,9 @@ worst-converged parameters (max Rhat 1.13).
 ```{r}
 #| label: memory-reliability
 
-memory_models <- names(memory_info)
+# MemoryConditionBelief (label recall by own belief) tests reconstruction; it
+# has no participant-level indices
+memory_models <- c("MemoryCondition", "MemoryBelief")
 df_mem <- read_estimates(memory_models, dir = "individual") |>
   lapply(\(e) mutate(e$individual, Model = e$outcome)) |>
   bind_rows() |>
@@ -780,8 +818,10 @@ cor_heatmap(df_mem_cor)
 Correlations between the dimension scores (the EGA network scores of the
 higher-order communities, *Overall*, and of their lower-order communities) and
 the participant characteristics (see Data Preparation) and reliable memory
-indices (see Memory; 220 participants). Phase-2 scores are missing for the 7
-participants without Phase-2 data.
+indices (see Memory; 220 participants), and of the beauty slope of
+syntheticness (*Beauty = human*, entered directly: it is not part of the EGA).
+Phase-2 scores and the slope are missing for the 7 participants without
+Phase-2 data.
 
 The scores follow the direction of the loadings: a high *Anti-fake bias* score
 is a *higher* AI (and Forgery) − Original contrast, i.e. a smaller penalty for
@@ -801,14 +841,18 @@ dim_vars <- bind_rows(
 ) |>
   mutate(ColGroup = tree_higher$Label[match(Higher, tree_higher$Higher)]) |>
   arrange(Higher, Column != "Overall") |>
-  filter(ColGroup != labels_higher[["Syn pR B"]]) # Belief consistency: no correlates
+  filter(ColGroup != labels_higher[["Syn pR B"]]) |> # Belief consistency: no correlates
+  # The determinants slope, not part of the EGA (posterior means, link scale)
+  bind_rows(tibble(Score = "RealityBeauty_mu_Slope", Column = "Beauty slope", ColGroup = "Beauty = human"))
 
 # Strip colours: those of the higher-order communities in the EGA figure
-fill_higher <- setNames(pal_higher[paste0("H", tree_higher$Higher)], tree_higher$Label)
+fill_higher <- c(setNames(pal_higher[paste0("H", tree_higher$Higher)], tree_higher$Label),
+                 "Beauty = human" = cols_index[["Slope"]])
 
 df_scores <- bind_cols(Participant = df_wide$Participant,
                        setNames(as.data.frame(scores_higher), paste0("H", colnames(scores_higher))),
-                       setNames(as.data.frame(scores_lower), paste0("L", colnames(scores_lower))))
+                       setNames(as.data.frame(scores_lower), paste0("L", colnames(scores_lower))),
+                       df_wide["RealityBeauty_mu_Slope"])
 
 # Rows: participant characteristics, then the memory indices
 row_vars <- bind_rows(trait_vars, transmute(mem_vars, Score, Row = Column, RowGroup = ColGroup))
@@ -829,23 +873,24 @@ cor_markdown(df_correlates, "Correlations between dimension scores and participa
 cor_heatmap(df_correlates, col_fill = fill_higher)
 ```
 
-### Figure 3
+### Figure 4
 
 ```{r}
-#| label: fig-figure3
+#| label: fig-figure4
 #| fig-cap: "Structure and correlates of the participant-level indices. Top: correlations between the indices entering the EGA (lower half), their reliability (diagonal) and their hierarchical community structure (upper half). Bottom: correlations between the community scores and participant characteristics and follow-up memory indices."
 #| fig-alt: "Top: triangular correlation matrix of the participant-level indices with a tree of their lower- and higher-order communities drawn above the diagonal. Bottom: heatmap of correlations between the community scores and participant characteristics and memory indices."
 #| fig-width: 20
 #| fig-height: 33.9
 
-# Manuscript Figure 3. The legend of the matrix (top) also covers the correlates (bottom).
+# Manuscript Figure 4 (Figure 3 is the determinants figure of 5_realitydeterminants.qmd).
+# The legend of the matrix (top) also covers the correlates (bottom).
 # free(): the matrix is not aligned with the heatmap's panels, so that it can use the full width
-figure3 <- free(p_ega_matrix) /
+figure4 <- free(p_ega_matrix) /
   (cor_heatmap(df_correlates, base_size = 20, text_size = 5.2, col_fill = fill_higher) +
      theme(legend.position = "none", plot.margin = margin(t = 0.1, unit = "in"))) +
   plot_layout(heights = c(19.4, 14.5))
 
-figure3
+figure4
 
-ggsave("figures/figure3.png", figure3, width = 20, height = 33.9, dpi = 300, bg = "white")
+ggsave("figures/figure4.png", figure4, width = 20, height = 33.9, dpi = 300, bg = "white")
 ```

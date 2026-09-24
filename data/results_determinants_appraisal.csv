@@ -1,0 +1,289 @@
+"Belief","Parameter","Contrast","Path","Median","CI_low","CI_high","pd"
+"Syntheticness","response","AI-Generated - Human Original","Total",-5.89190558681923,-7.36487191100927,-4.38926995383438,1
+"Syntheticness","response","AI-Generated - Human Original","Direct",-3.13572841027928,-4.85387727700769,-1.5518064933338,0.99975
+"Syntheticness","response","AI-Generated - Human Original","Indirect (joint)",-2.74394657802208,-3.6471132725162,-1.90053945358358,1
+"Syntheticness","response","AI-Generated - Human Original","Indirect (joint, exact)",-2.73958951110037,-3.49818200757719,-1.88104761494702,1
+"Syntheticness","response","AI-Generated - Human Original","Indirect (Beauty)",-1.12629122870673,-1.67073049619368,-0.632153975434698,1
+"Syntheticness","response","AI-Generated - Human Original","Indirect (Valence)",-0.21020095692569,-0.641165278022997,0.231811438353991,0.82975
+"Syntheticness","response","AI-Generated - Human Original","Indirect (Meaning)",-0.991342923303992,-1.53431691860988,-0.462783756078463,0.9995
+"Syntheticness","response","AI-Generated - Human Original","Indirect (Worth)",-0.41513561520148,-1.35905646547835,0.55070214718014,0.7935
+"Syntheticness","response","AI-Generated - Human Original","Mediator (Beauty)",-6.36501977252535,-7.29394064857765,-5.44308546411905,1
+"Syntheticness","response","AI-Generated - Human Original","Mediator (Valence)",-6.5568983260327,-7.63994795062589,-5.4893654528327,1
+"Syntheticness","response","AI-Generated - Human Original","Mediator (Meaning)",-10.4688342226279,-11.7603395174849,-9.21592026317417,1
+"Syntheticness","response","AI-Generated - Human Original","Mediator (Worth)",-12.1049710368913,-13.3701242307419,-10.7878374881969,1
+"Syntheticness","response","Human Forgery - Human Original","Total",-1.83138262799743,-3.26551862734064,-0.318616151664808,0.99275
+"Syntheticness","response","Human Forgery - Human Original","Direct",-0.0785326606132508,-1.54501046727219,1.35929013842485,0.54
+"Syntheticness","response","Human Forgery - Human Original","Indirect (joint)",-1.73900421754095,-2.30596083205108,-1.23274270110354,1
+"Syntheticness","response","Human Forgery - Human Original","Indirect (joint, exact)",-1.75204772957365,-2.19194608624911,-1.30613711041865,1
+"Syntheticness","response","Human Forgery - Human Original","Indirect (Beauty)",-0.41359522885185,-0.710617399715688,-0.124344294130788,0.99875
+"Syntheticness","response","Human Forgery - Human Original","Indirect (Valence)",-0.249111178737245,-0.509888779351641,0.00344397094259647,0.97875
+"Syntheticness","response","Human Forgery - Human Original","Indirect (Meaning)",-0.53440788654807,-0.801452718348558,-0.279881466231711,1
+"Syntheticness","response","Human Forgery - Human Original","Indirect (Worth)",-0.526921205960385,-1.07727817136046,0.0653525534193542,0.97025
+"Syntheticness","response","Human Forgery - Human Original","Mediator (Beauty)",-3.62835865890395,-4.49333384758917,-2.70132648284384,1
+"Syntheticness","response","Human Forgery - Human Original","Mediator (Valence)",-3.78027782510965,-4.7927097217257,-2.80921939247012,1
+"Syntheticness","response","Human Forgery - Human Original","Mediator (Meaning)",-4.5136642103325,-5.57483282539074,-3.44934506964129,1
+"Syntheticness","response","Human Forgery - Human Original","Mediator (Worth)",-7.12982513022067,-8.14349800423283,-6.0697833184624,1
+"Syntheticness","response","AI-Generated - Human Forgery","Total",-4.06228961858435,-5.47095634904962,-2.51612691310566,1
+"Syntheticness","response","AI-Generated - Human Forgery","Direct",-2.75386109774928,-4.20165612797702,-1.24909219438399,0.9995
+"Syntheticness","response","AI-Generated - Human Forgery","Indirect (joint)",-1.30532388729097,-1.77339050273603,-0.858265515703772,1
+"Syntheticness","response","AI-Generated - Human Forgery","Indirect (joint, exact)",-1.30515762105804,-1.67521002747264,-0.949303440555438,1
+"Syntheticness","response","AI-Generated - Human Forgery","Indirect (Beauty)",-0.479549627943056,-0.762941087936691,-0.227329795260096,1
+"Syntheticness","response","AI-Generated - Human Forgery","Indirect (Valence)",-0.0885637912638433,-0.290707457386236,0.0905466801660578,0.833
+"Syntheticness","response","AI-Generated - Human Forgery","Indirect (Meaning)",-0.562872073276862,-0.902468804110619,-0.256388475497384,0.9995
+"Syntheticness","response","AI-Generated - Human Forgery","Indirect (Worth)",-0.16289426996839,-0.568447790884897,0.224533457135304,0.786
+"Syntheticness","response","AI-Generated - Human Forgery","Mediator (Beauty)",-2.74951734876103,-3.6703617001817,-1.82258440316076,1
+"Syntheticness","response","AI-Generated - Human Forgery","Mediator (Valence)",-2.80275062883215,-3.81107739140305,-1.74913822907787,1
+"Syntheticness","response","AI-Generated - Human Forgery","Mediator (Meaning)",-5.96470571182704,-7.20384342811485,-4.81470268608543,1
+"Syntheticness","response","AI-Generated - Human Forgery","Mediator (Worth)",-4.972002541933,-5.95370589092694,-3.91779280838378,1
+"Syntheticness","mu","AI-Generated - Human Original","Total",-8.46421933601449,-10.9698085524919,-6.12911961234187,1
+"Syntheticness","mu","AI-Generated - Human Original","Direct",-4.90924220848852,-7.61781767596112,-2.33759013242377,0.99975
+"Syntheticness","mu","AI-Generated - Human Original","Indirect (joint)",-3.55787426486719,-5.01708866250603,-2.2924524439928,1
+"Syntheticness","mu","AI-Generated - Human Original","Indirect (joint, exact)",-3.59806358471146,-4.86251485744391,-2.21056405070698,1
+"Syntheticness","mu","AI-Generated - Human Original","Indirect (Beauty)",-1.48123918382922,-2.3166825494893,-0.677847460868412,1
+"Syntheticness","mu","AI-Generated - Human Original","Indirect (Valence)",-0.299785574104984,-1.01439780328778,0.418656427568408,0.80025
+"Syntheticness","mu","AI-Generated - Human Original","Indirect (Meaning)",-1.28296625465344,-2.10091729487376,-0.353285326206706,0.9975
+"Syntheticness","mu","AI-Generated - Human Original","Indirect (Worth)",-0.500651580998899,-1.99625553066151,1.08449867828073,0.7325
+"Syntheticness","mu","AI-Generated - Human Original","Mediator (Beauty)",-6.36501977252535,-7.29394064857765,-5.44308546411905,1
+"Syntheticness","mu","AI-Generated - Human Original","Mediator (Valence)",-6.5568983260327,-7.63994795062589,-5.4893654528327,1
+"Syntheticness","mu","AI-Generated - Human Original","Mediator (Meaning)",-10.4688342226279,-11.7603395174849,-9.21592026317417,1
+"Syntheticness","mu","AI-Generated - Human Original","Mediator (Worth)",-12.1049710368913,-13.3701242307419,-10.7878374881969,1
+"Syntheticness","mu","Human Forgery - Human Original","Total",-2.50123396270657,-4.83042621776327,-0.100116610565465,0.98225
+"Syntheticness","mu","Human Forgery - Human Original","Direct",0.0437579650861941,-2.3470193628146,2.35976055703183,0.5145
+"Syntheticness","mu","Human Forgery - Human Original","Indirect (joint)",-2.53213970515908,-3.3645703366865,-1.7107185870295,1
+"Syntheticness","mu","Human Forgery - Human Original","Indirect (joint, exact)",-2.56234706371068,-3.28230689432432,-1.84008654267755,1
+"Syntheticness","mu","Human Forgery - Human Original","Indirect (Beauty)",-0.559764456947968,-1.01289716199982,-0.0774776232638673,0.995
+"Syntheticness","mu","Human Forgery - Human Original","Indirect (Valence)",-0.336736419710217,-0.750297222883502,0.0774758132948461,0.9585
+"Syntheticness","mu","Human Forgery - Human Original","Indirect (Meaning)",-0.841920531563745,-1.28537221452633,-0.436232983579988,1
+"Syntheticness","mu","Human Forgery - Human Original","Indirect (Worth)",-0.770577919685343,-1.72365440633156,0.107917885486075,0.95675
+"Syntheticness","mu","Human Forgery - Human Original","Mediator (Beauty)",-3.62835865890395,-4.49333384758917,-2.70132648284384,1
+"Syntheticness","mu","Human Forgery - Human Original","Mediator (Valence)",-3.78027782510965,-4.7927097217257,-2.80921939247012,1
+"Syntheticness","mu","Human Forgery - Human Original","Mediator (Meaning)",-4.5136642103325,-5.57483282539074,-3.44934506964129,1
+"Syntheticness","mu","Human Forgery - Human Original","Mediator (Worth)",-7.12982513022067,-8.14349800423283,-6.0697833184624,1
+"Syntheticness","mu","AI-Generated - Human Forgery","Total",-5.97614827444566,-8.37130474018705,-3.50282293246888,1
+"Syntheticness","mu","AI-Generated - Human Forgery","Direct",-4.25271611387714,-6.67767924772219,-1.77481275440523,0.999
+"Syntheticness","mu","AI-Generated - Human Forgery","Indirect (joint)",-1.70389458168539,-2.38629103056315,-0.981596269651429,1
+"Syntheticness","mu","AI-Generated - Human Forgery","Indirect (joint, exact)",-1.71688990486069,-2.31097823052972,-1.12064234073794,1
+"Syntheticness","mu","AI-Generated - Human Forgery","Indirect (Beauty)",-0.633149995696514,-1.07249733143261,-0.26593306332176,1
+"Syntheticness","mu","AI-Generated - Human Forgery","Indirect (Valence)",-0.12565847279685,-0.452376106731693,0.179869841182278,0.80025
+"Syntheticness","mu","AI-Generated - Human Forgery","Indirect (Meaning)",-0.732100388403401,-1.22520063511511,-0.180720417482814,0.9975
+"Syntheticness","mu","AI-Generated - Human Forgery","Indirect (Worth)",-0.202409521986246,-0.85814466403244,0.427616275584498,0.7325
+"Syntheticness","mu","AI-Generated - Human Forgery","Mediator (Beauty)",-2.74951734876103,-3.6703617001817,-1.82258440316076,1
+"Syntheticness","mu","AI-Generated - Human Forgery","Mediator (Valence)",-2.80275062883215,-3.81107739140305,-1.74913822907787,1
+"Syntheticness","mu","AI-Generated - Human Forgery","Mediator (Meaning)",-5.96470571182704,-7.20384342811485,-4.81470268608543,1
+"Syntheticness","mu","AI-Generated - Human Forgery","Mediator (Worth)",-4.972002541933,-5.95370589092694,-3.91779280838378,1
+"Syntheticness","confright","AI-Generated - Human Original","Total",-2.47797192516246,-3.52115377621952,-1.49810043585289,1
+"Syntheticness","confright","AI-Generated - Human Original","Direct",-0.560445063876686,-1.63639676143357,0.561596426811695,0.8415
+"Syntheticness","confright","AI-Generated - Human Original","Indirect (joint)",-1.92267529807302,-2.53778534334665,-1.34517954064927,1
+"Syntheticness","confright","AI-Generated - Human Original","Indirect (joint, exact)",-1.93972887465125,-2.50763008845182,-1.3732350417778,1
+"Syntheticness","confright","AI-Generated - Human Original","Indirect (Beauty)",-0.533057668349672,-0.911512435276609,-0.173338234626893,0.99875
+"Syntheticness","confright","AI-Generated - Human Original","Indirect (Valence)",0.0490193039197337,-0.256500085807099,0.38217249852372,0.61575
+"Syntheticness","confright","AI-Generated - Human Original","Indirect (Meaning)",-0.394842148050635,-0.754808865527779,-0.0173256713990793,0.98125
+"Syntheticness","confright","AI-Generated - Human Original","Indirect (Worth)",-1.04646994030226,-1.82193214064186,-0.368043184575456,0.99825
+"Syntheticness","confright","AI-Generated - Human Original","Mediator (Beauty)",-6.36501977252535,-7.29394064857765,-5.44308546411905,1
+"Syntheticness","confright","AI-Generated - Human Original","Mediator (Valence)",-6.5568983260327,-7.63994795062589,-5.4893654528327,1
+"Syntheticness","confright","AI-Generated - Human Original","Mediator (Meaning)",-10.4688342226279,-11.7603395174849,-9.21592026317417,1
+"Syntheticness","confright","AI-Generated - Human Original","Mediator (Worth)",-12.1049710368913,-13.3701242307419,-10.7878374881969,1
+"Syntheticness","confright","Human Forgery - Human Original","Total",-0.82064808218122,-1.87436829123598,0.226304837066653,0.94125
+"Syntheticness","confright","Human Forgery - Human Original","Direct",0.0312244764611946,-1.01284913196942,1.09966678452555,0.525
+"Syntheticness","confright","Human Forgery - Human Original","Indirect (joint)",-0.845071633109934,-1.18653503528249,-0.537977369518268,1
+"Syntheticness","confright","Human Forgery - Human Original","Indirect (joint, exact)",-0.852484937344034,-1.1290561328047,-0.545193772765273,1
+"Syntheticness","confright","Human Forgery - Human Original","Indirect (Beauty)",-0.187756802728885,-0.399668341043863,0.026142513563363,0.96225
+"Syntheticness","confright","Human Forgery - Human Original","Indirect (Valence)",-0.101769374027815,-0.28552378543679,0.0669090596450393,0.87825
+"Syntheticness","confright","Human Forgery - Human Original","Indirect (Meaning)",-0.032921068514442,-0.185925970829896,0.125786749375698,0.65225
+"Syntheticness","confright","Human Forgery - Human Original","Indirect (Worth)",-0.528879232963156,-0.928311533273809,-0.142923260054962,0.997
+"Syntheticness","confright","Human Forgery - Human Original","Mediator (Beauty)",-3.62835865890395,-4.49333384758917,-2.70132648284384,1
+"Syntheticness","confright","Human Forgery - Human Original","Mediator (Valence)",-3.78027782510965,-4.7927097217257,-2.80921939247012,1
+"Syntheticness","confright","Human Forgery - Human Original","Mediator (Meaning)",-4.5136642103325,-5.57483282539074,-3.44934506964129,1
+"Syntheticness","confright","Human Forgery - Human Original","Mediator (Worth)",-7.12982513022067,-8.14349800423283,-6.0697833184624,1
+"Syntheticness","confright","AI-Generated - Human Forgery","Total",-1.68540991734639,-2.80682434151964,-0.557625984209662,0.9975
+"Syntheticness","confright","AI-Generated - Human Forgery","Direct",-0.805718746756262,-1.91679842055815,0.302922574448872,0.91825
+"Syntheticness","confright","AI-Generated - Human Forgery","Indirect (joint)",-0.865440104623571,-1.19525802800043,-0.580553529260677,1
+"Syntheticness","confright","AI-Generated - Human Forgery","Indirect (joint, exact)",-0.873145718145113,-1.11905381892624,-0.619972108927269,1
+"Syntheticness","confright","AI-Generated - Human Forgery","Indirect (Beauty)",-0.228156140431291,-0.411964560967499,-0.0666545183578614,0.99875
+"Syntheticness","confright","AI-Generated - Human Forgery","Indirect (Valence)",0.0204255890221019,-0.114597427736452,0.167358157760731,0.61575
+"Syntheticness","confright","AI-Generated - Human Forgery","Indirect (Meaning)",-0.224350960776211,-0.438620809608063,-0.00403647879687578,0.98125
+"Syntheticness","confright","AI-Generated - Human Forgery","Indirect (Worth)",-0.430147086152344,-0.744587402873485,-0.126238237621473,0.99825
+"Syntheticness","confright","AI-Generated - Human Forgery","Mediator (Beauty)",-2.74951734876103,-3.6703617001817,-1.82258440316076,1
+"Syntheticness","confright","AI-Generated - Human Forgery","Mediator (Valence)",-2.80275062883215,-3.81107739140305,-1.74913822907787,1
+"Syntheticness","confright","AI-Generated - Human Forgery","Mediator (Meaning)",-5.96470571182704,-7.20384342811485,-4.81470268608543,1
+"Syntheticness","confright","AI-Generated - Human Forgery","Mediator (Worth)",-4.972002541933,-5.95370589092694,-3.91779280838378,1
+"Syntheticness","confleft","AI-Generated - Human Original","Total",0.90733206746568,-0.322901559564783,2.21716869899772,0.923
+"Syntheticness","confleft","AI-Generated - Human Original","Direct",0.432608299811799,-1.02972630317193,1.78899289076059,0.7235
+"Syntheticness","confleft","AI-Generated - Human Original","Indirect (joint)",0.49444371724099,-0.178798008155064,1.13579343821888,0.927
+"Syntheticness","confleft","AI-Generated - Human Original","Indirect (joint, exact)",0.493662390311028,-0.134529854251009,1.13769946433065,0.93125
+"Syntheticness","confleft","AI-Generated - Human Original","Indirect (Beauty)",0.472174788950674,0.0612843981719742,0.882162469306993,0.99
+"Syntheticness","confleft","AI-Generated - Human Original","Indirect (Valence)",0.219527946449966,-0.134195842196473,0.596982391625739,0.885
+"Syntheticness","confleft","AI-Generated - Human Original","Indirect (Meaning)",0.57101117366136,0.101949116348022,1.00761083544146,0.9935
+"Syntheticness","confleft","AI-Generated - Human Original","Indirect (Worth)",-0.77986588898321,-1.62009936123839,-0.01242369642526,0.974
+"Syntheticness","confleft","AI-Generated - Human Original","Mediator (Beauty)",-6.36501977252535,-7.29394064857765,-5.44308546411905,1
+"Syntheticness","confleft","AI-Generated - Human Original","Mediator (Valence)",-6.5568983260327,-7.63994795062589,-5.4893654528327,1
+"Syntheticness","confleft","AI-Generated - Human Original","Mediator (Meaning)",-10.4688342226279,-11.7603395174849,-9.21592026317417,1
+"Syntheticness","confleft","AI-Generated - Human Original","Mediator (Worth)",-12.1049710368913,-13.3701242307419,-10.7878374881969,1
+"Syntheticness","confleft","Human Forgery - Human Original","Total",0.499009679764936,-0.668988929852274,1.7941704229307,0.781
+"Syntheticness","confleft","Human Forgery - Human Original","Direct",0.60331252384121,-0.654003387333701,1.92412001945189,0.81475
+"Syntheticness","confleft","Human Forgery - Human Original","Indirect (joint)",-0.10240325385213,-0.457961365681917,0.290243081150966,0.70275
+"Syntheticness","confleft","Human Forgery - Human Original","Indirect (joint, exact)",-0.102574659805138,-0.45059869173395,0.275766019495216,0.70275
+"Syntheticness","confleft","Human Forgery - Human Original","Indirect (Beauty)",0.122880553339109,-0.098707991947559,0.365232033065989,0.8475
+"Syntheticness","confleft","Human Forgery - Human Original","Indirect (Valence)",0.0947765718821048,-0.119857251806219,0.306027794452021,0.832
+"Syntheticness","confleft","Human Forgery - Human Original","Indirect (Meaning)",0.116245648785234,-0.0720296107342998,0.321476032263494,0.88775
+"Syntheticness","confleft","Human Forgery - Human Original","Indirect (Worth)",-0.438695524113253,-0.921465889193553,0.0285761599949753,0.96675
+"Syntheticness","confleft","Human Forgery - Human Original","Mediator (Beauty)",-3.62835865890395,-4.49333384758917,-2.70132648284384,1
+"Syntheticness","confleft","Human Forgery - Human Original","Mediator (Valence)",-3.78027782510965,-4.7927097217257,-2.80921939247012,1
+"Syntheticness","confleft","Human Forgery - Human Original","Mediator (Meaning)",-4.5136642103325,-5.57483282539074,-3.44934506964129,1
+"Syntheticness","confleft","Human Forgery - Human Original","Mediator (Worth)",-7.12982513022067,-8.14349800423283,-6.0697833184624,1
+"Syntheticness","confleft","AI-Generated - Human Forgery","Total",0.418746406795222,-0.94882092697799,1.66357090145739,0.7365
+"Syntheticness","confleft","AI-Generated - Human Forgery","Direct",0.115920963137928,-1.30117772468311,1.37599968353521,0.56675
+"Syntheticness","confleft","AI-Generated - Human Forgery","Indirect (joint)",0.301272831510107,-0.00543610670532459,0.607882897200987,0.9725
+"Syntheticness","confleft","AI-Generated - Human Forgery","Indirect (joint, exact)",0.302750971881072,0.0184341211301842,0.577405655413554,0.981
+"Syntheticness","confleft","AI-Generated - Human Forgery","Indirect (Beauty)",0.197446326078208,0.0157951707513634,0.396122061736412,0.99
+"Syntheticness","confleft","AI-Generated - Human Forgery","Indirect (Valence)",0.090162446163633,-0.0592611544388111,0.259897465694894,0.885
+"Syntheticness","confleft","AI-Generated - Human Forgery","Indirect (Meaning)",0.324011735108548,0.0471636842801605,0.576224887977754,0.9935
+"Syntheticness","confleft","AI-Generated - Human Forgery","Indirect (Worth)",-0.315695045544974,-0.631787958384839,0.0401037686323421,0.974
+"Syntheticness","confleft","AI-Generated - Human Forgery","Mediator (Beauty)",-2.74951734876103,-3.6703617001817,-1.82258440316076,1
+"Syntheticness","confleft","AI-Generated - Human Forgery","Mediator (Valence)",-2.80275062883215,-3.81107739140305,-1.74913822907787,1
+"Syntheticness","confleft","AI-Generated - Human Forgery","Mediator (Meaning)",-5.96470571182704,-7.20384342811485,-4.81470268608543,1
+"Syntheticness","confleft","AI-Generated - Human Forgery","Mediator (Worth)",-4.972002541933,-5.95370589092694,-3.91779280838378,1
+"Authenticity","response","AI-Generated - Human Original","Total",-1.48539267351544,-2.70959226238561,-0.305557500598253,0.9925
+"Authenticity","response","AI-Generated - Human Original","Direct",-0.0458234734392937,-1.43357829955364,1.22701992137225,0.52875
+"Authenticity","response","AI-Generated - Human Original","Indirect (joint)",-1.42999417675614,-2.12646809729738,-0.755627852032371,1
+"Authenticity","response","AI-Generated - Human Original","Indirect (joint, exact)",-1.42818140297835,-2.09530966817635,-0.75628668601897,1
+"Authenticity","response","AI-Generated - Human Original","Indirect (Beauty)",-0.422690011800764,-0.81925491357274,-0.0110671718072937,0.9815
+"Authenticity","response","AI-Generated - Human Original","Indirect (Valence)",-0.188901980831416,-0.585340591284629,0.167108090176793,0.84175
+"Authenticity","response","AI-Generated - Human Original","Indirect (Meaning)",-0.491293416625817,-0.963936900055628,-0.0286334826427298,0.98575
+"Authenticity","response","AI-Generated - Human Original","Indirect (Worth)",-0.32007856736009,-1.14265954151518,0.543572560106249,0.76425
+"Authenticity","response","AI-Generated - Human Original","Mediator (Beauty)",-6.36501977252535,-7.29394064857765,-5.44308546411905,1
+"Authenticity","response","AI-Generated - Human Original","Mediator (Valence)",-6.5568983260327,-7.63994795062589,-5.4893654528327,1
+"Authenticity","response","AI-Generated - Human Original","Mediator (Meaning)",-10.4688342226279,-11.7603395174849,-9.21592026317417,1
+"Authenticity","response","AI-Generated - Human Original","Mediator (Worth)",-12.1049710368913,-13.3701242307419,-10.7878374881969,1
+"Authenticity","response","Human Forgery - Human Original","Total",-2.08960819113188,-3.32975725271674,-0.840240690994414,0.999
+"Authenticity","response","Human Forgery - Human Original","Direct",-1.07955743257802,-2.41586217679169,0.111290516068119,0.956
+"Authenticity","response","Human Forgery - Human Original","Indirect (joint)",-1.0012726562927,-1.43124575404058,-0.625405441655803,1
+"Authenticity","response","Human Forgery - Human Original","Indirect (joint, exact)",-1.00836436092666,-1.35761645131934,-0.636410042194602,1
+"Authenticity","response","Human Forgery - Human Original","Indirect (Beauty)",-0.155388022663276,-0.413680008175914,0.0797217431583123,0.90375
+"Authenticity","response","Human Forgery - Human Original","Indirect (Valence)",-0.19503701624116,-0.41242511167503,0.0304783528397288,0.962
+"Authenticity","response","Human Forgery - Human Original","Indirect (Meaning)",-0.241789187139869,-0.45278076977133,-0.0320132668505239,0.99125
+"Authenticity","response","Human Forgery - Human Original","Indirect (Worth)",-0.402046315042215,-0.864331989631728,0.112538933932462,0.9525
+"Authenticity","response","Human Forgery - Human Original","Mediator (Beauty)",-3.62835865890395,-4.49333384758917,-2.70132648284384,1
+"Authenticity","response","Human Forgery - Human Original","Mediator (Valence)",-3.78027782510965,-4.7927097217257,-2.80921939247012,1
+"Authenticity","response","Human Forgery - Human Original","Mediator (Meaning)",-4.5136642103325,-5.57483282539074,-3.44934506964129,1
+"Authenticity","response","Human Forgery - Human Original","Mediator (Worth)",-7.12982513022067,-8.14349800423283,-6.0697833184624,1
+"Authenticity","response","AI-Generated - Human Forgery","Total",0.603235268814527,-0.639546075727463,1.84221951743157,0.82975
+"Authenticity","response","AI-Generated - Human Forgery","Direct",1.28277500774122,0.00224541282206614,2.5181087600561,0.97725
+"Authenticity","response","AI-Generated - Human Forgery","Indirect (joint)",-0.673719654198865,-1.02322987529896,-0.349681711815076,1
+"Authenticity","response","AI-Generated - Human Forgery","Indirect (joint, exact)",-0.675478627832515,-0.959166668562395,-0.361127953992602,1
+"Authenticity","response","AI-Generated - Human Forgery","Indirect (Beauty)",-0.180381023164286,-0.378204177529442,-0.014334705826039,0.98175
+"Authenticity","response","AI-Generated - Human Forgery","Indirect (Valence)",-0.0786933369797903,-0.24919986170447,0.0809973381627014,0.84125
+"Authenticity","response","AI-Generated - Human Forgery","Indirect (Meaning)",-0.279863046745624,-0.556630058953947,-0.00443062623798699,0.98575
+"Authenticity","response","AI-Generated - Human Forgery","Indirect (Worth)",-0.128830062031071,-0.465729445283358,0.2346783182818,0.76375
+"Authenticity","response","AI-Generated - Human Forgery","Mediator (Beauty)",-2.74951734876103,-3.6703617001817,-1.82258440316076,1
+"Authenticity","response","AI-Generated - Human Forgery","Mediator (Valence)",-2.80275062883215,-3.81107739140305,-1.74913822907787,1
+"Authenticity","response","AI-Generated - Human Forgery","Mediator (Meaning)",-5.96470571182704,-7.20384342811485,-4.81470268608543,1
+"Authenticity","response","AI-Generated - Human Forgery","Mediator (Worth)",-4.972002541933,-5.95370589092694,-3.91779280838378,1
+"Authenticity","mu","AI-Generated - Human Original","Total",-2.18059237638124,-4.24588982012672,-0.0729697708693768,0.97825
+"Authenticity","mu","AI-Generated - Human Original","Direct",-0.716229951134889,-3.08283408822991,1.54097739461826,0.73025
+"Authenticity","mu","AI-Generated - Human Original","Indirect (joint)",-1.47810613812925,-2.59746548712756,-0.313466096798105,0.99325
+"Authenticity","mu","AI-Generated - Human Original","Indirect (joint, exact)",-1.48832259079729,-2.5740785971605,-0.297641618895883,0.99325
+"Authenticity","mu","AI-Generated - Human Original","Indirect (Beauty)",-0.569842638292298,-1.24393512302985,0.128241228364429,0.9535
+"Authenticity","mu","AI-Generated - Human Original","Indirect (Valence)",-0.361452490103321,-0.967952127836775,0.327025435414449,0.865
+"Authenticity","mu","AI-Generated - Human Original","Indirect (Meaning)",-0.668457333289604,-1.4530651573954,0.141470431788902,0.952
+"Authenticity","mu","AI-Generated - Human Original","Indirect (Worth)",0.110933014531845,-1.25719162149603,1.62863285128755,0.5615
+"Authenticity","mu","AI-Generated - Human Original","Mediator (Beauty)",-6.36501977252535,-7.29394064857765,-5.44308546411905,1
+"Authenticity","mu","AI-Generated - Human Original","Mediator (Valence)",-6.5568983260327,-7.63994795062589,-5.4893654528327,1
+"Authenticity","mu","AI-Generated - Human Original","Mediator (Meaning)",-10.4688342226279,-11.7603395174849,-9.21592026317417,1
+"Authenticity","mu","AI-Generated - Human Original","Mediator (Worth)",-12.1049710368913,-13.3701242307419,-10.7878374881969,1
+"Authenticity","mu","Human Forgery - Human Original","Total",-3.52668644229838,-5.67763979931894,-1.40219367002409,0.99875
+"Authenticity","mu","Human Forgery - Human Original","Direct",-2.17146342427369,-4.47987658629421,-0.103055348061554,0.975
+"Authenticity","mu","Human Forgery - Human Original","Indirect (joint)",-1.33063314192009,-1.99257638083725,-0.671093134359722,1
+"Authenticity","mu","Human Forgery - Human Original","Indirect (joint, exact)",-1.34536667672098,-1.96268788488297,-0.730983264950424,1
+"Authenticity","mu","Human Forgery - Human Original","Indirect (Beauty)",-0.153145059785809,-0.54732826090725,0.280522080348016,0.77425
+"Authenticity","mu","Human Forgery - Human Original","Indirect (Valence)",-0.340712624072429,-0.69893301656598,0.0621183882871102,0.96625
+"Authenticity","mu","Human Forgery - Human Original","Indirect (Meaning)",-0.283717691891193,-0.652192381444944,0.0688339104181729,0.9505
+"Authenticity","mu","Human Forgery - Human Original","Indirect (Worth)",-0.542441330259765,-1.39280638637922,0.271951447756083,0.90325
+"Authenticity","mu","Human Forgery - Human Original","Mediator (Beauty)",-3.62835865890395,-4.49333384758917,-2.70132648284384,1
+"Authenticity","mu","Human Forgery - Human Original","Mediator (Valence)",-3.78027782510965,-4.7927097217257,-2.80921939247012,1
+"Authenticity","mu","Human Forgery - Human Original","Mediator (Meaning)",-4.5136642103325,-5.57483282539074,-3.44934506964129,1
+"Authenticity","mu","Human Forgery - Human Original","Mediator (Worth)",-7.12982513022067,-8.14349800423283,-6.0697833184624,1
+"Authenticity","mu","AI-Generated - Human Forgery","Total",1.33966012335962,-0.96354800195206,3.31501279591562,0.8855
+"Authenticity","mu","AI-Generated - Human Forgery","Direct",2.0673055466175,-0.123459067202114,4.21272329831358,0.96775
+"Authenticity","mu","AI-Generated - Human Forgery","Indirect (joint)",-0.73100121607651,-1.30924134161391,-0.217968447155547,0.996
+"Authenticity","mu","AI-Generated - Human Forgery","Indirect (joint, exact)",-0.736715225978513,-1.27050832931009,-0.237998194355016,0.99675
+"Authenticity","mu","AI-Generated - Human Forgery","Indirect (Beauty)",-0.242090856003783,-0.557356697403252,0.0561348020182141,0.9535
+"Authenticity","mu","AI-Generated - Human Forgery","Indirect (Valence)",-0.150772421693095,-0.44347581036177,0.130680414659873,0.865
+"Authenticity","mu","AI-Generated - Human Forgery","Indirect (Meaning)",-0.37888908038604,-0.844787714641844,0.0942055705281722,0.952
+"Authenticity","mu","AI-Generated - Human Forgery","Indirect (Worth)",0.0450893086842264,-0.554271486359882,0.648388282081313,0.5615
+"Authenticity","mu","AI-Generated - Human Forgery","Mediator (Beauty)",-2.74951734876103,-3.6703617001817,-1.82258440316076,1
+"Authenticity","mu","AI-Generated - Human Forgery","Mediator (Valence)",-2.80275062883215,-3.81107739140305,-1.74913822907787,1
+"Authenticity","mu","AI-Generated - Human Forgery","Mediator (Meaning)",-5.96470571182704,-7.20384342811485,-4.81470268608543,1
+"Authenticity","mu","AI-Generated - Human Forgery","Mediator (Worth)",-4.972002541933,-5.95370589092694,-3.91779280838378,1
+"Authenticity","confright","AI-Generated - Human Original","Total",-0.983394911557905,-2.03618031956811,0.0449798251268289,0.96525
+"Authenticity","confright","AI-Generated - Human Original","Direct",0.623441494488536,-0.430050116228109,1.83022728671355,0.877
+"Authenticity","confright","AI-Generated - Human Original","Indirect (joint)",-1.61507446005362,-2.196530563609,-1.02166771850604,1
+"Authenticity","confright","AI-Generated - Human Original","Indirect (joint, exact)",-1.62148026898364,-2.16486178417684,-1.03354657636379,1
+"Authenticity","confright","AI-Generated - Human Original","Indirect (Beauty)",-0.113317841911414,-0.466395365403639,0.252032402417181,0.73275
+"Authenticity","confright","AI-Generated - Human Original","Indirect (Valence)",0.014404149248486,-0.300832871663827,0.339994913537875,0.53225
+"Authenticity","confright","AI-Generated - Human Original","Indirect (Meaning)",-0.292788089830693,-0.681107207690638,0.0904972176231373,0.9295
+"Authenticity","confright","AI-Generated - Human Original","Indirect (Worth)",-1.21556006622811,-1.91750241895939,-0.501479943863478,0.99975
+"Authenticity","confright","AI-Generated - Human Original","Mediator (Beauty)",-6.36501977252535,-7.29394064857765,-5.44308546411905,1
+"Authenticity","confright","AI-Generated - Human Original","Mediator (Valence)",-6.5568983260327,-7.63994795062589,-5.4893654528327,1
+"Authenticity","confright","AI-Generated - Human Original","Mediator (Meaning)",-10.4688342226279,-11.7603395174849,-9.21592026317417,1
+"Authenticity","confright","AI-Generated - Human Original","Mediator (Worth)",-12.1049710368913,-13.3701242307419,-10.7878374881969,1
+"Authenticity","confright","Human Forgery - Human Original","Total",-0.347432869845346,-1.34526033720843,0.65284424591837,0.7505
+"Authenticity","confright","Human Forgery - Human Original","Direct",0.536778738459703,-0.431249213727525,1.58371835368145,0.858
+"Authenticity","confright","Human Forgery - Human Original","Indirect (joint)",-0.879329302658779,-1.2457373514594,-0.567153698171873,1
+"Authenticity","confright","Human Forgery - Human Original","Indirect (joint, exact)",-0.881917000918719,-1.18175632606251,-0.563430685583233,1
+"Authenticity","confright","Human Forgery - Human Original","Indirect (Beauty)",-0.174613508055595,-0.410469529002431,0.00778085526586926,0.96425
+"Authenticity","confright","Human Forgery - Human Original","Indirect (Valence)",-0.0475645572252846,-0.223412565028803,0.139163196255507,0.702
+"Authenticity","confright","Human Forgery - Human Original","Indirect (Meaning)",-0.244012708095041,-0.418282444601277,-0.078595592066979,0.999
+"Authenticity","confright","Human Forgery - Human Original","Indirect (Worth)",-0.403399162232577,-0.793362727208083,-0.000341073633048066,0.98
+"Authenticity","confright","Human Forgery - Human Original","Mediator (Beauty)",-3.62835865890395,-4.49333384758917,-2.70132648284384,1
+"Authenticity","confright","Human Forgery - Human Original","Mediator (Valence)",-3.78027782510965,-4.7927097217257,-2.80921939247012,1
+"Authenticity","confright","Human Forgery - Human Original","Mediator (Meaning)",-4.5136642103325,-5.57483282539074,-3.44934506964129,1
+"Authenticity","confright","Human Forgery - Human Original","Mediator (Worth)",-7.12982513022067,-8.14349800423283,-6.0697833184624,1
+"Authenticity","confright","AI-Generated - Human Forgery","Total",-0.640573226052915,-1.60286350202885,0.430963625426676,0.89
+"Authenticity","confright","AI-Generated - Human Forgery","Direct",0.0696729788577544,-0.973336413496395,1.07099529407128,0.55725
+"Authenticity","confright","AI-Generated - Human Forgery","Indirect (joint)",-0.712698461501399,-1.00501743740418,-0.415033310380728,1
+"Authenticity","confright","AI-Generated - Human Forgery","Indirect (joint, exact)",-0.715608834682124,-0.974259967224178,-0.463669198456351,1
+"Authenticity","confright","AI-Generated - Human Forgery","Indirect (Beauty)",-0.0478508260714358,-0.206790253618959,0.111977635431893,0.73275
+"Authenticity","confright","AI-Generated - Human Forgery","Indirect (Valence)",0.00569583308470086,-0.133464686614459,0.151558332209664,0.53225
+"Authenticity","confright","AI-Generated - Human Forgery","Indirect (Meaning)",-0.165863754999289,-0.40110727309483,0.0512153220337705,0.9295
+"Authenticity","confright","AI-Generated - Human Forgery","Indirect (Worth)",-0.502304999766954,-0.806044836305164,-0.195241148034046,0.99975
+"Authenticity","confright","AI-Generated - Human Forgery","Mediator (Beauty)",-2.74951734876103,-3.6703617001817,-1.82258440316076,1
+"Authenticity","confright","AI-Generated - Human Forgery","Mediator (Valence)",-2.80275062883215,-3.81107739140305,-1.74913822907787,1
+"Authenticity","confright","AI-Generated - Human Forgery","Mediator (Meaning)",-5.96470571182704,-7.20384342811485,-4.81470268608543,1
+"Authenticity","confright","AI-Generated - Human Forgery","Mediator (Worth)",-4.972002541933,-5.95370589092694,-3.91779280838378,1
+"Authenticity","confleft","AI-Generated - Human Original","Total",-0.270261260629478,-1.55679728029496,1.237511939791,0.64425
+"Authenticity","confleft","AI-Generated - Human Original","Direct",-0.749595431689998,-2.36524377848246,0.882795957371885,0.82375
+"Authenticity","confleft","AI-Generated - Human Original","Indirect (joint)",0.476435586954744,-0.285168594606191,1.27275160505132,0.891
+"Authenticity","confleft","AI-Generated - Human Original","Indirect (joint, exact)",0.478099336583904,-0.26510530124465,1.26963182897567,0.89
+"Authenticity","confleft","AI-Generated - Human Original","Indirect (Beauty)",0.436023513808507,-0.00832955144997006,0.870885356108821,0.97825
+"Authenticity","confleft","AI-Generated - Human Original","Indirect (Valence)",-0.0275375694037106,-0.392998473555867,0.391406371156955,0.5575
+"Authenticity","confleft","AI-Generated - Human Original","Indirect (Meaning)",0.19036257550371,-0.276091821991269,0.697552809462761,0.77225
+"Authenticity","confleft","AI-Generated - Human Original","Indirect (Worth)",-0.130626943029498,-1.11821737455932,0.780133169078165,0.601
+"Authenticity","confleft","AI-Generated - Human Original","Mediator (Beauty)",-6.36501977252535,-7.29394064857765,-5.44308546411905,1
+"Authenticity","confleft","AI-Generated - Human Original","Mediator (Valence)",-6.5568983260327,-7.63994795062589,-5.4893654528327,1
+"Authenticity","confleft","AI-Generated - Human Original","Mediator (Meaning)",-10.4688342226279,-11.7603395174849,-9.21592026317417,1
+"Authenticity","confleft","AI-Generated - Human Original","Mediator (Worth)",-12.1049710368913,-13.3701242307419,-10.7878374881969,1
+"Authenticity","confleft","Human Forgery - Human Original","Total",0.220613144550168,-1.1249290953048,1.55224975053843,0.6205
+"Authenticity","confleft","Human Forgery - Human Original","Direct",0.323526282206987,-1.14063831689039,1.66159061067369,0.67875
+"Authenticity","confleft","Human Forgery - Human Original","Indirect (joint)",-0.117359310578803,-0.517884557831546,0.283476603371841,0.71975
+"Authenticity","confleft","Human Forgery - Human Original","Indirect (joint, exact)",-0.11733065613726,-0.510477796996189,0.278371138387357,0.71475
+"Authenticity","confleft","Human Forgery - Human Original","Indirect (Beauty)",0.0834205492909686,-0.179999499283686,0.358006403402452,0.7415
+"Authenticity","confleft","Human Forgery - Human Original","Indirect (Valence)",-0.0534541110044093,-0.303275075647639,0.171359189351117,0.67825
+"Authenticity","confleft","Human Forgery - Human Original","Indirect (Meaning)",0.0255289938680265,-0.180654953405119,0.237033045774835,0.595
+"Authenticity","confleft","Human Forgery - Human Original","Indirect (Worth)",-0.167495899652092,-0.687488131853541,0.347763071236263,0.73225
+"Authenticity","confleft","Human Forgery - Human Original","Mediator (Beauty)",-3.62835865890395,-4.49333384758917,-2.70132648284384,1
+"Authenticity","confleft","Human Forgery - Human Original","Mediator (Valence)",-3.78027782510965,-4.7927097217257,-2.80921939247012,1
+"Authenticity","confleft","Human Forgery - Human Original","Mediator (Meaning)",-4.5136642103325,-5.57483282539074,-3.44934506964129,1
+"Authenticity","confleft","Human Forgery - Human Original","Mediator (Worth)",-7.12982513022067,-8.14349800423283,-6.0697833184624,1
+"Authenticity","confleft","AI-Generated - Human Forgery","Total",-0.475845906340835,-1.9764787554628,0.88032163443405,0.74875
+"Authenticity","confleft","AI-Generated - Human Forgery","Direct",-0.716759755450513,-2.16528910525663,0.80378440062564,0.83925
+"Authenticity","confleft","AI-Generated - Human Forgery","Indirect (joint)",0.233868070128911,-0.137654966362693,0.566592140512068,0.91025
+"Authenticity","confleft","AI-Generated - Human Forgery","Indirect (joint, exact)",0.236798943734678,-0.0985371772502353,0.571193899366851,0.91525
+"Authenticity","confleft","AI-Generated - Human Forgery","Indirect (Beauty)",0.182153481324944,-0.00249252082156887,0.396109148470571,0.97825
+"Authenticity","confleft","AI-Generated - Human Forgery","Indirect (Valence)",-0.0115523884393311,-0.181638877122048,0.159662737339357,0.5575
+"Authenticity","confleft","AI-Generated - Human Forgery","Indirect (Meaning)",0.10726007456646,-0.176287237192432,0.389643576545405,0.77225
+"Authenticity","confleft","AI-Generated - Human Forgery","Indirect (Worth)",-0.0519213417451117,-0.448455298776567,0.336201465344874,0.601
+"Authenticity","confleft","AI-Generated - Human Forgery","Mediator (Beauty)",-2.74951734876103,-3.6703617001817,-1.82258440316076,1
+"Authenticity","confleft","AI-Generated - Human Forgery","Mediator (Valence)",-2.80275062883215,-3.81107739140305,-1.74913822907787,1
+"Authenticity","confleft","AI-Generated - Human Forgery","Mediator (Meaning)",-5.96470571182704,-7.20384342811485,-4.81470268608543,1
+"Authenticity","confleft","AI-Generated - Human Forgery","Mediator (Worth)",-4.972002541933,-5.95370589092694,-3.91779280838378,1

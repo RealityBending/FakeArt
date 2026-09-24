@@ -1,13 +1,31 @@
-"Model","Condition","Median","CI_low","CI_high","pd"
-"RealityBeauty","Human Original",3.36629424021218,2.77954185788321,3.92054000868758,1
-"RealityBeauty","Human Forgery",2.70250385737958,2.11025578670809,3.2732071698256,1
-"RealityBeauty","AI-Generated",2.67678276594707,2.11210247487448,3.27418096483473,1
-"RealityBeauty","AI-Generated - Human Original",-0.675289104221655,-1.3874859755727,-0.0524776061068266,0.97775
-"RealityBeauty","Human Forgery - Human Original",-0.653594625281306,-1.31606576217869,-0.00948245716758667,0.97725
-"RealityBeauty","AI-Generated - Human Forgery",-0.0165876582820523,-0.748856205693427,0.642055174068901,0.522
-"AuthenticityBeauty","Human Original",1.94136190193789,1.45493793753759,2.3563139632985,1
-"AuthenticityBeauty","Human Forgery",1.42925036461827,0.975398470883904,1.90067989047449,1
-"AuthenticityBeauty","AI-Generated",1.30818130163657,0.825855641162221,1.74599824825272,1
-"AuthenticityBeauty","AI-Generated - Human Original",-0.623850270321136,-1.14734638876124,-0.0600061961956166,0.98975
-"AuthenticityBeauty","Human Forgery - Human Original",-0.501745488829031,-1.11761172589064,0.0109656778318756,0.96375
-"AuthenticityBeauty","AI-Generated - Human Forgery",-0.122510537908405,-0.697341902293869,0.43162415228637,0.6675
+"Model","Predictor","Condition","Median","CI_low","CI_high","pd"
+"RealityBeauty","Beauty_w","Human Original",3.36298157575587,2.7786191095911,3.95142766660073,1
+"RealityBeauty","Beauty_w","Human Forgery",2.70328811593434,2.11249527256008,3.29686474184554,1
+"RealityBeauty","Beauty_w","AI-Generated",2.66843363501046,2.09832727867687,3.26857029281213,1
+"RealityBeauty","Beauty_w","AI-Generated - Human Original",-0.690888688809788,-1.3080351868614,-0.0547023919613698,0.983
+"RealityBeauty","Beauty_w","Human Forgery - Human Original",-0.66233373563368,-1.30920770876453,-0.00261763024100858,0.9745
+"RealityBeauty","Beauty_w","AI-Generated - Human Forgery",-0.0310388943359774,-0.71601303651303,0.596440994408587,0.5375
+"AuthenticityBeauty","Beauty_w","Human Original",1.94136190193789,1.45493793753759,2.3563139632985,1
+"AuthenticityBeauty","Beauty_w","Human Forgery",1.42925036461827,0.975398470883904,1.90067989047449,1
+"AuthenticityBeauty","Beauty_w","AI-Generated",1.30818130163657,0.825855641162221,1.74599824825272,1
+"AuthenticityBeauty","Beauty_w","AI-Generated - Human Original",-0.623850270321136,-1.14734638876124,-0.0600061961956166,0.98975
+"AuthenticityBeauty","Beauty_w","Human Forgery - Human Original",-0.501745488829031,-1.11761172589064,0.0109656778318756,0.96375
+"AuthenticityBeauty","Beauty_w","AI-Generated - Human Forgery",-0.122510537908405,-0.697341902293869,0.43162415228637,0.6675
+"RealityBeautyControl","Beauty_w","Human Original",2.50968801304824,1.85408074172799,3.24901081640694,1
+"RealityBeautyControl","Beauty_w","Human Forgery",1.97283690323646,1.27026028665744,2.68028408977494,1
+"RealityBeautyControl","Beauty_w","AI-Generated",2.16566457204065,1.4918874722224,2.88223119547348,1
+"RealityBeautyControl","Beauty_w","AI-Generated - Human Original",-0.337477007878895,-1.10118069102416,0.446055755546126,0.79725
+"RealityBeautyControl","Beauty_w","Human Forgery - Human Original",-0.532659602045849,-1.30345749122251,0.242767847590475,0.90875
+"RealityBeautyControl","Beauty_w","AI-Generated - Human Forgery",0.1917973366444,-0.609346746630379,1.0345638580353,0.6795
+"AuthenticityBeautyControl","Beauty_w","Human Original",1.64496598964103,1.07298833577341,2.16602027125568,1
+"AuthenticityBeautyControl","Beauty_w","Human Forgery",1.18576649259217,0.625063487001531,1.75933052360877,1
+"AuthenticityBeautyControl","Beauty_w","AI-Generated",1.18026651718706,0.621488221219435,1.75017859337256,0.99975
+"AuthenticityBeautyControl","Beauty_w","AI-Generated - Human Original",-0.466099385961705,-1.11244309572101,0.220792360969613,0.91725
+"AuthenticityBeautyControl","Beauty_w","Human Forgery - Human Original",-0.456702840317125,-1.13150089414005,0.219775564241909,0.9035
+"AuthenticityBeautyControl","Beauty_w","AI-Generated - Human Forgery",-0.00483783150123651,-0.722479866816839,0.708044169224209,0.5035
+"RealityBeautyControl","Beauty2_w","Human Original",1.66291628912563,1.24481144242573,2.11550878130252,1
+"RealityBeautyControl","Beauty2_w","Human Forgery",1.67421666236904,1.24263708625865,2.12302007431638,1
+"RealityBeautyControl","Beauty2_w","AI-Generated",1.68002315598558,1.27885436135222,2.16644141054189,1
+"AuthenticityBeautyControl","Beauty2_w","Human Original",0.545120899441726,0.171221153629908,0.917122183853769,0.998
+"AuthenticityBeautyControl","Beauty2_w","Human Forgery",0.54759344637379,0.164188330030346,0.937152819531484,0.997
+"AuthenticityBeautyControl","Beauty2_w","AI-Generated",0.540655173662352,0.165593999160352,0.909701924782658,0.99775

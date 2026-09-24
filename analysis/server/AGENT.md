@@ -635,6 +635,34 @@ Run `./hpc extract` on Beauty2 and SelfRelevance (the two worst) first — the
 class split above may well show the same pattern, in which case a blanket
 refit buys a better-looking headline and nothing else.
 
+### 3.7a Measured: warmup 3,000 on RealityBeauty and RealityItems (2026-09-24)
+
+The two determinants models whose *fixed effects* were the worst
+(`confright` / `confleft` intercepts at Rhat 1.083 / 1.088, bulk ESS 76 / 100
+at warmup 1,000) were refit at `FA_WARMUP=3000` (jobs 11408511 / 11408515,
+`general`, default 4 x 2 chains, into `models_w3000`). Shards ran 25-91 min
+(RealityBeauty) and 42-59 min (RealityItems), i.e. no slower than at warmup
+1,000; both combines have 4,000 draws.
+
+| model | class | Rhat w1000 | Rhat w3000 | min ESS w1000 | min ESS w3000 |
+| --- | --- | --- | --- | --- | --- |
+| RealityBeauty | b | 1.083 | 1.073 | 76 | 111 |
+| RealityBeauty | cor | 1.109 | 1.069 | 56 | 94 |
+| RealityItems | b | 1.088 | 1.077 | 100 | 87 |
+
+The worst fixed effects are still the same `confright` / `confleft`
+intercepts. Every number the manuscript quotes from the two models kept its
+median (except arousal −5.3 → −5.4 and the direct `confright` effect −1.8 →
+−1.7); CI bounds moved by at most 0.1. So the warmup buys a little mixing on
+these intercepts and nothing in the results; the slow CHOCO confidence
+intercepts are a property of the model, not of the warmup.
+
+The refits are now the analysed fits: shards, `combined/` and `estimates/`
+in the default `models/` on the cluster, estimates in `analysis/models/`
+locally. The warmup-1,000 shards, combined fits and estimates are in
+`models/w1000_backup/` on the cluster (outside the `combined/*.rds` pull
+pattern). `models_w3000/` still holds the same refits and can be deleted.
+
 ---
 
 ### 3.6a Measured: `normal` caps the whole account at 550 CPUs (2026-09-22)

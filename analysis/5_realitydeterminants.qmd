@@ -34,7 +34,11 @@ cols <- c(
   "New" = "#607D8B")
 
 source("server/estimates.R") # mediation_info, mediation_effects(), prep_contrasts()
-source("report.R")           # make_asis(), make_tables(), make_markdown(), read_estimates()
+source("report.R")           # make_asis(), make_tables(), read_estimates(), get_choco_plot()
+
+# Trial file: only for the observed histograms of Figure 3
+dftask <- read.csv("../data/data_task.csv") |>
+  mutate(Condition = fct_relevel(Condition, "Human Original", "Human Forgery", "AI-Generated"))
 
 estimates <- read_estimates(c(names(mediation_info), names(appraisal_info), names(items_info)))
 # The label effects of the main models (Condition * Emotion), for comparison
@@ -47,20 +51,20 @@ provenance_table(c(estimates, reference))
 # (ArtificialityBeauty is not a mediation: by = Type, see its own section)
 main_models <- c("RealityBeauty", "AuthenticityBeauty")
 control_models <- c(RealityBeauty = "RealityBeautyControl", AuthenticityBeauty = "AuthenticityBeautyControl")
-mediation <- lapply(estimates[c(main_models, control_models)], mediation_effects)
+mediation <- lapply(estimates[c(main_models, unname(control_models))], mediation_effects)
 choco_pars <- c("mu", "confright", "confleft")
 mediation_pars <- lapply(estimates[main_models], function(e) {
   lapply(setNames(nm = choco_pars), function(p) mediation_effects(e, par = p))
 })
 # Joint appraisal mediators and item properties (their own sections)
 appraisal_models <- c(Syntheticness = "RealityAppraisal", Authenticity = "AuthenticityAppraisal")
-appraisal <- lapply(estimates[appraisal_models], function(e) {
+appraisal <- setNames(lapply(estimates[appraisal_models], function(e) {
   lapply(setNames(nm = c("response", choco_pars)), function(p) appraisal_effects(e, par = p))
-})
+}), names(appraisal_models))
 items_models <- c(Syntheticness = "RealityItems", Authenticity = "AuthenticityItems")
-items <- lapply(estimates[items_models], function(e) {
+items <- setNames(lapply(estimates[items_models], function(e) {
   lapply(setNames(nm = c("response", "mu")), function(p) items_effects(e, par = p))
-})
+}), names(items_models))
 
 # Plain-language names of the CHOCO parameters, per belief (right = the "1" end)
 par_labels <- list(
@@ -312,6 +316,267 @@ section_tables("AuthenticityBeauty", "Authenticity")
 
 ## Appraisal components
 
+The decomposition as a path diagram, laid out on the timeline of the
+experiment (saved to `figures/determinants_diagram.png`; the bottom panel of
+the manuscript's Figure 3, see below). The two curved arrows between the labels are the contrasts
+(Original, the baseline, → AI-Generated above and → Forgery below), and every
+path of a contrast starts from its hub. Label → rating: the label's effect on
+each Phase-1 rating (% of its scale); rating → belief: the unique indirect
+effect through that rating; brackets: the direct effect (AI-Generated above,
+Forgery below; the effect on the belief the label does not imply runs around
+the right); in each belief: the total and the joint indirect effect, all in %
+of the belief scale. Coefficients run along their path, AI-Generated above it
+and Forgery below. The artwork (a Phase-1 stimulus) marks what participants
+saw between the label and the ratings. Line width scales with the effect;
+dashed and faded = 95% HDI includes 0.
+
+```{r}
+#| fig-width: 10.5
+#| fig-height: 6.75
+
+# Path diagram of the appraisal decomposition on the timeline of the
+# experiment (see the text above). `eff`: appraisal_effects()$effects of both
+# beliefs, with a Belief column; `image`: the artwork drawn behind the label ->
+# rating paths.
+plot_appraisal_diagram <- function(eff, image = "../experiment/stimuli/stimuli/10130.jpg") {
+  meds <- c("Beauty", "Meaning", "Valence", "Worth")
+  key <- c("AI-Generated - Human Original" = "AI", "Human Forgery - Human Original" = "Forgery")
+  col_line <- c(AI = cols[["AI-Generated"]], Forgery = cols[["Human Forgery"]])
+  col_text <- c(AI = "#0B6FBF", Forgery = "#C47A00")
+  col_node <- c("AI-Generated" = "#0B6FBF", "Human Original" = "#C4103F", "Human Forgery" = "#C47A00")
+  # text: darker shade of the contrast colour, faded when the HDI includes 0
+  tcol <- function(k, credible = TRUE) {
+    rgb <- col2rgb(col_text[k]) / 255
+    a <- ifelse(credible, 1, 0.5)
+    grDevices::rgb(1 - a * (1 - rgb[1, ]), 1 - a * (1 - rgb[2, ]), 1 - a * (1 - rgb[3, ]))
+  }
+  num <- function(x) gsub("-", "\u2212", sprintf("%.1f", x))
+  ci <- function(m, lo, hi) sprintf("%s [%s, %s]", num(m), num(lo), num(hi))
+  inner <- function(x) str_extract(x, "(?<=\\().*(?=\\))")
+
+  # S-curve (cubic Bezier, horizontal at both ends) from (x0, y0) to (x1, y1),
+  # shifted by `off` along its normal; `t` returns points, positions and
+  # tangent angles (degrees) at the requested t.
+  scurve <- function(x0, y0, x1, y1, off = 0, t = seq(0, 1, length.out = 60), k = 0.5) {
+    cx0 <- x0 + k * (x1 - x0); cx1 <- x1 - k * (x1 - x0)
+    x <- (1 - t)^3 * x0 + 3 * (1 - t)^2 * t * cx0 + 3 * (1 - t) * t^2 * cx1 + t^3 * x1
+    y <- (1 - t)^3 * y0 + 3 * (1 - t)^2 * t * y0 + 3 * (1 - t) * t^2 * y1 + t^3 * y1
+    dx <- 3 * (1 - t)^2 * (cx0 - x0) + 6 * (1 - t) * t * (cx1 - cx0) + 3 * t^2 * (x1 - cx1)
+    dy <- 6 * (1 - t) * t * (y1 - y0)
+    len <- sqrt(dx^2 + dy^2)
+    tibble(t = t, x = x - dy / len * off, y = y + dx / len * off,
+           angle = atan2(dy, dx) * 180 / pi, nx = -dy / len, ny = dx / len)
+  }
+  # Orthogonal polyline with rounded corners (quadratic Bezier at each corner)
+  rounded <- function(x, y, r = 0.2, n = 12) {
+    px <- x[1]; py <- y[1]
+    m <- length(x)
+    for (i in 2:(m - 1)) {
+      lin <- sqrt((x[i] - x[i - 1])^2 + (y[i] - y[i - 1])^2)
+      lout <- sqrt((x[i + 1] - x[i])^2 + (y[i + 1] - y[i])^2)
+      ri <- min(r, if (i == 2) lin else lin / 2, if (i == m - 1) lout * 0.6 else lout / 2)
+      ux <- (x[i] - x[i - 1]) / lin; uy <- (y[i] - y[i - 1]) / lin
+      vx <- (x[i + 1] - x[i]) / lout; vy <- (y[i + 1] - y[i]) / lout
+      ax <- x[i] - ux * ri; ay <- y[i] - uy * ri
+      bx <- x[i] + vx * ri; by <- y[i] + vy * ri
+      s <- seq(0, 1, length.out = n)
+      px <- c(px, (1 - s)^2 * ax + 2 * (1 - s) * s * x[i] + s^2 * bx)
+      py <- c(py, (1 - s)^2 * ay + 2 * (1 - s) * s * y[i] + s^2 * by)
+    }
+    tibble(x = c(px, x[m]), y = c(py, y[m]))
+  }
+
+  eff <- eff |>
+    filter(Contrast %in% names(key)) |>
+    mutate(Key = unname(key[Contrast]), Credible = sign(CI_low) == sign(CI_high))
+
+  # Layout (x = time, left to right) -------------------------------------
+  lab <- tibble(name = c("AI-Generated", "Original", "Human Forgery"),
+                cond = c("AI-Generated", "Human Original", "Human Forgery"),
+                sub = c("vs. Original", "Baseline", "vs. Original"),
+                x = 0, y = c(1.05, 0, -1.05), w = 1.1, h = 0.42)
+  app <- tibble(name = meds, x = 3.6, y = c(1.5, 0.5, -0.5, -1.5), w = 0.95, h = 0.42)
+  bel <- tibble(name = c("Syntheticness", "Authenticity"), x = 6.75, y = c(0.85, -0.85), w = 2.3, h = 0.98)
+  hub <- tibble(Key = c("AI", "Forgery"), s = c(1, -1), x = 0.9, y = c(0.525, -0.525))
+  rect <- function(d) mutate(d, xmin = x - w / 2, xmax = x + w / 2, ymin = y - h / 2, ymax = y + h / 2)
+  lab <- rect(lab); app <- rect(app); bel <- rect(bel)
+  lw <- function(m, credible, k) ifelse(credible, pmax(abs(m) * k, 0.5), 0.4)
+
+  # Contrast arcs: from the right edge of Original to AI (up) / Forgery (down)
+  arcs <- bind_rows(lapply(c(AI = 1, Forgery = -1), function(s) {
+    th <- seq(-pi / 2, pi / 2, length.out = 80)
+    tibble(x = 0.55 + 0.35 * cos(th), y = s * (0.525 + 0.43 * sin(th)))
+  }), .id = "Key")
+
+  # Label -> rating (mediator shift): S-curves leaving the hub horizontally,
+  # start points spread over the hub in the order of their targets
+  start <- setNames(c(0.025, 0, -0.025, -0.05), meds)
+  a <- eff |>
+    filter(Belief == "Syntheticness", Path %in% paste0("Mediator (", meds, ")")) |>
+    mutate(to = inner(Path)) |>
+    left_join(select(hub, Key, s, x0 = x, y0 = y), by = "Key") |>
+    left_join(select(app, to = name, x1 = xmin, y1 = y), by = "to") |>
+    mutate(y0 = y0 + ifelse(Key == "AI", start[to], start[to] + 0.025),
+           x1 = x1 - 0.02, y1 = y1 + ifelse(Key == "AI", 0.06, -0.06),
+           w = lw(Median, Credible, 0.28), id = paste(Key, to))
+  a_path <- a |>
+    rowwise() |>
+    reframe(id, Key, Credible, w, scurve(x0, y0, x1, y1))
+  # Coefficients along the paths, off the line (AI above, Forgery below)
+  dodge <- function(key, w) ifelse(key == "AI", 1, -1) * (0.05 + w * 0.0125)
+  a_lab <- a |>
+    rowwise() |>
+    reframe(Key, Credible, Median, d = dodge(Key, w), scurve(x0, y0, x1, y1, t = 0.85)) |>
+    mutate(x = x + nx * d, y = y + ny * d)
+
+  # Rating -> belief (unique indirect), one line per contrast, side by side
+  arrive <- setNames(c(0.33, 0.11, -0.11, -0.33), meds)
+  ind <- eff |>
+    filter(Path %in% paste0("Indirect (", meds, ")")) |>
+    mutate(from = inner(Path)) |>
+    left_join(select(app, from = name, x0 = xmax, y0 = y), by = "from") |>
+    left_join(select(bel, Belief = name, x1 = xmin, y1 = y), by = "Belief") |>
+    mutate(y0 = y0 + ifelse(Belief == "Syntheticness", 0.1, -0.1),
+           y1 = y1 + arrive[from], x1 = x1 - 0.02,
+           off = ifelse(Key == "AI", 1, -1) * 0.028,
+           w = lw(Median, Credible, 1.1), id = paste(Key, from, Belief))
+  ind_path <- ind |>
+    rowwise() |>
+    reframe(id, Key, Credible, w, scurve(x0, y0, x1, y1, off))
+  ind_lab <- ind |>
+    rowwise() |>
+    reframe(Key, Credible, Median, d = dodge(Key, w), scurve(x0, y0, x1, y1, off, t = 0.25)) |>
+    mutate(x = x + nx * d, y = y + ny * d)
+
+  # Direct effects: AI above, Forgery below; the belief the label implies
+  # through the inner bracket, the other one around the right
+  bx <- bel$x[1]
+  right <- c(AI = 8.22, Forgery = 8.1)
+  ytop_card <- abs(bel$y[1]) + bel$h[1] / 2 + 0.02
+  dir <- eff |>
+    filter(Path == "Direct") |>
+    left_join(hub, by = "Key") |>
+    mutate(own = (Key == "AI" & Belief == "Syntheticness") | (Key == "Forgery" & Belief == "Authenticity"),
+           ytop = s * ifelse(own, 2.1, 2.35),
+           w = lw(Median, Credible, 1.1),
+           lx = ifelse(own, app$x[1], (bx + right[Key]) / 2),
+           # inner bracket: label inside it; outer bracket: outside
+           ly = ytop + s * ifelse(own, -1, 1) * (0.06 + w * 0.0125),
+           id = paste(Key, Belief))
+  dir_path <- bind_rows(lapply(seq_len(nrow(dir)), function(i) {
+    d <- dir[i, ]
+    y0 <- d$y + d$s * ifelse(d$own, 0.05, 0.075)
+    if (d$own) {
+      xv <- d$x + 0.32
+      p <- rounded(c(d$x, xv, xv, bx, bx), c(y0, y0, d$ytop, d$ytop, d$s * ytop_card), r = 0.22)
+    } else {
+      xv <- d$x + 0.17
+      yt <- bel$y[bel$name == d$Belief] + d$s * 0.22
+      p <- rounded(c(d$x, xv, xv, right[[d$Key]], right[[d$Key]], max(bel$xmax) + 0.02),
+                   c(y0, y0, d$ytop, d$ytop, yt, yt), r = 0.17)
+    }
+    mutate(p, id = d$id, Key = d$Key, Credible = d$Credible, w = d$w)
+  })) |>
+    mutate(id = factor(id, levels = dir$id[order(dir$w)]))
+
+  # Belief cards: total and joint indirect effect per contrast
+  tot <- eff |>
+    filter(Path %in% c("Total", "Indirect (joint)")) |>
+    mutate(txt = ci(Median, CI_low, CI_high)) |>
+    left_join(select(bel, Belief = name, bx = x, by = y, bxmin = xmin), by = "Belief") |>
+    mutate(x = bx + ifelse(Path == "Total", -0.12, 0.72),
+           y = by - ifelse(Key == "AI", 0.08, 0.3))
+
+  # Image (faded towards white)
+  img <- jpeg::readJPEG(image)
+  img <- 1 - 0.35 * (1 - img)
+  iw <- 1.9; ih <- iw * dim(img)[1] / dim(img)[2]; ix <- 2.05
+
+  # Timeline
+  chev <- function(x0, x1, y0, y1, tip = 0.14, notch = TRUE) {
+    ym <- (y0 + y1) / 2
+    tibble(x = c(x0, x1, x1 + tip, x1, x0, if (notch) x0 + tip else x0),
+           y = c(y1, y1, ym, y0, y0, ym))
+  }
+  yband <- c(-3.17, -2.87)
+  bands <- bind_rows(
+    mutate(chev(-0.55, max(app$xmax) + 0.08, yband[1], yband[2], notch = FALSE), Phase = "Phase 1"),
+    mutate(chev(min(bel$xmin) - 0.1, right[["AI"]] - 0.02, yband[1], yband[2]), Phase = "Phase 2"))
+  col_phase <- c("Phase 1" = "#C766C9", "Phase 2" = "#7E6FD1")
+  titles <- tibble(x = c(0, ix, app$x[1], bx), y = -2.74,
+                   txt = c("Label", "Artwork (5 s)", "Appraisal", "Reality beliefs"))
+
+  arr <- arrow(length = unit(2, "mm"), type = "closed")
+  txt_size <- 2.7
+
+  ggplot() +
+    annotation_raster(img, ix - iw / 2, ix + iw / 2, -ih / 2, ih / 2) +
+    annotate("rect", xmin = ix - iw / 2, xmax = ix + iw / 2, ymin = -ih / 2, ymax = ih / 2,
+             fill = NA, color = "grey80", linewidth = 0.3) +
+    # direct effects (white halo so that the crossing reads)
+    geom_path(data = filter(dir_path, x > max(bel$xmax) - 0.01), aes(x = x, y = y, group = id, linewidth = w + 1.2),
+              color = "white", lineend = "butt") +
+    geom_path(data = dir_path, aes(x = x, y = y, group = id, color = Key, linewidth = w,
+                                   linetype = Credible, alpha = Credible),
+              arrow = arr, lineend = "butt", linejoin = "mitre") +
+    geom_text(data = dir, aes(x = lx, y = ly, label = paste0("direct: ", ci(Median, CI_low, CI_high)),
+                              color = I(tcol(Key, Credible))), size = txt_size) +
+    # label -> rating
+    geom_path(data = a_path, aes(x = x, y = y, group = id, color = Key, linewidth = w,
+                                 linetype = Credible, alpha = Credible), arrow = arr, lineend = "butt", linejoin = "mitre") +
+    geom_text(data = a_lab, aes(x = x, y = y, angle = angle, label = num(Median), color = I(tcol(Key, Credible))),
+              size = txt_size) +
+    # rating -> belief
+    geom_path(data = ind_path, aes(x = x, y = y, group = id, color = Key, linewidth = w,
+                                   linetype = Credible, alpha = Credible), arrow = arr, lineend = "butt", linejoin = "mitre") +
+    geom_text(data = ind_lab, aes(x = x, y = y, angle = angle, label = num(Median), color = I(tcol(Key, Credible))),
+              size = txt_size - 0.2) +
+    # contrast arcs and hubs
+    geom_path(data = arcs, aes(x = x, y = y, group = Key, color = Key), linewidth = 2.2,
+              arrow = arrow(length = unit(2.6, "mm"), type = "closed"), lineend = "butt", linejoin = "mitre") +
+    geom_point(data = hub, aes(x = x, y = y, fill = Key), shape = 21, color = "white", stroke = 1.2, size = 5) +
+    # nodes
+    geom_rect(data = lab, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = cond, color = cond),
+              linewidth = 0.8, alpha = 0.12) +
+    geom_text(data = lab, aes(x = x, y = y, label = name, color = I(col_node[cond])), fontface = "bold", size = 3.4) +
+    geom_text(data = lab, aes(x = x, y = ymin - 0.09, label = sub), fontface = "italic", size = 2.7, color = "grey40") +
+    geom_rect(data = app, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+              fill = "white", color = "grey30", linewidth = 0.5) +
+    geom_text(data = app, aes(x = x, y = y, label = name), fontface = "bold", size = 3.3) +
+    geom_rect(data = bel, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+              fill = "#F4F6F7", color = "grey30", linewidth = 0.5) +
+    geom_text(data = bel, aes(x = x, y = y + 0.3, label = name), fontface = "bold", size = 3.5) +
+    geom_text(data = distinct(select(tot, Belief, Path, x, by)),
+              aes(x = x, y = by + 0.12, label = ifelse(Path == "Total", "Total", "via appraisal")),
+              size = txt_size - 0.2, color = "grey40", fontface = "italic") +
+    geom_text(data = tot, aes(x = x, y = y, label = txt, color = I(tcol(Key, Credible))), size = txt_size) +
+    geom_text(data = distinct(select(tot, Key, bxmin, y)),
+              aes(x = bxmin + 0.1, y = y, label = ifelse(Key == "AI", "AI", "Forgery"), color = I(tcol(Key))),
+              hjust = 0, size = txt_size, fontface = "bold") +
+    # timeline
+    geom_polygon(data = bands, aes(x = x, y = y, group = Phase, fill = Phase)) +
+    annotate("text", x = c((max(app$xmax) - 0.47) / 2, (min(bel$xmin) + right[["AI"]]) / 2), y = mean(yband),
+             label = c("Phase 1", "Phase 2"), color = "white", fontface = "bold", size = 3.6) +
+    annotate("text", x = (max(app$xmax) + min(bel$xmin)) / 2 + 0.02, y = mean(yband), label = "questionnaires",
+             color = "grey45", fontface = "italic", size = 2.4) +
+    geom_text(data = titles, aes(x = x, y = y, label = txt), fontface = "bold", size = 3.3,
+              vjust = 0, color = "grey25") +
+    scale_color_manual(values = c(col_line, cols), guide = "none") +
+    scale_fill_manual(values = c(col_line, cols, col_phase), guide = "none") +
+    scale_linewidth_identity() +
+    scale_linetype_manual(values = c(`TRUE` = "solid", `FALSE` = "22"), guide = "none") +
+    scale_alpha_manual(values = c(`TRUE` = 1, `FALSE` = 0.8), guide = "none") +
+    coord_fixed(xlim = c(-0.6, 8.35), ylim = c(-3.2, 2.55), expand = FALSE, clip = "off") +
+    theme_void() +
+    theme(plot.margin = margin(8, 8, 8, 8))
+}
+
+eff_diagram <- bind_rows(lapply(names(appraisal), function(b) mutate(appraisal[[b]]$response$effects, Belief = b)))
+p_diagram <- plot_appraisal_diagram(eff_diagram)
+ggsave("figures/determinants_diagram.png", p_diagram, width = 10.5, height = 6.75, dpi = 300, bg = "white")
+p_diagram
+```
+
 ```{r}
 #| fig-width: 10
 #| fig-height: 5.5
@@ -482,6 +747,32 @@ make_asis(
               c("Contrast", "Style", "Diff", "CI", "pd_fmt", "Effect"),
               "Differences between styles (% of the belief slider)")
 )
+```
+
+## Figure 3
+
+Manuscript Figure 3. Top: the label effects on the two Phase-2 beliefs, from
+the main `Reality` and `Authenticity` models (the same panels as in
+`3_models.qmd`). Bottom: the appraisal decomposition diagram above.
+
+```{r}
+#| fig-width: 10.5
+#| fig-height: 10.5
+
+p_reality <- get_choco_plot(get_marginal_densities(reference$Reality$marginal, adjust = 0.5),
+                            title = "Syntheticness", observed = "Reality",
+                            xlabs = c("0%\nAI-Generated", "100%\nHuman-Creation"))
+p_authenticity <- get_choco_plot(get_marginal_densities(reference$Authenticity$marginal, adjust = 0.5),
+                                 title = "Authenticity", xlabs = c("0%\nCopy", "100%\nOriginal"))
+
+# (right margin: keeps "Human-Creation" clear of the next panel's "Copy")
+figure3_top <- (p_reality + theme(plot.margin = margin(5.5, 30, 5.5, 5.5)) | p_authenticity) +
+  plot_layout(guides = "collect") &
+  theme(legend.position = "bottom", legend.title = element_blank())
+figure3 <- wrap_plots(figure3_top, p_diagram, ncol = 1, heights = c(1, 1.75))
+
+ggsave("figures/figure3.png", figure3, width = 10.5, height = 10.5, dpi = 300, bg = "white")
+figure3
 ```
 
 ## Summary
