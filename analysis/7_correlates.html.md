@@ -81,8 +81,11 @@ df_wide <- df_long |>
 
 Participant characteristics used as correlates. Gender is coded 0 = female,
 1 = male (the 2 "other" excluded), so its correlations are point-biserial;
-education and AI use are ordinal ranks. Questionnaire scores are missing for
-participants who failed that questionnaire's attention check.
+education and AI use are ordinal ranks. Interoception is given by the three
+Mint metaclusters (the average of their items), each followed by its facets (in
+italics): *Awareness* (ExAc, RelA, SexS), *Deficit* (CaCo, Urin, Derm, Sati,
+Olfa) and *Visceroception* (Resp, Card, Gast). Questionnaire scores are missing
+for participants who failed that questionnaire's attention check.
 
 
 ::: {.cell}
@@ -114,9 +117,17 @@ df_traits <- dfsub |>
             `Life satisfaction` = LifeSatisfaction,
             across(c(starts_with("MINT_"), -MINT_AttentionCheck))) |>
   rename_with(\(x) str_replace(x, "^MINT_", "MINT "), starts_with("MINT_"))
-traits <- c(traits, setNames(rep("Interoception", sum(startsWith(names(df_traits), "MINT"))),
-                             grep("^MINT", names(df_traits), value = TRUE)))
-trait_vars <- data.frame(Score = names(traits), Row = names(traits), RowGroup = unname(traits))
+# Interoception: each Mint metacluster followed by its facets (italics, Markdown),
+# in this fixed order rather than clustered
+mint <- list(Awareness = c("ExAc", "RelA", "SexS"),
+             Deficit = c("CaCo", "Urin", "Derm", "Sati", "Olfa"),
+             Visceroception = c("Resp", "Card", "Gast"))
+mint_vars <- bind_rows(lapply(names(mint), \(m) data.frame(
+  Score = paste("MINT", c(m, mint[[m]])),
+  Row = c(m, paste0("*MINT ", mint[[m]], "*")))))
+stopifnot(setequal(mint_vars$Score, grep("^MINT", names(df_traits), value = TRUE)))
+trait_vars <- bind_rows(data.frame(Score = names(traits), Row = names(traits), RowGroup = unname(traits)),
+                        mutate(mint_vars, RowGroup = "Interoception", Fixed = TRUE))
 
 # Order variables by the similarity of their correlation profiles (rows of m):
 # hierarchical clustering, branches reordered by average correlation
@@ -129,8 +140,11 @@ cluster_order <- function(m) {
 # Correlations between row and column variables (data frames with Score, the
 # column name in `data`, and the Row / RowGroup or Column / ColGroup it is shown
 # as), FDR-corrected across the whole table. Within each group, rows are
-# ordered by cluster_order() (RowKey); columns keep their given order.
+# ordered by cluster_order() (RowKey), except in groups whose rows all have
+# Fixed = TRUE, which keep their given order; columns keep their given order.
+# Row labels may use Markdown (e.g. *italics*).
 cor_grid <- function(data, rows, cols) {
+  fixed <- rows$Score[if (is.null(rows$Fixed)) FALSE else rows$Fixed %in% TRUE]
   d <- data |>
     correlation(select = rows$Score, select2 = cols$Score, p_adjust = "none") |>
     as.data.frame() |>
@@ -141,6 +155,7 @@ cor_grid <- function(data, rows, cols) {
            Column = factor(cols$Column[match(Parameter2, cols$Score)], levels = unique(cols$Column)),
            ColGroup = factor(cols$ColGroup[match(Parameter2, cols$Score)], levels = unique(cols$ColGroup)))
   row_levels <- unlist(lapply(split(d, d$RowGroup), \(g) {
+    if (nrow(g) > 0 && all(g$Parameter1 %in% fixed)) return(intersect(fixed, g$Parameter1))
     m <- xtabs(r ~ Parameter1 + Parameter2, data = g)
     cluster_order(unclass(m))
   }), use.names = FALSE)
@@ -181,6 +196,7 @@ cor_heatmap <- function(d, base_size = 13, text_size = 3.4, col_fill = NULL) {
     labs(x = NULL, y = NULL) +
     theme_minimal(base_size = base_size) +
     theme(axis.text.x.top = element_text(angle = 45, hjust = 0, vjust = 0),
+          axis.text.y.left = ggtext::element_markdown(hjust = 1),
           panel.grid = element_blank(),
           strip.text = element_text(face = "bold"),
           strip.text.y = element_text(angle = 0, hjust = 0),
@@ -266,23 +282,23 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
 ::: {.cell-output-display}
 
 ```{=html}
-<div id="rcvuktbfhi" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#rcvuktbfhi table {
+<div id="ncrtbthnsk" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#ncrtbthnsk table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-#rcvuktbfhi thead, #rcvuktbfhi tbody, #rcvuktbfhi tfoot, #rcvuktbfhi tr, #rcvuktbfhi td, #rcvuktbfhi th {
+#ncrtbthnsk thead, #ncrtbthnsk tbody, #ncrtbthnsk tfoot, #ncrtbthnsk tr, #ncrtbthnsk td, #ncrtbthnsk th {
   border-style: none;
 }
 
-#rcvuktbfhi p {
+#ncrtbthnsk p {
   margin: 0;
   padding: 0;
 }
 
-#rcvuktbfhi .gt_table {
+#ncrtbthnsk .gt_table {
   display: table;
   border-collapse: collapse;
   line-height: normal;
@@ -308,12 +324,12 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   border-left-color: #D5D5D5;
 }
 
-#rcvuktbfhi .gt_caption {
+#ncrtbthnsk .gt_caption {
   padding-top: 4px;
   padding-bottom: 4px;
 }
 
-#rcvuktbfhi .gt_title {
+#ncrtbthnsk .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -325,7 +341,7 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   border-bottom-width: 0;
 }
 
-#rcvuktbfhi .gt_subtitle {
+#ncrtbthnsk .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -337,7 +353,7 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   border-top-width: 0;
 }
 
-#rcvuktbfhi .gt_heading {
+#ncrtbthnsk .gt_heading {
   background-color: #FFFFFF;
   text-align: left;
   border-bottom-color: #FFFFFF;
@@ -349,13 +365,13 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   border-right-color: #D3D3D3;
 }
 
-#rcvuktbfhi .gt_bottom_border {
+#ncrtbthnsk .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D5D5D5;
 }
 
-#rcvuktbfhi .gt_col_headings {
+#ncrtbthnsk .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D5D5D5;
@@ -370,7 +386,7 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   border-right-color: #D3D3D3;
 }
 
-#rcvuktbfhi .gt_col_heading {
+#ncrtbthnsk .gt_col_heading {
   color: #FFFFFF;
   background-color: #000000;
   font-size: 100%;
@@ -390,7 +406,7 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   overflow-x: hidden;
 }
 
-#rcvuktbfhi .gt_column_spanner_outer {
+#ncrtbthnsk .gt_column_spanner_outer {
   color: #FFFFFF;
   background-color: #000000;
   font-size: 100%;
@@ -402,15 +418,15 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   padding-right: 4px;
 }
 
-#rcvuktbfhi .gt_column_spanner_outer:first-child {
+#ncrtbthnsk .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#rcvuktbfhi .gt_column_spanner_outer:last-child {
+#ncrtbthnsk .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#rcvuktbfhi .gt_column_spanner {
+#ncrtbthnsk .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D5D5D5;
@@ -422,11 +438,11 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   width: 100%;
 }
 
-#rcvuktbfhi .gt_spanner_row {
+#ncrtbthnsk .gt_spanner_row {
   border-bottom-style: hidden;
 }
 
-#rcvuktbfhi .gt_group_heading {
+#ncrtbthnsk .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -452,7 +468,7 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   text-align: left;
 }
 
-#rcvuktbfhi .gt_empty_group_heading {
+#ncrtbthnsk .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -467,15 +483,15 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   vertical-align: middle;
 }
 
-#rcvuktbfhi .gt_from_md > :first-child {
+#ncrtbthnsk .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#rcvuktbfhi .gt_from_md > :last-child {
+#ncrtbthnsk .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#rcvuktbfhi .gt_row {
+#ncrtbthnsk .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -494,7 +510,7 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   overflow-x: hidden;
 }
 
-#rcvuktbfhi .gt_stub {
+#ncrtbthnsk .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -507,7 +523,7 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   padding-right: 5px;
 }
 
-#rcvuktbfhi .gt_stub_row_group {
+#ncrtbthnsk .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -521,15 +537,15 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   vertical-align: top;
 }
 
-#rcvuktbfhi .gt_row_group_first td {
+#ncrtbthnsk .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#rcvuktbfhi .gt_row_group_first th {
+#ncrtbthnsk .gt_row_group_first th {
   border-top-width: 2px;
 }
 
-#rcvuktbfhi .gt_summary_row {
+#ncrtbthnsk .gt_summary_row {
   color: #333333;
   background-color: #D5D5D5;
   text-transform: inherit;
@@ -539,16 +555,16 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   padding-right: 5px;
 }
 
-#rcvuktbfhi .gt_first_summary_row {
+#ncrtbthnsk .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D5D5D5;
 }
 
-#rcvuktbfhi .gt_first_summary_row.thick {
+#ncrtbthnsk .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#rcvuktbfhi .gt_last_summary_row {
+#ncrtbthnsk .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -558,7 +574,7 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   border-bottom-color: #D5D5D5;
 }
 
-#rcvuktbfhi .gt_grand_summary_row {
+#ncrtbthnsk .gt_grand_summary_row {
   color: #FFFFFF;
   background-color: #929292;
   text-transform: inherit;
@@ -568,7 +584,7 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   padding-right: 5px;
 }
 
-#rcvuktbfhi .gt_first_grand_summary_row {
+#ncrtbthnsk .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -578,7 +594,7 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   border-top-color: #D5D5D5;
 }
 
-#rcvuktbfhi .gt_last_grand_summary_row_top {
+#ncrtbthnsk .gt_last_grand_summary_row_top {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -588,11 +604,11 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   border-bottom-color: #D5D5D5;
 }
 
-#rcvuktbfhi .gt_striped {
+#ncrtbthnsk .gt_striped {
   background-color: #F4F4F4;
 }
 
-#rcvuktbfhi .gt_table_body {
+#ncrtbthnsk .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D5D5D5;
@@ -601,7 +617,7 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   border-bottom-color: #D5D5D5;
 }
 
-#rcvuktbfhi .gt_footnotes {
+#ncrtbthnsk .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -615,7 +631,7 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   border-right-color: #D3D3D3;
 }
 
-#rcvuktbfhi .gt_footnote {
+#ncrtbthnsk .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-top: 4px;
@@ -624,7 +640,7 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   padding-right: 5px;
 }
 
-#rcvuktbfhi .gt_sourcenotes {
+#ncrtbthnsk .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -638,7 +654,7 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   border-right-color: #D3D3D3;
 }
 
-#rcvuktbfhi .gt_sourcenote {
+#ncrtbthnsk .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -646,72 +662,72 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   padding-right: 5px;
 }
 
-#rcvuktbfhi .gt_left {
+#ncrtbthnsk .gt_left {
   text-align: left;
 }
 
-#rcvuktbfhi .gt_center {
+#ncrtbthnsk .gt_center {
   text-align: center;
 }
 
-#rcvuktbfhi .gt_right {
+#ncrtbthnsk .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#rcvuktbfhi .gt_font_normal {
+#ncrtbthnsk .gt_font_normal {
   font-weight: normal;
 }
 
-#rcvuktbfhi .gt_font_bold {
+#ncrtbthnsk .gt_font_bold {
   font-weight: bold;
 }
 
-#rcvuktbfhi .gt_font_italic {
+#ncrtbthnsk .gt_font_italic {
   font-style: italic;
 }
 
-#rcvuktbfhi .gt_super {
+#ncrtbthnsk .gt_super {
   font-size: 65%;
 }
 
-#rcvuktbfhi .gt_footnote_marks {
+#ncrtbthnsk .gt_footnote_marks {
   font-size: 75%;
   vertical-align: 0.4em;
   position: initial;
 }
 
-#rcvuktbfhi .gt_asterisk {
+#ncrtbthnsk .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#rcvuktbfhi .gt_indent_1 {
+#ncrtbthnsk .gt_indent_1 {
   text-indent: 5px;
 }
 
-#rcvuktbfhi .gt_indent_2 {
+#ncrtbthnsk .gt_indent_2 {
   text-indent: 10px;
 }
 
-#rcvuktbfhi .gt_indent_3 {
+#ncrtbthnsk .gt_indent_3 {
   text-indent: 15px;
 }
 
-#rcvuktbfhi .gt_indent_4 {
+#ncrtbthnsk .gt_indent_4 {
   text-indent: 20px;
 }
 
-#rcvuktbfhi .gt_indent_5 {
+#ncrtbthnsk .gt_indent_5 {
   text-indent: 25px;
 }
 
-#rcvuktbfhi .katex-display {
+#ncrtbthnsk .katex-display {
   display: inline-flex !important;
   margin-bottom: 0.75em !important;
 }
 
-#rcvuktbfhi div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+#ncrtbthnsk div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
   height: 0px !important;
 }
 </style>
@@ -4712,17 +4728,20 @@ cor_markdown(df_mem_cor, "Correlations between memory indices and participant ch
 |Imagery & mood: Depression            |-.05              |-.06                      |-.01                           |.07                           |-.04                         |-.05                            |-.01                           |.06                          |.02                      |
 |Imagery & mood: Anxiety               |.01               |-.04                      |-.00                           |.02                           |-.01                         |-.15                            |.06                            |.07                          |.05                      |
 |Imagery & mood: Life satisfaction     |-.03              |.00                       |-.02                           |-.06                          |.06                          |.01                             |-.02                           |-.08                         |.08                      |
-|Interoception: MINT ExAc              |.04               |-.05                      |.11                            |-.09                          |-.08                         |.05                             |-.07                           |.04                          |-.00                     |
-|Interoception: MINT SexS              |-.00              |.03                       |.03                            |-.05                          |.01                          |.05                             |.01                            |-.03                         |.00                      |
-|Interoception: MINT Derm              |.14               |.03                       |.02                            |.00                           |-.04                         |-.04                            |-.02                           |.04                          |.06                      |
-|Interoception: MINT Sati              |-.01              |.06                       |.01                            |-.06                          |.03                          |-.07                            |.03                            |.05                          |-.02                     |
-|Interoception: MINT Urin              |-.03              |.11                       |-.06                           |.04                           |.03                          |-.06                            |.04                            |.06                          |-.08                     |
-|Interoception: MINT Resp              |-.06              |.05                       |-.12                           |.05                           |.10                          |-.10                            |.00                            |.07                          |.08                      |
-|Interoception: MINT CaCo              |-.06              |.03                       |-.06                           |-.00                          |.09                          |-.08                            |.01                            |.10                          |.03                      |
-|Interoception: MINT Card              |-.05              |.02                       |-.04                           |.00                           |.08                          |-.06                            |-.01                           |.07                          |.06                      |
-|Interoception: MINT RelA              |.03               |-.00                      |-.04                           |.09                           |-.03                         |-.02                            |-.01                           |-.02                         |.00                      |
-|Interoception: MINT Gast              |-.01              |.07                       |-.07                           |.12                           |-.01                         |-.13                            |.05                            |.04                          |.07                      |
-|Interoception: MINT Olfa              |.04               |.07                       |-.11                           |.08                           |.06                          |-.06                            |.08                            |.01                          |.03                      |
+|Interoception: Awareness              |.03               |-.01                      |.04                            |-.02                          |-.04                         |.03                             |-.02                           |-.01                         |.00                      |
+|Interoception: *MINT ExAc*            |.04               |-.05                      |.11                            |-.09                          |-.08                         |.05                             |-.07                           |.04                          |-.00                     |
+|Interoception: *MINT RelA*            |.03               |-.00                      |-.04                           |.09                           |-.03                         |-.02                            |-.01                           |-.02                         |.00                      |
+|Interoception: *MINT SexS*            |-.00              |.03                       |.03                            |-.05                          |.01                          |.05                             |.01                            |-.03                         |.00                      |
+|Interoception: Deficit                |.03               |.10                       |-.06                           |.02                           |.05                          |-.10                            |.04                            |.08                          |.01                      |
+|Interoception: *MINT CaCo*            |-.06              |.03                       |-.06                           |-.00                          |.09                          |-.08                            |.01                            |.10                          |.03                      |
+|Interoception: *MINT Urin*            |-.03              |.11                       |-.06                           |.04                           |.03                          |-.06                            |.04                            |.06                          |-.08                     |
+|Interoception: *MINT Derm*            |.14               |.03                       |.02                            |.00                           |-.04                         |-.04                            |-.02                           |.04                          |.06                      |
+|Interoception: *MINT Sati*            |-.01              |.06                       |.01                            |-.06                          |.03                          |-.07                            |.03                            |.05                          |-.02                     |
+|Interoception: *MINT Olfa*            |.04               |.07                       |-.11                           |.08                           |.06                          |-.06                            |.08                            |.01                          |.03                      |
+|Interoception: Visceroception         |-.04              |.05                       |-.08                           |.06                           |.06                          |-.11                            |.02                            |.06                          |.07                      |
+|Interoception: *MINT Resp*            |-.06              |.05                       |-.12                           |.05                           |.10                          |-.10                            |.00                            |.07                          |.08                      |
+|Interoception: *MINT Card*            |-.05              |.02                       |-.04                           |.00                           |.08                          |-.06                            |-.01                           |.07                          |.06                      |
+|Interoception: *MINT Gast*            |-.01              |.07                       |-.07                           |.12                           |-.01                         |-.13                            |.05                            |.04                          |.07                      |
 
 :::
 :::
@@ -4737,7 +4756,7 @@ cor_heatmap(df_mem_cor)
 ```
 
 ::: {.cell-output-display}
-![Correlations between the reliable memory indices (columns) and participant characteristics (220 participants), ordered within each group by the similarity of their correlation profiles. Bold: p < .05 (uncorrected); *: p < .05 after FDR correction across the whole table.](7_correlates_files/figure-html/fig-memory-correlates-1.png){#fig-memory-correlates width=1056}
+![Correlations between the reliable memory indices (columns) and participant characteristics (220 participants), ordered within each group by the similarity of their correlation profiles (Interoception: each Mint metacluster followed by its facets, in italics). Bold: p < .05 (uncorrected); *: p < .05 after FDR correction across the whole table.](7_correlates_files/figure-html/fig-memory-correlates-1.png){#fig-memory-correlates width=1056}
 :::
 :::
 
@@ -4813,17 +4832,20 @@ cor_markdown(df_correlates, "Correlations between dimension scores and participa
 |Imagery & mood: Depression            |-.07                         |-.02                                       |-.07                                |-.04                                    |-.07                                    |-.04                      |.01                                 |-.03                                  |-.05                                  |.03                          |
 |Imagery & mood: Anxiety               |-.08                         |-.01                                       |-.03                                |-.12                                    |-.08                                    |.01                       |.02                                 |.03                                   |-.02                                  |.05                          |
 |Imagery & mood: Life satisfaction     |.02                          |.12                                        |.13                                 |-.02                                    |.01                                     |.04                       |.06                                 |.03                                   |.05                                   |-.01                         |
-|Interoception: MINT SexS              |-.14                         |.14                                        |.02                                 |-.20*                                   |-.15                                    |.17*                      |.12                                 |.17*                                  |.15                                   |.01                          |
-|Interoception: MINT Derm              |-.05                         |.06                                        |-.10                                |-.15                                    |-.05                                    |.08                       |.07                                 |.10                                   |.06                                   |-.03                         |
-|Interoception: MINT CaCo              |.02                          |.05                                        |-.09                                |-.04                                    |.01                                     |.01                       |-.07                                |.00                                   |.01                                   |.03                          |
-|Interoception: MINT Urin              |.01                          |.05                                        |.01                                 |-.03                                    |.01                                     |.02                       |.03                                 |.02                                   |.02                                   |.02                          |
-|Interoception: MINT ExAc              |-.04                         |.04                                        |.01                                 |-.06                                    |-.04                                    |.20*                      |.10                                 |.20*                                  |.17*                                  |-.01                         |
-|Interoception: MINT Gast              |-.02                         |.14                                        |-.07                                |-.15                                    |-.03                                    |.23*                      |.07                                 |.24*                                  |.20*                                  |-.04                         |
-|Interoception: MINT Card              |.03                          |.18*                                       |-.05                                |-.07                                    |.01                                     |.11                       |.10                                 |.13                                   |.08                                   |-.08                         |
-|Interoception: MINT Sati              |.00                          |.05                                        |-.03                                |-.05                                    |-.00                                    |.13                       |.03                                 |.14                                   |.11                                   |.02                          |
-|Interoception: MINT Olfa              |.08                          |.06                                        |-.02                                |-.04                                    |.08                                     |.12                       |.03                                 |.11                                   |.13                                   |-.06                         |
-|Interoception: MINT Resp              |.03                          |.18*                                       |-.01                                |-.07                                    |.01                                     |.19*                      |-.02                                |.19*                                  |.18*                                  |-.07                         |
-|Interoception: MINT RelA              |.04                          |.21*                                       |.02                                 |-.07                                    |.02                                     |.19*                      |.09                                 |.21*                                  |.14                                   |-.13                         |
+|Interoception: Awareness              |-.06                         |.17*                                       |.02                                 |-.15                                    |-.08                                    |.24*                      |.14                                 |.26*                                  |.21*                                  |-.06                         |
+|Interoception: *MINT ExAc*            |-.04                         |.04                                        |.01                                 |-.06                                    |-.04                                    |.20*                      |.10                                 |.20*                                  |.17*                                  |-.01                         |
+|Interoception: *MINT RelA*            |.04                          |.21*                                       |.02                                 |-.07                                    |.02                                     |.19*                      |.09                                 |.21*                                  |.14                                   |-.13                         |
+|Interoception: *MINT SexS*            |-.14                         |.14                                        |.02                                 |-.20*                                   |-.15                                    |.17*                      |.12                                 |.17*                                  |.15                                   |.01                          |
+|Interoception: Deficit                |.02                          |.09                                        |-.07                                |-.10                                    |.01                                     |.11                       |.03                                 |.12                                   |.10                                   |-.01                         |
+|Interoception: *MINT CaCo*            |.02                          |.05                                        |-.09                                |-.04                                    |.01                                     |.01                       |-.07                                |.00                                   |.01                                   |.03                          |
+|Interoception: *MINT Urin*            |.01                          |.05                                        |.01                                 |-.03                                    |.01                                     |.02                       |.03                                 |.02                                   |.02                                   |.02                          |
+|Interoception: *MINT Derm*            |-.05                         |.06                                        |-.10                                |-.15                                    |-.05                                    |.08                       |.07                                 |.10                                   |.06                                   |-.03                         |
+|Interoception: *MINT Sati*            |.00                          |.05                                        |-.03                                |-.05                                    |-.00                                    |.13                       |.03                                 |.14                                   |.11                                   |.02                          |
+|Interoception: *MINT Olfa*            |.08                          |.06                                        |-.02                                |-.04                                    |.08                                     |.12                       |.03                                 |.11                                   |.13                                   |-.06                         |
+|Interoception: Visceroception         |.01                          |.19*                                       |-.05                                |-.11                                    |-.00                                    |.20*                      |.06                                 |.21*                                  |.17*                                  |-.07                         |
+|Interoception: *MINT Resp*            |.03                          |.18*                                       |-.01                                |-.07                                    |.01                                     |.19*                      |-.02                                |.19*                                  |.18*                                  |-.07                         |
+|Interoception: *MINT Card*            |.03                          |.18*                                       |-.05                                |-.07                                    |.01                                     |.11                       |.10                                 |.13                                   |.08                                   |-.08                         |
+|Interoception: *MINT Gast*            |-.02                         |.14                                        |-.07                                |-.15                                    |-.03                                    |.23*                      |.07                                 |.24*                                  |.20*                                  |-.04                         |
 |Recognition: False alarms             |.15                          |.08                                        |-.07                                |-.04                                    |.16                                     |.07                       |-.01                                |.09                                   |.04                                   |-.11                         |
 |Recognition: Hits                     |.13                          |.01                                        |-.08                                |.05                                     |.13                                     |.05                       |.06                                 |.09                                   |.01                                   |-.11                         |
 |Recalled label: Human Original        |-.10                         |-.05                                       |-.02                                |-.00                                    |-.10                                    |.05                       |.06                                 |.07                                   |.03                                   |.06                          |
@@ -4847,7 +4869,7 @@ cor_heatmap(df_correlates, col_fill = fill_higher)
 ```
 
 ::: {.cell-output-display}
-![Correlations between the dimension scores (columns, grouped by higher-order community; Overall = the higher-order score) and participant characteristics and follow-up memory indices (rows; ordered within each group by the similarity of their correlation profiles). Bold: p < .05 (uncorrected); *: p < .05 after FDR correction across the whole table.](7_correlates_files/figure-html/fig-correlates-1.png){#fig-correlates width=1008}
+![Correlations between the dimension scores (columns, grouped by higher-order community; Overall = the higher-order score) and participant characteristics and follow-up memory indices (rows; ordered within each group by the similarity of their correlation profiles; Interoception: each Mint metacluster followed by its facets, in italics). Bold: p < .05 (uncorrected); *: p < .05 after FDR correction across the whole table.](7_correlates_files/figure-html/fig-correlates-1.png){#fig-correlates width=1008}
 :::
 :::
 
@@ -4864,11 +4886,11 @@ cor_heatmap(df_correlates, col_fill = fill_higher)
 figure4 <- free(p_ega_matrix) /
   (cor_heatmap(df_correlates, base_size = 20, text_size = 5.2, col_fill = fill_higher) +
      theme(legend.position = "none", plot.margin = margin(t = 0.1, unit = "in"))) +
-  plot_layout(heights = c(19.4, 14.5))
+  plot_layout(heights = c(19.4, 15.6))
 
 figure4
 
-ggsave("figures/figure4.png", figure4, width = 20, height = 33.9, dpi = 300, bg = "white")
+ggsave("figures/figure4.png", figure4, width = 20, height = 35, dpi = 300, bg = "white")
 ```
 
 ::: {.cell-output-display}

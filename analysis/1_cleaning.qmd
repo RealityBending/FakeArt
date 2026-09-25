@@ -279,6 +279,12 @@ df <- compute_and_remove(df, name="MINT_Resp", method="mean")
 df <- compute_and_remove(df, name="MINT_Sati", method="mean")
 df <- compute_and_remove(df, name="MINT_CaCo", method="mean")
 
+# Metaclusters: average of all their items. Every facet has 3 items (none
+# missing), so this is the mean of the facet scores
+df$MINT_Awareness <- rowMeans(df[c("MINT_ExAc", "MINT_RelA", "MINT_SexS")])
+df$MINT_Deficit <- rowMeans(df[c("MINT_CaCo", "MINT_Urin", "MINT_Derm", "MINT_Sati", "MINT_Olfa")])
+df$MINT_Visceroception <- rowMeans(df[c("MINT_Card", "MINT_Resp", "MINT_Gast")])
+
 # df[grepl("^MAIA_.*_R$", names(df))] <- 6 - df[grepl("^MAIA_.*_R$", names(df))]  # Reverse
 # df <- compute_and_remove(df, name="MAIA_AttentionRegulation", method="mean")
 ```

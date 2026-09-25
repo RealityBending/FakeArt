@@ -250,7 +250,7 @@ window.Quarto = {
 <span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(Participant, Feature, Mean) <span class="sc">|&gt;</span></span>
 <span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_wider</span>(<span class="at">names_from =</span> Feature, <span class="at">values_from =</span> Mean)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>Participant characteristics used as correlates. Gender is coded 0 = female, 1 = male (the 2 “other” excluded), so its correlations are point-biserial; education and AI use are ordinal ranks. Questionnaire scores are missing for participants who failed that questionnaire’s attention check.</p>
+<p>Participant characteristics used as correlates. Gender is coded 0 = female, 1 = male (the 2 “other” excluded), so its correlations are point-biserial; education and AI use are ordinal ranks. Interoception is given by the three Mint metaclusters (the average of their items), each followed by its facets (in italics): <em>Awareness</em> (ExAc, RelA, SexS), <em>Deficit</em> (CaCo, Urin, Derm, Sati, Olfa) and <em>Visceroception</em> (Resp, Card, Gast). Questionnaire scores are missing for participants who failed that questionnaire’s attention check.</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
@@ -280,78 +280,91 @@ window.Quarto = {
 <span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>            <span class="st">`</span><span class="at">Life satisfaction</span><span class="st">`</span> <span class="ot">=</span> LifeSatisfaction,</span>
 <span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>            <span class="fu">across</span>(<span class="fu">c</span>(<span class="fu">starts_with</span>(<span class="st">"MINT_"</span>), <span class="sc">-</span>MINT_AttentionCheck))) <span class="sc">|&gt;</span></span>
 <span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename_with</span>(\(x) <span class="fu">str_replace</span>(x, <span class="st">"^MINT_"</span>, <span class="st">"MINT "</span>), <span class="fu">starts_with</span>(<span class="st">"MINT_"</span>))</span>
-<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>traits <span class="ot">&lt;-</span> <span class="fu">c</span>(traits, <span class="fu">setNames</span>(<span class="fu">rep</span>(<span class="st">"Interoception"</span>, <span class="fu">sum</span>(<span class="fu">startsWith</span>(<span class="fu">names</span>(df_traits), <span class="st">"MINT"</span>))),</span>
-<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>                             <span class="fu">grep</span>(<span class="st">"^MINT"</span>, <span class="fu">names</span>(df_traits), <span class="at">value =</span> <span class="cn">TRUE</span>)))</span>
-<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>trait_vars <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">Score =</span> <span class="fu">names</span>(traits), <span class="at">Row =</span> <span class="fu">names</span>(traits), <span class="at">RowGroup =</span> <span class="fu">unname</span>(traits))</span>
-<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a><span class="co"># Order variables by the similarity of their correlation profiles (rows of m):</span></span>
-<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a><span class="co"># hierarchical clustering, branches reordered by average correlation</span></span>
-<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>cluster_order <span class="ot">&lt;-</span> <span class="cf">function</span>(m) {</span>
-<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">nrow</span>(m) <span class="sc">&lt;</span> <span class="dv">3</span>) <span class="fu">return</span>(<span class="fu">rownames</span>(m))</span>
-<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>  dend <span class="ot">&lt;-</span> <span class="fu">reorder</span>(<span class="fu">as.dendrogram</span>(<span class="fu">hclust</span>(<span class="fu">dist</span>(m), <span class="at">method =</span> <span class="st">"average"</span>)), <span class="fu">rowMeans</span>(m, <span class="at">na.rm =</span> <span class="cn">TRUE</span>))</span>
-<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rownames</span>(m)[<span class="fu">order.dendrogram</span>(dend)]</span>
-<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a><span class="co"># Interoception: each Mint metacluster followed by its facets (italics, Markdown),</span></span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a><span class="co"># in this fixed order rather than clustered</span></span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>mint <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">Awareness =</span> <span class="fu">c</span>(<span class="st">"ExAc"</span>, <span class="st">"RelA"</span>, <span class="st">"SexS"</span>),</span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>             <span class="at">Deficit =</span> <span class="fu">c</span>(<span class="st">"CaCo"</span>, <span class="st">"Urin"</span>, <span class="st">"Derm"</span>, <span class="st">"Sati"</span>, <span class="st">"Olfa"</span>),</span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>             <span class="at">Visceroception =</span> <span class="fu">c</span>(<span class="st">"Resp"</span>, <span class="st">"Card"</span>, <span class="st">"Gast"</span>))</span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>mint_vars <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(<span class="fu">lapply</span>(<span class="fu">names</span>(mint), \(m) <span class="fu">data.frame</span>(</span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>  <span class="at">Score =</span> <span class="fu">paste</span>(<span class="st">"MINT"</span>, <span class="fu">c</span>(m, mint[[m]])),</span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>  <span class="at">Row =</span> <span class="fu">c</span>(m, <span class="fu">paste0</span>(<span class="st">"*MINT "</span>, mint[[m]], <span class="st">"*"</span>)))))</span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(<span class="fu">setequal</span>(mint_vars<span class="sc">$</span>Score, <span class="fu">grep</span>(<span class="st">"^MINT"</span>, <span class="fu">names</span>(df_traits), <span class="at">value =</span> <span class="cn">TRUE</span>)))</span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>trait_vars <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(<span class="fu">data.frame</span>(<span class="at">Score =</span> <span class="fu">names</span>(traits), <span class="at">Row =</span> <span class="fu">names</span>(traits), <span class="at">RowGroup =</span> <span class="fu">unname</span>(traits)),</span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>                        <span class="fu">mutate</span>(mint_vars, <span class="at">RowGroup =</span> <span class="st">"Interoception"</span>, <span class="at">Fixed =</span> <span class="cn">TRUE</span>))</span>
 <span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a><span class="co"># Correlations between row and column variables (data frames with Score, the</span></span>
-<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a><span class="co"># column name in `data`, and the Row / RowGroup or Column / ColGroup it is shown</span></span>
-<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a><span class="co"># as), FDR-corrected across the whole table. Within each group, rows are</span></span>
-<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a><span class="co"># ordered by cluster_order() (RowKey); columns keep their given order.</span></span>
-<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a>cor_grid <span class="ot">&lt;-</span> <span class="cf">function</span>(data, rows, cols) {</span>
-<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a>  d <span class="ot">&lt;-</span> data <span class="sc">|&gt;</span></span>
-<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a>    <span class="fu">correlation</span>(<span class="at">select =</span> rows<span class="sc">$</span>Score, <span class="at">select2 =</span> cols<span class="sc">$</span>Score, <span class="at">p_adjust =</span> <span class="st">"none"</span>) <span class="sc">|&gt;</span></span>
-<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a>    <span class="fu">as.data.frame</span>() <span class="sc">|&gt;</span></span>
-<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">p_fdr =</span> <span class="fu">p.adjust</span>(p, <span class="at">method =</span> <span class="st">"fdr"</span>),</span>
-<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a>           <span class="at">Label =</span> <span class="fu">paste0</span>(<span class="fu">fmt_r</span>(r), <span class="fu">ifelse</span>(p_fdr <span class="sc">&lt;</span> .<span class="dv">05</span>, <span class="st">"*"</span>, <span class="st">""</span>)),</span>
-<span id="cb3-49"><a href="#cb3-49" aria-hidden="true" tabindex="-1"></a>           <span class="at">Row =</span> rows<span class="sc">$</span>Row[<span class="fu">match</span>(Parameter1, rows<span class="sc">$</span>Score)],</span>
-<span id="cb3-50"><a href="#cb3-50" aria-hidden="true" tabindex="-1"></a>           <span class="at">RowGroup =</span> <span class="fu">factor</span>(rows<span class="sc">$</span>RowGroup[<span class="fu">match</span>(Parameter1, rows<span class="sc">$</span>Score)], <span class="at">levels =</span> <span class="fu">unique</span>(rows<span class="sc">$</span>RowGroup)),</span>
-<span id="cb3-51"><a href="#cb3-51" aria-hidden="true" tabindex="-1"></a>           <span class="at">Column =</span> <span class="fu">factor</span>(cols<span class="sc">$</span>Column[<span class="fu">match</span>(Parameter2, cols<span class="sc">$</span>Score)], <span class="at">levels =</span> <span class="fu">unique</span>(cols<span class="sc">$</span>Column)),</span>
-<span id="cb3-52"><a href="#cb3-52" aria-hidden="true" tabindex="-1"></a>           <span class="at">ColGroup =</span> <span class="fu">factor</span>(cols<span class="sc">$</span>ColGroup[<span class="fu">match</span>(Parameter2, cols<span class="sc">$</span>Score)], <span class="at">levels =</span> <span class="fu">unique</span>(cols<span class="sc">$</span>ColGroup)))</span>
-<span id="cb3-53"><a href="#cb3-53" aria-hidden="true" tabindex="-1"></a>  row_levels <span class="ot">&lt;-</span> <span class="fu">unlist</span>(<span class="fu">lapply</span>(<span class="fu">split</span>(d, d<span class="sc">$</span>RowGroup), \(g) {</span>
-<span id="cb3-54"><a href="#cb3-54" aria-hidden="true" tabindex="-1"></a>    m <span class="ot">&lt;-</span> <span class="fu">xtabs</span>(r <span class="sc">~</span> Parameter1 <span class="sc">+</span> Parameter2, <span class="at">data =</span> g)</span>
-<span id="cb3-55"><a href="#cb3-55" aria-hidden="true" tabindex="-1"></a>    <span class="fu">cluster_order</span>(<span class="fu">unclass</span>(m))</span>
-<span id="cb3-56"><a href="#cb3-56" aria-hidden="true" tabindex="-1"></a>  }), <span class="at">use.names =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb3-57"><a href="#cb3-57" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(d, <span class="at">RowKey =</span> <span class="fu">factor</span>(Parameter1, <span class="at">levels =</span> row_levels))</span>
-<span id="cb3-58"><a href="#cb3-58" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb3-59"><a href="#cb3-59" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-60"><a href="#cb3-60" aria-hidden="true" tabindex="-1"></a>cor_markdown <span class="ot">&lt;-</span> <span class="cf">function</span>(d, title) {</span>
-<span id="cb3-61"><a href="#cb3-61" aria-hidden="true" tabindex="-1"></a>  d <span class="sc">|&gt;</span></span>
-<span id="cb3-62"><a href="#cb3-62" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">Col =</span> <span class="fu">paste</span>(ColGroup, Column, <span class="at">sep =</span> <span class="st">": "</span>)) <span class="sc">|&gt;</span></span>
-<span id="cb3-63"><a href="#cb3-63" aria-hidden="true" tabindex="-1"></a>    <span class="fu">arrange</span>(ColGroup, Column, RowGroup, RowKey) <span class="sc">|&gt;</span></span>
-<span id="cb3-64"><a href="#cb3-64" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">Row =</span> <span class="fu">paste</span>(RowGroup, Row, <span class="at">sep =</span> <span class="st">": "</span>)) <span class="sc">|&gt;</span></span>
-<span id="cb3-65"><a href="#cb3-65" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(Row, Col, Label) <span class="sc">|&gt;</span></span>
-<span id="cb3-66"><a href="#cb3-66" aria-hidden="true" tabindex="-1"></a>    <span class="fu">pivot_wider</span>(<span class="at">names_from =</span> Col, <span class="at">values_from =</span> Label) <span class="sc">|&gt;</span></span>
-<span id="cb3-67"><a href="#cb3-67" aria-hidden="true" tabindex="-1"></a>    <span class="fu">make_markdown</span>(title) <span class="sc">|&gt;</span></span>
-<span id="cb3-68"><a href="#cb3-68" aria-hidden="true" tabindex="-1"></a>    <span class="fu">make_asis</span>()</span>
-<span id="cb3-69"><a href="#cb3-69" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb3-70"><a href="#cb3-70" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-71"><a href="#cb3-71" aria-hidden="true" tabindex="-1"></a><span class="co"># col_fill: optional strip colours per column group (named by ColGroup), in</span></span>
-<span id="cb3-72"><a href="#cb3-72" aria-hidden="true" tabindex="-1"></a><span class="co"># which case the column-group strips are drawn below the columns</span></span>
-<span id="cb3-73"><a href="#cb3-73" aria-hidden="true" tabindex="-1"></a>cor_heatmap <span class="ot">&lt;-</span> <span class="cf">function</span>(d, <span class="at">base_size =</span> <span class="dv">13</span>, <span class="at">text_size =</span> <span class="fl">3.4</span>, <span class="at">col_fill =</span> <span class="cn">NULL</span>) {</span>
-<span id="cb3-74"><a href="#cb3-74" aria-hidden="true" tabindex="-1"></a>  facets <span class="ot">&lt;-</span> <span class="cf">if</span> (<span class="fu">is.null</span>(col_fill)) {</span>
-<span id="cb3-75"><a href="#cb3-75" aria-hidden="true" tabindex="-1"></a>    <span class="fu">facet_grid</span>(RowGroup <span class="sc">~</span> ColGroup, <span class="at">scales =</span> <span class="st">"free"</span>, <span class="at">space =</span> <span class="st">"free"</span>)</span>
-<span id="cb3-76"><a href="#cb3-76" aria-hidden="true" tabindex="-1"></a>  } <span class="cf">else</span> {</span>
-<span id="cb3-77"><a href="#cb3-77" aria-hidden="true" tabindex="-1"></a>    ggh4x<span class="sc">::</span><span class="fu">facet_grid2</span>(RowGroup <span class="sc">~</span> ColGroup, <span class="at">scales =</span> <span class="st">"free"</span>, <span class="at">space =</span> <span class="st">"free"</span>, <span class="at">switch =</span> <span class="st">"x"</span>,</span>
-<span id="cb3-78"><a href="#cb3-78" aria-hidden="true" tabindex="-1"></a>                       <span class="at">strip =</span> ggh4x<span class="sc">::</span><span class="fu">strip_themed</span>(</span>
-<span id="cb3-79"><a href="#cb3-79" aria-hidden="true" tabindex="-1"></a>                         <span class="at">background_x =</span> ggh4x<span class="sc">::</span><span class="fu">elem_list_rect</span>(<span class="at">fill =</span> <span class="fu">unname</span>(col_fill[<span class="fu">levels</span>(<span class="fu">droplevels</span>(d<span class="sc">$</span>ColGroup))]), <span class="at">colour =</span> <span class="cn">NA</span>),</span>
-<span id="cb3-80"><a href="#cb3-80" aria-hidden="true" tabindex="-1"></a>                         <span class="at">text_x =</span> ggh4x<span class="sc">::</span><span class="fu">elem_list_text</span>(<span class="at">colour =</span> <span class="st">"white"</span>, <span class="at">face =</span> <span class="st">"bold"</span>)))</span>
-<span id="cb3-81"><a href="#cb3-81" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb3-82"><a href="#cb3-82" aria-hidden="true" tabindex="-1"></a>  d <span class="sc">|&gt;</span></span>
-<span id="cb3-83"><a href="#cb3-83" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> Column, <span class="at">y =</span> <span class="fu">fct_rev</span>(RowKey))) <span class="sc">+</span></span>
-<span id="cb3-84"><a href="#cb3-84" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_tile</span>(<span class="fu">aes</span>(<span class="at">fill =</span> r), <span class="at">color =</span> <span class="st">"white"</span>) <span class="sc">+</span></span>
-<span id="cb3-85"><a href="#cb3-85" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_text</span>(<span class="fu">aes</span>(<span class="at">label =</span> Label, <span class="at">fontface =</span> <span class="fu">ifelse</span>(p <span class="sc">&lt;</span> .<span class="dv">05</span>, <span class="st">"bold"</span>, <span class="st">"plain"</span>)), <span class="at">size =</span> text_size) <span class="sc">+</span></span>
-<span id="cb3-86"><a href="#cb3-86" aria-hidden="true" tabindex="-1"></a>    facets <span class="sc">+</span></span>
-<span id="cb3-87"><a href="#cb3-87" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_fill_gradient2</span>(<span class="at">low =</span> <span class="st">"#1D9AF5"</span>, <span class="at">mid =</span> <span class="st">"white"</span>, <span class="at">high =</span> <span class="st">"#F51D56"</span>, <span class="at">midpoint =</span> <span class="dv">0</span>, <span class="at">limits =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="fl">0.5</span>, <span class="fl">0.5</span>),</span>
-<span id="cb3-88"><a href="#cb3-88" aria-hidden="true" tabindex="-1"></a>                         <span class="at">breaks =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="fl">0.5</span>, <span class="sc">-</span><span class="fl">0.25</span>, <span class="dv">0</span>, <span class="fl">0.25</span>, <span class="fl">0.5</span>), <span class="at">labels =</span> fmt_r, <span class="at">oob =</span> scales<span class="sc">::</span>squish, <span class="at">name =</span> <span class="st">"Correlation"</span>) <span class="sc">+</span></span>
-<span id="cb3-89"><a href="#cb3-89" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_x_discrete</span>(<span class="at">position =</span> <span class="st">"top"</span>) <span class="sc">+</span></span>
-<span id="cb3-90"><a href="#cb3-90" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_y_discrete</span>(<span class="at">labels =</span> <span class="fu">setNames</span>(d<span class="sc">$</span>Row, d<span class="sc">$</span>Parameter1)) <span class="sc">+</span></span>
-<span id="cb3-91"><a href="#cb3-91" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
-<span id="cb3-92"><a href="#cb3-92" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> base_size) <span class="sc">+</span></span>
-<span id="cb3-93"><a href="#cb3-93" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">axis.text.x.top =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">45</span>, <span class="at">hjust =</span> <span class="dv">0</span>, <span class="at">vjust =</span> <span class="dv">0</span>),</span>
-<span id="cb3-94"><a href="#cb3-94" aria-hidden="true" tabindex="-1"></a>          <span class="at">panel.grid =</span> <span class="fu">element_blank</span>(),</span>
-<span id="cb3-95"><a href="#cb3-95" aria-hidden="true" tabindex="-1"></a>          <span class="at">strip.text =</span> <span class="fu">element_text</span>(<span class="at">face =</span> <span class="st">"bold"</span>),</span>
-<span id="cb3-96"><a href="#cb3-96" aria-hidden="true" tabindex="-1"></a>          <span class="at">strip.text.y =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">0</span>, <span class="at">hjust =</span> <span class="dv">0</span>),</span>
-<span id="cb3-97"><a href="#cb3-97" aria-hidden="true" tabindex="-1"></a>          <span class="at">legend.position =</span> <span class="st">"bottom"</span>, <span class="at">legend.key.width =</span> <span class="fu">unit</span>(<span class="dv">3</span>, <span class="st">"lines"</span>))</span>
-<span id="cb3-98"><a href="#cb3-98" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a><span class="co"># Order variables by the similarity of their correlation profiles (rows of m):</span></span>
+<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a><span class="co"># hierarchical clustering, branches reordered by average correlation</span></span>
+<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>cluster_order <span class="ot">&lt;-</span> <span class="cf">function</span>(m) {</span>
+<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">nrow</span>(m) <span class="sc">&lt;</span> <span class="dv">3</span>) <span class="fu">return</span>(<span class="fu">rownames</span>(m))</span>
+<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a>  dend <span class="ot">&lt;-</span> <span class="fu">reorder</span>(<span class="fu">as.dendrogram</span>(<span class="fu">hclust</span>(<span class="fu">dist</span>(m), <span class="at">method =</span> <span class="st">"average"</span>)), <span class="fu">rowMeans</span>(m, <span class="at">na.rm =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rownames</span>(m)[<span class="fu">order.dendrogram</span>(dend)]</span>
+<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a><span class="co"># Correlations between row and column variables (data frames with Score, the</span></span>
+<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a><span class="co"># column name in `data`, and the Row / RowGroup or Column / ColGroup it is shown</span></span>
+<span id="cb3-49"><a href="#cb3-49" aria-hidden="true" tabindex="-1"></a><span class="co"># as), FDR-corrected across the whole table. Within each group, rows are</span></span>
+<span id="cb3-50"><a href="#cb3-50" aria-hidden="true" tabindex="-1"></a><span class="co"># ordered by cluster_order() (RowKey), except in groups whose rows all have</span></span>
+<span id="cb3-51"><a href="#cb3-51" aria-hidden="true" tabindex="-1"></a><span class="co"># Fixed = TRUE, which keep their given order; columns keep their given order.</span></span>
+<span id="cb3-52"><a href="#cb3-52" aria-hidden="true" tabindex="-1"></a><span class="co"># Row labels may use Markdown (e.g. *italics*).</span></span>
+<span id="cb3-53"><a href="#cb3-53" aria-hidden="true" tabindex="-1"></a>cor_grid <span class="ot">&lt;-</span> <span class="cf">function</span>(data, rows, cols) {</span>
+<span id="cb3-54"><a href="#cb3-54" aria-hidden="true" tabindex="-1"></a>  fixed <span class="ot">&lt;-</span> rows<span class="sc">$</span>Score[<span class="cf">if</span> (<span class="fu">is.null</span>(rows<span class="sc">$</span>Fixed)) <span class="cn">FALSE</span> <span class="cf">else</span> rows<span class="sc">$</span>Fixed <span class="sc">%in%</span> <span class="cn">TRUE</span>]</span>
+<span id="cb3-55"><a href="#cb3-55" aria-hidden="true" tabindex="-1"></a>  d <span class="ot">&lt;-</span> data <span class="sc">|&gt;</span></span>
+<span id="cb3-56"><a href="#cb3-56" aria-hidden="true" tabindex="-1"></a>    <span class="fu">correlation</span>(<span class="at">select =</span> rows<span class="sc">$</span>Score, <span class="at">select2 =</span> cols<span class="sc">$</span>Score, <span class="at">p_adjust =</span> <span class="st">"none"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb3-57"><a href="#cb3-57" aria-hidden="true" tabindex="-1"></a>    <span class="fu">as.data.frame</span>() <span class="sc">|&gt;</span></span>
+<span id="cb3-58"><a href="#cb3-58" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">p_fdr =</span> <span class="fu">p.adjust</span>(p, <span class="at">method =</span> <span class="st">"fdr"</span>),</span>
+<span id="cb3-59"><a href="#cb3-59" aria-hidden="true" tabindex="-1"></a>           <span class="at">Label =</span> <span class="fu">paste0</span>(<span class="fu">fmt_r</span>(r), <span class="fu">ifelse</span>(p_fdr <span class="sc">&lt;</span> .<span class="dv">05</span>, <span class="st">"*"</span>, <span class="st">""</span>)),</span>
+<span id="cb3-60"><a href="#cb3-60" aria-hidden="true" tabindex="-1"></a>           <span class="at">Row =</span> rows<span class="sc">$</span>Row[<span class="fu">match</span>(Parameter1, rows<span class="sc">$</span>Score)],</span>
+<span id="cb3-61"><a href="#cb3-61" aria-hidden="true" tabindex="-1"></a>           <span class="at">RowGroup =</span> <span class="fu">factor</span>(rows<span class="sc">$</span>RowGroup[<span class="fu">match</span>(Parameter1, rows<span class="sc">$</span>Score)], <span class="at">levels =</span> <span class="fu">unique</span>(rows<span class="sc">$</span>RowGroup)),</span>
+<span id="cb3-62"><a href="#cb3-62" aria-hidden="true" tabindex="-1"></a>           <span class="at">Column =</span> <span class="fu">factor</span>(cols<span class="sc">$</span>Column[<span class="fu">match</span>(Parameter2, cols<span class="sc">$</span>Score)], <span class="at">levels =</span> <span class="fu">unique</span>(cols<span class="sc">$</span>Column)),</span>
+<span id="cb3-63"><a href="#cb3-63" aria-hidden="true" tabindex="-1"></a>           <span class="at">ColGroup =</span> <span class="fu">factor</span>(cols<span class="sc">$</span>ColGroup[<span class="fu">match</span>(Parameter2, cols<span class="sc">$</span>Score)], <span class="at">levels =</span> <span class="fu">unique</span>(cols<span class="sc">$</span>ColGroup)))</span>
+<span id="cb3-64"><a href="#cb3-64" aria-hidden="true" tabindex="-1"></a>  row_levels <span class="ot">&lt;-</span> <span class="fu">unlist</span>(<span class="fu">lapply</span>(<span class="fu">split</span>(d, d<span class="sc">$</span>RowGroup), \(g) {</span>
+<span id="cb3-65"><a href="#cb3-65" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (<span class="fu">nrow</span>(g) <span class="sc">&gt;</span> <span class="dv">0</span> <span class="sc">&amp;&amp;</span> <span class="fu">all</span>(g<span class="sc">$</span>Parameter1 <span class="sc">%in%</span> fixed)) <span class="fu">return</span>(<span class="fu">intersect</span>(fixed, g<span class="sc">$</span>Parameter1))</span>
+<span id="cb3-66"><a href="#cb3-66" aria-hidden="true" tabindex="-1"></a>    m <span class="ot">&lt;-</span> <span class="fu">xtabs</span>(r <span class="sc">~</span> Parameter1 <span class="sc">+</span> Parameter2, <span class="at">data =</span> g)</span>
+<span id="cb3-67"><a href="#cb3-67" aria-hidden="true" tabindex="-1"></a>    <span class="fu">cluster_order</span>(<span class="fu">unclass</span>(m))</span>
+<span id="cb3-68"><a href="#cb3-68" aria-hidden="true" tabindex="-1"></a>  }), <span class="at">use.names =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb3-69"><a href="#cb3-69" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(d, <span class="at">RowKey =</span> <span class="fu">factor</span>(Parameter1, <span class="at">levels =</span> row_levels))</span>
+<span id="cb3-70"><a href="#cb3-70" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb3-71"><a href="#cb3-71" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-72"><a href="#cb3-72" aria-hidden="true" tabindex="-1"></a>cor_markdown <span class="ot">&lt;-</span> <span class="cf">function</span>(d, title) {</span>
+<span id="cb3-73"><a href="#cb3-73" aria-hidden="true" tabindex="-1"></a>  d <span class="sc">|&gt;</span></span>
+<span id="cb3-74"><a href="#cb3-74" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">Col =</span> <span class="fu">paste</span>(ColGroup, Column, <span class="at">sep =</span> <span class="st">": "</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb3-75"><a href="#cb3-75" aria-hidden="true" tabindex="-1"></a>    <span class="fu">arrange</span>(ColGroup, Column, RowGroup, RowKey) <span class="sc">|&gt;</span></span>
+<span id="cb3-76"><a href="#cb3-76" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">Row =</span> <span class="fu">paste</span>(RowGroup, Row, <span class="at">sep =</span> <span class="st">": "</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb3-77"><a href="#cb3-77" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(Row, Col, Label) <span class="sc">|&gt;</span></span>
+<span id="cb3-78"><a href="#cb3-78" aria-hidden="true" tabindex="-1"></a>    <span class="fu">pivot_wider</span>(<span class="at">names_from =</span> Col, <span class="at">values_from =</span> Label) <span class="sc">|&gt;</span></span>
+<span id="cb3-79"><a href="#cb3-79" aria-hidden="true" tabindex="-1"></a>    <span class="fu">make_markdown</span>(title) <span class="sc">|&gt;</span></span>
+<span id="cb3-80"><a href="#cb3-80" aria-hidden="true" tabindex="-1"></a>    <span class="fu">make_asis</span>()</span>
+<span id="cb3-81"><a href="#cb3-81" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb3-82"><a href="#cb3-82" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-83"><a href="#cb3-83" aria-hidden="true" tabindex="-1"></a><span class="co"># col_fill: optional strip colours per column group (named by ColGroup), in</span></span>
+<span id="cb3-84"><a href="#cb3-84" aria-hidden="true" tabindex="-1"></a><span class="co"># which case the column-group strips are drawn below the columns</span></span>
+<span id="cb3-85"><a href="#cb3-85" aria-hidden="true" tabindex="-1"></a>cor_heatmap <span class="ot">&lt;-</span> <span class="cf">function</span>(d, <span class="at">base_size =</span> <span class="dv">13</span>, <span class="at">text_size =</span> <span class="fl">3.4</span>, <span class="at">col_fill =</span> <span class="cn">NULL</span>) {</span>
+<span id="cb3-86"><a href="#cb3-86" aria-hidden="true" tabindex="-1"></a>  facets <span class="ot">&lt;-</span> <span class="cf">if</span> (<span class="fu">is.null</span>(col_fill)) {</span>
+<span id="cb3-87"><a href="#cb3-87" aria-hidden="true" tabindex="-1"></a>    <span class="fu">facet_grid</span>(RowGroup <span class="sc">~</span> ColGroup, <span class="at">scales =</span> <span class="st">"free"</span>, <span class="at">space =</span> <span class="st">"free"</span>)</span>
+<span id="cb3-88"><a href="#cb3-88" aria-hidden="true" tabindex="-1"></a>  } <span class="cf">else</span> {</span>
+<span id="cb3-89"><a href="#cb3-89" aria-hidden="true" tabindex="-1"></a>    ggh4x<span class="sc">::</span><span class="fu">facet_grid2</span>(RowGroup <span class="sc">~</span> ColGroup, <span class="at">scales =</span> <span class="st">"free"</span>, <span class="at">space =</span> <span class="st">"free"</span>, <span class="at">switch =</span> <span class="st">"x"</span>,</span>
+<span id="cb3-90"><a href="#cb3-90" aria-hidden="true" tabindex="-1"></a>                       <span class="at">strip =</span> ggh4x<span class="sc">::</span><span class="fu">strip_themed</span>(</span>
+<span id="cb3-91"><a href="#cb3-91" aria-hidden="true" tabindex="-1"></a>                         <span class="at">background_x =</span> ggh4x<span class="sc">::</span><span class="fu">elem_list_rect</span>(<span class="at">fill =</span> <span class="fu">unname</span>(col_fill[<span class="fu">levels</span>(<span class="fu">droplevels</span>(d<span class="sc">$</span>ColGroup))]), <span class="at">colour =</span> <span class="cn">NA</span>),</span>
+<span id="cb3-92"><a href="#cb3-92" aria-hidden="true" tabindex="-1"></a>                         <span class="at">text_x =</span> ggh4x<span class="sc">::</span><span class="fu">elem_list_text</span>(<span class="at">colour =</span> <span class="st">"white"</span>, <span class="at">face =</span> <span class="st">"bold"</span>)))</span>
+<span id="cb3-93"><a href="#cb3-93" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb3-94"><a href="#cb3-94" aria-hidden="true" tabindex="-1"></a>  d <span class="sc">|&gt;</span></span>
+<span id="cb3-95"><a href="#cb3-95" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> Column, <span class="at">y =</span> <span class="fu">fct_rev</span>(RowKey))) <span class="sc">+</span></span>
+<span id="cb3-96"><a href="#cb3-96" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_tile</span>(<span class="fu">aes</span>(<span class="at">fill =</span> r), <span class="at">color =</span> <span class="st">"white"</span>) <span class="sc">+</span></span>
+<span id="cb3-97"><a href="#cb3-97" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_text</span>(<span class="fu">aes</span>(<span class="at">label =</span> Label, <span class="at">fontface =</span> <span class="fu">ifelse</span>(p <span class="sc">&lt;</span> .<span class="dv">05</span>, <span class="st">"bold"</span>, <span class="st">"plain"</span>)), <span class="at">size =</span> text_size) <span class="sc">+</span></span>
+<span id="cb3-98"><a href="#cb3-98" aria-hidden="true" tabindex="-1"></a>    facets <span class="sc">+</span></span>
+<span id="cb3-99"><a href="#cb3-99" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_fill_gradient2</span>(<span class="at">low =</span> <span class="st">"#1D9AF5"</span>, <span class="at">mid =</span> <span class="st">"white"</span>, <span class="at">high =</span> <span class="st">"#F51D56"</span>, <span class="at">midpoint =</span> <span class="dv">0</span>, <span class="at">limits =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="fl">0.5</span>, <span class="fl">0.5</span>),</span>
+<span id="cb3-100"><a href="#cb3-100" aria-hidden="true" tabindex="-1"></a>                         <span class="at">breaks =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="fl">0.5</span>, <span class="sc">-</span><span class="fl">0.25</span>, <span class="dv">0</span>, <span class="fl">0.25</span>, <span class="fl">0.5</span>), <span class="at">labels =</span> fmt_r, <span class="at">oob =</span> scales<span class="sc">::</span>squish, <span class="at">name =</span> <span class="st">"Correlation"</span>) <span class="sc">+</span></span>
+<span id="cb3-101"><a href="#cb3-101" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_x_discrete</span>(<span class="at">position =</span> <span class="st">"top"</span>) <span class="sc">+</span></span>
+<span id="cb3-102"><a href="#cb3-102" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_y_discrete</span>(<span class="at">labels =</span> <span class="fu">setNames</span>(d<span class="sc">$</span>Row, d<span class="sc">$</span>Parameter1)) <span class="sc">+</span></span>
+<span id="cb3-103"><a href="#cb3-103" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb3-104"><a href="#cb3-104" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> base_size) <span class="sc">+</span></span>
+<span id="cb3-105"><a href="#cb3-105" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">axis.text.x.top =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">45</span>, <span class="at">hjust =</span> <span class="dv">0</span>, <span class="at">vjust =</span> <span class="dv">0</span>),</span>
+<span id="cb3-106"><a href="#cb3-106" aria-hidden="true" tabindex="-1"></a>          <span class="at">axis.text.y.left =</span> ggtext<span class="sc">::</span><span class="fu">element_markdown</span>(<span class="at">hjust =</span> <span class="dv">1</span>),</span>
+<span id="cb3-107"><a href="#cb3-107" aria-hidden="true" tabindex="-1"></a>          <span class="at">panel.grid =</span> <span class="fu">element_blank</span>(),</span>
+<span id="cb3-108"><a href="#cb3-108" aria-hidden="true" tabindex="-1"></a>          <span class="at">strip.text =</span> <span class="fu">element_text</span>(<span class="at">face =</span> <span class="st">"bold"</span>),</span>
+<span id="cb3-109"><a href="#cb3-109" aria-hidden="true" tabindex="-1"></a>          <span class="at">strip.text.y =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">0</span>, <span class="at">hjust =</span> <span class="dv">0</span>),</span>
+<span id="cb3-110"><a href="#cb3-110" aria-hidden="true" tabindex="-1"></a>          <span class="at">legend.position =</span> <span class="st">"bottom"</span>, <span class="at">legend.key.width =</span> <span class="fu">unit</span>(<span class="dv">3</span>, <span class="st">"lines"</span>))</span>
+<span id="cb3-111"><a href="#cb3-111" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 </section>
@@ -393,23 +406,23 @@ window.Quarto = {
 <span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="fu">make_tables</span>(summary_ind, <span class="fu">names</span>(summary_ind), <span class="st">"Participant-level indices (link scale)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
-<div id="rcvuktbfhi" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#rcvuktbfhi table {
+<div id="ncrtbthnsk" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#ncrtbthnsk table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-#rcvuktbfhi thead, #rcvuktbfhi tbody, #rcvuktbfhi tfoot, #rcvuktbfhi tr, #rcvuktbfhi td, #rcvuktbfhi th {
+#ncrtbthnsk thead, #ncrtbthnsk tbody, #ncrtbthnsk tfoot, #ncrtbthnsk tr, #ncrtbthnsk td, #ncrtbthnsk th {
   border-style: none;
 }
 
-#rcvuktbfhi p {
+#ncrtbthnsk p {
   margin: 0;
   padding: 0;
 }
 
-#rcvuktbfhi .gt_table {
+#ncrtbthnsk .gt_table {
   display: table;
   border-collapse: collapse;
   line-height: normal;
@@ -435,12 +448,12 @@ window.Quarto = {
   border-left-color: #D5D5D5;
 }
 
-#rcvuktbfhi .gt_caption {
+#ncrtbthnsk .gt_caption {
   padding-top: 4px;
   padding-bottom: 4px;
 }
 
-#rcvuktbfhi .gt_title {
+#ncrtbthnsk .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -452,7 +465,7 @@ window.Quarto = {
   border-bottom-width: 0;
 }
 
-#rcvuktbfhi .gt_subtitle {
+#ncrtbthnsk .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -464,7 +477,7 @@ window.Quarto = {
   border-top-width: 0;
 }
 
-#rcvuktbfhi .gt_heading {
+#ncrtbthnsk .gt_heading {
   background-color: #FFFFFF;
   text-align: left;
   border-bottom-color: #FFFFFF;
@@ -476,13 +489,13 @@ window.Quarto = {
   border-right-color: #D3D3D3;
 }
 
-#rcvuktbfhi .gt_bottom_border {
+#ncrtbthnsk .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D5D5D5;
 }
 
-#rcvuktbfhi .gt_col_headings {
+#ncrtbthnsk .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D5D5D5;
@@ -497,7 +510,7 @@ window.Quarto = {
   border-right-color: #D3D3D3;
 }
 
-#rcvuktbfhi .gt_col_heading {
+#ncrtbthnsk .gt_col_heading {
   color: #FFFFFF;
   background-color: #000000;
   font-size: 100%;
@@ -517,7 +530,7 @@ window.Quarto = {
   overflow-x: hidden;
 }
 
-#rcvuktbfhi .gt_column_spanner_outer {
+#ncrtbthnsk .gt_column_spanner_outer {
   color: #FFFFFF;
   background-color: #000000;
   font-size: 100%;
@@ -529,15 +542,15 @@ window.Quarto = {
   padding-right: 4px;
 }
 
-#rcvuktbfhi .gt_column_spanner_outer:first-child {
+#ncrtbthnsk .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#rcvuktbfhi .gt_column_spanner_outer:last-child {
+#ncrtbthnsk .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#rcvuktbfhi .gt_column_spanner {
+#ncrtbthnsk .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D5D5D5;
@@ -549,11 +562,11 @@ window.Quarto = {
   width: 100%;
 }
 
-#rcvuktbfhi .gt_spanner_row {
+#ncrtbthnsk .gt_spanner_row {
   border-bottom-style: hidden;
 }
 
-#rcvuktbfhi .gt_group_heading {
+#ncrtbthnsk .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -579,7 +592,7 @@ window.Quarto = {
   text-align: left;
 }
 
-#rcvuktbfhi .gt_empty_group_heading {
+#ncrtbthnsk .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -594,15 +607,15 @@ window.Quarto = {
   vertical-align: middle;
 }
 
-#rcvuktbfhi .gt_from_md > :first-child {
+#ncrtbthnsk .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#rcvuktbfhi .gt_from_md > :last-child {
+#ncrtbthnsk .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#rcvuktbfhi .gt_row {
+#ncrtbthnsk .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -621,7 +634,7 @@ window.Quarto = {
   overflow-x: hidden;
 }
 
-#rcvuktbfhi .gt_stub {
+#ncrtbthnsk .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -634,7 +647,7 @@ window.Quarto = {
   padding-right: 5px;
 }
 
-#rcvuktbfhi .gt_stub_row_group {
+#ncrtbthnsk .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -648,15 +661,15 @@ window.Quarto = {
   vertical-align: top;
 }
 
-#rcvuktbfhi .gt_row_group_first td {
+#ncrtbthnsk .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#rcvuktbfhi .gt_row_group_first th {
+#ncrtbthnsk .gt_row_group_first th {
   border-top-width: 2px;
 }
 
-#rcvuktbfhi .gt_summary_row {
+#ncrtbthnsk .gt_summary_row {
   color: #333333;
   background-color: #D5D5D5;
   text-transform: inherit;
@@ -666,16 +679,16 @@ window.Quarto = {
   padding-right: 5px;
 }
 
-#rcvuktbfhi .gt_first_summary_row {
+#ncrtbthnsk .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D5D5D5;
 }
 
-#rcvuktbfhi .gt_first_summary_row.thick {
+#ncrtbthnsk .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#rcvuktbfhi .gt_last_summary_row {
+#ncrtbthnsk .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -685,7 +698,7 @@ window.Quarto = {
   border-bottom-color: #D5D5D5;
 }
 
-#rcvuktbfhi .gt_grand_summary_row {
+#ncrtbthnsk .gt_grand_summary_row {
   color: #FFFFFF;
   background-color: #929292;
   text-transform: inherit;
@@ -695,7 +708,7 @@ window.Quarto = {
   padding-right: 5px;
 }
 
-#rcvuktbfhi .gt_first_grand_summary_row {
+#ncrtbthnsk .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -705,7 +718,7 @@ window.Quarto = {
   border-top-color: #D5D5D5;
 }
 
-#rcvuktbfhi .gt_last_grand_summary_row_top {
+#ncrtbthnsk .gt_last_grand_summary_row_top {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -715,11 +728,11 @@ window.Quarto = {
   border-bottom-color: #D5D5D5;
 }
 
-#rcvuktbfhi .gt_striped {
+#ncrtbthnsk .gt_striped {
   background-color: #F4F4F4;
 }
 
-#rcvuktbfhi .gt_table_body {
+#ncrtbthnsk .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D5D5D5;
@@ -728,7 +741,7 @@ window.Quarto = {
   border-bottom-color: #D5D5D5;
 }
 
-#rcvuktbfhi .gt_footnotes {
+#ncrtbthnsk .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -742,7 +755,7 @@ window.Quarto = {
   border-right-color: #D3D3D3;
 }
 
-#rcvuktbfhi .gt_footnote {
+#ncrtbthnsk .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-top: 4px;
@@ -751,7 +764,7 @@ window.Quarto = {
   padding-right: 5px;
 }
 
-#rcvuktbfhi .gt_sourcenotes {
+#ncrtbthnsk .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -765,7 +778,7 @@ window.Quarto = {
   border-right-color: #D3D3D3;
 }
 
-#rcvuktbfhi .gt_sourcenote {
+#ncrtbthnsk .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -773,72 +786,72 @@ window.Quarto = {
   padding-right: 5px;
 }
 
-#rcvuktbfhi .gt_left {
+#ncrtbthnsk .gt_left {
   text-align: left;
 }
 
-#rcvuktbfhi .gt_center {
+#ncrtbthnsk .gt_center {
   text-align: center;
 }
 
-#rcvuktbfhi .gt_right {
+#ncrtbthnsk .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#rcvuktbfhi .gt_font_normal {
+#ncrtbthnsk .gt_font_normal {
   font-weight: normal;
 }
 
-#rcvuktbfhi .gt_font_bold {
+#ncrtbthnsk .gt_font_bold {
   font-weight: bold;
 }
 
-#rcvuktbfhi .gt_font_italic {
+#ncrtbthnsk .gt_font_italic {
   font-style: italic;
 }
 
-#rcvuktbfhi .gt_super {
+#ncrtbthnsk .gt_super {
   font-size: 65%;
 }
 
-#rcvuktbfhi .gt_footnote_marks {
+#ncrtbthnsk .gt_footnote_marks {
   font-size: 75%;
   vertical-align: 0.4em;
   position: initial;
 }
 
-#rcvuktbfhi .gt_asterisk {
+#ncrtbthnsk .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#rcvuktbfhi .gt_indent_1 {
+#ncrtbthnsk .gt_indent_1 {
   text-indent: 5px;
 }
 
-#rcvuktbfhi .gt_indent_2 {
+#ncrtbthnsk .gt_indent_2 {
   text-indent: 10px;
 }
 
-#rcvuktbfhi .gt_indent_3 {
+#ncrtbthnsk .gt_indent_3 {
   text-indent: 15px;
 }
 
-#rcvuktbfhi .gt_indent_4 {
+#ncrtbthnsk .gt_indent_4 {
   text-indent: 20px;
 }
 
-#rcvuktbfhi .gt_indent_5 {
+#ncrtbthnsk .gt_indent_5 {
   text-indent: 25px;
 }
 
-#rcvuktbfhi .katex-display {
+#ncrtbthnsk .katex-display {
   display: inline-flex !important;
   margin-bottom: 0.75em !important;
 }
 
-#rcvuktbfhi div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+#ncrtbthnsk div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
   height: 0px !important;
 }
 </style>
@@ -11139,7 +11152,19 @@ Figure&nbsp;8: Reliability (D-vour) of the memory indices, with 95% bootstrap CI
 <td style="text-align: left;">.08</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">Interoception: MINT ExAc</td>
+<td style="text-align: left;">Interoception: Awareness</td>
+<td style="text-align: left;">.03</td>
+<td style="text-align: left;">-.01</td>
+<td style="text-align: left;">.04</td>
+<td style="text-align: left;">-.02</td>
+<td style="text-align: left;">-.04</td>
+<td style="text-align: left;">.03</td>
+<td style="text-align: left;">-.02</td>
+<td style="text-align: left;">-.01</td>
+<td style="text-align: left;">.00</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Interoception: <em>MINT ExAc</em></td>
 <td style="text-align: left;">.04</td>
 <td style="text-align: left;">-.05</td>
 <td style="text-align: left;">.11</td>
@@ -11150,8 +11175,20 @@ Figure&nbsp;8: Reliability (D-vour) of the memory indices, with 95% bootstrap CI
 <td style="text-align: left;">.04</td>
 <td style="text-align: left;">-.00</td>
 </tr>
+<tr class="odd">
+<td style="text-align: left;">Interoception: <em>MINT RelA</em></td>
+<td style="text-align: left;">.03</td>
+<td style="text-align: left;">-.00</td>
+<td style="text-align: left;">-.04</td>
+<td style="text-align: left;">.09</td>
+<td style="text-align: left;">-.03</td>
+<td style="text-align: left;">-.02</td>
+<td style="text-align: left;">-.01</td>
+<td style="text-align: left;">-.02</td>
+<td style="text-align: left;">.00</td>
+</tr>
 <tr class="even">
-<td style="text-align: left;">Interoception: MINT SexS</td>
+<td style="text-align: left;">Interoception: <em>MINT SexS</em></td>
 <td style="text-align: left;">-.00</td>
 <td style="text-align: left;">.03</td>
 <td style="text-align: left;">.03</td>
@@ -11163,31 +11200,31 @@ Figure&nbsp;8: Reliability (D-vour) of the memory indices, with 95% bootstrap CI
 <td style="text-align: left;">.00</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">Interoception: MINT Derm</td>
-<td style="text-align: left;">.14</td>
+<td style="text-align: left;">Interoception: Deficit</td>
 <td style="text-align: left;">.03</td>
+<td style="text-align: left;">.10</td>
+<td style="text-align: left;">-.06</td>
 <td style="text-align: left;">.02</td>
-<td style="text-align: left;">.00</td>
-<td style="text-align: left;">-.04</td>
-<td style="text-align: left;">-.04</td>
-<td style="text-align: left;">-.02</td>
+<td style="text-align: left;">.05</td>
+<td style="text-align: left;">-.10</td>
 <td style="text-align: left;">.04</td>
-<td style="text-align: left;">.06</td>
+<td style="text-align: left;">.08</td>
+<td style="text-align: left;">.01</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">Interoception: MINT Sati</td>
-<td style="text-align: left;">-.01</td>
-<td style="text-align: left;">.06</td>
-<td style="text-align: left;">.01</td>
+<td style="text-align: left;">Interoception: <em>MINT CaCo</em></td>
 <td style="text-align: left;">-.06</td>
 <td style="text-align: left;">.03</td>
-<td style="text-align: left;">-.07</td>
+<td style="text-align: left;">-.06</td>
+<td style="text-align: left;">-.00</td>
+<td style="text-align: left;">.09</td>
+<td style="text-align: left;">-.08</td>
+<td style="text-align: left;">.01</td>
+<td style="text-align: left;">.10</td>
 <td style="text-align: left;">.03</td>
-<td style="text-align: left;">.05</td>
-<td style="text-align: left;">-.02</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">Interoception: MINT Urin</td>
+<td style="text-align: left;">Interoception: <em>MINT Urin</em></td>
 <td style="text-align: left;">-.03</td>
 <td style="text-align: left;">.11</td>
 <td style="text-align: left;">-.06</td>
@@ -11199,7 +11236,55 @@ Figure&nbsp;8: Reliability (D-vour) of the memory indices, with 95% bootstrap CI
 <td style="text-align: left;">-.08</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">Interoception: MINT Resp</td>
+<td style="text-align: left;">Interoception: <em>MINT Derm</em></td>
+<td style="text-align: left;">.14</td>
+<td style="text-align: left;">.03</td>
+<td style="text-align: left;">.02</td>
+<td style="text-align: left;">.00</td>
+<td style="text-align: left;">-.04</td>
+<td style="text-align: left;">-.04</td>
+<td style="text-align: left;">-.02</td>
+<td style="text-align: left;">.04</td>
+<td style="text-align: left;">.06</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Interoception: <em>MINT Sati</em></td>
+<td style="text-align: left;">-.01</td>
+<td style="text-align: left;">.06</td>
+<td style="text-align: left;">.01</td>
+<td style="text-align: left;">-.06</td>
+<td style="text-align: left;">.03</td>
+<td style="text-align: left;">-.07</td>
+<td style="text-align: left;">.03</td>
+<td style="text-align: left;">.05</td>
+<td style="text-align: left;">-.02</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Interoception: <em>MINT Olfa</em></td>
+<td style="text-align: left;">.04</td>
+<td style="text-align: left;">.07</td>
+<td style="text-align: left;">-.11</td>
+<td style="text-align: left;">.08</td>
+<td style="text-align: left;">.06</td>
+<td style="text-align: left;">-.06</td>
+<td style="text-align: left;">.08</td>
+<td style="text-align: left;">.01</td>
+<td style="text-align: left;">.03</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Interoception: Visceroception</td>
+<td style="text-align: left;">-.04</td>
+<td style="text-align: left;">.05</td>
+<td style="text-align: left;">-.08</td>
+<td style="text-align: left;">.06</td>
+<td style="text-align: left;">.06</td>
+<td style="text-align: left;">-.11</td>
+<td style="text-align: left;">.02</td>
+<td style="text-align: left;">.06</td>
+<td style="text-align: left;">.07</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Interoception: <em>MINT Resp</em></td>
 <td style="text-align: left;">-.06</td>
 <td style="text-align: left;">.05</td>
 <td style="text-align: left;">-.12</td>
@@ -11211,19 +11296,7 @@ Figure&nbsp;8: Reliability (D-vour) of the memory indices, with 95% bootstrap CI
 <td style="text-align: left;">.08</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">Interoception: MINT CaCo</td>
-<td style="text-align: left;">-.06</td>
-<td style="text-align: left;">.03</td>
-<td style="text-align: left;">-.06</td>
-<td style="text-align: left;">-.00</td>
-<td style="text-align: left;">.09</td>
-<td style="text-align: left;">-.08</td>
-<td style="text-align: left;">.01</td>
-<td style="text-align: left;">.10</td>
-<td style="text-align: left;">.03</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">Interoception: MINT Card</td>
+<td style="text-align: left;">Interoception: <em>MINT Card</em></td>
 <td style="text-align: left;">-.05</td>
 <td style="text-align: left;">.02</td>
 <td style="text-align: left;">-.04</td>
@@ -11234,20 +11307,8 @@ Figure&nbsp;8: Reliability (D-vour) of the memory indices, with 95% bootstrap CI
 <td style="text-align: left;">.07</td>
 <td style="text-align: left;">.06</td>
 </tr>
-<tr class="odd">
-<td style="text-align: left;">Interoception: MINT RelA</td>
-<td style="text-align: left;">.03</td>
-<td style="text-align: left;">-.00</td>
-<td style="text-align: left;">-.04</td>
-<td style="text-align: left;">.09</td>
-<td style="text-align: left;">-.03</td>
-<td style="text-align: left;">-.02</td>
-<td style="text-align: left;">-.01</td>
-<td style="text-align: left;">-.02</td>
-<td style="text-align: left;">.00</td>
-</tr>
 <tr class="even">
-<td style="text-align: left;">Interoception: MINT Gast</td>
+<td style="text-align: left;">Interoception: <em>MINT Gast</em></td>
 <td style="text-align: left;">-.01</td>
 <td style="text-align: left;">.07</td>
 <td style="text-align: left;">-.07</td>
@@ -11257,18 +11318,6 @@ Figure&nbsp;8: Reliability (D-vour) of the memory indices, with 95% bootstrap CI
 <td style="text-align: left;">.05</td>
 <td style="text-align: left;">.04</td>
 <td style="text-align: left;">.07</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">Interoception: MINT Olfa</td>
-<td style="text-align: left;">.04</td>
-<td style="text-align: left;">.07</td>
-<td style="text-align: left;">-.11</td>
-<td style="text-align: left;">.08</td>
-<td style="text-align: left;">.06</td>
-<td style="text-align: left;">-.06</td>
-<td style="text-align: left;">.08</td>
-<td style="text-align: left;">.01</td>
-<td style="text-align: left;">.03</td>
 </tr>
 </tbody>
 </table>
@@ -11289,7 +11338,7 @@ Figure&nbsp;8: Reliability (D-vour) of the memory indices, with 95% bootstrap CI
 <img src="7_correlates_files/figure-html/fig-memory-correlates-1.png" class="img-fluid figure-img" width="1056">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-memory-correlates-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;9: Correlations between the reliable memory indices (columns) and participant characteristics (220 participants), ordered within each group by the similarity of their correlation profiles. Bold: p &lt; .05 (uncorrected); *: p &lt; .05 after FDR correction across the whole table.
+Figure&nbsp;9: Correlations between the reliable memory indices (columns) and participant characteristics (220 participants), ordered within each group by the similarity of their correlation profiles (Interoception: each Mint metacluster followed by its facets, in italics). Bold: p &lt; .05 (uncorrected); *: p &lt; .05 after FDR correction across the whole table.
 </figcaption>
 </figure>
 </div>
@@ -11560,7 +11609,46 @@ Figure&nbsp;9: Correlations between the reliable memory indices (columns) and pa
 <td style="text-align: left;">-.01</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">Interoception: MINT SexS</td>
+<td style="text-align: left;">Interoception: Awareness</td>
+<td style="text-align: left;">-.06</td>
+<td style="text-align: left;">.17*</td>
+<td style="text-align: left;">.02</td>
+<td style="text-align: left;">-.15</td>
+<td style="text-align: left;">-.08</td>
+<td style="text-align: left;">.24*</td>
+<td style="text-align: left;">.14</td>
+<td style="text-align: left;">.26*</td>
+<td style="text-align: left;">.21*</td>
+<td style="text-align: left;">-.06</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Interoception: <em>MINT ExAc</em></td>
+<td style="text-align: left;">-.04</td>
+<td style="text-align: left;">.04</td>
+<td style="text-align: left;">.01</td>
+<td style="text-align: left;">-.06</td>
+<td style="text-align: left;">-.04</td>
+<td style="text-align: left;">.20*</td>
+<td style="text-align: left;">.10</td>
+<td style="text-align: left;">.20*</td>
+<td style="text-align: left;">.17*</td>
+<td style="text-align: left;">-.01</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Interoception: <em>MINT RelA</em></td>
+<td style="text-align: left;">.04</td>
+<td style="text-align: left;">.21*</td>
+<td style="text-align: left;">.02</td>
+<td style="text-align: left;">-.07</td>
+<td style="text-align: left;">.02</td>
+<td style="text-align: left;">.19*</td>
+<td style="text-align: left;">.09</td>
+<td style="text-align: left;">.21*</td>
+<td style="text-align: left;">.14</td>
+<td style="text-align: left;">-.13</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Interoception: <em>MINT SexS</em></td>
 <td style="text-align: left;">-.14</td>
 <td style="text-align: left;">.14</td>
 <td style="text-align: left;">.02</td>
@@ -11572,8 +11660,47 @@ Figure&nbsp;9: Correlations between the reliable memory indices (columns) and pa
 <td style="text-align: left;">.15</td>
 <td style="text-align: left;">.01</td>
 </tr>
+<tr class="odd">
+<td style="text-align: left;">Interoception: Deficit</td>
+<td style="text-align: left;">.02</td>
+<td style="text-align: left;">.09</td>
+<td style="text-align: left;">-.07</td>
+<td style="text-align: left;">-.10</td>
+<td style="text-align: left;">.01</td>
+<td style="text-align: left;">.11</td>
+<td style="text-align: left;">.03</td>
+<td style="text-align: left;">.12</td>
+<td style="text-align: left;">.10</td>
+<td style="text-align: left;">-.01</td>
+</tr>
 <tr class="even">
-<td style="text-align: left;">Interoception: MINT Derm</td>
+<td style="text-align: left;">Interoception: <em>MINT CaCo</em></td>
+<td style="text-align: left;">.02</td>
+<td style="text-align: left;">.05</td>
+<td style="text-align: left;">-.09</td>
+<td style="text-align: left;">-.04</td>
+<td style="text-align: left;">.01</td>
+<td style="text-align: left;">.01</td>
+<td style="text-align: left;">-.07</td>
+<td style="text-align: left;">.00</td>
+<td style="text-align: left;">.01</td>
+<td style="text-align: left;">.03</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Interoception: <em>MINT Urin</em></td>
+<td style="text-align: left;">.01</td>
+<td style="text-align: left;">.05</td>
+<td style="text-align: left;">.01</td>
+<td style="text-align: left;">-.03</td>
+<td style="text-align: left;">.01</td>
+<td style="text-align: left;">.02</td>
+<td style="text-align: left;">.03</td>
+<td style="text-align: left;">.02</td>
+<td style="text-align: left;">.02</td>
+<td style="text-align: left;">.02</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Interoception: <em>MINT Derm</em></td>
 <td style="text-align: left;">-.05</td>
 <td style="text-align: left;">.06</td>
 <td style="text-align: left;">-.10</td>
@@ -11586,46 +11713,72 @@ Figure&nbsp;9: Correlations between the reliable memory indices (columns) and pa
 <td style="text-align: left;">-.03</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">Interoception: MINT CaCo</td>
-<td style="text-align: left;">.02</td>
-<td style="text-align: left;">.05</td>
-<td style="text-align: left;">-.09</td>
-<td style="text-align: left;">-.04</td>
-<td style="text-align: left;">.01</td>
-<td style="text-align: left;">.01</td>
-<td style="text-align: left;">-.07</td>
+<td style="text-align: left;">Interoception: <em>MINT Sati</em></td>
 <td style="text-align: left;">.00</td>
-<td style="text-align: left;">.01</td>
+<td style="text-align: left;">.05</td>
+<td style="text-align: left;">-.03</td>
+<td style="text-align: left;">-.05</td>
+<td style="text-align: left;">-.00</td>
+<td style="text-align: left;">.13</td>
 <td style="text-align: left;">.03</td>
+<td style="text-align: left;">.14</td>
+<td style="text-align: left;">.11</td>
+<td style="text-align: left;">.02</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">Interoception: MINT Urin</td>
-<td style="text-align: left;">.01</td>
-<td style="text-align: left;">.05</td>
-<td style="text-align: left;">.01</td>
-<td style="text-align: left;">-.03</td>
-<td style="text-align: left;">.01</td>
-<td style="text-align: left;">.02</td>
+<td style="text-align: left;">Interoception: <em>MINT Olfa</em></td>
+<td style="text-align: left;">.08</td>
+<td style="text-align: left;">.06</td>
+<td style="text-align: left;">-.02</td>
+<td style="text-align: left;">-.04</td>
+<td style="text-align: left;">.08</td>
+<td style="text-align: left;">.12</td>
 <td style="text-align: left;">.03</td>
-<td style="text-align: left;">.02</td>
-<td style="text-align: left;">.02</td>
-<td style="text-align: left;">.02</td>
+<td style="text-align: left;">.11</td>
+<td style="text-align: left;">.13</td>
+<td style="text-align: left;">-.06</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">Interoception: MINT ExAc</td>
-<td style="text-align: left;">-.04</td>
-<td style="text-align: left;">.04</td>
+<td style="text-align: left;">Interoception: Visceroception</td>
 <td style="text-align: left;">.01</td>
-<td style="text-align: left;">-.06</td>
-<td style="text-align: left;">-.04</td>
+<td style="text-align: left;">.19*</td>
+<td style="text-align: left;">-.05</td>
+<td style="text-align: left;">-.11</td>
+<td style="text-align: left;">-.00</td>
 <td style="text-align: left;">.20*</td>
-<td style="text-align: left;">.10</td>
-<td style="text-align: left;">.20*</td>
+<td style="text-align: left;">.06</td>
+<td style="text-align: left;">.21*</td>
 <td style="text-align: left;">.17*</td>
-<td style="text-align: left;">-.01</td>
+<td style="text-align: left;">-.07</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">Interoception: MINT Gast</td>
+<td style="text-align: left;">Interoception: <em>MINT Resp</em></td>
+<td style="text-align: left;">.03</td>
+<td style="text-align: left;">.18*</td>
+<td style="text-align: left;">-.01</td>
+<td style="text-align: left;">-.07</td>
+<td style="text-align: left;">.01</td>
+<td style="text-align: left;">.19*</td>
+<td style="text-align: left;">-.02</td>
+<td style="text-align: left;">.19*</td>
+<td style="text-align: left;">.18*</td>
+<td style="text-align: left;">-.07</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Interoception: <em>MINT Card</em></td>
+<td style="text-align: left;">.03</td>
+<td style="text-align: left;">.18*</td>
+<td style="text-align: left;">-.05</td>
+<td style="text-align: left;">-.07</td>
+<td style="text-align: left;">.01</td>
+<td style="text-align: left;">.11</td>
+<td style="text-align: left;">.10</td>
+<td style="text-align: left;">.13</td>
+<td style="text-align: left;">.08</td>
+<td style="text-align: left;">-.08</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Interoception: <em>MINT Gast</em></td>
 <td style="text-align: left;">-.02</td>
 <td style="text-align: left;">.14</td>
 <td style="text-align: left;">-.07</td>
@@ -11638,71 +11791,6 @@ Figure&nbsp;9: Correlations between the reliable memory indices (columns) and pa
 <td style="text-align: left;">-.04</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">Interoception: MINT Card</td>
-<td style="text-align: left;">.03</td>
-<td style="text-align: left;">.18*</td>
-<td style="text-align: left;">-.05</td>
-<td style="text-align: left;">-.07</td>
-<td style="text-align: left;">.01</td>
-<td style="text-align: left;">.11</td>
-<td style="text-align: left;">.10</td>
-<td style="text-align: left;">.13</td>
-<td style="text-align: left;">.08</td>
-<td style="text-align: left;">-.08</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">Interoception: MINT Sati</td>
-<td style="text-align: left;">.00</td>
-<td style="text-align: left;">.05</td>
-<td style="text-align: left;">-.03</td>
-<td style="text-align: left;">-.05</td>
-<td style="text-align: left;">-.00</td>
-<td style="text-align: left;">.13</td>
-<td style="text-align: left;">.03</td>
-<td style="text-align: left;">.14</td>
-<td style="text-align: left;">.11</td>
-<td style="text-align: left;">.02</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">Interoception: MINT Olfa</td>
-<td style="text-align: left;">.08</td>
-<td style="text-align: left;">.06</td>
-<td style="text-align: left;">-.02</td>
-<td style="text-align: left;">-.04</td>
-<td style="text-align: left;">.08</td>
-<td style="text-align: left;">.12</td>
-<td style="text-align: left;">.03</td>
-<td style="text-align: left;">.11</td>
-<td style="text-align: left;">.13</td>
-<td style="text-align: left;">-.06</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">Interoception: MINT Resp</td>
-<td style="text-align: left;">.03</td>
-<td style="text-align: left;">.18*</td>
-<td style="text-align: left;">-.01</td>
-<td style="text-align: left;">-.07</td>
-<td style="text-align: left;">.01</td>
-<td style="text-align: left;">.19*</td>
-<td style="text-align: left;">-.02</td>
-<td style="text-align: left;">.19*</td>
-<td style="text-align: left;">.18*</td>
-<td style="text-align: left;">-.07</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">Interoception: MINT RelA</td>
-<td style="text-align: left;">.04</td>
-<td style="text-align: left;">.21*</td>
-<td style="text-align: left;">.02</td>
-<td style="text-align: left;">-.07</td>
-<td style="text-align: left;">.02</td>
-<td style="text-align: left;">.19*</td>
-<td style="text-align: left;">.09</td>
-<td style="text-align: left;">.21*</td>
-<td style="text-align: left;">.14</td>
-<td style="text-align: left;">-.13</td>
-</tr>
-<tr class="even">
 <td style="text-align: left;">Recognition: False alarms</td>
 <td style="text-align: left;">.15</td>
 <td style="text-align: left;">.08</td>
@@ -11715,7 +11803,7 @@ Figure&nbsp;9: Correlations between the reliable memory indices (columns) and pa
 <td style="text-align: left;">.04</td>
 <td style="text-align: left;">-.11</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td style="text-align: left;">Recognition: Hits</td>
 <td style="text-align: left;">.13</td>
 <td style="text-align: left;">.01</td>
@@ -11728,7 +11816,7 @@ Figure&nbsp;9: Correlations between the reliable memory indices (columns) and pa
 <td style="text-align: left;">.01</td>
 <td style="text-align: left;">-.11</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td style="text-align: left;">Recalled label: Human Original</td>
 <td style="text-align: left;">-.10</td>
 <td style="text-align: left;">-.05</td>
@@ -11741,7 +11829,7 @@ Figure&nbsp;9: Correlations between the reliable memory indices (columns) and pa
 <td style="text-align: left;">.03</td>
 <td style="text-align: left;">.06</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td style="text-align: left;">Recalled label: AI-Generated</td>
 <td style="text-align: left;">.02</td>
 <td style="text-align: left;">.04</td>
@@ -11754,7 +11842,7 @@ Figure&nbsp;9: Correlations between the reliable memory indices (columns) and pa
 <td style="text-align: left;">-.03</td>
 <td style="text-align: left;">-.07</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td style="text-align: left;">Recalled label: Human Forgery</td>
 <td style="text-align: left;">.10</td>
 <td style="text-align: left;">.05</td>
@@ -11767,7 +11855,7 @@ Figure&nbsp;9: Correlations between the reliable memory indices (columns) and pa
 <td style="text-align: left;">.02</td>
 <td style="text-align: left;">-.03</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td style="text-align: left;">Recalled belief: AI Original</td>
 <td style="text-align: left;">-.03</td>
 <td style="text-align: left;">-.16</td>
@@ -11780,7 +11868,7 @@ Figure&nbsp;9: Correlations between the reliable memory indices (columns) and pa
 <td style="text-align: left;">-.14</td>
 <td style="text-align: left;">.04</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td style="text-align: left;">Recalled belief: AI Copy</td>
 <td style="text-align: left;">.06</td>
 <td style="text-align: left;">-.04</td>
@@ -11793,7 +11881,7 @@ Figure&nbsp;9: Correlations between the reliable memory indices (columns) and pa
 <td style="text-align: left;">-.05</td>
 <td style="text-align: left;">-.01</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td style="text-align: left;">Recalled belief: Human Forgery</td>
 <td style="text-align: left;">-.02</td>
 <td style="text-align: left;">.10</td>
@@ -11806,7 +11894,7 @@ Figure&nbsp;9: Correlations between the reliable memory indices (columns) and pa
 <td style="text-align: left;">.12</td>
 <td style="text-align: left;">.00</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td style="text-align: left;">Recalled belief: Human Original</td>
 <td style="text-align: left;">.00</td>
 <td style="text-align: left;">.08</td>
@@ -11838,7 +11926,7 @@ Figure&nbsp;9: Correlations between the reliable memory indices (columns) and pa
 <img src="7_correlates_files/figure-html/fig-correlates-1.png" class="img-fluid figure-img" width="1008">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-correlates-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;10: Correlations between the dimension scores (columns, grouped by higher-order community; Overall = the higher-order score) and participant characteristics and follow-up memory indices (rows; ordered within each group by the similarity of their correlation profiles). Bold: p &lt; .05 (uncorrected); *: p &lt; .05 after FDR correction across the whole table.
+Figure&nbsp;10: Correlations between the dimension scores (columns, grouped by higher-order community; Overall = the higher-order score) and participant characteristics and follow-up memory indices (rows; ordered within each group by the similarity of their correlation profiles; Interoception: each Mint metacluster followed by its facets, in italics). Bold: p &lt; .05 (uncorrected); *: p &lt; .05 after FDR correction across the whole table.
 </figcaption>
 </figure>
 </div>
@@ -11855,11 +11943,11 @@ Figure&nbsp;10: Correlations between the dimension scores (columns, grouped by h
 <span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>figure4 <span class="ot">&lt;-</span> <span class="fu">free</span>(p_ega_matrix) <span class="sc">/</span></span>
 <span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>  (<span class="fu">cor_heatmap</span>(df_correlates, <span class="at">base_size =</span> <span class="dv">20</span>, <span class="at">text_size =</span> <span class="fl">5.2</span>, <span class="at">col_fill =</span> fill_higher) <span class="sc">+</span></span>
 <span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>     <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"none"</span>, <span class="at">plot.margin =</span> <span class="fu">margin</span>(<span class="at">t =</span> <span class="fl">0.1</span>, <span class="at">unit =</span> <span class="st">"in"</span>))) <span class="sc">+</span></span>
-<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">plot_layout</span>(<span class="at">heights =</span> <span class="fu">c</span>(<span class="fl">19.4</span>, <span class="fl">14.5</span>))</span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">plot_layout</span>(<span class="at">heights =</span> <span class="fu">c</span>(<span class="fl">19.4</span>, <span class="fl">15.6</span>))</span>
 <span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>figure4</span>
 <span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="st">"figures/figure4.png"</span>, figure4, <span class="at">width =</span> <span class="dv">20</span>, <span class="at">height =</span> <span class="fl">33.9</span>, <span class="at">dpi =</span> <span class="dv">300</span>, <span class="at">bg =</span> <span class="st">"white"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="st">"figures/figure4.png"</span>, figure4, <span class="at">width =</span> <span class="dv">20</span>, <span class="at">height =</span> <span class="dv">35</span>, <span class="at">dpi =</span> <span class="dv">300</span>, <span class="at">bg =</span> <span class="st">"white"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
 <div id="fig-figure4" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Top: triangular correlation matrix of the participant-level indices with a tree of their lower- and higher-order communities drawn above the diagonal. Bottom: heatmap of correlations between the community scores and participant characteristics and memory indices.">

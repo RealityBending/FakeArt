@@ -1,5 +1,5 @@
-# Presentation helpers shared by 3_models.qmd, 4_memory.qmd and
-# 5_realitydeterminants.qmd.
+# Presentation helpers shared by 3_models.qmd, 4_memory.qmd,
+# 5_realitydeterminants.qmd and 6_selfrelevance.qmd.
 # server/estimates.R turns fits into numbers (on the cluster); this turns those
 # numbers into output. Not in server/ because `./hpc push` mirrors server/*.R.
 
@@ -64,6 +64,53 @@ make_markdown <- function(tbl, title) {
     ),
     collapse = "\n"
   )
+}
+
+
+# Exploratory lme4 pilots -------------------------------------------------------
+# The "Exploratory checks" sections of 5_realitydeterminants.qmd and
+# 6_selfrelevance.qmd (and the memory checks of 6_ and 4_memory.qmd): quick
+# frequentist fits that document choices of the Bayesian models (centring,
+# linearity). Not reported in the manuscript.
+
+# Fixed effects of an lme4 fit (glmer when `family` is given); the fit itself
+# is dropped so that cached chunks stay small.
+pilot_ctl <- lme4::lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 2e5))
+pilot_gctl <- lme4::glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 2e5))
+pilot_coefs <- function(f, d, family = NULL) {
+  m <- if (is.null(family)) {
+    lme4::lmer(stats::as.formula(f), data = d, REML = FALSE, control = pilot_ctl)
+  } else {
+    lme4::glmer(stats::as.formula(f), data = d, family = family, control = pilot_gctl)
+  }
+  s <- summary(m)$coefficients
+  data.frame(Term = rownames(s), Estimate = s[, 1], SE = s[, 2], row.names = NULL)
+}
+
+# Readable term names
+pilot_term <- function(term) {
+  stringr::str_replace_all(term, c(
+    "ConditionAI-Generated" = "AI-Generated", "ConditionHuman Forgery" = "Forgery", "TypeNew" = "New items",
+    "Beauty2_w" = "follow-up beauty (within)", "Beauty2_raw" = "follow-up beauty (raw)", "Beauty2_b" = "follow-up beauty (between)",
+    "Beauty_w" = "beauty (within)", "Beauty_raw" = "beauty (raw)", "Beauty_b" = "beauty (between)",
+    "SR_w" = "SR (within)", "SR_raw" = "SR (raw)", "SR_b" = "SR (between)",
+    "Valence_w" = "valence (within)", ":" = " x "))
+}
+
+# Display table of a linear pilot on a 0-100 outcome with 0-1 predictors:
+# terms matching `slope` are shown per +10% of the predictor (coefficient /
+# 10), the others (label contrasts) in % of the scale; Effect by |t| > 1.96.
+pilot_table <- function(d, slope = "Beauty|SR_") {
+  d <- d[d$Term != "(Intercept)", ]
+  is_slope <- grepl(slope, d$Term)
+  d$Estimate <- ifelse(is_slope, d$Estimate / 10, d$Estimate)
+  d$SE <- ifelse(is_slope, d$SE / 10, d$SE)
+  d$Unit <- ifelse(is_slope, "per +10% of the predictor", "% of the scale")
+  d$Term <- pilot_term(d$Term)
+  d$Effect <- ifelse(abs(d$Estimate / d$SE) < 1.96, "n.s.", ifelse(d$Estimate < 0, "Negative", "Positive"))
+  d$Diff <- insight::format_value(d$Estimate)
+  d$SE <- insight::format_value(d$SE)
+  d
 }
 
 

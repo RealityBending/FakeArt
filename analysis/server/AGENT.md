@@ -663,6 +663,68 @@ locally. The warmup-1,000 shards, combined fits and estimates are in
 `models/w1000_backup/` on the cluster (outside the `combined/*.rds` pull
 pattern). `models_w3000/` still holds the same refits and can be deleted.
 
+### 3.7b Submitted: the self-relevance models (2026-09-24)
+
+`BeautySR` 11409806, `BeautySRControl` 11409810, `MeaningSR` 11409814,
+`AuthenticitySR` 11409818, `ArtificialitySR` 11409822, `RealitySR` 11409827:
+`general`, defaults (4 x 2 chains, warmup 1,000, 4,000 draws), default
+`models/` (new names, so no stale shards). Checked beforehand with a local
+smoke test (MeaningSR, RealitySR, ArtificialitySR, 8 participants) and
+`get_estimates()` + `moderation_effects()` / `appraisal_effects()` /
+`grid_slopes()` / `covariate_slopes()` on those fits. **Laptop smoke tests of
+these models need follow-up participants**: `FA_NPARTICIPANTS=8` takes the
+first 8 of `data_task.csv`, none of whom returned, so `fa_prepare_sr()` leaves
+no rows ("Argument 'data' does not contain observations"); point `FA_DATA` at
+a copy of the data restricted to participants with `SelfRelevance`. Three of
+the six `./hpc fit` calls in a row hit the sshd rate limit ("cannot reach
+artemis") and were resubmitted a minute later.
+
+Outcome: shards took 8-78 min (MeaningSR slowest). MeaningSR shard 2 lost its
+second chain silently at start-up (no Stan message, 2.2 GB RSS, job
+COMPLETED): the one-chain shard was moved to `models/partial_backup/` and the
+shard rerun (job 11410521), after which all six combined with 8 chains x 4,000
+draws and were extracted and pulled (`./hpc pull 'estimates/*SR.rds'` plus
+`BeautySRControl.rds`, so no other estimate was overwritten). Fixed effects:
+max Rhat 1.018-1.042, min bulk ESS 175-395 (worst: the CHOCO `confright` /
+`confleft` intercepts, as in §3.7a). ArtificialitySR's headline Rhat 1.144 is
+its `cor_` block only (ESS 43); its fixed effects top out at 1.035. MeaningSR
+0.5% divergent, the others 0.
+
+### 3.7c Submitted: shape and between-person checks (2026-09-24)
+
+After the user questioned the within-participant centring and asked about
+quadratic links, lme4 / GAM pilots (documented in the "Exploratory checks"
+sections of `5_realitydeterminants.qmd` and `6_selfrelevance.qmd`, and in
+6_'s section C) found that centring changes no within-person result, no link
+is U-shaped, authenticity-by-beauty is convex, and the follow-up ratings
+raise false alarms as much as hits. Three models were added to test what the
+pilots left open, **next to** the existing ones (none replaces a fit the
+manuscript quotes; `AuthenticityBeautyQuad` would only if LOO clearly favours
+it and it changes the numbers):
+
+- `AuthenticityBeautyQuad` 11410681: `AuthenticityBeauty` + `I(Beauty_w^2)`.
+- `BeautySRBetween` 11410687: `BeautySR` + the participant's mean SR (`SR_b`).
+- `MemoryAppraisal` 11410690: preregistered H1, recognition / recalled label
+  on quadratic Phase-1 beauty and valence (old items).
+
+Defaults (4 x 2 chains, warmup 1,000, 4,000 draws); they landed on `long`
+(the fit.slurm default partition). Local smoke test first (8 participants,
+60 + 40 iterations, `FA_DATA` restricted to follow-up participants as §3.7b
+says), then `get_estimates()` and the notebook helpers on those fits. The
+second and third `./hpc fit` in a row again hit the sshd rate limit and were
+resubmitted singly. New plumbing: `./hpc loo` (`FA_WHAT=loo`, `get_loo()`) for
+the LOO comparison, `grid_slopes(at = )`, `memory_grid_info` /
+`get_memory_grid_estimates()` / `memory_grid_effects()`.
+
+Outcome: shards 8-15 min (CHOCO) and 2.5 min (MemoryAppraisal), 0 divergent;
+all three combined with 8 chains x 4,000 draws (combines 10-22 min, the
+loo being most of it); fixed effects max Rhat 1.029 (Quad), 1.012
+(Between), 1.016 (Memory). Extracted, `./hpc loo AuthenticityBeauty` and
+`./hpc loo AuthenticityBeautyQuad` run, and pulled **by file name**
+(`estimates/<model>.rds`, `loo/*.rds`) so no other estimate was
+overwritten. A pull right after another SSH call reported "nothing matched"
+for a file that existed: the rate limit again; wait ~40 s and retry.
+
 ---
 
 ### 3.6a Measured: `normal` caps the whole account at 550 CPUs (2026-09-22)

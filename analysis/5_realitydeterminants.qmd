@@ -40,7 +40,7 @@ source("report.R")           # make_asis(), make_tables(), read_estimates(), get
 dftask <- read.csv("../data/data_task.csv") |>
   mutate(Condition = fct_relevel(Condition, "Human Original", "Human Forgery", "AI-Generated"))
 
-estimates <- read_estimates(c(names(mediation_info), names(appraisal_info), names(items_info)))
+estimates <- read_estimates(setdiff(c(names(mediation_info), names(appraisal_info), names(items_info)), c(sr_models, shape_models)))
 # The label effects of the main models (Condition * Emotion), for comparison
 reference <- read_estimates(c("Beauty", "Reality", "Authenticity"))
 provenance_table(c(estimates, reference))
@@ -828,6 +828,7 @@ Files written:
 - `data/results_determinants_appraisal.csv`: decomposition by the four Phase-1 ratings (total, direct, joint and unique indirect effects, rating shifts), response and CHOCO parameters.
 - `data/results_determinants_items.csv`: slopes per SD of each VAPS norm and style differences.
 - `data/results_determinants_contrasts.csv`: label contrasts at average beauty, every CHOCO parameter.
+- `data/results_determinants_quadratic.csv` (see "Exploratory checks", once `AuthenticityBeautyQuad` is extracted): authenticity slopes on beauty at -0.4 / -0.2 / 0 / +0.2 / +0.4 of `Beauty_w`, per label, response and CHOCO parameters.
 
 ```{r}
 write.csv(dat_med, "../data/results_determinants_mediation.csv", row.names = FALSE)
@@ -860,4 +861,294 @@ bind_rows(lapply(estimates, function(e) {
     select(Model, Contrast, Parameter, Difference, CI_low, CI_high, Difference_pct, CI_low_pct, CI_high_pct, pd, Credible, Effect)
 })) |>
   write.csv("../data/results_determinants_contrasts.csv", row.names = FALSE)
+```
+
+## Exploratory checks: centring and shape
+
+Not reported in the manuscript; kept as a record of what was checked
+(2026-09-24), for this paper's robustness and for the design of future
+studies. The models above make two choices about Phase-1 beauty: it is
+**centred within participant** (`Beauty_w`), and it enters **linearly** on
+every CHOCO parameter. The checks below probe both with quick frequentist
+fits (lme4 linear mixed models of the belief on the 0-100 scale, mgcv GAMs)
+and, where the shape turned out to matter, with a Bayesian refit
+(`AuthenticityBeautyQuad`).
+
+### Within-participant centring
+
+`Beauty_w` is centred, not standardised: it keeps the units of the slider (a
+slope is still "% of the belief per +10% of beauty"), and what it removes is
+the participant's own average beauty. It is the right predictor for the
+mediation for two reasons:
+
+- the label is balanced within participant (16 artworks per label), so it
+  cannot move a participant's *average* beauty: only the within-person
+  deviation can carry the label effect, which makes the within-person slope
+  the b-path of the mediation;
+- an uncentred (raw) predictor does not isolate a between-person effect
+  either: with participant intercepts, its slope is a precision-weighted blend
+  of the within- and the between-person slopes (with 48 trials per
+  participant, almost the within one).
+
+The between-person question -- do participants who find art more beautiful
+overall also believe more of it is human-made? -- is answered by adding the
+participant's mean beauty (`Beauty_b`, centred on the mean of the
+participant means) next to `Beauty_w`: a within-between (Mundlak)
+decomposition, whose `Beauty_w` terms estimate the same thing as the
+within-only model. Between-person associations are open to scale use (a
+participant who answers on the right-hand side of every slider), which the
+within-person slope is not.
+
+```{r}
+#| label: pilot-centring
+#| cache: true
+#| cache.extra: !expr rlang::hash(dftask)
+#| warning: false
+
+# lme4 pilots of the determinants design on the 0-100 belief scale, with three
+# versions of the beauty predictor; label + beauty slopes over participants,
+# intercepts over items. Only the coefficient tables are kept (pilot_coefs(),
+# report.R).
+pilot_d <- dftask |>
+  filter(!is.na(Reality), !is.na(Beauty)) |>
+  mutate(Reality = 100 * Reality, Authenticity = 100 * Authenticity,
+         Beauty_raw = Beauty - mean(Beauty)) |>
+  mutate(Beauty_w = Beauty - mean(Beauty), Beauty_m = mean(Beauty), .by = "Participant") |>
+  mutate(Beauty_b = Beauty_m - mean(Beauty_m[!duplicated(Participant)]))
+
+specs <- c(
+  "Within (as fitted)" = "~ Condition * Beauty_w + (Condition + Beauty_w | Participant) + (1 | Item)",
+  "Raw" = "~ Condition * Beauty_raw + (Condition + Beauty_raw | Participant) + (1 | Item)",
+  "Within + between" = "~ Condition * (Beauty_w + Beauty_b) + (Condition + Beauty_w | Participant) + (1 | Item)"
+)
+pilot_centring <- bind_rows(lapply(c(Syntheticness = "Reality", Authenticity = "Authenticity"), function(y) {
+  bind_rows(lapply(names(specs), function(s) mutate(pilot_coefs(paste(y, specs[[s]]), pilot_d), Specification = s)))
+}), .id = "Belief")
+```
+
+```{r}
+#| results: asis
+
+# Slopes per +10% of the predictor, label contrasts at the average predictor
+# in % of the scale (pilot_table(), report.R)
+make_asis(make_tables(pilot_table(pilot_centring), c("Belief", "Specification", "Term", "Unit", "Diff", "SE", "Effect"),
+                      "lme4 pilots: beliefs on the label and Phase-1 beauty, three versions of the beauty predictor (slopes are for Originals; 'x' rows are the difference in slope under a label; Effect: |t| > 1.96)"))
+```
+
+The within-person slopes and the label contrasts are virtually the same in
+the three versions, so the centring changes none of the results above. The
+between-person slopes are the new information: participants who found the
+artworks more beautiful overall also judged them as more human-made (about as
+strongly as within persons) and, more weakly, as more original.
+
+### Shape of the beauty links
+
+Work on aesthetic judgment and memory (Lee et al., 2023; Salgues et al.,
+2024) suggests that extreme appraisals, very ugly as well as very beautiful,
+can behave alike, which a linear term cannot show. Observed means first, by
+absolute beauty (the exact ends of the slider as their own bins) and by
+beauty relative to the participant's mean:
+
+```{r}
+#| results: asis
+
+beauty_bins <- function(x) cut(x, c(-Inf, 0, .15, .3, .45, .55, .7, .85, .9999, Inf),
+                               labels = c("= 0", "0-15", "15-30", "30-45", "45-55", "55-70", "70-85", "85-100", "= 100"))
+obs_abs <- dftask |>
+  filter(!is.na(Reality), !is.na(Beauty)) |>
+  mutate(Bin = beauty_bins(Beauty)) |>
+  summarise(Syntheticness = mean(100 * Reality), Authenticity = mean(100 * Authenticity), n = n(), .by = "Bin") |>
+  arrange(Bin)
+obs_rel <- dftask |>
+  filter(!is.na(Reality), !is.na(Beauty)) |>
+  mutate(Bw = Beauty - mean(Beauty), Rw = 100 * (Reality - mean(Reality)), Aw = 100 * (Authenticity - mean(Authenticity)),
+         .by = "Participant") |>
+  mutate(Bin = cut(100 * Bw, c(-100, -50, -35, -20, -10, 0, 10, 20, 35, 100))) |>
+  summarise(Syntheticness = mean(Rw), Authenticity = mean(Aw), n = n(), .by = "Bin") |>
+  arrange(Bin)
+make_asis(
+  make_tables(mutate(obs_abs, across(c(Syntheticness, Authenticity), \(x) round(x, 1))), c("Bin", "Syntheticness", "Authenticity", "n"),
+              "Observed mean beliefs (% of the slider) by Phase-1 beauty (% of the slider)"),
+  make_tables(mutate(obs_rel, across(c(Syntheticness, Authenticity), \(x) round(x, 1))), c("Bin", "Syntheticness", "Authenticity", "n"),
+              "Observed beliefs relative to the participant's mean, by Phase-1 beauty relative to the participant's mean (both in points of the slider)")
+)
+```
+
+```{r}
+#| label: pilot-quadratic
+#| cache: true
+#| cache.extra: !expr rlang::hash(dftask)
+#| warning: false
+
+# Quadratic pilots: + beauty^2, relative (around the participant's mean) or
+# absolute (around the slider's midpoint, 50 = neutral), both with the
+# participant's mean beauty in the model
+pilot_quad <- bind_rows(lapply(c(Syntheticness = "Reality", Authenticity = "Authenticity"), function(y) {
+  bind_rows(
+    mutate(pilot_coefs(paste(y, "~ Condition * (Beauty_w + I(Beauty_w^2)) + Beauty_b + (Condition + Beauty_w | Participant) + (1 | Item)"), pilot_d),
+           Quadratic = "relative: Beauty_w^2"),
+    mutate(pilot_coefs(paste(y, "~ Condition * (I(Beauty - 0.5) + I((Beauty - 0.5)^2)) + Beauty_b + (Condition + Beauty_w | Participant) + (1 | Item)"), pilot_d),
+           Quadratic = "absolute: (Beauty - 0.5)^2")
+  )
+}), .id = "Belief")
+
+# GAMs: an unconstrained smooth of beauty, the label as a fixed effect,
+# participant and item random intercepts (shape only)
+gam_d <- mutate(pilot_d, Participant = factor(Participant), Item = factor(Item))
+gam_grid <- data.frame(Beauty = seq(0, 1, length.out = 101), Condition = factor("Human Original", levels = levels(dftask$Condition)),
+                       Participant = gam_d$Participant[1], Item = gam_d$Item[1])
+pilot_gam <- bind_rows(lapply(c(Syntheticness = "Reality", Authenticity = "Authenticity"), function(y) {
+  g <- mgcv::bam(as.formula(paste(y, "~ Condition + s(Beauty, k = 8) + s(Participant, bs = 're') + s(Item, bs = 're')")),
+                 data = gam_d, discrete = TRUE, method = "fREML")
+  p <- predict(g, gam_grid, exclude = c("s(Participant)", "s(Item)"), se.fit = TRUE)
+  data.frame(Beauty = gam_grid$Beauty, Fit = p$fit, SE = p$se.fit, edf = summary(g)$s.table["s(Beauty)", "edf"])
+}), .id = "Belief")
+```
+
+```{r}
+#| results: asis
+
+quad_rows <- function(d) {
+  d |>
+    filter(str_detect(Term, "\\^2")) |>
+    mutate(Term = str_replace_all(Term, c("ConditionAI-Generated:" = "AI-Generated x ", "ConditionHuman Forgery:" = "Forgery x ")),
+           z = Estimate / SE,
+           Effect = ifelse(abs(z) < 1.96, "n.s.", ifelse(Estimate < 0, "Negative", "Positive")),
+           across(c(Estimate, SE, z), \(x) insight::format_value(x)))
+}
+make_asis(make_tables(quad_rows(pilot_quad), c("Belief", "Quadratic", "Term", "Estimate", "SE", "z", "Effect"),
+                      "lme4 pilots: quadratic terms (belief in %, beauty on 0-1; positive = convex, i.e. the belief rises faster at the beautiful end)"))
+```
+
+```{r}
+#| fig-width: 11
+#| fig-height: 4.5
+
+# Observed within-person means (points, +/- 1 SE) against the model-implied
+# change relative to the participant's average: the linear CHOCO fits (and the
+# quadratic refit, once extracted), averaged over the labels
+obs_rel_pts <- dftask |>
+  filter(!is.na(Reality), !is.na(Beauty)) |>
+  mutate(Bw = Beauty - mean(Beauty), Syntheticness = 100 * (Reality - mean(Reality)),
+         Authenticity = 100 * (Authenticity - mean(Authenticity)), .by = "Participant") |>
+  mutate(Bin = cut(Bw, c(-1, -.5, -.35, -.2, -.1, 0, .1, .2, .35, 1))) |>
+  pivot_longer(c(Syntheticness, Authenticity), names_to = "Belief") |>
+  summarise(x = mean(Bw), y = mean(value), se = sd(value) / sqrt(n()), .by = c(Belief, Bin))
+
+curve_change <- function(est, label) {
+  g <- est$grid
+  xs <- sort(unique(g$Beauty_w))
+  P <- sapply(xs, function(x) rowMeans(est$grid_draws[, abs(g$Beauty_w - x) < 1e-9, drop = FALSE]))
+  P <- 100 * (P - P[, which(abs(xs) < 1e-9)])
+  tibble(x = xs, Median = apply(P, 2, median), CI_low = apply(P, 2, quantile, 0.025),
+         CI_high = apply(P, 2, quantile, 0.975), Model = label)
+}
+quad_ready <- file.exists("models/estimates/AuthenticityBeautyQuad.rds")
+if (quad_ready) quad <- read_estimates("AuthenticityBeautyQuad")$AuthenticityBeautyQuad
+curves <- bind_rows(
+  mutate(curve_change(estimates$RealityBeauty, "Linear (RealityBeauty / AuthenticityBeauty)"), Belief = "Syntheticness"),
+  mutate(curve_change(estimates$AuthenticityBeauty, "Linear (RealityBeauty / AuthenticityBeauty)"), Belief = "Authenticity"),
+  if (quad_ready) mutate(curve_change(quad, "Quadratic (AuthenticityBeautyQuad)"), Belief = "Authenticity")
+) |>
+  filter(abs(x) <= 0.5)
+
+p_obs <- ggplot(curves, aes(x = 100 * x)) +
+  geom_ribbon(aes(ymin = CI_low, ymax = CI_high, fill = Model), alpha = 0.15) +
+  geom_line(aes(y = Median, color = Model), linewidth = 1) +
+  geom_pointrange(data = obs_rel_pts, aes(x = 100 * x, y = y, ymin = y - se, ymax = y + se), color = "black", size = 0.3) +
+  facet_wrap(~ fct_relevel(Belief, "Syntheticness"), scales = "free_y") +
+  scale_color_manual(values = c("#757575", "#E65100")) +
+  scale_fill_manual(values = c("#757575", "#E65100")) +
+  labs(x = "Phase-1 beauty relative to the participant's mean (points of the slider)",
+       y = "Belief relative to the participant's mean (points)", color = NULL, fill = NULL,
+       caption = "Points: observed within-person means per beauty bin (+/- 1 SE).\nLines: population-level predictions minus their value at the participant's mean, averaged over the labels (95% CI).") +
+  theme_minimal() +
+  theme(legend.position = "bottom", strip.text = element_text(face = "bold"))
+
+p_gam <- ggplot(pilot_gam, aes(x = 100 * Beauty, y = Fit)) +
+  geom_ribbon(aes(ymin = Fit - 1.96 * SE, ymax = Fit + 1.96 * SE), alpha = 0.15) +
+  geom_line(linewidth = 1) +
+  facet_wrap(~ fct_relevel(Belief, "Syntheticness"), scales = "free_y") +
+  labs(x = "Phase-1 beauty (% of the slider, 50 = neutral)", y = "Belief (% of the slider)",
+       caption = "GAM smooths (k = 8), participant and item\nrandom intercepts; Originals.") +
+  theme_minimal() +
+  theme(strip.text = element_text(face = "bold"))
+
+(p_gam | p_obs) + plot_layout(widths = c(1, 1.4))
+```
+
+No link is U-shaped: the very ugly works are not judged more human-made or
+more original than the moderately ugly ones once participant and item
+differences are accounted for (the raw "= 0" bin of authenticity is higher,
+but it does not survive participant and item intercepts in the GAM, and
+within persons the ugly side is flat rather than rising).
+The quadratic terms that reach significance reflect **convexity**, strongest
+for authenticity: within persons, authenticity is nearly flat for artworks
+rated below the participant's average beauty and rises steeply above it
+("beautiful = original", but "ugly" does not mean "copy"). The linear CHOCO
+fit spreads one slope over both sides, and so underestimates the rise for
+the works rated well above the participant's average. Syntheticness is
+closer to linear: it falls steadily on the ugly side too, with a milder
+steepening at the beautiful end (quadratic z of about 2, against about 4 for
+authenticity).
+
+### Authenticity with a quadratic beauty term
+
+`AuthenticityBeautyQuad` (`models.R`) refits `AuthenticityBeauty` with
+`Condition * (Beauty_w + I(Beauty_w^2))` on every CHOCO parameter. It
+replaces `AuthenticityBeauty` only if it predicts clearly better (LOO) **and**
+changes the numbers the manuscript reports; otherwise it documents the shape.
+
+```{r}
+#| results: asis
+
+if (!quad_ready) {
+  make_asis("", '::: {.callout-warning title="Estimates not available yet"}',
+            "`AuthenticityBeautyQuad`: in `analysis/server`, `./hpc combine` (check 4,000 draws), `./hpc extract`, `./hpc loo AuthenticityBeauty` and `./hpc loo AuthenticityBeautyQuad`, then `./hpc pull 'estimates/AuthenticityBeautyQuad.rds'` and `./hpc pull 'loo/*.rds'`.",
+            ":::", "")
+} else {
+  sd_b <- sd(pilot_d$Beauty_w)
+  slopes <- bind_rows(lapply(c(-0.4, -0.2, 0, 0.2, 0.4), function(a) {
+    grid_slopes(quad, at = a) |>
+      filter(Level %in% levels(dftask$Condition)) |>
+      mutate(At = sprintf("%+.0f points (%+.1f SD)", 100 * a, a / sd_b))
+  })) |>
+    rename(Condition = Level)
+  med_both <- bind_rows(
+    mutate(mediation_effects(estimates$AuthenticityBeauty)$effects, Model = "AuthenticityBeauty (linear)"),
+    mutate(mediation_effects(quad)$effects, Model = "AuthenticityBeautyQuad")
+  )
+  loo_files <- file.path("models", "loo", c("AuthenticityBeauty.rds", "AuthenticityBeautyQuad.rds"))
+  loo_tab <- if (all(file.exists(loo_files))) {
+    l <- lapply(loo_files, readRDS)
+    mutate(loo_difference(l[[1]], l[[2]]), across(c(elpd_diff, se_diff, max_pareto_k), \(x) insight::format_value(x)))
+  }
+  make_asis(
+    make_tables(quad$diag, c("Model", "Family", "N_obs", "N_participants", "Chains", "Draws", "Max_Rhat", "Min_ESS_ratio", "Divergent_pct"),
+                "Convergence of AuthenticityBeautyQuad"),
+    make_tables(convergence_by_class(quad), c("Model", "Class", "N", "Max_Rhat", "Min_ESS_bulk"), "Convergence by parameter class"),
+    if (!is.null(loo_tab)) {
+      make_tables(loo_tab, c("Model", "Reference", "elpd_diff", "se_diff", "max_pareto_k"),
+                  "LOO: elpd of the quadratic minus the linear model (> 0: the quadratic predicts better; within ~2 SE: no clear difference)")
+    } else {
+      "*LOO comparison not available yet (`./hpc loo AuthenticityBeauty` and `./hpc loo AuthenticityBeautyQuad`, then `./hpc pull 'loo/*.rds'`).*"
+    },
+    make_tables(format_effects(slopes) |> arrange(Condition), c("Condition", "At", "Diff", "CI", "pd_fmt", "Effect"),
+                "AuthenticityBeautyQuad: change in authenticity per +10% of Phase-1 beauty, below, at and above the participant's mean beauty (% of the slider)"),
+    make_tables(format_effects(med_both) |> filter(Path %in% c("Total", "Direct", "Indirect")) |> arrange(Contrast, Path),
+                c("Contrast", "Path", "Model", "Diff", "CI", "pd_fmt", "Effect"),
+                "Mediation of the label effect by Phase-1 beauty, linear vs. quadratic model (% of the slider)")
+  )
+}
+```
+
+```{r}
+#| eval: !expr quad_ready
+
+bind_rows(lapply(c(-0.4, -0.2, 0, 0.2, 0.4), function(a) {
+  bind_rows(lapply(c("response", choco_pars), function(p) {
+    mutate(grid_slopes(quad, par = p, at = a), Parameter = p, At = a, .before = 1)
+  }))
+})) |>
+  write.csv("../data/results_determinants_quadratic.csv", row.names = FALSE)
 ```

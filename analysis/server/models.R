@@ -98,6 +98,17 @@ fa_choco_beauty <- function(outcome) {
   fa_choco(outcome, fa_rhs_beauty, fa_rhs_beauty_slim, fa_rhs_beauty_extreme)
 }
 
+# Shape check (2026-09-24). Beauty_w enters the models above linearly on
+# every dpar. Exploratory lme4 / GAM pilots (5_realitydeterminants.qmd,
+# "Exploratory checks") found no U-shape anywhere, but a convex
+# authenticity-by-beauty link: flat below the participant's mean beauty,
+# steep above it, which the linear CHOCO fit smooths into a straight line.
+# The same design with a quadratic term on the label x beauty part; the random
+# slopes stay linear, for tractability.
+fa_rhs_beauty_quad <- "Condition * (Beauty_w + I(Beauty_w^2)) + (Condition * Beauty_w | Participant) + (Condition + Beauty_w | Item)"
+fa_rhs_beauty_quad_slim <- "Condition * (Beauty_w + I(Beauty_w^2)) + (Condition * Beauty_w | Participant) + (1 | Item)"
+fa_rhs_beauty_quad_extreme <- "Condition * (Beauty_w + I(Beauty_w^2)) + (1 | Participant)"
+
 # Phase-1 beauty centred within participant, over the trials the model uses,
 # so its slope is "this artwork vs. my other artworks" and the participant
 # intercepts absorb between-person differences in the beauty level. The label
@@ -193,6 +204,82 @@ fa_prepare_items <- function(d) {
   d$Style <- factor(d$Style)
   d
 }
+
+# Self-relevance (6_selfrelevance.qmd). Rated in the follow-up (220
+# participants), after the debrief and right after Beauty2, and not affected
+# by the label (SelfRelevance model): a label-free measure of how much a
+# person connects with a work. It therefore enters as a moderator or a
+# predictor, never as a mediator of the label (the label -> SR path is null).
+# SR is the 0-6 rating on 0-1 (fa_prepare_data() made SelfRelevance an ordered
+# factor for the SelfRelevance model; the memory file keeps it numeric),
+# centred within participant over the model's rows (SR_w), so a slope reads
+# "this artwork vs. my other artworks", per 10% of the scale like Beauty_w.
+# `with`: other ratings centred the same way (Beauty -> Beauty_w, Beauty2 ->
+# Beauty2_w); rows missing any of them are dropped. Beauty2 is the competing
+# predictor wherever SR could stand for liking (within-participant r = .58).
+fa_prepare_sr <- function(d, with = character(0)) {
+  sr <- d$SelfRelevance
+  d$SR <- if (is.factor(sr)) as.numeric(as.character(sr)) / 6 else sr
+  vars <- c("SR", with)
+  d <- d[stats::complete.cases(d[vars]), ]
+  for (v in vars) d[[paste0(v, "_w")]] <- d[[v]] - stats::ave(d[[v]], d$Participant)
+  d
+}
+
+# (A) Does self-relevance narrow the label gap (RQ3)? Phase-1 rating on the
+# label, SR_w and their interaction, laid out as fa_rhs_beauty with SR_w in
+# place of Beauty_w (Emotion left out, as in the determinants models).
+fa_rhs_sr <- "Condition * SR_w + (Condition * SR_w | Participant) + (Condition + SR_w | Item)"
+fa_rhs_sr_slim <- "Condition * SR_w + (Condition * SR_w | Participant) + (1 | Item)"
+fa_rhs_sr_extreme <- "Condition * SR_w + (1 | Participant)"
+
+# ...and the same with the follow-up beauty as a competing moderator: is it
+# self-relevance or liking that goes with a larger / smaller label gap?
+fa_rhs_sr_control <- "Condition * (SR_w + Beauty2_w) + (Condition * (SR_w + Beauty2_w) | Participant) + (Condition + SR_w + Beauty2_w | Item)"
+fa_rhs_sr_control_slim <- "Condition * (SR_w + Beauty2_w) + (Condition * (SR_w + Beauty2_w) | Participant) + (1 | Item)"
+fa_rhs_sr_control_extreme <- "Condition * (SR_w + Beauty2_w) + (1 | Participant)"
+
+# ...and between persons (2026-09-24). SR_w keeps only the within-person part
+# of self-relevance: someone who finds every work self-relevant and someone
+# who finds none are alike at SR_w = 0. SR_b adds the participant's own mean
+# SR (0-1, over the model's rows, centred on the mean of the participant
+# means), so Condition x SR_b asks whether people who find art more
+# self-relevant show a smaller label gap, next to the within-person moderation
+# (Condition x SR_w) -- a within-between (Mundlak) decomposition, whose SR_w
+# terms estimate the same thing as BeautySR's. SR_b is a participant-level
+# predictor, so it has no participant slope.
+fa_prepare_sr_between <- function(d) {
+  d <- fa_prepare_sr(d)
+  m <- stats::ave(d$SR, d$Participant)
+  d$SR_b <- m - mean(m[!duplicated(d$Participant)])
+  d
+}
+fa_rhs_sr_between <- "Condition * (SR_w + SR_b) + (Condition * SR_w | Participant) + (Condition + SR_w | Item)"
+fa_rhs_sr_between_slim <- "Condition * (SR_w + SR_b) + (Condition * SR_w | Participant) + (1 | Item)"
+fa_rhs_sr_between_extreme <- "Condition * (SR_w + SR_b) + (1 | Participant)"
+
+# (B) "Self-relevant = human"? The Phase-2 belief on the label x (Phase-1
+# beauty, SR, follow-up beauty), laid out as the appraisal models (label x
+# rating interactions fixed only) so get_appraisal_estimates() decomposes it:
+# the SR and Beauty2 slopes under each label, and indirect effects via SR /
+# Beauty2 that should be ~0 since the label moves neither.
+fa_sr_beliefs <- c("Beauty_w", "SR_w", "Beauty2_w")
+fa_rhs_sr_beliefs <- paste0(
+  "Condition * (", paste(fa_sr_beliefs, collapse = " + "), ")",
+  " + (Condition + ", paste(fa_sr_beliefs, collapse = " + "), " | Participant) + (Condition | Item)"
+)
+fa_rhs_sr_beliefs_slim <- paste0(
+  "Condition * (", paste(fa_sr_beliefs, collapse = " + "), ") + (1 | Participant) + (1 | Item)"
+)
+fa_rhs_sr_beliefs_extreme <- paste0(
+  "Condition + ", paste(fa_sr_beliefs, collapse = " + "), " + (1 | Participant)"
+)
+
+# ...and without any label: perceived artificiality of the items judged new,
+# as ArtificialityBeauty plus SR_w.
+fa_rhs_sr_artificiality <- "Type * (Beauty2_w + SR_w) + (Type * (Beauty2_w + SR_w) | Participant) + (Beauty2_w + SR_w | Item)"
+fa_rhs_sr_artificiality_slim <- "Type * (Beauty2_w + SR_w) + (Type * (Beauty2_w + SR_w) | Participant) + (1 | Item)"
+fa_rhs_sr_artificiality_extreme <- "Type * (Beauty2_w + SR_w) + (1 | Participant)"
 
 
 fa_models <- list(
@@ -360,6 +447,18 @@ fa_models <- list(
     formula = function() fa_choco_beauty("Authenticity")
   ),
 
+  # AuthenticityBeautyQuad ----------------------------------------------------
+  # Shape check: AuthenticityBeauty + a quadratic Beauty_w term (see
+  # fa_rhs_beauty_quad). AuthenticityBeauty stays the analysed model unless
+  # this one fits clearly better *and* changes its numbers.
+  AuthenticityBeautyQuad = list(
+    outcome = "Authenticity",
+    prepare = fa_prepare_beauty,
+    formula = function() {
+      fa_choco("Authenticity", fa_rhs_beauty_quad, fa_rhs_beauty_quad_slim, fa_rhs_beauty_quad_extreme)
+    }
+  ),
+
   # RealityBeautyControl / AuthenticityBeautyControl -------------------------
   # Robustness: + label-free follow-up beauty (fa_prepare_beauty_control()).
   RealityBeautyControl = list(
@@ -453,6 +552,79 @@ fa_models <- list(
     formula = function() fa_choco("PerceivedArtificiality")
   ),
 
+  # SELF-RELEVANCE -- moderator and predictor =================================
+  # Follow-up participants only (fa_prepare_sr() drops the rest). Read by
+  # 6_selfrelevance.qmd; extracted through mediation_info (A, and
+  # ArtificialitySR) and appraisal_info (RealitySR / AuthenticitySR).
+
+  # BeautySR / BeautySRControl / MeaningSR ------------------------------------
+  # (A) Phase-1 rating ~ Condition * SR_w (+ Beauty2_w as a competing moderator).
+  BeautySR = list(
+    outcome = "Beauty",
+    prepare = fa_prepare_sr,
+    formula = function() fa_choco("Beauty", fa_rhs_sr, fa_rhs_sr_slim, fa_rhs_sr_extreme)
+  ),
+  BeautySRControl = list(
+    outcome = "Beauty",
+    prepare = function(d) fa_prepare_sr(d, with = "Beauty2"),
+    formula = function() {
+      fa_choco("Beauty", fa_rhs_sr_control, fa_rhs_sr_control_slim, fa_rhs_sr_control_extreme)
+    }
+  ),
+  # Within + between persons: Condition * (SR_w + SR_b), see fa_prepare_sr_between().
+  BeautySRBetween = list(
+    outcome = "Beauty",
+    prepare = fa_prepare_sr_between,
+    formula = function() {
+      fa_choco("Beauty", fa_rhs_sr_between, fa_rhs_sr_between_slim, fa_rhs_sr_between_extreme)
+    }
+  ),
+  # As Meaning (Discrete Beta with a zero hurdle), every dpar on fa_rhs_sr:
+  # pzero asks whether a self-relevant work escapes the "not at all
+  # meaningful" answer the AI label provokes.
+  MeaningSR = list(
+    outcome = "Meaning",
+    prepare = fa_prepare_sr,
+    formula = function() {
+      brms::bf(
+        fa_f("Meaning | vint(6)", fa_rhs_sr),
+        fa_f("phi", fa_rhs_sr),
+        fa_f("pzero", fa_rhs_sr),
+        family = cogmod::cogmod_betadiscrete()
+      )
+    }
+  ),
+
+  # RealitySR / AuthenticitySR -----------------------------------------------
+  # (B) Phase-2 belief ~ Condition * (Beauty_w + SR_w + Beauty2_w); 217
+  # participants (follow-up and Phase 2).
+  RealitySR = list(
+    outcome = "Reality",
+    prepare = function(d) fa_prepare_sr(d, with = c("Beauty", "Beauty2")),
+    formula = function() {
+      fa_choco("Reality", fa_rhs_sr_beliefs, fa_rhs_sr_beliefs_slim, fa_rhs_sr_beliefs_extreme)
+    }
+  ),
+  AuthenticitySR = list(
+    outcome = "Authenticity",
+    prepare = function(d) fa_prepare_sr(d, with = c("Beauty", "Beauty2")),
+    formula = function() {
+      fa_choco("Authenticity", fa_rhs_sr_beliefs, fa_rhs_sr_beliefs_slim, fa_rhs_sr_beliefs_extreme)
+    }
+  ),
+
+  # ArtificialitySR ------------------------------------------------------------
+  # (B) Follow-up file, items judged "new" (as ArtificialityBeauty):
+  # PerceivedArtificiality ~ Type * (Beauty2_w + SR_w).
+  ArtificialitySR = list(
+    outcome = "PerceivedArtificiality",
+    data = "memory",
+    prepare = function(d) fa_prepare_sr(d, with = "Beauty2"),
+    formula = function() {
+      fa_choco("PerceivedArtificiality", fa_rhs_sr_artificiality, fa_rhs_sr_artificiality_slim, fa_rhs_sr_artificiality_extreme)
+    }
+  ),
+
   # FOLLOW-UP -- recognition and source memory ================================
   # These read data_memory_task.csv (data = "memory"), which also holds the 48
   # *new* items per participant, so Condition has a fourth level "New Items".
@@ -540,6 +712,41 @@ fa_models <- list(
       brms::bf(
         AnswerCondition ~ Condition + Belief +
           (1 + Condition + Belief | Participant) + (1 + Condition + Belief | Item),
+        family = brms::categorical(link = "logit")
+      )
+    }
+  ),
+
+  # MemoryAppraisal -------------------------------------------------------------
+  # Hypothesis 1 of the follow-up preregistration (memory/ethics/
+  # preregistration.md): artworks given extreme Phase-1 appraisals, positive
+  # or negative, are better recognised (Lee et al., 2023; Salgues et al.,
+  # 2024). The recalled label, with "Not recognized" carrying recognition as in
+  # MemoryCondition, on the label shown and on Phase-1 beauty and valence, each
+  # centred within participant over the old items and entered with a quadratic
+  # term (extremity relative to the participant's own average, which the lme4
+  # pilots preferred to extremity around the slider's midpoint). Old items only:
+  # new items have no Phase-1 rating, and false alarms are the business of the
+  # follow-up ratings (6_selfrelevance.qmd, section C). Beauty and valence
+  # correlate ~.76 within participant, so each quadratic term is a unique
+  # contribution; get_memory_grid_estimates() also predicts along their joint
+  # direction. Random intercepts and linear slopes over participants, random
+  # intercepts over items (their memorability). Read by 4_memory.qmd, "Memory
+  # by Phase-1 Appraisal", through memory_grid_info (estimates.R).
+  MemoryAppraisal = list(
+    outcome = "AnswerCondition",
+    data = "memory",
+    subset = function(d) d[d$Type == "Old", ],
+    prepare = function(d) {
+      d <- d[!is.na(d$Beauty) & !is.na(d$Valence), ]
+      d$Beauty_w <- d$Beauty - stats::ave(d$Beauty, d$Participant)
+      d$Valence_w <- d$Valence - stats::ave(d$Valence, d$Participant)
+      d
+    },
+    formula = function() {
+      brms::bf(
+        AnswerCondition ~ Condition + Beauty_w + I(Beauty_w^2) + Valence_w + I(Valence_w^2) +
+          (1 + Beauty_w + Valence_w | Participant) + (1 | Item),
         family = brms::categorical(link = "logit")
       )
     }

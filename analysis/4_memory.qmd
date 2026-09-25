@@ -57,7 +57,7 @@ provenance_table(estimates)
 
 ## How to read this report
 
-Three Bayesian categorical mixed models of what participants remembered in the
+Four Bayesian categorical mixed models of what participants remembered in the
 follow-up session (220 participants × 96 items = 21,120 rows: 48 seen in Phase 1,
 48 new).
 
@@ -66,6 +66,7 @@ follow-up session (220 participants × 96 items = 21,120 rows: 48 seen in Phase 
 | **Memory of Condition** | `AnswerCondition`: which label the participant recalls being shown | `Condition`: the label actually shown in Phase 1 | Human Original, Human Forgery, AI-Generated, **New Items** (never seen) |
 | **Memory of Beliefs** | `AnswerBelief`: what the participant recalls believing the artwork was | `Belief`: what they actually reported believing in Phase 2 | Human Original, Human Forgery, AI Original, AI Copy, None |
 | **Memory of the Condition by Belief** | `AnswerCondition` | `Condition` **+** `Belief` (additive; old items with a recorded belief only, 10,416 rows) | Belief: Human Original, Human Forgery, AI Original, AI Copy |
+| **Memory by Phase-1 Appraisal** (MemoryAppraisal, its own section) | `AnswerCondition` | `Condition` + Phase-1 beauty and valence, each centred within participant, with quadratic terms (old items only, 10,560 rows) | continuous |
 
 All outcomes include **Not recognized** (item judged "new"): correct for
 `New Items`, forgetting for the seen levels. The third model asks whether the
@@ -364,6 +365,167 @@ make_tables(dat_rec, c("Contrast", "Belief", "P", "Diff", "CI", "pd_fmt", "Effec
 
 ```{r}
 make_memory_summary(estimates$MemoryConditionBelief)
+```
+
+## Memory by Phase-1 Appraisal
+
+Hypothesis 1 of the follow-up preregistration (`memory/ethics/preregistration.md`,
+after Lee et al., 2023; Salgues et al., 2024): artworks that received
+**extreme** aesthetic ratings in Phase 1, positive *or* negative, are better
+recognised than those rated neutrally -- a U-shaped relation that a linear
+predictor cannot show. The Phase-1 ratings were given ~47 days before the
+memory test and exist for old items only, so they speak to what was encoded;
+the follow-up ratings (self-relevance, follow-up beauty) were given in the
+same trial as the recognition judgment and raise false alarms as much as
+hits (`6_selfrelevance.qmd`, section C).
+
+### Observed
+
+```{r}
+#| fig-width: 10
+#| fig-height: 4.5
+
+old <- df |>
+  filter(Type == "Old", !is.na(Beauty), !is.na(Valence)) |>
+  mutate(Beauty_w = Beauty - mean(Beauty), Valence_w = Valence - mean(Valence), .by = "Participant")
+hit_bins <- bind_rows(
+  mutate(old, Rating = "Beauty", Scale = "Absolute (% of the scale)",
+         Bin = cut(100 * Beauty, c(-1, 0, 15, 30, 45, 55, 70, 85, 99.99, 100))),
+  mutate(old, Rating = "Valence", Scale = "Absolute (% of the scale)",
+         Bin = cut(100 * Valence, c(-1, 1, 20, 40, 60, 80, 99, 100))),
+  mutate(old, Rating = "Beauty", Scale = "Relative to the participant's mean (points)",
+         Bin = cut(100 * Beauty_w, c(-100, -50, -35, -20, -10, 0, 10, 20, 35, 100))),
+  mutate(old, Rating = "Valence", Scale = "Relative to the participant's mean (points)",
+         Bin = cut(100 * Valence_w, c(-100, -50, -33, -17, 0, 17, 33, 50, 100)))
+) |>
+  summarise(x = mean(100 * ifelse(str_starts(Scale, "Absolute"), ifelse(Rating == "Beauty", Beauty, Valence),
+                                  ifelse(Rating == "Beauty", Beauty_w, Valence_w))),
+            p = mean(Recognition == "Yes"), n = n(), .by = c(Rating, Scale, Bin)) |>
+  mutate(SE = sqrt(p * (1 - p) / n))
+
+ggplot(hit_bins, aes(x = x, y = 100 * p, color = Rating)) +
+  geom_hline(yintercept = 100 * mean(old$Recognition == "Yes"), linetype = "dotted", color = "grey60") +
+  geom_line(alpha = 0.6) +
+  geom_pointrange(aes(ymin = 100 * (p - 1.96 * SE), ymax = 100 * (p + 1.96 * SE), size = n)) +
+  facet_wrap(~Scale, scales = "free_x") +
+  scale_size(range = c(0.1, 0.7), guide = "none") +
+  scale_color_manual(values = c(Beauty = "#E91E63", Valence = "#FF9800")) +
+  labs(x = "Phase-1 rating", y = "Recognised at follow-up (%)", color = NULL,
+       caption = "Old items; observed hit rates per bin with 95% CI (not model-based). Dotted line: overall hit rate. Point size: number of trials.") +
+  theme_minimal() +
+  theme(legend.position = "top", strip.text = element_text(face = "bold"))
+```
+
+### Model
+
+**MemoryAppraisal** (`server/models.R`): the recalled label, with "Not
+recognized" carrying recognition as in the models above, on the label shown
+and on Phase-1 beauty and valence, each centred within participant and
+entered with a quadratic term (old items only; participant intercepts and
+linear slopes, item intercepts). Beauty and valence correlate strongly
+within participant, so the **unique** curves move one rating with the other
+held at the participant's mean, and the **joint** curves move it with the
+other following along their within-person regression (how the two usually
+co-vary). "Extremity" is the average of the -2 SD and +2 SD predictions
+minus the prediction at the mean (> 0: both extremes above the mean, a U);
+"Asymmetry" is +2 SD minus -2 SD.
+
+```{r}
+#| results: asis
+
+appraisal_ready <- file.exists("models/estimates/MemoryAppraisal.rds")
+if (!appraisal_ready) {
+  make_asis("", '::: {.callout-warning title="Estimates not available yet"}',
+            "`MemoryAppraisal`: in `analysis/server`, `./hpc combine MemoryAppraisal` (check 4,000 draws), `./hpc extract MemoryAppraisal`, then `./hpc pull 'estimates/MemoryAppraisal.rds'`.",
+            ":::", "")
+} else {
+  est_app <- read_estimates("MemoryAppraisal")$MemoryAppraisal
+  app <- memory_grid_effects(est_app)
+  fixed <- est_app$fixed |>
+    filter(str_detect(Parameter, "Beauty|Valence")) |>
+    mutate(Answer = str_match(Parameter, "^b_mu([^_]+)_")[, 2],
+           Term = str_remove(Parameter, "^b_mu[^_]+_"),
+           Effect = ifelse(sign(CI_low) != sign(CI_high), "n.s.", ifelse(Median < 0, "Negative", "Positive")),
+           Diff = insight::format_value(Median),
+           CI = sprintf("[%s, %s]", insight::format_value(CI_low), insight::format_value(CI_high)),
+           pd_fmt = insight::format_pd(pd, name = NULL))
+  eff <- app$effects |>
+    mutate(Effect_label = Effect,
+           Effect = ifelse(sign(CI_low) != sign(CI_high), "n.s.", ifelse(Median < 0, "Negative", "Positive")),
+           Diff = insight::format_value(Median),
+           CI = sprintf("[%s, %s]", insight::format_value(CI_low), insight::format_value(CI_high)),
+           pd_fmt = insight::format_pd(pd, name = NULL),
+           Contrast = paste(Outcome, "-", Type, "path"))
+  make_asis(
+    make_tables(est_app$diag, c("Model", "Family", "N_obs", "N_participants", "Chains", "Draws", "Max_Rhat", "Min_ESS_ratio", "Divergent_pct"),
+                "Convergence of MemoryAppraisal"),
+    make_tables(fixed, c("Answer", "Term", "Diff", "CI", "pd_fmt", "Effect"),
+                "MemoryAppraisal: fixed effects of the ratings (log-odds of each answer vs. 'Human Original'; ratings on 0-1)"),
+    make_tables(filter(eff, Outcome == "P(recognised)"), c("Contrast", "Predictor", "Effect_label", "Diff", "CI", "pd_fmt", "Effect"),
+                "MemoryAppraisal: P(recognised) at -2 / -1 / +1 / +2 SD of the rating minus at the participant's mean, in percentage points"),
+    make_tables(filter(eff, Outcome != "P(recognised)", Effect_label %in% c("-2 SD", "+2 SD", "Extremity", "Asymmetry")),
+                c("Contrast", "Predictor", "Effect_label", "Diff", "CI", "pd_fmt", "Effect"),
+                "MemoryAppraisal: recalled label among recognised artworks, at the extremes of the rating minus at the mean, in percentage points")
+  )
+}
+```
+
+```{r}
+#| fig-width: 10
+#| fig-height: 7
+#| eval: !expr appraisal_ready
+
+app$curves |>
+  filter(abs(x) <= 0.5) |>
+  mutate(Predictor = recode(Predictor, Beauty_w = "Phase-1 beauty", Valence_w = "Phase-1 valence"),
+         Type = recode(Type, unique = "Unique (other rating at its mean)", joint = "Joint (other rating follows)")) |>
+  ggplot(aes(x = 100 * x, y = Median, color = Predictor, fill = Predictor)) +
+  geom_ribbon(aes(ymin = CI_low, ymax = CI_high), alpha = 0.15, color = NA) +
+  geom_line(linewidth = 1) +
+  facet_grid(fct_relevel(Outcome, "P(recognised)") ~ Type, scales = "free_y") +
+  scale_color_manual(values = c("Phase-1 beauty" = "#E91E63", "Phase-1 valence" = "#FF9800")) +
+  scale_fill_manual(values = c("Phase-1 beauty" = "#E91E63", "Phase-1 valence" = "#FF9800")) +
+  labs(x = "Phase-1 rating relative to the participant's mean (points of the scale)", y = "Probability (%)",
+       color = NULL, fill = NULL,
+       caption = "Population-level predictions (random effects at 0, averaged over the labels shown) with 95% CI.") +
+  theme_minimal() +
+  theme(legend.position = "top", strip.text = element_text(face = "bold", size = 8))
+```
+
+```{r}
+#| eval: !expr appraisal_ready
+
+write.csv(app$effects, "../data/results_memory_appraisal.csv", row.names = FALSE)
+```
+
+The observed bins and the model disagree at the negative end, and the
+reason is the artworks themselves: across items, the works that people rated
+as uglier and more negative (relative to their own average) were the more
+memorable ones, as were those of higher normative arousal (item-level
+correlations below). The raw bins mix this item memorability with the effect
+of a person's own appraisal; the model's item intercepts separate them.
+Within items, rating a work as more beautiful or more positive than one's
+average goes with better recognition, increasingly so at the top of the
+range, while rating it as much less beautiful than average does not help:
+the extremity effect of the preregistration holds on the positive side only,
+the same asymmetric (convex) pattern as self-relevance and authenticity
+against beauty (`6_selfrelevance.qmd`, `5_realitydeterminants.qmd`,
+"Exploratory checks"). The Phase-1 appraisal also shaped the recalled label,
+with the label actually shown held constant: among recognised works, those
+rated as less beautiful (and less positive) than average were more often
+remembered as "AI-Generated", and those rated as more beautiful more often as
+"Original" -- the "beautiful = human" cue of Phase 2 at work in memory, in
+line with the reconstruction of the label from one's own belief (Memory of
+the Condition by Belief).
+
+```{r}
+items_mem <- old |>
+  summarise(Hit = mean(Recognition == "Yes"), Beauty_w = mean(Beauty_w), Valence_w = mean(Valence_w),
+            Arousal = first(Norms_Arousal), .by = "Item")
+knitr::kable(data.frame(
+  With = c("Mean relative beauty", "Mean relative valence", "Normative arousal (VAPS)"),
+  r = sprintf("%.2f", c(cor(items_mem$Hit, items_mem$Beauty_w), cor(items_mem$Hit, items_mem$Valence_w), cor(items_mem$Hit, items_mem$Arousal)))
+), format = "pipe", caption = "Item-level correlations of the hit rate (48 old items)")
 ```
 
 ## Summary

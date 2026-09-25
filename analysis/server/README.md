@@ -297,6 +297,21 @@ leaves `models/estimates/` untouched and takes under a minute per model
 ./hpc pull 'individual/*.rds'
 ```
 
+### LOO for a model comparison
+
+`./hpc loo <model|all>` (`FA_WHAT=loo`, `get_loo()` in estimates.R) keeps only
+the loo that `combine` attached: its summary and the pointwise elpd and Pareto
+k, a few hundred KB per model, in `models/loo/`. `loo_difference(a, b)`
+compares two of them fitted to the same rows, as `loo::loo_compare()` does.
+First used for `AuthenticityBeauty` vs `AuthenticityBeautyQuad`
+(`5_realitydeterminants.qmd`, "Exploratory checks").
+
+```bash
+./hpc loo AuthenticityBeauty
+./hpc loo AuthenticityBeautyQuad
+./hpc pull 'loo/*.rds'
+```
+
 ## Models
 
 `models.R` holds one entry per model: the outcome column it is fitted to, a
@@ -333,6 +348,14 @@ thirteen, `4_memory.qmd` for the memory ones, `5_realitydeterminants.qmd` for `R
 | `MemoryConditionBelief` | `AnswerCondition` | `categorical()` | `data = "memory"`, `subset` = old items with a Phase-2 belief (10,416 rows); `~ Condition + Belief`, both slopes by participant and item |
 | `RealityBeauty` | `Reality` | `cogmod_choco()` | `prepare = fa_prepare_beauty` (Phase-1 `Beauty` centred within participant → `Beauty_w`); `Condition * Beauty_w` on mu/conf, `(Condition * Beauty_w \| Participant) + (Condition + Beauty_w \| Item)`; extracted by `get_mediation_estimates()` |
 | `AuthenticityBeauty` | `Authenticity` | `cogmod_choco()` | as `RealityBeauty` |
+| `BeautySR` | `Beauty` | `cogmod_choco()` | `prepare = fa_prepare_sr` (follow-up self-relevance on 0-1, centred within participant → `SR_w`; 220 participants); `Condition * SR_w`, laid out as `RealityBeauty`; extracted through `mediation_info` (grid over `SR_w`), read with `moderation_effects()` |
+| `BeautySRControl` | `Beauty` | `cogmod_choco()` | `Condition * (SR_w + Beauty2_w)` |
+| `MeaningSR` | `Meaning` (0..6) | `cogmod_betadiscrete()` | `Condition * SR_w` on `mu`, `phi`, `pzero` |
+| `RealitySR` / `AuthenticitySR` | `Reality` / `Authenticity` | `cogmod_choco()` | `Condition * (Beauty_w + SR_w + Beauty2_w)`, random effects as the appraisal models; extracted through `appraisal_info`; 217 participants |
+| `ArtificialitySR` | `PerceivedArtificiality` | `cogmod_choco()` | `data = "memory"`, items judged new; `Type * (Beauty2_w + SR_w)` |
+| `AuthenticityBeautyQuad` | `Authenticity` | `cogmod_choco()` | shape check: `AuthenticityBeauty` + `I(Beauty_w^2)` (`Condition * (Beauty_w + I(Beauty_w^2))`, random slopes linear); grid `mediation_grid_quad`, read with `grid_slopes(at = )`; left out of 5_'s main registries (`shape_models`) |
+| `BeautySRBetween` | `Beauty` | `cogmod_choco()` | `prepare = fa_prepare_sr_between`: `Condition * (SR_w + SR_b)`, `SR_b` = the participant's mean SR (centred), a within-between decomposition; `SR_b` is a `covariates` entry of `mediation_info` (`covariate_slopes(pairs = TRUE)`) |
+| `MemoryAppraisal` | `AnswerCondition` | `categorical()` | `data = "memory"`, old items; `~ Condition + Beauty_w + I(Beauty_w^2) + Valence_w + I(Valence_w^2) + (1 + Beauty_w + Valence_w \| Participant) + (1 \| Item)` (preregistered H1: extreme appraisals better recognised); `memory_grid_info`, `get_memory_grid_estimates()` / `memory_grid_effects()` |
 
 Priors start from `cogmod_priors(f, data)` for the cogmod families (since
 cogmod 0.3.3 dev of 2026-09-20 it covers CHOCO and Discrete-Beta:

@@ -125,6 +125,9 @@ memory_info <- list(
 # range (for the figure), fine around 0 where the per-condition means of the
 # centred mediator sit (for mediation_effects()).
 mediation_grid <- sort(unique(round(c(seq(-0.6, 0.6, by = 0.05), seq(-0.12, 0.12, by = 0.005)), 3)))
+# ...plus pairs of points 0.01 apart around +/-0.2 and +/-0.4 (about 1 and 2 SD
+# of Beauty_w), for grid_slopes(at = ) on a model whose slope is not constant
+mediation_grid_quad <- sort(unique(round(c(mediation_grid, outer(c(-0.4, -0.2, 0.2, 0.4), c(-0.005, 0.005), "+")), 3)))
 mediation_info <- list(
   # individual: dpars whose participant-level mediator slope 7_correlates.qmd
   # uses (get_mediation_individual(), `./hpc individual RealityBeauty`)
@@ -136,6 +139,15 @@ mediation_info <- list(
   AuthenticityBeauty = list(
     label = "Authenticity by Phase-1 Beauty", family = "CHOCO",
     outcome = "Authenticity", mediator = "Beauty_w", grid = mediation_grid,
+    dpars = c("mu", "confright", "confleft")
+  ),
+  # Shape check (models.R): AuthenticityBeauty with a quadratic Beauty_w term.
+  # The grid predictions carry the curvature; grid_slopes(at = ) gives the
+  # slope below / at / above the participant's mean beauty. Read by its own
+  # section of 5_realitydeterminants.qmd (shape_models, below).
+  AuthenticityBeautyQuad = list(
+    label = "Authenticity by Phase-1 Beauty (quadratic)", family = "CHOCO",
+    outcome = "Authenticity", mediator = "Beauty_w", grid = mediation_grid_quad,
     dpars = c("mu", "confright", "confleft")
   ),
   # Robustness: + label-free follow-up beauty, held at 0 (its participant
@@ -157,6 +169,44 @@ mediation_info <- list(
     label = "Perceived Artificiality by follow-up Beauty", family = "CHOCO",
     outcome = "PerceivedArtificiality", mediator = "Beauty2_w", by = "Type",
     grid = mediation_grid, dpars = c("mu", "confright", "confleft")
+  ),
+  # Self-relevance as a moderator (6_selfrelevance.qmd; models.R, BeautySR,
+  # ...). Not mediations -- the label does not move SR, so mediation_effects()
+  # does not apply -- but the same grid over SR_w per label, which
+  # moderation_effects() turns into the label contrast at low / average / high
+  # SR and the SR slope per label. Beauty2_w, where present, is held at 0 and
+  # its own slopes come from covariate_slopes(). `outcome` is the rating, for
+  # the % scaling (Meaning: range 6).
+  BeautySR = list(
+    label = "Phase-1 Beauty by Self-Relevance", family = "CHOCO",
+    outcome = "Beauty", mediator = "SR_w", grid = mediation_grid,
+    dpars = c("mu", "confright", "confleft")
+  ),
+  BeautySRControl = list(
+    label = "Phase-1 Beauty by Self-Relevance, controlling follow-up Beauty", family = "CHOCO",
+    outcome = "Beauty", mediator = "SR_w", grid = mediation_grid,
+    dpars = c("mu", "confright", "confleft"), covariates = c(Beauty2_w = 0)
+  ),
+  # Within + between persons: SR_w on the grid, the participant's mean SR
+  # (SR_b, centred) held at 0 and extracted as a covariate slope, whose
+  # differences between labels (covariate_slopes(pairs = TRUE)) are the
+  # between-person moderation of the label gap.
+  BeautySRBetween = list(
+    label = "Phase-1 Beauty by within- and between-person Self-Relevance", family = "CHOCO",
+    outcome = "Beauty", mediator = "SR_w", grid = mediation_grid,
+    dpars = c("mu", "confright", "confleft"), covariates = c(SR_b = 0)
+  ),
+  MeaningSR = list(
+    label = "Phase-1 Meaning by Self-Relevance", family = "Discrete Beta (k = 6) with zero hurdle",
+    outcome = "Meaning", mediator = "SR_w", grid = mediation_grid,
+    dpars = c("mu", "pzero")
+  ),
+  # Items judged new, by Type (as ArtificialityBeauty), with SR on the grid
+  # and follow-up beauty as the covariate: grid_slopes() / covariate_slopes().
+  ArtificialitySR = list(
+    label = "Perceived Artificiality by Self-Relevance and follow-up Beauty", family = "CHOCO",
+    outcome = "PerceivedArtificiality", mediator = "SR_w", by = "Type",
+    grid = mediation_grid, dpars = c("mu", "confright", "confleft"), covariates = c(Beauty2_w = 0)
   )
 )
 
@@ -170,6 +220,38 @@ appraisal_info <- list(
   AuthenticityAppraisal = list(
     label = "Authenticity by Phase-1 appraisal", family = "CHOCO", outcome = "Authenticity",
     mediators = c("Beauty_w", "Valence_w", "Meaning_w", "Worth_w"), dpars = c("mu", "confright", "confleft")
+  ),
+  # Self-relevance and reality beliefs (models.R, RealitySR / AuthenticitySR):
+  # Phase-1 beauty, SR and follow-up beauty as joint predictors. The `cues`
+  # give each one's slope under each label; SR and Beauty2 are label-free, so
+  # their indirect effects should be ~0 and the Beauty_w decomposition is the
+  # RealityBeautyControl one with SR added.
+  RealitySR = list(
+    label = "Syntheticness by Phase-1 Beauty, Self-Relevance and follow-up Beauty", family = "CHOCO",
+    outcome = "Reality", mediators = c("Beauty_w", "SR_w", "Beauty2_w"), dpars = c("mu", "confright", "confleft")
+  ),
+  AuthenticitySR = list(
+    label = "Authenticity by Phase-1 Beauty, Self-Relevance and follow-up Beauty", family = "CHOCO",
+    outcome = "Authenticity", mediators = c("Beauty_w", "SR_w", "Beauty2_w"), dpars = c("mu", "confright", "confleft")
+  )
+)
+
+# The self-relevance entries of mediation_info / appraisal_info: read by
+# 6_selfrelevance.qmd, left out by 5_realitydeterminants.qmd.
+sr_models <- c("BeautySR", "BeautySRControl", "BeautySRBetween", "MeaningSR", "RealitySR", "AuthenticitySR", "ArtificialitySR")
+# Shape checks (2026-09-24): left out of 5_realitydeterminants.qmd's main
+# registries and read, when extracted, by its "Exploratory checks" section.
+shape_models <- c("AuthenticityBeautyQuad")
+
+# Categorical memory models with continuous predictors (models.R,
+# MemoryAppraisal): answer probabilities over a grid of each predictor
+# (get_memory_grid_estimates()), read by 4_memory.qmd, "Memory by Phase-1
+# Appraisal". Kept out of memory_info, whose models 4_memory.qmd tabulates
+# together. `predictors`: the centred ratings, each with a quadratic term.
+memory_grid_info <- list(
+  MemoryAppraisal = list(
+    label = "Memory by Phase-1 Beauty and Valence", family = "Categorical",
+    predictors = c("Beauty_w", "Valence_w")
   )
 )
 
@@ -429,6 +511,9 @@ get_estimates <- function(m, outcome, verbose = TRUE) {
   if (!is.null(memory_info[[outcome]])) {
     return(get_memory_estimates(m, outcome, verbose = verbose))
   }
+  if (!is.null(memory_grid_info[[outcome]])) {
+    return(get_memory_grid_estimates(m, outcome, verbose = verbose))
+  }
   if (!is.null(mediation_info[[outcome]])) {
     return(get_mediation_estimates(m, outcome, verbose = verbose))
   }
@@ -441,7 +526,7 @@ get_estimates <- function(m, outcome, verbose = TRUE) {
   info <- outcome_info[[outcome]]
   if (is.null(info)) {
     stop("no registry entry for '", outcome, "' -- add one to outcome_info ",
-         "(a 3_models.qmd outcome), memory_info (a 4_memory.qmd model), mediation_info, appraisal_info or items_info ",
+         "(a 3_models.qmd outcome), memory_info / memory_grid_info (a 4_memory.qmd model), mediation_info, appraisal_info or items_info ",
          "in estimates.R before extracting it", call. = FALSE)
   }
   backend <- if (is.null(info$backend)) "emmeans" else info$backend
@@ -600,6 +685,116 @@ memory_observed <- function(m, by) {
   list(means = means, contrasts = contrasts, draws = D)
 }
 
+# Categorical memory models with continuous predictors (memory_grid_info,
+# MemoryAppraisal). Population-level (re_formula = NA) answer probabilities,
+# averaged over the labels shown, over a grid of each predictor:
+#   unique  that predictor moves, the others stay at 0 (the participant's mean)
+#   joint   the others follow it along their within-person regression on it
+#           (the ratings' typical co-variation: a work rated more beautiful is
+#           usually rated more positive too)
+# Grid: -0.6..0.6 by 0.05, plus -2 / -1 / +1 / +2 SD of the predictor over
+# trials (`At`). Also the fixed effects (median, 95% HDI, pd), the predictors'
+# SDs and the joint-path slopes. memory_grid_effects() turns `draws` (draws x
+# grid rows x answers) into recognition and answers-given-recognition.
+get_memory_grid_estimates <- function(m, outcome, verbose = TRUE) {
+  info <- memory_grid_info[[outcome]]
+  preds <- info$predictors
+  step <- function(what) if (verbose) cat("**", outcome, "-", what, ":", format(Sys.time()), "\n")
+
+  est <- list(outcome = outcome, label = info$label, family = info$family,
+              predictors = preds, created = Sys.time(),
+              ndraws = brms::ndraws(m), nchains = brms::nchains(m))
+
+  step("diagnostics")
+  est$diag <- get_diagnostics(m, outcome, family = info$family)
+  est$convergence <- get_convergence(m)
+
+  step("fixed effects")
+  b <- as.data.frame(brms::as_draws_df(m, variable = "^b_", regex = TRUE))
+  b <- b[grepl("^b_", names(b))]
+  est$fixed <- do.call(rbind, lapply(names(b), function(v) {
+    ci <- bayestestR::hdi(b[[v]], ci = 0.95)
+    data.frame(Parameter = v, Median = stats::median(b[[v]]), CI_low = ci$CI_low,
+               CI_high = ci$CI_high, pd = as.numeric(bayestestR::p_direction(b[[v]])))
+  }))
+
+  step("predictions over the predictor grid")
+  d <- model_data(m)
+  sds <- vapply(setNames(nm = preds), function(p) stats::sd(d[[p]]), numeric(1))
+  # joint[a, b]: within-person slope of rating b on rating a (both centred)
+  joint <- outer(preds, preds, Vectorize(function(a, b) {
+    if (a == b) 1 else unname(stats::coef(stats::lm(d[[b]] ~ 0 + d[[a]])))
+  }))
+  dimnames(joint) <- list(preds, preds)
+  rows <- list()
+  for (p in preds) for (type in c("unique", "joint")) {
+    sd_pts <- c(-2, -1, 1, 2) * sds[[p]]
+    x <- sort(unique(c(round(seq(-0.6, 0.6, by = 0.05), 3), sd_pts)))
+    r <- data.frame(Type = type, Predictor = p, x = x,
+                    At = ifelse(x == 0, "Mean", NA_character_))
+    r$At[match(sd_pts, x)] <- c("-2 SD", "-1 SD", "+1 SD", "+2 SD")
+    for (o in preds) r[[o]] <- if (o == p) x else if (type == "joint") joint[p, o] * x else 0
+    rows[[length(rows) + 1]] <- r
+  }
+  base <- do.call(rbind, rows)
+  lv <- levels(d$Condition)
+  nd <- base[rep(seq_len(nrow(base)), each = length(lv)), preds, drop = FALSE]
+  nd$Condition <- factor(rep(lv, times = nrow(base)), levels = lv)
+  p <- brms::posterior_epred(m, newdata = nd, re_formula = NA) # draws x rows x answers
+  idx <- rep(seq_len(nrow(base)), each = length(lv))
+  D <- array(NA_real_, dim = c(dim(p)[1], nrow(base), dim(p)[3]),
+             dimnames = list(NULL, NULL, dimnames(p)[[3]]))
+  for (i in seq_len(nrow(base))) D[, i, ] <- apply(p[, idx == i, , drop = FALSE], c(1, 3), mean)
+
+  est$grid <- base
+  est$draws <- D
+  est$sd <- sds
+  est$joint <- joint
+  est
+}
+
+# From get_memory_grid_estimates(): per predictor and path (unique / joint),
+#   curves   median and 95% HDI along the grid of P(recognised) and of each
+#            answer given recognition, in %
+#   effects  the same at -2 / -1 / +1 / +2 SD minus at the mean, and
+#            "Extremity" = the average of -2 SD and +2 SD minus the mean
+#            (> 0: both extremes above the mean, a U), "Asymmetry" = +2 SD
+#            minus -2 SD; percentage points
+memory_grid_effects <- function(est) {
+  g <- est$grid
+  D <- est$draws
+  answers <- setdiff(dimnames(D)[[3]], "Not recognized")
+  rec <- 1 - D[, , "Not recognized"]
+  outs <- c(list(Recognised = rec), lapply(setNames(nm = answers), function(a) D[, , a] / rec))
+  describe <- function(x) {
+    ci <- bayestestR::hdi(x, ci = 0.95)
+    data.frame(Median = stats::median(x), CI_low = ci$CI_low, CI_high = ci$CI_high,
+               pd = as.numeric(bayestestR::p_direction(x)))
+  }
+  what <- function(k) if (k == "Recognised") "P(recognised)" else paste0("P(", k, " | recognised)")
+  curves <- do.call(rbind, lapply(names(outs), function(k) {
+    X <- 100 * outs[[k]]
+    ci <- apply(X, 2, function(x) unlist(bayestestR::hdi(x, ci = 0.95)[c("CI_low", "CI_high")]))
+    cbind(g[c("Type", "Predictor", "x", "At")], Outcome = what(k),
+          Median = apply(X, 2, stats::median), CI_low = ci[1, ], CI_high = ci[2, ])
+  }))
+  effects <- do.call(rbind, lapply(names(outs), function(k) {
+    X <- 100 * outs[[k]]
+    do.call(rbind, lapply(split(seq_len(nrow(g)), paste(g$Type, g$Predictor)), function(i) {
+      col <- function(a) X[, i[which(g$At[i] == a)]]
+      diffs <- list(`-2 SD` = col("-2 SD") - col("Mean"), `-1 SD` = col("-1 SD") - col("Mean"),
+                    `+1 SD` = col("+1 SD") - col("Mean"), `+2 SD` = col("+2 SD") - col("Mean"),
+                    Extremity = (col("-2 SD") + col("+2 SD")) / 2 - col("Mean"),
+                    Asymmetry = col("+2 SD") - col("-2 SD"))
+      do.call(rbind, lapply(names(diffs), function(e) {
+        cbind(Type = g$Type[i[1]], Predictor = g$Predictor[i[1]], Outcome = what(k), Effect = e, describe(diffs[[e]]))
+      }))
+    }))
+  }))
+  rownames(curves) <- rownames(effects) <- NULL
+  list(curves = curves, effects = effects)
+}
+
 
 
 # Determinants of reality beliefs -------------------------------------------
@@ -676,6 +871,10 @@ get_mediation_estimates <- function(m, outcome, verbose = TRUE) {
   est$mediator_means <- stats::aggregate(
     stats::as.formula(paste(med, "~ Participant +", by)), data = d, FUN = mean
   )
+  # Spread of the (centred) mediator over trials: where moderation_effects()
+  # evaluates "low" and "high"
+  est$mediator_summary <- c(SD = stats::sd(d[[med]]),
+                            stats::quantile(d[[med]], c(0.1, 0.25, 0.5, 0.75, 0.9)))
   est
 }
 
@@ -683,13 +882,22 @@ get_mediation_estimates <- function(m, outcome, verbose = TRUE) {
 # pairwise differences between levels, per 0.1 of the mediator, x100 (% of the
 # outcome slider, or percentage points of a dpar). For models where
 # mediation_effects() does not apply (ArtificialityBeauty: by = Type).
-grid_slopes <- function(est, par = "response", h = 0.005) {
+# `range`: the response's scale range (6 for Meaning), so `response` slopes
+# are in % of the scale; dpars are always in percentage points. `at`: where
+# the slope is taken (default the participant's mean, 0); other values need
+# grid points at `at` +/- h (mediation_grid_quad has them at +/-0.2, +/-0.4).
+grid_slopes <- function(est, par = "response", h = 0.005, range = 1, at = 0) {
   by <- if (is.null(est$by)) "Condition" else est$by
   g <- est$grid
   P <- if (par == "response") est$grid_draws else est$grid_dpars[[par]]
+  k <- if (par == "response") 100 / range else 100
   lv <- levels(g[[by]])
-  at <- function(l, x) P[, which(g[[by]] == l & abs(g[[est$mediator]] - x) < 1e-9)]
-  slope <- lapply(setNames(nm = lv), function(l) (at(l, h) - at(l, -h)) / (2 * h) * 0.1 * 100)
+  pt <- function(l, x) {
+    i <- which(g[[by]] == l & abs(g[[est$mediator]] - x) < 1e-9)
+    if (length(i) != 1) stop("no grid point at ", est$mediator, " = ", x, " for ", l, call. = FALSE)
+    P[, i]
+  }
+  slope <- lapply(setNames(nm = lv), function(l) (pt(l, at + h) - pt(l, at - h)) / (2 * h) * 0.1 * k)
   describe <- function(x) {
     ci <- bayestestR::hdi(x, ci = 0.95)
     data.frame(Median = stats::median(x), CI_low = ci$CI_low, CI_high = ci$CI_high,
@@ -705,20 +913,94 @@ grid_slopes <- function(est, par = "response", h = 0.005) {
 }
 
 # The same for a covariate held constant in the grid (est$covariate_grid),
-# per 0.1 of the covariate.
-covariate_slopes <- function(est, covariate, par = "response") {
+# per 0.1 of the covariate. `pairs = TRUE` adds the pairwise differences
+# between levels (e.g. how the label gap changes with follow-up beauty).
+covariate_slopes <- function(est, covariate, par = "response", range = 1, pairs = FALSE) {
   by <- if (is.null(est$by)) "Condition" else est$by
   cg <- est$covariate_grid[[covariate]]
   P <- if (par == "response") cg$draws else cg$dpars[[par]]
+  k <- if (par == "response") 100 / range else 100
   g <- cg$grid
   lv <- levels(g[[by]])
   h <- max(g$delta)
-  do.call(rbind, lapply(lv, function(l) {
-    x <- (P[, g[[by]] == l & g$delta > 0] - P[, g[[by]] == l & g$delta < 0]) / (2 * h) * 0.1 * 100
+  describe <- function(x) {
     ci <- bayestestR::hdi(x, ci = 0.95)
-    data.frame(Level = l, Median = stats::median(x), CI_low = ci$CI_low, CI_high = ci$CI_high,
+    data.frame(Median = stats::median(x), CI_low = ci$CI_low, CI_high = ci$CI_high,
                pd = as.numeric(bayestestR::p_direction(x)))
+  }
+  slope <- lapply(setNames(nm = lv), function(l) {
+    (P[, g[[by]] == l & g$delta > 0] - P[, g[[by]] == l & g$delta < 0]) / (2 * h) * 0.1 * k
+  })
+  out <- do.call(rbind, lapply(lv, function(l) cbind(Level = l, describe(slope[[l]]))))
+  if (pairs) {
+    pr <- if (by == "Condition") strsplit(contrast_order, " - ", fixed = TRUE) else {
+      cb <- utils::combn(lv, 2)
+      lapply(seq_len(ncol(cb)), function(j) c(cb[2, j], cb[1, j]))
+    }
+    out <- rbind(out, do.call(rbind, lapply(pr, function(p) {
+      cbind(Level = paste(p[1], "-", p[2]), describe(slope[[p[1]]] - slope[[p[2]]]))
+    })))
+  }
+  out
+}
+
+# Moderation of the label effect by the grid variable (self-relevance: the
+# BeautySR / BeautySRControl / MeaningSR entries of mediation_info), from
+# get_mediation_estimates(). With E[Y | c, x] the population-level prediction
+# (linear interpolation along the grid; covariates held at 0):
+#   gaps    the label contrast E[Y | c1, x] - E[Y | c0, x] at each value of
+#           `at` (default: -1 SD, 0, +1 SD of the centred moderator over
+#           trials), and "High - Low", its change from the lowest to the
+#           highest value of `at` (the interaction on the response scale)
+#   slopes  dE[Y]/dx at x = 0 per label, per 0.1 of the moderator (10% of the
+#           SR scale), and their differences between labels
+# x100, or x100 / range for `response` (range = 6 for Meaning): % of the
+# rating's scale, or percentage points of a dpar.
+moderation_effects <- function(est, par = "response", at = NULL, range = 1, h = 0.005) {
+  med <- est$mediator
+  g <- est$grid
+  P <- if (par == "response") est$grid_draws else est$grid_dpars[[par]]
+  if (is.null(P)) stop("no grid predictions for '", par, "' -- re-run ./hpc extract ", est$outcome, call. = FALSE)
+  k <- if (par == "response") 100 / range else 100
+  if (is.null(at)) {
+    s <- if (!is.null(est$mediator_summary)) est$mediator_summary[["SD"]] else 0.2
+    at <- c(Low = -s, Average = 0, High = s)
+  }
+  if (is.null(names(at))) names(at) <- format(at, digits = 2)
+
+  ey <- function(cond, x) {
+    cols <- which(g$Condition == cond)
+    cols <- cols[order(g[[med]][cols])]
+    xs <- g[[med]][cols]
+    j <- min(max(findInterval(x, xs), 1), length(xs) - 1)
+    w <- (x - xs[j]) / (xs[j + 1] - xs[j])
+    (1 - w) * P[, cols[j]] + w * P[, cols[j + 1]]
+  }
+  describe <- function(x) {
+    ci <- bayestestR::hdi(x, ci = 0.95)
+    data.frame(Median = stats::median(x), CI_low = ci$CI_low, CI_high = ci$CI_high,
+               pd = as.numeric(bayestestR::p_direction(x)))
+  }
+
+  pairs <- strsplit(contrast_order, " - ", fixed = TRUE)
+  gaps <- do.call(rbind, lapply(pairs, function(p) {
+    gap <- lapply(at, function(x) k * (ey(p[1], x) - ey(p[2], x)))
+    rbind(
+      do.call(rbind, lapply(names(at), function(a) {
+        cbind(Contrast = paste(p[1], "-", p[2]), At = a, Moderator = unname(at[a]), describe(gap[[a]]))
+      })),
+      cbind(Contrast = paste(p[1], "-", p[2]), At = "High - Low", Moderator = NA_real_,
+            describe(gap[[length(at)]] - gap[[1]]))
+    )
   }))
+
+  conds <- levels(g$Condition)
+  slope <- lapply(setNames(nm = conds), function(cnd) (ey(cnd, h) - ey(cnd, -h)) / (2 * h) * 0.1 * k)
+  slopes <- rbind(
+    do.call(rbind, lapply(conds, function(cnd) cbind(Condition = cnd, describe(slope[[cnd]])))),
+    do.call(rbind, lapply(pairs, function(p) cbind(Condition = paste(p[1], "-", p[2]), describe(slope[[p[1]]] - slope[[p[2]]]))))
+  )
+  list(gaps = gaps, slopes = slopes, at = at)
 }
 
 # Mediation of the label effect by the mediator, from get_mediation_estimates().
@@ -1014,6 +1296,29 @@ items_effects <- function(est, par = "response") {
   }))
   list(slopes = slopes, style_means = means, style_contrasts = diffs)
 }
+
+# Model comparison ----------------------------------------------------------
+# The loo that combine_model.R attached, reduced to what a comparison needs
+# (`./hpc loo <model>` -> models/loo/<model>.rds, a few hundred KB): the
+# summary and the pointwise elpd / Pareto k, one value per row of the data.
+get_loo <- function(m, outcome, verbose = TRUE) {
+  l <- m$criteria$loo
+  if (is.null(l)) stop("no loo attached to ", outcome, " -- re-run ./hpc combine ", outcome, call. = FALSE)
+  list(outcome = outcome, created = Sys.time(), ndraws = brms::ndraws(m),
+       estimates = l$estimates, elpd = l$pointwise[, "elpd_loo"],
+       pareto_k = l$pointwise[, "influence_pareto_k"])
+}
+
+# elpd difference of two get_loo() results on the same rows (b - a > 0: b
+# predicts better), with the SE of the paired difference, as loo_compare().
+loo_difference <- function(a, b) {
+  stopifnot(length(a$elpd) == length(b$elpd))
+  d <- b$elpd - a$elpd
+  data.frame(Model = b$outcome, Reference = a$outcome, elpd_diff = sum(d),
+             se_diff = sqrt(length(d)) * stats::sd(d),
+             max_pareto_k = max(c(a$pareto_k, b$pareto_k), na.rm = TRUE))
+}
+
 
 # Participant-level indices ---------------------------------------------------
 # For each participant and dpar, on the link scale, averaged over Emotion, with

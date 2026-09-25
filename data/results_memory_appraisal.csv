@@ -1,0 +1,97 @@
+"Type","Predictor","Outcome","Effect","Median","CI_low","CI_high","pd"
+"joint","Beauty_w","P(recognised)","-2 SD",-0.0212030464789734,-4.05071698240147,4.18828488243889,0.504
+"joint","Beauty_w","P(recognised)","-1 SD",-1.41951077444932,-3.0122558698448,0.0642910480236587,0.96475
+"joint","Beauty_w","P(recognised)","+1 SD",4.33530348001798,2.55067633101037,6.16244848867638,1
+"joint","Beauty_w","P(recognised)","+2 SD",11.9786806086421,6.89083859801416,17.2830519378869,1
+"joint","Beauty_w","P(recognised)","Extremity",6.00670644094284,2.24695594601116,9.67888048953965,0.99925
+"joint","Beauty_w","P(recognised)","Asymmetry",11.9298982526528,6.06169717622722,17.886681069479,1
+"joint","Valence_w","P(recognised)","-2 SD",1.06066614477529,-2.97075045621245,5.93634313470361,0.68375
+"joint","Valence_w","P(recognised)","-1 SD",-0.891707115564977,-2.54566421948523,0.704248585046791,0.86175
+"joint","Valence_w","P(recognised)","+1 SD",3.83787460166316,2.02214819426993,5.6626497319569,1
+"joint","Valence_w","P(recognised)","+2 SD",11.0543043909356,5.7748529174578,16.1813170028188,1
+"joint","Valence_w","P(recognised)","Extremity",6.04149710624776,2.49335676754291,10.1139021874366,0.999
+"joint","Valence_w","P(recognised)","Asymmetry",9.81116975412364,3.75480026910386,15.9213034721128,0.99925
+"unique","Beauty_w","P(recognised)","-2 SD",-1.65272379244887,-6.08972452008573,3.35930900637025,0.755
+"unique","Beauty_w","P(recognised)","-1 SD",-1.67630262771572,-3.37349800048603,0.24729788024915,0.96025
+"unique","Beauty_w","P(recognised)","+1 SD",3.49853494645326,0.967351347292272,5.7951405258611,0.998
+"unique","Beauty_w","P(recognised)","+2 SD",9.10824260198815,2.51884938478297,15.750442969935,0.99675
+"unique","Beauty_w","P(recognised)","Extremity",3.73935476512696,-0.657580140556448,7.95051733281749,0.9605
+"unique","Beauty_w","P(recognised)","Asymmetry",10.7233605000915,3.19010658317455,18.2821132684608,0.99725
+"unique","Valence_w","P(recognised)","-2 SD",3.01907996417963,-2.39968906188666,8.28562666179171,0.871
+"unique","Valence_w","P(recognised)","-1 SD",0.535623206188841,-1.35529025630112,2.65070791707794,0.71225
+"unique","Valence_w","P(recognised)","+1 SD",1.28323131529357,-0.931821585733609,3.84174266172313,0.8585
+"unique","Valence_w","P(recognised)","+2 SD",4.64015480898293,-1.73523508716701,11.5387396775663,0.92175
+"unique","Valence_w","P(recognised)","Extremity",3.87583089032965,-0.738191550034017,8.25987008690717,0.961
+"unique","Valence_w","P(recognised)","Asymmetry",1.60489410270583,-6.71979232170498,8.98913578929567,0.65275
+"joint","Beauty_w","P(Human Original | recognised)","-2 SD",-5.1689571814696,-10.7441484186942,0.142088030988752,0.9695
+"joint","Beauty_w","P(Human Original | recognised)","-1 SD",-2.77514114560365,-4.89971266595305,-0.878805551038369,0.99725
+"joint","Beauty_w","P(Human Original | recognised)","+1 SD",3.27017119750527,1.00750995639736,5.5379545782264,0.998
+"joint","Beauty_w","P(Human Original | recognised)","+2 SD",6.98547034374896,1.02011971380912,12.8365781542669,0.988
+"joint","Beauty_w","P(Human Original | recognised)","Extremity",0.890213951386091,-3.5664350090489,5.40052406550171,0.6495
+"joint","Beauty_w","P(Human Original | recognised)","Asymmetry",12.260183143315,4.86055236387367,19.0038353609117,0.99975
+"joint","Valence_w","P(Human Original | recognised)","-2 SD",-3.78146475897186,-9.50965149641559,1.89292684698798,0.8985
+"joint","Valence_w","P(Human Original | recognised)","-1 SD",-2.12251645601303,-4.33398344516512,-0.211361934823408,0.97575
+"joint","Valence_w","P(Human Original | recognised)","+1 SD",2.77370565002924,0.549478607724495,5.11526364982446,0.99075
+"joint","Valence_w","P(Human Original | recognised)","+2 SD",6.17942991666681,0.39952704230889,12.422603321814,0.97725
+"joint","Valence_w","P(Human Original | recognised)","Extremity",1.20837784316116,-3.50613832971277,5.91921552601119,0.68875
+"joint","Valence_w","P(Human Original | recognised)","Asymmetry",9.87796043266404,2.36786300083741,16.7605877842252,0.99675
+"unique","Beauty_w","P(Human Original | recognised)","-2 SD",-5.3741121460262,-11.7692920549539,1.46545211786607,0.94825
+"unique","Beauty_w","P(Human Original | recognised)","-1 SD",-2.76045156415968,-5.41471715883897,-0.216559207996262,0.98075
+"unique","Beauty_w","P(Human Original | recognised)","+1 SD",2.89526073340048,-0.337415340596017,5.81803678939396,0.96175
+"unique","Beauty_w","P(Human Original | recognised)","+2 SD",5.76431185665042,-2.25725681166352,13.3613308594664,0.914
+"unique","Beauty_w","P(Human Original | recognised)","Extremity",0.171914240431384,-4.93354281956017,5.54532364459696,0.52575
+"unique","Beauty_w","P(Human Original | recognised)","Asymmetry",10.9982182882621,1.1757004033753,20.761443016034,0.98375
+"unique","Valence_w","P(Human Original | recognised)","-2 SD",0.458324024688732,-6.77461900312383,7.09516542025995,0.553
+"unique","Valence_w","P(Human Original | recognised)","-1 SD",-0.0117131339257597,-2.55037325053233,2.83650078260306,0.50275
+"unique","Valence_w","P(Human Original | recognised)","+1 SD",0.471815457309756,-2.52822143766426,3.52967122773005,0.6145
+"unique","Valence_w","P(Human Original | recognised)","+2 SD",1.31307461418956,-6.40030800976643,9.2012600652163,0.622
+"unique","Valence_w","P(Human Original | recognised)","Extremity",0.908597277990935,-4.35341468843827,6.60660567255505,0.62
+"unique","Valence_w","P(Human Original | recognised)","Asymmetry",0.993675752451935,-9.39028526424171,10.9138426064225,0.5765
+"joint","Beauty_w","P(Human Forgery | recognised)","-2 SD",-2.20360172557613,-4.97067421187437,0.434647372243379,0.93825
+"joint","Beauty_w","P(Human Forgery | recognised)","-1 SD",-0.73822295601663,-1.9304495578098,0.424241389871407,0.88825
+"joint","Beauty_w","P(Human Forgery | recognised)","+1 SD",-0.182598444831559,-1.68363823293458,1.16108028928389,0.5935
+"joint","Beauty_w","P(Human Forgery | recognised)","+2 SD",-1.25882017524728,-4.46367369027722,2.44740301726782,0.74675
+"joint","Beauty_w","P(Human Forgery | recognised)","Extremity",-1.68658768173444,-4.02606584263929,0.73560876951942,0.91325
+"joint","Beauty_w","P(Human Forgery | recognised)","Asymmetry",0.943900138934663,-2.94027591011921,5.09309161281058,0.67925
+"joint","Valence_w","P(Human Forgery | recognised)","-2 SD",-2.84492684069894,-5.41535667433378,-0.0522690337677183,0.9775
+"joint","Valence_w","P(Human Forgery | recognised)","-1 SD",-1.17156825248571,-2.31405890015141,0.0560829449651319,0.97825
+"joint","Valence_w","P(Human Forgery | recognised)","+1 SD",0.482879296107833,-0.935624638282064,1.89595797750808,0.7485
+"joint","Valence_w","P(Human Forgery | recognised)","+2 SD",0.173858640314108,-3.15524550364834,4.13373140960328,0.5365
+"joint","Valence_w","P(Human Forgery | recognised)","Extremity",-1.29050620385075,-3.73258236891818,1.15328704771086,0.855
+"joint","Valence_w","P(Human Forgery | recognised)","Asymmetry",2.89046868869828,-1.21481652655177,7.15740114118037,0.927
+"unique","Beauty_w","P(Human Forgery | recognised)","-2 SD",0.355378422069554,-3.07877828354572,4.5486906068642,0.5765
+"unique","Beauty_w","P(Human Forgery | recognised)","-1 SD",0.561845965722177,-0.915545153367891,2.3368919182094,0.76425
+"unique","Beauty_w","P(Human Forgery | recognised)","+1 SD",-1.2270985177769,-2.95602710416448,0.514814426784364,0.92425
+"unique","Beauty_w","P(Human Forgery | recognised)","+2 SD",-2.88838199364265,-6.54764569378066,0.825392554145052,0.92725
+"unique","Beauty_w","P(Human Forgery | recognised)","Extremity",-1.19093312321849,-3.85836150400089,1.47250506022195,0.80525
+"unique","Beauty_w","P(Human Forgery | recognised)","Asymmetry",-3.23316839265163,-8.8235628703949,2.08415441817183,0.88475
+"unique","Valence_w","P(Human Forgery | recognised)","-2 SD",-3.23074911960849,-6.21786184982197,-0.182488561634548,0.97275
+"unique","Valence_w","P(Human Forgery | recognised)","-1 SD",-1.60702718053891,-3.08059201592166,-0.231499749317786,0.9875
+"unique","Valence_w","P(Human Forgery | recognised)","+1 SD",1.48642891796583,-0.57598800686589,3.38659793925344,0.94075
+"unique","Valence_w","P(Human Forgery | recognised)","+2 SD",2.76366980328617,-2.1204604929645,8.56199418132845,0.86475
+"unique","Valence_w","P(Human Forgery | recognised)","Extremity",-0.157114395392936,-3.06394399154414,3.15104647789879,0.54125
+"unique","Valence_w","P(Human Forgery | recognised)","Asymmetry",5.87193792121102,-0.227122400842855,12.3488964747577,0.98025
+"joint","Beauty_w","P(AI-Generated | recognised)","-2 SD",7.36290701131188,1.78846359583726,12.7066761764271,0.99575
+"joint","Beauty_w","P(AI-Generated | recognised)","-1 SD",3.4998147152658,1.57373716383498,5.55740357614676,1
+"joint","Beauty_w","P(AI-Generated | recognised)","+1 SD",-3.10395592019126,-5.35579806108578,-0.931131019987561,0.99625
+"joint","Beauty_w","P(AI-Generated | recognised)","+2 SD",-5.88459880172904,-11.4377540333067,-0.261515908932889,0.97575
+"joint","Beauty_w","P(AI-Generated | recognised)","Extremity",0.764010765750241,-3.73261251402422,4.90619455019618,0.62925
+"joint","Beauty_w","P(AI-Generated | recognised)","Asymmetry",-13.3047850950412,-20.7559445184311,-6.49809103431133,0.99975
+"joint","Valence_w","P(AI-Generated | recognised)","-2 SD",6.47207391138595,1.01678363731941,12.7445739200387,0.98575
+"joint","Valence_w","P(AI-Generated | recognised)","-1 SD",3.30506586460195,1.19825155165012,5.40425634656243,0.99825
+"joint","Valence_w","P(AI-Generated | recognised)","+1 SD",-3.24179660710323,-5.5041701728642,-1.00636864386177,0.99825
+"joint","Valence_w","P(AI-Generated | recognised)","+2 SD",-6.43188079920098,-12.1917584367866,-0.739505978610758,0.984
+"joint","Valence_w","P(AI-Generated | recognised)","Extremity",0.103014102247045,-4.65187236653856,4.61646514129848,0.51575
+"joint","Valence_w","P(AI-Generated | recognised)","Asymmetry",-12.8842044908414,-20.1522863561706,-5.92419737175785,1
+"unique","Beauty_w","P(AI-Generated | recognised)","-2 SD",4.7979314753657,-1.43362383124707,11.5277072149562,0.93275
+"unique","Beauty_w","P(AI-Generated | recognised)","-1 SD",2.15003814903317,-0.31524333141796,4.68915662212027,0.9515
+"unique","Beauty_w","P(AI-Generated | recognised)","+1 SD",-1.66455590561475,-4.54317295453195,1.38094510368836,0.85525
+"unique","Beauty_w","P(AI-Generated | recognised)","+2 SD",-3.03167915966294,-10.5746244783601,4.55765910751077,0.7665
+"unique","Beauty_w","P(AI-Generated | recognised)","Extremity",0.895433702951797,-4.22061221888713,6.14555781790829,0.64075
+"unique","Beauty_w","P(AI-Generated | recognised)","Asymmetry",-7.83703398913262,-17.074799034626,2.09010059830882,0.938
+"unique","Valence_w","P(AI-Generated | recognised)","-2 SD",2.72243090017756,-4.45507491631839,9.41155126449533,0.77775
+"unique","Valence_w","P(AI-Generated | recognised)","-1 SD",1.62249269540679,-0.975941627723991,4.17755737339613,0.8795
+"unique","Valence_w","P(AI-Generated | recognised)","+1 SD",-2.03555971653221,-5.03254355078742,0.850036116565139,0.91275
+"unique","Valence_w","P(AI-Generated | recognised)","+2 SD",-4.45310213430851,-11.608823619424,3.28745323699151,0.87225
+"unique","Valence_w","P(AI-Generated | recognised)","Extremity",-0.773640572153884,-6.36119327254475,4.47154011657209,0.61825
+"unique","Valence_w","P(AI-Generated | recognised)","Asymmetry",-7.09137460287362,-16.6336786303613,2.17905416002449,0.928

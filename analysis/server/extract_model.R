@@ -1,8 +1,10 @@
 # Runs one estimates.R driver on FA_MODELS_DIR/combined/<FA_MODEL>.rds and
 # writes FA_MODELS_DIR/<FA_WHAT>/<FA_MODEL>.rds. Read-only on the fit.
 #
-#   FA_WHAT   estimates (get_estimates(), `./hpc extract`) or
-#             individual (get_individual(), `./hpc individual`)
+#   FA_WHAT   estimates (get_estimates(), `./hpc extract`),
+#             individual (get_individual(), `./hpc individual`) or
+#             loo (get_loo(), `./hpc loo`: the pointwise elpd that combine
+#             attached, for comparing two fits of the same rows)
 #   FA_SEED   RNG seed for the sampled parts (default 1234)
 
 library(brms)
@@ -23,8 +25,8 @@ seed <- as.integer(Sys.getenv("FA_SEED", unset = "1234"))
 set.seed(seed)
 
 what <- Sys.getenv("FA_WHAT", unset = "estimates")
-driver <- switch(what, estimates = get_estimates, individual = get_individual,
-                 stop("FA_WHAT must be 'estimates' or 'individual', not '", what, "'", call. = FALSE))
+driver <- switch(what, estimates = get_estimates, individual = get_individual, loo = get_loo,
+                 stop("FA_WHAT must be 'estimates', 'individual' or 'loo', not '", what, "'", call. = FALSE))
 
 models_dir <- Sys.getenv("FA_MODELS_DIR", unset = "models")
 est_dir <- file.path(models_dir, what)

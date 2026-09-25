@@ -59,8 +59,11 @@ df_wide <- df_long |>
 
 Participant characteristics used as correlates. Gender is coded 0 = female,
 1 = male (the 2 "other" excluded), so its correlations are point-biserial;
-education and AI use are ordinal ranks. Questionnaire scores are missing for
-participants who failed that questionnaire's attention check.
+education and AI use are ordinal ranks. Interoception is given by the three
+Mint metaclusters (the average of their items), each followed by its facets (in
+italics): *Awareness* (ExAc, RelA, SexS), *Deficit* (CaCo, Urin, Derm, Sati,
+Olfa) and *Visceroception* (Resp, Card, Gast). Questionnaire scores are missing
+for participants who failed that questionnaire's attention check.
 
 ```{r}
 #| label: traits
@@ -91,9 +94,17 @@ df_traits <- dfsub |>
             `Life satisfaction` = LifeSatisfaction,
             across(c(starts_with("MINT_"), -MINT_AttentionCheck))) |>
   rename_with(\(x) str_replace(x, "^MINT_", "MINT "), starts_with("MINT_"))
-traits <- c(traits, setNames(rep("Interoception", sum(startsWith(names(df_traits), "MINT"))),
-                             grep("^MINT", names(df_traits), value = TRUE)))
-trait_vars <- data.frame(Score = names(traits), Row = names(traits), RowGroup = unname(traits))
+# Interoception: each Mint metacluster followed by its facets (italics, Markdown),
+# in this fixed order rather than clustered
+mint <- list(Awareness = c("ExAc", "RelA", "SexS"),
+             Deficit = c("CaCo", "Urin", "Derm", "Sati", "Olfa"),
+             Visceroception = c("Resp", "Card", "Gast"))
+mint_vars <- bind_rows(lapply(names(mint), \(m) data.frame(
+  Score = paste("MINT", c(m, mint[[m]])),
+  Row = c(m, paste0("*MINT ", mint[[m]], "*")))))
+stopifnot(setequal(mint_vars$Score, grep("^MINT", names(df_traits), value = TRUE)))
+trait_vars <- bind_rows(data.frame(Score = names(traits), Row = names(traits), RowGroup = unname(traits)),
+                        mutate(mint_vars, RowGroup = "Interoception", Fixed = TRUE))
 
 # Order variables by the similarity of their correlation profiles (rows of m):
 # hierarchical clustering, branches reordered by average correlation
@@ -106,8 +117,11 @@ cluster_order <- function(m) {
 # Correlations between row and column variables (data frames with Score, the
 # column name in `data`, and the Row / RowGroup or Column / ColGroup it is shown
 # as), FDR-corrected across the whole table. Within each group, rows are
-# ordered by cluster_order() (RowKey); columns keep their given order.
+# ordered by cluster_order() (RowKey), except in groups whose rows all have
+# Fixed = TRUE, which keep their given order; columns keep their given order.
+# Row labels may use Markdown (e.g. *italics*).
 cor_grid <- function(data, rows, cols) {
+  fixed <- rows$Score[if (is.null(rows$Fixed)) FALSE else rows$Fixed %in% TRUE]
   d <- data |>
     correlation(select = rows$Score, select2 = cols$Score, p_adjust = "none") |>
     as.data.frame() |>
@@ -118,6 +132,7 @@ cor_grid <- function(data, rows, cols) {
            Column = factor(cols$Column[match(Parameter2, cols$Score)], levels = unique(cols$Column)),
            ColGroup = factor(cols$ColGroup[match(Parameter2, cols$Score)], levels = unique(cols$ColGroup)))
   row_levels <- unlist(lapply(split(d, d$RowGroup), \(g) {
+    if (nrow(g) > 0 && all(g$Parameter1 %in% fixed)) return(intersect(fixed, g$Parameter1))
     m <- xtabs(r ~ Parameter1 + Parameter2, data = g)
     cluster_order(unclass(m))
   }), use.names = FALSE)
@@ -158,6 +173,7 @@ cor_heatmap <- function(d, base_size = 13, text_size = 3.4, col_fill = NULL) {
     labs(x = NULL, y = NULL) +
     theme_minimal(base_size = base_size) +
     theme(axis.text.x.top = element_text(angle = 45, hjust = 0, vjust = 0),
+          axis.text.y.left = ggtext::element_markdown(hjust = 1),
           panel.grid = element_blank(),
           strip.text = element_text(face = "bold"),
           strip.text.y = element_text(angle = 0, hjust = 0),
@@ -806,9 +822,9 @@ cor_markdown(df_mem_cor, "Correlations between memory indices and participant ch
 
 ```{r}
 #| label: fig-memory-correlates
-#| fig-cap: "Correlations between the reliable memory indices (columns) and participant characteristics (220 participants), ordered within each group by the similarity of their correlation profiles. Bold: p < .05 (uncorrected); *: p < .05 after FDR correction across the whole table."
+#| fig-cap: "Correlations between the reliable memory indices (columns) and participant characteristics (220 participants), ordered within each group by the similarity of their correlation profiles (Interoception: each Mint metacluster followed by its facets, in italics). Bold: p < .05 (uncorrected); *: p < .05 after FDR correction across the whole table."
 #| fig-width: 11
-#| fig-height: 12
+#| fig-height: 13.2
 
 cor_heatmap(df_mem_cor)
 ```
@@ -866,31 +882,31 @@ cor_markdown(df_correlates, "Correlations between dimension scores and participa
 
 ```{r}
 #| label: fig-correlates
-#| fig-cap: "Correlations between the dimension scores (columns, grouped by higher-order community; Overall = the higher-order score) and participant characteristics and follow-up memory indices (rows; ordered within each group by the similarity of their correlation profiles). Bold: p < .05 (uncorrected); *: p < .05 after FDR correction across the whole table."
+#| fig-cap: "Correlations between the dimension scores (columns, grouped by higher-order community; Overall = the higher-order score) and participant characteristics and follow-up memory indices (rows; ordered within each group by the similarity of their correlation profiles; Interoception: each Mint metacluster followed by its facets, in italics). Bold: p < .05 (uncorrected); *: p < .05 after FDR correction across the whole table."
 #| fig-width: 10.5
-#| fig-height: 15.5
+#| fig-height: 16.7
 
 cor_heatmap(df_correlates, col_fill = fill_higher)
 ```
 
-### Figure 4
+### Manuscript figure: interindividual differences
 
 ```{r}
-#| label: fig-figure4
+#| label: fig-interindividual
 #| fig-cap: "Structure and correlates of the participant-level indices. Top: correlations between the indices entering the EGA (lower half), their reliability (diagonal) and their hierarchical community structure (upper half). Bottom: correlations between the community scores and participant characteristics and follow-up memory indices."
 #| fig-alt: "Top: triangular correlation matrix of the participant-level indices with a tree of their lower- and higher-order communities drawn above the diagonal. Bottom: heatmap of correlations between the community scores and participant characteristics and memory indices."
 #| fig-width: 20
-#| fig-height: 33.9
+#| fig-height: 35
 
-# Manuscript Figure 4 (Figure 3 is the determinants figure of 5_realitydeterminants.qmd).
+# Manuscript figure of the "Interindividual Differences" section (figures/figure_interindividual.png).
 # The legend of the matrix (top) also covers the correlates (bottom).
 # free(): the matrix is not aligned with the heatmap's panels, so that it can use the full width
-figure4 <- free(p_ega_matrix) /
+figure_interindividual <- free(p_ega_matrix) /
   (cor_heatmap(df_correlates, base_size = 20, text_size = 5.2, col_fill = fill_higher) +
      theme(legend.position = "none", plot.margin = margin(t = 0.1, unit = "in"))) +
-  plot_layout(heights = c(19.4, 14.5))
+  plot_layout(heights = c(19.4, 15.6))
 
-figure4
+figure_interindividual
 
-ggsave("figures/figure4.png", figure4, width = 20, height = 33.9, dpi = 300, bg = "white")
+ggsave("figures/figure_interindividual.png", figure_interindividual, width = 20, height = 35, dpi = 300, bg = "white")
 ```

@@ -39,7 +39,7 @@ source("report.R")           # make_asis(), make_tables(), read_estimates(), get
 dftask <- read.csv("../data/data_task.csv") |>
   mutate(Condition = fct_relevel(Condition, "Human Original", "Human Forgery", "AI-Generated"))
 
-estimates <- read_estimates(c(names(mediation_info), names(appraisal_info), names(items_info)))
+estimates <- read_estimates(setdiff(c(names(mediation_info), names(appraisal_info), names(items_info)), c(sr_models, shape_models)))
 # The label effects of the main models (Condition * Emotion), for comparison
 reference <- read_estimates(c("Beauty", "Reality", "Authenticity"))
 provenance_table(c(estimates, reference))
@@ -14178,6 +14178,7 @@ Files written:
 - `data/results_determinants_appraisal.csv`: decomposition by the four Phase-1 ratings (total, direct, joint and unique indirect effects, rating shifts), response and CHOCO parameters.
 - `data/results_determinants_items.csv`: slopes per SD of each VAPS norm and style differences.
 - `data/results_determinants_contrasts.csv`: label contrasts at average beauty, every CHOCO parameter.
+- `data/results_determinants_quadratic.csv` (see "Exploratory checks", once `AuthenticityBeautyQuad` is extracted): authenticity slopes on beauty at -0.4 / -0.2 / 0 / +0.2 / +0.4 of `Beauty_w`, per label, response and CHOCO parameters.
 
 
 ::: {.cell}
@@ -14213,6 +14214,5374 @@ bind_rows(lapply(estimates, function(e) {
     select(Model, Contrast, Parameter, Difference, CI_low, CI_high, Difference_pct, CI_low_pct, CI_high_pct, pd, Credible, Effect)
 })) |>
   write.csv("../data/results_determinants_contrasts.csv", row.names = FALSE)
+```
+:::
+
+
+## Exploratory checks: centring and shape
+
+Not reported in the manuscript; kept as a record of what was checked
+(2026-09-24), for this paper's robustness and for the design of future
+studies. The models above make two choices about Phase-1 beauty: it is
+**centred within participant** (`Beauty_w`), and it enters **linearly** on
+every CHOCO parameter. The checks below probe both with quick frequentist
+fits (lme4 linear mixed models of the belief on the 0-100 scale, mgcv GAMs)
+and, where the shape turned out to matter, with a Bayesian refit
+(`AuthenticityBeautyQuad`).
+
+### Within-participant centring
+
+`Beauty_w` is centred, not standardised: it keeps the units of the slider (a
+slope is still "% of the belief per +10% of beauty"), and what it removes is
+the participant's own average beauty. It is the right predictor for the
+mediation for two reasons:
+
+- the label is balanced within participant (16 artworks per label), so it
+  cannot move a participant's *average* beauty: only the within-person
+  deviation can carry the label effect, which makes the within-person slope
+  the b-path of the mediation;
+- an uncentred (raw) predictor does not isolate a between-person effect
+  either: with participant intercepts, its slope is a precision-weighted blend
+  of the within- and the between-person slopes (with 48 trials per
+  participant, almost the within one).
+
+The between-person question -- do participants who find art more beautiful
+overall also believe more of it is human-made? -- is answered by adding the
+participant's mean beauty (`Beauty_b`, centred on the mean of the
+participant means) next to `Beauty_w`: a within-between (Mundlak)
+decomposition, whose `Beauty_w` terms estimate the same thing as the
+within-only model. Between-person associations are open to scale use (a
+participant who answers on the right-hand side of every slider), which the
+within-person slope is not.
+
+
+::: {.cell cache.extra='6421141b14f6b6ee1673eac304ec8fc8'}
+
+```{.r .cell-code}
+# lme4 pilots of the determinants design on the 0-100 belief scale, with three
+# versions of the beauty predictor; label + beauty slopes over participants,
+# intercepts over items. Only the coefficient tables are kept (pilot_coefs(),
+# report.R).
+pilot_d <- dftask |>
+  filter(!is.na(Reality), !is.na(Beauty)) |>
+  mutate(Reality = 100 * Reality, Authenticity = 100 * Authenticity,
+         Beauty_raw = Beauty - mean(Beauty)) |>
+  mutate(Beauty_w = Beauty - mean(Beauty), Beauty_m = mean(Beauty), .by = "Participant") |>
+  mutate(Beauty_b = Beauty_m - mean(Beauty_m[!duplicated(Participant)]))
+
+specs <- c(
+  "Within (as fitted)" = "~ Condition * Beauty_w + (Condition + Beauty_w | Participant) + (1 | Item)",
+  "Raw" = "~ Condition * Beauty_raw + (Condition + Beauty_raw | Participant) + (1 | Item)",
+  "Within + between" = "~ Condition * (Beauty_w + Beauty_b) + (Condition + Beauty_w | Participant) + (1 | Item)"
+)
+pilot_centring <- bind_rows(lapply(c(Syntheticness = "Reality", Authenticity = "Authenticity"), function(y) {
+  bind_rows(lapply(names(specs), function(s) mutate(pilot_coefs(paste(y, specs[[s]]), pilot_d), Specification = s)))
+}), .id = "Belief")
+```
+:::
+
+
+
+```{.r .cell-code}
+# Slopes per +10% of the predictor, label contrasts at the average predictor
+# in % of the scale (pilot_table(), report.R)
+make_asis(make_tables(pilot_table(pilot_centring), c("Belief", "Specification", "Term", "Unit", "Diff", "SE", "Effect"),
+                      "lme4 pilots: beliefs on the label and Phase-1 beauty, three versions of the beauty predictor (slopes are for Originals; 'x' rows are the difference in slope under a label; Effect: |t| > 1.96)"))
+```
+
+```{=html}
+<div id="bberwgvngy" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#bberwgvngy table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#bberwgvngy thead, #bberwgvngy tbody, #bberwgvngy tfoot, #bberwgvngy tr, #bberwgvngy td, #bberwgvngy th {
+  border-style: none;
+}
+
+#bberwgvngy p {
+  margin: 0;
+  padding: 0;
+}
+
+#bberwgvngy .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 13px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 3px;
+  border-top-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 3px;
+  border-right-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 3px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 3px;
+  border-left-color: #D5D5D5;
+}
+
+#bberwgvngy .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#bberwgvngy .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#bberwgvngy .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#bberwgvngy .gt_heading {
+  background-color: #FFFFFF;
+  text-align: left;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#bberwgvngy .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#bberwgvngy .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#bberwgvngy .gt_col_heading {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#bberwgvngy .gt_column_spanner_outer {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#bberwgvngy .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#bberwgvngy .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#bberwgvngy .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#bberwgvngy .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#bberwgvngy .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#bberwgvngy .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: middle;
+}
+
+#bberwgvngy .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#bberwgvngy .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#bberwgvngy .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 1px;
+  border-left-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 1px;
+  border-right-color: #D5D5D5;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#bberwgvngy .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #5F5F5F;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#bberwgvngy .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#bberwgvngy .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#bberwgvngy .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#bberwgvngy .gt_summary_row {
+  color: #333333;
+  background-color: #D5D5D5;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#bberwgvngy .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D5D5D5;
+}
+
+#bberwgvngy .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#bberwgvngy .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#bberwgvngy .gt_grand_summary_row {
+  color: #FFFFFF;
+  background-color: #929292;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#bberwgvngy .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D5D5D5;
+}
+
+#bberwgvngy .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D5D5D5;
+}
+
+#bberwgvngy .gt_striped {
+  background-color: #F4F4F4;
+}
+
+#bberwgvngy .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#bberwgvngy .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#bberwgvngy .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#bberwgvngy .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#bberwgvngy .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#bberwgvngy .gt_left {
+  text-align: left;
+}
+
+#bberwgvngy .gt_center {
+  text-align: center;
+}
+
+#bberwgvngy .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#bberwgvngy .gt_font_normal {
+  font-weight: normal;
+}
+
+#bberwgvngy .gt_font_bold {
+  font-weight: bold;
+}
+
+#bberwgvngy .gt_font_italic {
+  font-style: italic;
+}
+
+#bberwgvngy .gt_super {
+  font-size: 65%;
+}
+
+#bberwgvngy .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#bberwgvngy .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#bberwgvngy .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#bberwgvngy .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#bberwgvngy .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#bberwgvngy .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#bberwgvngy .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#bberwgvngy .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#bberwgvngy div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+  <thead>
+    <tr class="gt_heading">
+      <td colspan="7" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>lme4 pilots: beliefs on the label and Phase-1 beauty, three versions of the beauty predictor (slopes are for Originals; 'x' rows are the difference in slope under a label; Effect: |t| &gt; 1.96)</td>
+    </tr>
+    
+    <tr class="gt_col_headings">
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Belief">Belief</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Specification">Specification</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Term">Term</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Unit">Unit</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Diff">Diff</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="SE">SE</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Effect">Effect</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr><td headers="Belief" class="gt_row gt_left" style="color: #9E9E9E;">Syntheticness</td>
+<td headers="Specification" class="gt_row gt_left" style="color: #9E9E9E;">Within (as fitted)</td>
+<td headers="Term" class="gt_row gt_left" style="color: #9E9E9E;">Forgery</td>
+<td headers="Unit" class="gt_row gt_left" style="color: #9E9E9E;">% of the scale</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.33</td>
+<td headers="SE" class="gt_row gt_right" style="color: #9E9E9E;">0.77</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Syntheticness</td>
+<td headers="Specification" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Within (as fitted)</td>
+<td headers="Term" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">AI-Generated</td>
+<td headers="Unit" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">% of the scale</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.36</td>
+<td headers="SE" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">0.74</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left" style="background-color: #E8F5E9;">Syntheticness</td>
+<td headers="Specification" class="gt_row gt_left" style="background-color: #E8F5E9;">Within (as fitted)</td>
+<td headers="Term" class="gt_row gt_left" style="background-color: #E8F5E9;">beauty (within)</td>
+<td headers="Unit" class="gt_row gt_left" style="background-color: #E8F5E9;">per +10% of the predictor</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">2.94</td>
+<td headers="SE" class="gt_row gt_right" style="background-color: #E8F5E9;">0.26</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Syntheticness</td>
+<td headers="Specification" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Within (as fitted)</td>
+<td headers="Term" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Forgery x beauty (within)</td>
+<td headers="Unit" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">per +10% of the predictor</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-0.63</td>
+<td headers="SE" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">0.29</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left" style="background-color: #FFEBEE;">Syntheticness</td>
+<td headers="Specification" class="gt_row gt_left" style="background-color: #FFEBEE;">Within (as fitted)</td>
+<td headers="Term" class="gt_row gt_left" style="background-color: #FFEBEE;">AI-Generated x beauty (within)</td>
+<td headers="Unit" class="gt_row gt_left" style="background-color: #FFEBEE;">per +10% of the predictor</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-0.64</td>
+<td headers="SE" class="gt_row gt_right" style="background-color: #FFEBEE;">0.28</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Syntheticness</td>
+<td headers="Specification" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Raw</td>
+<td headers="Term" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Forgery</td>
+<td headers="Unit" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">% of the scale</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.41</td>
+<td headers="SE" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.74</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left" style="background-color: #FFEBEE;">Syntheticness</td>
+<td headers="Specification" class="gt_row gt_left" style="background-color: #FFEBEE;">Raw</td>
+<td headers="Term" class="gt_row gt_left" style="background-color: #FFEBEE;">AI-Generated</td>
+<td headers="Unit" class="gt_row gt_left" style="background-color: #FFEBEE;">% of the scale</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-3.42</td>
+<td headers="SE" class="gt_row gt_right" style="background-color: #FFEBEE;">0.71</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Syntheticness</td>
+<td headers="Specification" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Raw</td>
+<td headers="Term" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">beauty (raw)</td>
+<td headers="Unit" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">per +10% of the predictor</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">2.87</td>
+<td headers="SE" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">0.24</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left" style="background-color: #FFEBEE;">Syntheticness</td>
+<td headers="Specification" class="gt_row gt_left" style="background-color: #FFEBEE;">Raw</td>
+<td headers="Term" class="gt_row gt_left" style="background-color: #FFEBEE;">Forgery x beauty (raw)</td>
+<td headers="Unit" class="gt_row gt_left" style="background-color: #FFEBEE;">per +10% of the predictor</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-0.54</td>
+<td headers="SE" class="gt_row gt_right" style="background-color: #FFEBEE;">0.26</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Syntheticness</td>
+<td headers="Specification" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Raw</td>
+<td headers="Term" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">AI-Generated x beauty (raw)</td>
+<td headers="Unit" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">per +10% of the predictor</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-0.65</td>
+<td headers="SE" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">0.26</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left" style="color: #9E9E9E;">Syntheticness</td>
+<td headers="Specification" class="gt_row gt_left" style="color: #9E9E9E;">Within + between</td>
+<td headers="Term" class="gt_row gt_left" style="color: #9E9E9E;">Forgery</td>
+<td headers="Unit" class="gt_row gt_left" style="color: #9E9E9E;">% of the scale</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.33</td>
+<td headers="SE" class="gt_row gt_right" style="color: #9E9E9E;">0.76</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Syntheticness</td>
+<td headers="Specification" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Within + between</td>
+<td headers="Term" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">AI-Generated</td>
+<td headers="Unit" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">% of the scale</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.36</td>
+<td headers="SE" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">0.73</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left" style="background-color: #E8F5E9;">Syntheticness</td>
+<td headers="Specification" class="gt_row gt_left" style="background-color: #E8F5E9;">Within + between</td>
+<td headers="Term" class="gt_row gt_left" style="background-color: #E8F5E9;">beauty (within)</td>
+<td headers="Unit" class="gt_row gt_left" style="background-color: #E8F5E9;">per +10% of the predictor</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">2.95</td>
+<td headers="SE" class="gt_row gt_right" style="background-color: #E8F5E9;">0.26</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Syntheticness</td>
+<td headers="Specification" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Within + between</td>
+<td headers="Term" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">beauty (between)</td>
+<td headers="Unit" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">per +10% of the predictor</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">2.45</td>
+<td headers="SE" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">0.41</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left" style="background-color: #FFEBEE;">Syntheticness</td>
+<td headers="Specification" class="gt_row gt_left" style="background-color: #FFEBEE;">Within + between</td>
+<td headers="Term" class="gt_row gt_left" style="background-color: #FFEBEE;">Forgery x beauty (within)</td>
+<td headers="Unit" class="gt_row gt_left" style="background-color: #FFEBEE;">per +10% of the predictor</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-0.64</td>
+<td headers="SE" class="gt_row gt_right" style="background-color: #FFEBEE;">0.28</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Syntheticness</td>
+<td headers="Specification" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Within + between</td>
+<td headers="Term" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">AI-Generated x beauty (within)</td>
+<td headers="Unit" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">per +10% of the predictor</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-0.64</td>
+<td headers="SE" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">0.28</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left" style="color: #9E9E9E;">Syntheticness</td>
+<td headers="Specification" class="gt_row gt_left" style="color: #9E9E9E;">Within + between</td>
+<td headers="Term" class="gt_row gt_left" style="color: #9E9E9E;">Forgery x beauty (between)</td>
+<td headers="Unit" class="gt_row gt_left" style="color: #9E9E9E;">per +10% of the predictor</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.05</td>
+<td headers="SE" class="gt_row gt_right" style="color: #9E9E9E;">0.74</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Syntheticness</td>
+<td headers="Specification" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Within + between</td>
+<td headers="Term" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated x beauty (between)</td>
+<td headers="Unit" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">per +10% of the predictor</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.53</td>
+<td headers="SE" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.70</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left" style="color: #9E9E9E;">Authenticity</td>
+<td headers="Specification" class="gt_row gt_left" style="color: #9E9E9E;">Within (as fitted)</td>
+<td headers="Term" class="gt_row gt_left" style="color: #9E9E9E;">Forgery</td>
+<td headers="Unit" class="gt_row gt_left" style="color: #9E9E9E;">% of the scale</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-1.36</td>
+<td headers="SE" class="gt_row gt_right" style="color: #9E9E9E;">0.74</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Authenticity</td>
+<td headers="Specification" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Within (as fitted)</td>
+<td headers="Term" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated</td>
+<td headers="Unit" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">% of the scale</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.72</td>
+<td headers="SE" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.77</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left" style="background-color: #E8F5E9;">Authenticity</td>
+<td headers="Specification" class="gt_row gt_left" style="background-color: #E8F5E9;">Within (as fitted)</td>
+<td headers="Term" class="gt_row gt_left" style="background-color: #E8F5E9;">beauty (within)</td>
+<td headers="Unit" class="gt_row gt_left" style="background-color: #E8F5E9;">per +10% of the predictor</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">1.85</td>
+<td headers="SE" class="gt_row gt_right" style="background-color: #E8F5E9;">0.23</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Authenticity</td>
+<td headers="Specification" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Within (as fitted)</td>
+<td headers="Term" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Forgery x beauty (within)</td>
+<td headers="Unit" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">per +10% of the predictor</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.49</td>
+<td headers="SE" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.28</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left" style="background-color: #FFEBEE;">Authenticity</td>
+<td headers="Specification" class="gt_row gt_left" style="background-color: #FFEBEE;">Within (as fitted)</td>
+<td headers="Term" class="gt_row gt_left" style="background-color: #FFEBEE;">AI-Generated x beauty (within)</td>
+<td headers="Unit" class="gt_row gt_left" style="background-color: #FFEBEE;">per +10% of the predictor</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-0.67</td>
+<td headers="SE" class="gt_row gt_right" style="background-color: #FFEBEE;">0.28</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Authenticity</td>
+<td headers="Specification" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Raw</td>
+<td headers="Term" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Forgery</td>
+<td headers="Unit" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">% of the scale</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-1.35</td>
+<td headers="SE" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">0.59</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left" style="color: #9E9E9E;">Authenticity</td>
+<td headers="Specification" class="gt_row gt_left" style="color: #9E9E9E;">Raw</td>
+<td headers="Term" class="gt_row gt_left" style="color: #9E9E9E;">AI-Generated</td>
+<td headers="Unit" class="gt_row gt_left" style="color: #9E9E9E;">% of the scale</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.65</td>
+<td headers="SE" class="gt_row gt_right" style="color: #9E9E9E;">0.58</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Authenticity</td>
+<td headers="Specification" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Raw</td>
+<td headers="Term" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">beauty (raw)</td>
+<td headers="Unit" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">per +10% of the predictor</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">1.89</td>
+<td headers="SE" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">0.21</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left" style="background-color: #FFEBEE;">Authenticity</td>
+<td headers="Specification" class="gt_row gt_left" style="background-color: #FFEBEE;">Raw</td>
+<td headers="Term" class="gt_row gt_left" style="background-color: #FFEBEE;">Forgery x beauty (raw)</td>
+<td headers="Unit" class="gt_row gt_left" style="background-color: #FFEBEE;">per +10% of the predictor</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-0.57</td>
+<td headers="SE" class="gt_row gt_right" style="background-color: #FFEBEE;">0.25</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Authenticity</td>
+<td headers="Specification" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Raw</td>
+<td headers="Term" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">AI-Generated x beauty (raw)</td>
+<td headers="Unit" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">per +10% of the predictor</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-0.61</td>
+<td headers="SE" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">0.25</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left" style="color: #9E9E9E;">Authenticity</td>
+<td headers="Specification" class="gt_row gt_left" style="color: #9E9E9E;">Within + between</td>
+<td headers="Term" class="gt_row gt_left" style="color: #9E9E9E;">Forgery</td>
+<td headers="Unit" class="gt_row gt_left" style="color: #9E9E9E;">% of the scale</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-1.35</td>
+<td headers="SE" class="gt_row gt_right" style="color: #9E9E9E;">0.74</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Authenticity</td>
+<td headers="Specification" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Within + between</td>
+<td headers="Term" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated</td>
+<td headers="Unit" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">% of the scale</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.72</td>
+<td headers="SE" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.77</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left" style="background-color: #E8F5E9;">Authenticity</td>
+<td headers="Specification" class="gt_row gt_left" style="background-color: #E8F5E9;">Within + between</td>
+<td headers="Term" class="gt_row gt_left" style="background-color: #E8F5E9;">beauty (within)</td>
+<td headers="Unit" class="gt_row gt_left" style="background-color: #E8F5E9;">per +10% of the predictor</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">1.85</td>
+<td headers="SE" class="gt_row gt_right" style="background-color: #E8F5E9;">0.23</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Authenticity</td>
+<td headers="Specification" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Within + between</td>
+<td headers="Term" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">beauty (between)</td>
+<td headers="Unit" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">per +10% of the predictor</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">0.92</td>
+<td headers="SE" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">0.40</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left" style="color: #9E9E9E;">Authenticity</td>
+<td headers="Specification" class="gt_row gt_left" style="color: #9E9E9E;">Within + between</td>
+<td headers="Term" class="gt_row gt_left" style="color: #9E9E9E;">Forgery x beauty (within)</td>
+<td headers="Unit" class="gt_row gt_left" style="color: #9E9E9E;">per +10% of the predictor</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.50</td>
+<td headers="SE" class="gt_row gt_right" style="color: #9E9E9E;">0.28</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Authenticity</td>
+<td headers="Specification" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Within + between</td>
+<td headers="Term" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">AI-Generated x beauty (within)</td>
+<td headers="Unit" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">per +10% of the predictor</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-0.67</td>
+<td headers="SE" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">0.28</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left" style="color: #9E9E9E;">Authenticity</td>
+<td headers="Specification" class="gt_row gt_left" style="color: #9E9E9E;">Within + between</td>
+<td headers="Term" class="gt_row gt_left" style="color: #9E9E9E;">Forgery x beauty (between)</td>
+<td headers="Unit" class="gt_row gt_left" style="color: #9E9E9E;">per +10% of the predictor</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.38</td>
+<td headers="SE" class="gt_row gt_right" style="color: #9E9E9E;">0.72</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Authenticity</td>
+<td headers="Specification" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Within + between</td>
+<td headers="Term" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated x beauty (between)</td>
+<td headers="Unit" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">per +10% of the predictor</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.16</td>
+<td headers="SE" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.75</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+  </tbody>
+  
+</table>
+</div>
+```
+
+
+::: {.callout-note collapse="true" title="lme4 pilots: beliefs on the label and Phase-1 beauty, three versions of the beauty predictor (slopes are for Originals; 'x' rows are the difference in slope under a label; Effect: |t| > 1.96) (Markdown table, for text readers)"}
+
+|Belief        |Specification      |Term                            |Unit                      |Diff  |SE   |Effect   |
+|:-------------|:------------------|:-------------------------------|:-------------------------|:-----|:----|:--------|
+|Syntheticness |Within (as fitted) |Forgery                         |% of the scale            |-0.33 |0.77 |n.s.     |
+|Syntheticness |Within (as fitted) |AI-Generated                    |% of the scale            |-3.36 |0.74 |Negative |
+|Syntheticness |Within (as fitted) |beauty (within)                 |per +10% of the predictor |2.94  |0.26 |Positive |
+|Syntheticness |Within (as fitted) |Forgery x beauty (within)       |per +10% of the predictor |-0.63 |0.29 |Negative |
+|Syntheticness |Within (as fitted) |AI-Generated x beauty (within)  |per +10% of the predictor |-0.64 |0.28 |Negative |
+|Syntheticness |Raw                |Forgery                         |% of the scale            |-0.41 |0.74 |n.s.     |
+|Syntheticness |Raw                |AI-Generated                    |% of the scale            |-3.42 |0.71 |Negative |
+|Syntheticness |Raw                |beauty (raw)                    |per +10% of the predictor |2.87  |0.24 |Positive |
+|Syntheticness |Raw                |Forgery x beauty (raw)          |per +10% of the predictor |-0.54 |0.26 |Negative |
+|Syntheticness |Raw                |AI-Generated x beauty (raw)     |per +10% of the predictor |-0.65 |0.26 |Negative |
+|Syntheticness |Within + between   |Forgery                         |% of the scale            |-0.33 |0.76 |n.s.     |
+|Syntheticness |Within + between   |AI-Generated                    |% of the scale            |-3.36 |0.73 |Negative |
+|Syntheticness |Within + between   |beauty (within)                 |per +10% of the predictor |2.95  |0.26 |Positive |
+|Syntheticness |Within + between   |beauty (between)                |per +10% of the predictor |2.45  |0.41 |Positive |
+|Syntheticness |Within + between   |Forgery x beauty (within)       |per +10% of the predictor |-0.64 |0.28 |Negative |
+|Syntheticness |Within + between   |AI-Generated x beauty (within)  |per +10% of the predictor |-0.64 |0.28 |Negative |
+|Syntheticness |Within + between   |Forgery x beauty (between)      |per +10% of the predictor |0.05  |0.74 |n.s.     |
+|Syntheticness |Within + between   |AI-Generated x beauty (between) |per +10% of the predictor |-0.53 |0.70 |n.s.     |
+|Authenticity  |Within (as fitted) |Forgery                         |% of the scale            |-1.36 |0.74 |n.s.     |
+|Authenticity  |Within (as fitted) |AI-Generated                    |% of the scale            |-0.72 |0.77 |n.s.     |
+|Authenticity  |Within (as fitted) |beauty (within)                 |per +10% of the predictor |1.85  |0.23 |Positive |
+|Authenticity  |Within (as fitted) |Forgery x beauty (within)       |per +10% of the predictor |-0.49 |0.28 |n.s.     |
+|Authenticity  |Within (as fitted) |AI-Generated x beauty (within)  |per +10% of the predictor |-0.67 |0.28 |Negative |
+|Authenticity  |Raw                |Forgery                         |% of the scale            |-1.35 |0.59 |Negative |
+|Authenticity  |Raw                |AI-Generated                    |% of the scale            |-0.65 |0.58 |n.s.     |
+|Authenticity  |Raw                |beauty (raw)                    |per +10% of the predictor |1.89  |0.21 |Positive |
+|Authenticity  |Raw                |Forgery x beauty (raw)          |per +10% of the predictor |-0.57 |0.25 |Negative |
+|Authenticity  |Raw                |AI-Generated x beauty (raw)     |per +10% of the predictor |-0.61 |0.25 |Negative |
+|Authenticity  |Within + between   |Forgery                         |% of the scale            |-1.35 |0.74 |n.s.     |
+|Authenticity  |Within + between   |AI-Generated                    |% of the scale            |-0.72 |0.77 |n.s.     |
+|Authenticity  |Within + between   |beauty (within)                 |per +10% of the predictor |1.85  |0.23 |Positive |
+|Authenticity  |Within + between   |beauty (between)                |per +10% of the predictor |0.92  |0.40 |Positive |
+|Authenticity  |Within + between   |Forgery x beauty (within)       |per +10% of the predictor |-0.50 |0.28 |n.s.     |
+|Authenticity  |Within + between   |AI-Generated x beauty (within)  |per +10% of the predictor |-0.67 |0.28 |Negative |
+|Authenticity  |Within + between   |Forgery x beauty (between)      |per +10% of the predictor |-0.38 |0.72 |n.s.     |
+|Authenticity  |Within + between   |AI-Generated x beauty (between) |per +10% of the predictor |0.16  |0.75 |n.s.     |
+
+:::
+
+The within-person slopes and the label contrasts are virtually the same in
+the three versions, so the centring changes none of the results above. The
+between-person slopes are the new information: participants who found the
+artworks more beautiful overall also judged them as more human-made (about as
+strongly as within persons) and, more weakly, as more original.
+
+### Shape of the beauty links
+
+Work on aesthetic judgment and memory (Lee et al., 2023; Salgues et al.,
+2024) suggests that extreme appraisals, very ugly as well as very beautiful,
+can behave alike, which a linear term cannot show. Observed means first, by
+absolute beauty (the exact ends of the slider as their own bins) and by
+beauty relative to the participant's mean:
+
+
+```{.r .cell-code}
+beauty_bins <- function(x) cut(x, c(-Inf, 0, .15, .3, .45, .55, .7, .85, .9999, Inf),
+                               labels = c("= 0", "0-15", "15-30", "30-45", "45-55", "55-70", "70-85", "85-100", "= 100"))
+obs_abs <- dftask |>
+  filter(!is.na(Reality), !is.na(Beauty)) |>
+  mutate(Bin = beauty_bins(Beauty)) |>
+  summarise(Syntheticness = mean(100 * Reality), Authenticity = mean(100 * Authenticity), n = n(), .by = "Bin") |>
+  arrange(Bin)
+obs_rel <- dftask |>
+  filter(!is.na(Reality), !is.na(Beauty)) |>
+  mutate(Bw = Beauty - mean(Beauty), Rw = 100 * (Reality - mean(Reality)), Aw = 100 * (Authenticity - mean(Authenticity)),
+         .by = "Participant") |>
+  mutate(Bin = cut(100 * Bw, c(-100, -50, -35, -20, -10, 0, 10, 20, 35, 100))) |>
+  summarise(Syntheticness = mean(Rw), Authenticity = mean(Aw), n = n(), .by = "Bin") |>
+  arrange(Bin)
+make_asis(
+  make_tables(mutate(obs_abs, across(c(Syntheticness, Authenticity), \(x) round(x, 1))), c("Bin", "Syntheticness", "Authenticity", "n"),
+              "Observed mean beliefs (% of the slider) by Phase-1 beauty (% of the slider)"),
+  make_tables(mutate(obs_rel, across(c(Syntheticness, Authenticity), \(x) round(x, 1))), c("Bin", "Syntheticness", "Authenticity", "n"),
+              "Observed beliefs relative to the participant's mean, by Phase-1 beauty relative to the participant's mean (both in points of the slider)")
+)
+```
+
+```{=html}
+<div id="qtjdhtwavo" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#qtjdhtwavo table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#qtjdhtwavo thead, #qtjdhtwavo tbody, #qtjdhtwavo tfoot, #qtjdhtwavo tr, #qtjdhtwavo td, #qtjdhtwavo th {
+  border-style: none;
+}
+
+#qtjdhtwavo p {
+  margin: 0;
+  padding: 0;
+}
+
+#qtjdhtwavo .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 13px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 3px;
+  border-top-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 3px;
+  border-right-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 3px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 3px;
+  border-left-color: #D5D5D5;
+}
+
+#qtjdhtwavo .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#qtjdhtwavo .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#qtjdhtwavo .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#qtjdhtwavo .gt_heading {
+  background-color: #FFFFFF;
+  text-align: left;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#qtjdhtwavo .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#qtjdhtwavo .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#qtjdhtwavo .gt_col_heading {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#qtjdhtwavo .gt_column_spanner_outer {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#qtjdhtwavo .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#qtjdhtwavo .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#qtjdhtwavo .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#qtjdhtwavo .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#qtjdhtwavo .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#qtjdhtwavo .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: middle;
+}
+
+#qtjdhtwavo .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#qtjdhtwavo .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#qtjdhtwavo .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 1px;
+  border-left-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 1px;
+  border-right-color: #D5D5D5;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#qtjdhtwavo .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #5F5F5F;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#qtjdhtwavo .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#qtjdhtwavo .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#qtjdhtwavo .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#qtjdhtwavo .gt_summary_row {
+  color: #333333;
+  background-color: #D5D5D5;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#qtjdhtwavo .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D5D5D5;
+}
+
+#qtjdhtwavo .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#qtjdhtwavo .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#qtjdhtwavo .gt_grand_summary_row {
+  color: #FFFFFF;
+  background-color: #929292;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#qtjdhtwavo .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D5D5D5;
+}
+
+#qtjdhtwavo .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D5D5D5;
+}
+
+#qtjdhtwavo .gt_striped {
+  background-color: #F4F4F4;
+}
+
+#qtjdhtwavo .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#qtjdhtwavo .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#qtjdhtwavo .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#qtjdhtwavo .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#qtjdhtwavo .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#qtjdhtwavo .gt_left {
+  text-align: left;
+}
+
+#qtjdhtwavo .gt_center {
+  text-align: center;
+}
+
+#qtjdhtwavo .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#qtjdhtwavo .gt_font_normal {
+  font-weight: normal;
+}
+
+#qtjdhtwavo .gt_font_bold {
+  font-weight: bold;
+}
+
+#qtjdhtwavo .gt_font_italic {
+  font-style: italic;
+}
+
+#qtjdhtwavo .gt_super {
+  font-size: 65%;
+}
+
+#qtjdhtwavo .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#qtjdhtwavo .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#qtjdhtwavo .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#qtjdhtwavo .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#qtjdhtwavo .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#qtjdhtwavo .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#qtjdhtwavo .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#qtjdhtwavo .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#qtjdhtwavo div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+  <thead>
+    <tr class="gt_heading">
+      <td colspan="4" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Observed mean beliefs (% of the slider) by Phase-1 beauty (% of the slider)</td>
+    </tr>
+    
+    <tr class="gt_col_headings">
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="Bin">Bin</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Syntheticness">Syntheticness</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Authenticity">Authenticity</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="n">n</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr><td headers="Bin" class="gt_row gt_center">= 0</td>
+<td headers="Syntheticness" class="gt_row gt_right">34.5</td>
+<td headers="Authenticity" class="gt_row gt_right">62.7</td>
+<td headers="n" class="gt_row gt_right">270</td></tr>
+    <tr><td headers="Bin" class="gt_row gt_center gt_striped">0-15</td>
+<td headers="Syntheticness" class="gt_row gt_right gt_striped">41.9</td>
+<td headers="Authenticity" class="gt_row gt_right gt_striped">53.8</td>
+<td headers="n" class="gt_row gt_right gt_striped">1172</td></tr>
+    <tr><td headers="Bin" class="gt_row gt_center">15-30</td>
+<td headers="Syntheticness" class="gt_row gt_right">45.3</td>
+<td headers="Authenticity" class="gt_row gt_right">55.5</td>
+<td headers="n" class="gt_row gt_right">1650</td></tr>
+    <tr><td headers="Bin" class="gt_row gt_center gt_striped">30-45</td>
+<td headers="Syntheticness" class="gt_row gt_right gt_striped">49.3</td>
+<td headers="Authenticity" class="gt_row gt_right gt_striped">56.5</td>
+<td headers="n" class="gt_row gt_right gt_striped">2418</td></tr>
+    <tr><td headers="Bin" class="gt_row gt_center">45-55</td>
+<td headers="Syntheticness" class="gt_row gt_right">51.1</td>
+<td headers="Authenticity" class="gt_row gt_right">56.3</td>
+<td headers="n" class="gt_row gt_right">2349</td></tr>
+    <tr><td headers="Bin" class="gt_row gt_center gt_striped">55-70</td>
+<td headers="Syntheticness" class="gt_row gt_right gt_striped">56.4</td>
+<td headers="Authenticity" class="gt_row gt_right gt_striped">58.7</td>
+<td headers="n" class="gt_row gt_right gt_striped">4313</td></tr>
+    <tr><td headers="Bin" class="gt_row gt_center">70-85</td>
+<td headers="Syntheticness" class="gt_row gt_right">62.7</td>
+<td headers="Authenticity" class="gt_row gt_right">63.8</td>
+<td headers="n" class="gt_row gt_right">2168</td></tr>
+    <tr><td headers="Bin" class="gt_row gt_center gt_striped">85-100</td>
+<td headers="Syntheticness" class="gt_row gt_right gt_striped">67.7</td>
+<td headers="Authenticity" class="gt_row gt_right gt_striped">66.6</td>
+<td headers="n" class="gt_row gt_right gt_striped">689</td></tr>
+    <tr><td headers="Bin" class="gt_row gt_center">= 100</td>
+<td headers="Syntheticness" class="gt_row gt_right">68.8</td>
+<td headers="Authenticity" class="gt_row gt_right">75.3</td>
+<td headers="n" class="gt_row gt_right">187</td></tr>
+  </tbody>
+  
+</table>
+</div>
+```
+
+
+::: {.callout-note collapse="true" title="Observed mean beliefs (% of the slider) by Phase-1 beauty (% of the slider) (Markdown table, for text readers)"}
+
+|Bin    | Syntheticness| Authenticity|    n|
+|:------|-------------:|------------:|----:|
+|= 0    |          34.5|         62.7|  270|
+|0-15   |          41.9|         53.8| 1172|
+|15-30  |          45.3|         55.5| 1650|
+|30-45  |          49.3|         56.5| 2418|
+|45-55  |          51.1|         56.3| 2349|
+|55-70  |          56.4|         58.7| 4313|
+|70-85  |          62.7|         63.8| 2168|
+|85-100 |          67.7|         66.6|  689|
+|= 100  |          68.8|         75.3|  187|
+
+:::
+
+```{=html}
+<div id="dqxavtoqgn" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#dqxavtoqgn table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#dqxavtoqgn thead, #dqxavtoqgn tbody, #dqxavtoqgn tfoot, #dqxavtoqgn tr, #dqxavtoqgn td, #dqxavtoqgn th {
+  border-style: none;
+}
+
+#dqxavtoqgn p {
+  margin: 0;
+  padding: 0;
+}
+
+#dqxavtoqgn .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 13px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 3px;
+  border-top-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 3px;
+  border-right-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 3px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 3px;
+  border-left-color: #D5D5D5;
+}
+
+#dqxavtoqgn .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#dqxavtoqgn .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#dqxavtoqgn .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#dqxavtoqgn .gt_heading {
+  background-color: #FFFFFF;
+  text-align: left;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#dqxavtoqgn .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#dqxavtoqgn .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#dqxavtoqgn .gt_col_heading {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#dqxavtoqgn .gt_column_spanner_outer {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#dqxavtoqgn .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#dqxavtoqgn .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#dqxavtoqgn .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#dqxavtoqgn .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#dqxavtoqgn .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#dqxavtoqgn .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: middle;
+}
+
+#dqxavtoqgn .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#dqxavtoqgn .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#dqxavtoqgn .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 1px;
+  border-left-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 1px;
+  border-right-color: #D5D5D5;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#dqxavtoqgn .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #5F5F5F;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#dqxavtoqgn .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#dqxavtoqgn .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#dqxavtoqgn .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#dqxavtoqgn .gt_summary_row {
+  color: #333333;
+  background-color: #D5D5D5;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#dqxavtoqgn .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D5D5D5;
+}
+
+#dqxavtoqgn .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#dqxavtoqgn .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#dqxavtoqgn .gt_grand_summary_row {
+  color: #FFFFFF;
+  background-color: #929292;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#dqxavtoqgn .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D5D5D5;
+}
+
+#dqxavtoqgn .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D5D5D5;
+}
+
+#dqxavtoqgn .gt_striped {
+  background-color: #F4F4F4;
+}
+
+#dqxavtoqgn .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#dqxavtoqgn .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#dqxavtoqgn .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#dqxavtoqgn .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#dqxavtoqgn .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#dqxavtoqgn .gt_left {
+  text-align: left;
+}
+
+#dqxavtoqgn .gt_center {
+  text-align: center;
+}
+
+#dqxavtoqgn .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#dqxavtoqgn .gt_font_normal {
+  font-weight: normal;
+}
+
+#dqxavtoqgn .gt_font_bold {
+  font-weight: bold;
+}
+
+#dqxavtoqgn .gt_font_italic {
+  font-style: italic;
+}
+
+#dqxavtoqgn .gt_super {
+  font-size: 65%;
+}
+
+#dqxavtoqgn .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#dqxavtoqgn .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#dqxavtoqgn .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#dqxavtoqgn .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#dqxavtoqgn .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#dqxavtoqgn .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#dqxavtoqgn .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#dqxavtoqgn .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#dqxavtoqgn div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+  <thead>
+    <tr class="gt_heading">
+      <td colspan="4" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Observed beliefs relative to the participant's mean, by Phase-1 beauty relative to the participant's mean (both in points of the slider)</td>
+    </tr>
+    
+    <tr class="gt_col_headings">
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="Bin">Bin</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Syntheticness">Syntheticness</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Authenticity">Authenticity</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="n">n</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr><td headers="Bin" class="gt_row gt_center">(-100,-50]</td>
+<td headers="Syntheticness" class="gt_row gt_right">-14.9</td>
+<td headers="Authenticity" class="gt_row gt_right">-1.5</td>
+<td headers="n" class="gt_row gt_right">183</td></tr>
+    <tr><td headers="Bin" class="gt_row gt_center gt_striped">(-50,-35]</td>
+<td headers="Syntheticness" class="gt_row gt_right gt_striped">-11.7</td>
+<td headers="Authenticity" class="gt_row gt_right gt_striped">-5.5</td>
+<td headers="n" class="gt_row gt_right gt_striped">855</td></tr>
+    <tr><td headers="Bin" class="gt_row gt_center">(-35,-20]</td>
+<td headers="Syntheticness" class="gt_row gt_right">-9.3</td>
+<td headers="Authenticity" class="gt_row gt_right">-3.1</td>
+<td headers="n" class="gt_row gt_right">1711</td></tr>
+    <tr><td headers="Bin" class="gt_row gt_center gt_striped">(-20,-10]</td>
+<td headers="Syntheticness" class="gt_row gt_right gt_striped">-5.0</td>
+<td headers="Authenticity" class="gt_row gt_right gt_striped">-1.9</td>
+<td headers="n" class="gt_row gt_right gt_striped">1687</td></tr>
+    <tr><td headers="Bin" class="gt_row gt_center">(-10,0]</td>
+<td headers="Syntheticness" class="gt_row gt_right">-2.4</td>
+<td headers="Authenticity" class="gt_row gt_right">-1.8</td>
+<td headers="n" class="gt_row gt_right">2482</td></tr>
+    <tr><td headers="Bin" class="gt_row gt_center gt_striped">(0,10]</td>
+<td headers="Syntheticness" class="gt_row gt_right gt_striped">0.6</td>
+<td headers="Authenticity" class="gt_row gt_right gt_striped">-0.6</td>
+<td headers="n" class="gt_row gt_right gt_striped">3098</td></tr>
+    <tr><td headers="Bin" class="gt_row gt_center">(10,20]</td>
+<td headers="Syntheticness" class="gt_row gt_right">5.2</td>
+<td headers="Authenticity" class="gt_row gt_right">1.5</td>
+<td headers="n" class="gt_row gt_right">2746</td></tr>
+    <tr><td headers="Bin" class="gt_row gt_center gt_striped">(20,35]</td>
+<td headers="Syntheticness" class="gt_row gt_right gt_striped">9.0</td>
+<td headers="Authenticity" class="gt_row gt_right gt_striped">5.3</td>
+<td headers="n" class="gt_row gt_right gt_striped">1914</td></tr>
+    <tr><td headers="Bin" class="gt_row gt_center">(35,100]</td>
+<td headers="Syntheticness" class="gt_row gt_right">18.0</td>
+<td headers="Authenticity" class="gt_row gt_right">10.3</td>
+<td headers="n" class="gt_row gt_right">540</td></tr>
+  </tbody>
+  
+</table>
+</div>
+```
+
+
+::: {.callout-note collapse="true" title="Observed beliefs relative to the participant's mean, by Phase-1 beauty relative to the participant's mean (both in points of the slider) (Markdown table, for text readers)"}
+
+|Bin        | Syntheticness| Authenticity|    n|
+|:----------|-------------:|------------:|----:|
+|(-100,-50] |         -14.9|         -1.5|  183|
+|(-50,-35]  |         -11.7|         -5.5|  855|
+|(-35,-20]  |          -9.3|         -3.1| 1711|
+|(-20,-10]  |          -5.0|         -1.9| 1687|
+|(-10,0]    |          -2.4|         -1.8| 2482|
+|(0,10]     |           0.6|         -0.6| 3098|
+|(10,20]    |           5.2|          1.5| 2746|
+|(20,35]    |           9.0|          5.3| 1914|
+|(35,100]   |          18.0|         10.3|  540|
+
+:::
+
+
+::: {.cell cache.extra='6421141b14f6b6ee1673eac304ec8fc8'}
+
+```{.r .cell-code}
+# Quadratic pilots: + beauty^2, relative (around the participant's mean) or
+# absolute (around the slider's midpoint, 50 = neutral), both with the
+# participant's mean beauty in the model
+pilot_quad <- bind_rows(lapply(c(Syntheticness = "Reality", Authenticity = "Authenticity"), function(y) {
+  bind_rows(
+    mutate(pilot_coefs(paste(y, "~ Condition * (Beauty_w + I(Beauty_w^2)) + Beauty_b + (Condition + Beauty_w | Participant) + (1 | Item)"), pilot_d),
+           Quadratic = "relative: Beauty_w^2"),
+    mutate(pilot_coefs(paste(y, "~ Condition * (I(Beauty - 0.5) + I((Beauty - 0.5)^2)) + Beauty_b + (Condition + Beauty_w | Participant) + (1 | Item)"), pilot_d),
+           Quadratic = "absolute: (Beauty - 0.5)^2")
+  )
+}), .id = "Belief")
+
+# GAMs: an unconstrained smooth of beauty, the label as a fixed effect,
+# participant and item random intercepts (shape only)
+gam_d <- mutate(pilot_d, Participant = factor(Participant), Item = factor(Item))
+gam_grid <- data.frame(Beauty = seq(0, 1, length.out = 101), Condition = factor("Human Original", levels = levels(dftask$Condition)),
+                       Participant = gam_d$Participant[1], Item = gam_d$Item[1])
+pilot_gam <- bind_rows(lapply(c(Syntheticness = "Reality", Authenticity = "Authenticity"), function(y) {
+  g <- mgcv::bam(as.formula(paste(y, "~ Condition + s(Beauty, k = 8) + s(Participant, bs = 're') + s(Item, bs = 're')")),
+                 data = gam_d, discrete = TRUE, method = "fREML")
+  p <- predict(g, gam_grid, exclude = c("s(Participant)", "s(Item)"), se.fit = TRUE)
+  data.frame(Beauty = gam_grid$Beauty, Fit = p$fit, SE = p$se.fit, edf = summary(g)$s.table["s(Beauty)", "edf"])
+}), .id = "Belief")
+```
+:::
+
+
+
+```{.r .cell-code}
+quad_rows <- function(d) {
+  d |>
+    filter(str_detect(Term, "\\^2")) |>
+    mutate(Term = str_replace_all(Term, c("ConditionAI-Generated:" = "AI-Generated x ", "ConditionHuman Forgery:" = "Forgery x ")),
+           z = Estimate / SE,
+           Effect = ifelse(abs(z) < 1.96, "n.s.", ifelse(Estimate < 0, "Negative", "Positive")),
+           across(c(Estimate, SE, z), \(x) insight::format_value(x)))
+}
+make_asis(make_tables(quad_rows(pilot_quad), c("Belief", "Quadratic", "Term", "Estimate", "SE", "z", "Effect"),
+                      "lme4 pilots: quadratic terms (belief in %, beauty on 0-1; positive = convex, i.e. the belief rises faster at the beautiful end)"))
+```
+
+```{=html}
+<div id="kzeqcolaoc" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#kzeqcolaoc table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#kzeqcolaoc thead, #kzeqcolaoc tbody, #kzeqcolaoc tfoot, #kzeqcolaoc tr, #kzeqcolaoc td, #kzeqcolaoc th {
+  border-style: none;
+}
+
+#kzeqcolaoc p {
+  margin: 0;
+  padding: 0;
+}
+
+#kzeqcolaoc .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 13px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 3px;
+  border-top-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 3px;
+  border-right-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 3px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 3px;
+  border-left-color: #D5D5D5;
+}
+
+#kzeqcolaoc .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#kzeqcolaoc .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#kzeqcolaoc .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#kzeqcolaoc .gt_heading {
+  background-color: #FFFFFF;
+  text-align: left;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#kzeqcolaoc .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#kzeqcolaoc .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#kzeqcolaoc .gt_col_heading {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#kzeqcolaoc .gt_column_spanner_outer {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#kzeqcolaoc .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#kzeqcolaoc .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#kzeqcolaoc .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#kzeqcolaoc .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#kzeqcolaoc .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#kzeqcolaoc .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: middle;
+}
+
+#kzeqcolaoc .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#kzeqcolaoc .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#kzeqcolaoc .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 1px;
+  border-left-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 1px;
+  border-right-color: #D5D5D5;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#kzeqcolaoc .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #5F5F5F;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#kzeqcolaoc .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#kzeqcolaoc .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#kzeqcolaoc .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#kzeqcolaoc .gt_summary_row {
+  color: #333333;
+  background-color: #D5D5D5;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#kzeqcolaoc .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D5D5D5;
+}
+
+#kzeqcolaoc .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#kzeqcolaoc .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#kzeqcolaoc .gt_grand_summary_row {
+  color: #FFFFFF;
+  background-color: #929292;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#kzeqcolaoc .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D5D5D5;
+}
+
+#kzeqcolaoc .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D5D5D5;
+}
+
+#kzeqcolaoc .gt_striped {
+  background-color: #F4F4F4;
+}
+
+#kzeqcolaoc .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#kzeqcolaoc .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#kzeqcolaoc .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#kzeqcolaoc .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#kzeqcolaoc .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#kzeqcolaoc .gt_left {
+  text-align: left;
+}
+
+#kzeqcolaoc .gt_center {
+  text-align: center;
+}
+
+#kzeqcolaoc .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#kzeqcolaoc .gt_font_normal {
+  font-weight: normal;
+}
+
+#kzeqcolaoc .gt_font_bold {
+  font-weight: bold;
+}
+
+#kzeqcolaoc .gt_font_italic {
+  font-style: italic;
+}
+
+#kzeqcolaoc .gt_super {
+  font-size: 65%;
+}
+
+#kzeqcolaoc .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#kzeqcolaoc .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#kzeqcolaoc .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#kzeqcolaoc .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#kzeqcolaoc .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#kzeqcolaoc .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#kzeqcolaoc .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#kzeqcolaoc .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#kzeqcolaoc div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+  <thead>
+    <tr class="gt_heading">
+      <td colspan="7" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>lme4 pilots: quadratic terms (belief in %, beauty on 0-1; positive = convex, i.e. the belief rises faster at the beautiful end)</td>
+    </tr>
+    
+    <tr class="gt_col_headings">
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Belief">Belief</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Quadratic">Quadratic</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Term">Term</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Estimate">Estimate</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="SE">SE</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="z">z</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Effect">Effect</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr><td headers="Belief" class="gt_row gt_left" style="background-color: #E8F5E9;">Syntheticness</td>
+<td headers="Quadratic" class="gt_row gt_left" style="background-color: #E8F5E9;">relative: Beauty_w^2</td>
+<td headers="Term" class="gt_row gt_left" style="background-color: #E8F5E9;">I(Beauty_w^2)</td>
+<td headers="Estimate" class="gt_row gt_right" style="background-color: #E8F5E9;">13.94</td>
+<td headers="SE" class="gt_row gt_right" style="background-color: #E8F5E9;">6.81</td>
+<td headers="z" class="gt_row gt_right" style="background-color: #E8F5E9;">2.05</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Syntheticness</td>
+<td headers="Quadratic" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">relative: Beauty_w^2</td>
+<td headers="Term" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Forgery x I(Beauty_w^2)</td>
+<td headers="Estimate" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">8.20</td>
+<td headers="SE" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">10.21</td>
+<td headers="z" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.80</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left" style="color: #9E9E9E;">Syntheticness</td>
+<td headers="Quadratic" class="gt_row gt_left" style="color: #9E9E9E;">relative: Beauty_w^2</td>
+<td headers="Term" class="gt_row gt_left" style="color: #9E9E9E;">AI-Generated x I(Beauty_w^2)</td>
+<td headers="Estimate" class="gt_row gt_right" style="color: #9E9E9E;">10.03</td>
+<td headers="SE" class="gt_row gt_right" style="color: #9E9E9E;">9.84</td>
+<td headers="z" class="gt_row gt_right" style="color: #9E9E9E;">1.02</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Syntheticness</td>
+<td headers="Quadratic" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">absolute: (Beauty - 0.5)^2</td>
+<td headers="Term" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">I((Beauty - 0.5)^2)</td>
+<td headers="Estimate" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">7.17</td>
+<td headers="SE" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">6.34</td>
+<td headers="z" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.13</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left" style="color: #9E9E9E;">Syntheticness</td>
+<td headers="Quadratic" class="gt_row gt_left" style="color: #9E9E9E;">absolute: (Beauty - 0.5)^2</td>
+<td headers="Term" class="gt_row gt_left" style="color: #9E9E9E;">Forgery x I((Beauty - 0.5)^2)</td>
+<td headers="Estimate" class="gt_row gt_right" style="color: #9E9E9E;">7.79</td>
+<td headers="SE" class="gt_row gt_right" style="color: #9E9E9E;">9.21</td>
+<td headers="z" class="gt_row gt_right" style="color: #9E9E9E;">0.85</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Syntheticness</td>
+<td headers="Quadratic" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">absolute: (Beauty - 0.5)^2</td>
+<td headers="Term" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated x I((Beauty - 0.5)^2)</td>
+<td headers="Estimate" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">12.62</td>
+<td headers="SE" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">9.33</td>
+<td headers="z" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.35</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left" style="background-color: #E8F5E9;">Authenticity</td>
+<td headers="Quadratic" class="gt_row gt_left" style="background-color: #E8F5E9;">relative: Beauty_w^2</td>
+<td headers="Term" class="gt_row gt_left" style="background-color: #E8F5E9;">I(Beauty_w^2)</td>
+<td headers="Estimate" class="gt_row gt_right" style="background-color: #E8F5E9;">25.84</td>
+<td headers="SE" class="gt_row gt_right" style="background-color: #E8F5E9;">6.80</td>
+<td headers="z" class="gt_row gt_right" style="background-color: #E8F5E9;">3.80</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Authenticity</td>
+<td headers="Quadratic" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">relative: Beauty_w^2</td>
+<td headers="Term" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Forgery x I(Beauty_w^2)</td>
+<td headers="Estimate" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-4.46</td>
+<td headers="SE" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">9.60</td>
+<td headers="z" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.46</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left" style="color: #9E9E9E;">Authenticity</td>
+<td headers="Quadratic" class="gt_row gt_left" style="color: #9E9E9E;">relative: Beauty_w^2</td>
+<td headers="Term" class="gt_row gt_left" style="color: #9E9E9E;">AI-Generated x I(Beauty_w^2)</td>
+<td headers="Estimate" class="gt_row gt_right" style="color: #9E9E9E;">0.40</td>
+<td headers="SE" class="gt_row gt_right" style="color: #9E9E9E;">9.34</td>
+<td headers="z" class="gt_row gt_right" style="color: #9E9E9E;">0.04</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Authenticity</td>
+<td headers="Quadratic" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">absolute: (Beauty - 0.5)^2</td>
+<td headers="Term" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">I((Beauty - 0.5)^2)</td>
+<td headers="Estimate" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">21.44</td>
+<td headers="SE" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">6.39</td>
+<td headers="z" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">3.36</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left" style="color: #9E9E9E;">Authenticity</td>
+<td headers="Quadratic" class="gt_row gt_left" style="color: #9E9E9E;">absolute: (Beauty - 0.5)^2</td>
+<td headers="Term" class="gt_row gt_left" style="color: #9E9E9E;">Forgery x I((Beauty - 0.5)^2)</td>
+<td headers="Estimate" class="gt_row gt_right" style="color: #9E9E9E;">4.10</td>
+<td headers="SE" class="gt_row gt_right" style="color: #9E9E9E;">8.61</td>
+<td headers="z" class="gt_row gt_right" style="color: #9E9E9E;">0.48</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Belief" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Authenticity</td>
+<td headers="Quadratic" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">absolute: (Beauty - 0.5)^2</td>
+<td headers="Term" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated x I((Beauty - 0.5)^2)</td>
+<td headers="Estimate" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">4.24</td>
+<td headers="SE" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">8.78</td>
+<td headers="z" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.48</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+  </tbody>
+  
+</table>
+</div>
+```
+
+
+::: {.callout-note collapse="true" title="lme4 pilots: quadratic terms (belief in %, beauty on 0-1; positive = convex, i.e. the belief rises faster at the beautiful end) (Markdown table, for text readers)"}
+
+|Belief        |Quadratic                  |Term                               |Estimate |SE    |z     |Effect   |
+|:-------------|:--------------------------|:----------------------------------|:--------|:-----|:-----|:--------|
+|Syntheticness |relative: Beauty_w^2       |I(Beauty_w^2)                      |13.94    |6.81  |2.05  |Positive |
+|Syntheticness |relative: Beauty_w^2       |Forgery x I(Beauty_w^2)            |8.20     |10.21 |0.80  |n.s.     |
+|Syntheticness |relative: Beauty_w^2       |AI-Generated x I(Beauty_w^2)       |10.03    |9.84  |1.02  |n.s.     |
+|Syntheticness |absolute: (Beauty - 0.5)^2 |I((Beauty - 0.5)^2)                |7.17     |6.34  |1.13  |n.s.     |
+|Syntheticness |absolute: (Beauty - 0.5)^2 |Forgery x I((Beauty - 0.5)^2)      |7.79     |9.21  |0.85  |n.s.     |
+|Syntheticness |absolute: (Beauty - 0.5)^2 |AI-Generated x I((Beauty - 0.5)^2) |12.62    |9.33  |1.35  |n.s.     |
+|Authenticity  |relative: Beauty_w^2       |I(Beauty_w^2)                      |25.84    |6.80  |3.80  |Positive |
+|Authenticity  |relative: Beauty_w^2       |Forgery x I(Beauty_w^2)            |-4.46    |9.60  |-0.46 |n.s.     |
+|Authenticity  |relative: Beauty_w^2       |AI-Generated x I(Beauty_w^2)       |0.40     |9.34  |0.04  |n.s.     |
+|Authenticity  |absolute: (Beauty - 0.5)^2 |I((Beauty - 0.5)^2)                |21.44    |6.39  |3.36  |Positive |
+|Authenticity  |absolute: (Beauty - 0.5)^2 |Forgery x I((Beauty - 0.5)^2)      |4.10     |8.61  |0.48  |n.s.     |
+|Authenticity  |absolute: (Beauty - 0.5)^2 |AI-Generated x I((Beauty - 0.5)^2) |4.24     |8.78  |0.48  |n.s.     |
+
+:::
+
+
+::: {.cell}
+
+```{.r .cell-code}
+# Observed within-person means (points, +/- 1 SE) against the model-implied
+# change relative to the participant's average: the linear CHOCO fits (and the
+# quadratic refit, once extracted), averaged over the labels
+obs_rel_pts <- dftask |>
+  filter(!is.na(Reality), !is.na(Beauty)) |>
+  mutate(Bw = Beauty - mean(Beauty), Syntheticness = 100 * (Reality - mean(Reality)),
+         Authenticity = 100 * (Authenticity - mean(Authenticity)), .by = "Participant") |>
+  mutate(Bin = cut(Bw, c(-1, -.5, -.35, -.2, -.1, 0, .1, .2, .35, 1))) |>
+  pivot_longer(c(Syntheticness, Authenticity), names_to = "Belief") |>
+  summarise(x = mean(Bw), y = mean(value), se = sd(value) / sqrt(n()), .by = c(Belief, Bin))
+
+curve_change <- function(est, label) {
+  g <- est$grid
+  xs <- sort(unique(g$Beauty_w))
+  P <- sapply(xs, function(x) rowMeans(est$grid_draws[, abs(g$Beauty_w - x) < 1e-9, drop = FALSE]))
+  P <- 100 * (P - P[, which(abs(xs) < 1e-9)])
+  tibble(x = xs, Median = apply(P, 2, median), CI_low = apply(P, 2, quantile, 0.025),
+         CI_high = apply(P, 2, quantile, 0.975), Model = label)
+}
+quad_ready <- file.exists("models/estimates/AuthenticityBeautyQuad.rds")
+if (quad_ready) quad <- read_estimates("AuthenticityBeautyQuad")$AuthenticityBeautyQuad
+curves <- bind_rows(
+  mutate(curve_change(estimates$RealityBeauty, "Linear (RealityBeauty / AuthenticityBeauty)"), Belief = "Syntheticness"),
+  mutate(curve_change(estimates$AuthenticityBeauty, "Linear (RealityBeauty / AuthenticityBeauty)"), Belief = "Authenticity"),
+  if (quad_ready) mutate(curve_change(quad, "Quadratic (AuthenticityBeautyQuad)"), Belief = "Authenticity")
+) |>
+  filter(abs(x) <= 0.5)
+
+p_obs <- ggplot(curves, aes(x = 100 * x)) +
+  geom_ribbon(aes(ymin = CI_low, ymax = CI_high, fill = Model), alpha = 0.15) +
+  geom_line(aes(y = Median, color = Model), linewidth = 1) +
+  geom_pointrange(data = obs_rel_pts, aes(x = 100 * x, y = y, ymin = y - se, ymax = y + se), color = "black", size = 0.3) +
+  facet_wrap(~ fct_relevel(Belief, "Syntheticness"), scales = "free_y") +
+  scale_color_manual(values = c("#757575", "#E65100")) +
+  scale_fill_manual(values = c("#757575", "#E65100")) +
+  labs(x = "Phase-1 beauty relative to the participant's mean (points of the slider)",
+       y = "Belief relative to the participant's mean (points)", color = NULL, fill = NULL,
+       caption = "Points: observed within-person means per beauty bin (+/- 1 SE).\nLines: population-level predictions minus their value at the participant's mean, averaged over the labels (95% CI).") +
+  theme_minimal() +
+  theme(legend.position = "bottom", strip.text = element_text(face = "bold"))
+
+p_gam <- ggplot(pilot_gam, aes(x = 100 * Beauty, y = Fit)) +
+  geom_ribbon(aes(ymin = Fit - 1.96 * SE, ymax = Fit + 1.96 * SE), alpha = 0.15) +
+  geom_line(linewidth = 1) +
+  facet_wrap(~ fct_relevel(Belief, "Syntheticness"), scales = "free_y") +
+  labs(x = "Phase-1 beauty (% of the slider, 50 = neutral)", y = "Belief (% of the slider)",
+       caption = "GAM smooths (k = 8), participant and item\nrandom intercepts; Originals.") +
+  theme_minimal() +
+  theme(strip.text = element_text(face = "bold"))
+
+(p_gam | p_obs) + plot_layout(widths = c(1, 1.4))
+```
+
+::: {.cell-output-display}
+![](5_realitydeterminants_files/figure-html/unnamed-chunk-23-1.png){width=1056}
+:::
+:::
+
+
+No link is U-shaped: the very ugly works are not judged more human-made or
+more original than the moderately ugly ones once participant and item
+differences are accounted for (the raw "= 0" bin of authenticity is higher,
+but it does not survive participant and item intercepts in the GAM, and
+within persons the ugly side is flat rather than rising).
+The quadratic terms that reach significance reflect **convexity**, strongest
+for authenticity: within persons, authenticity is nearly flat for artworks
+rated below the participant's average beauty and rises steeply above it
+("beautiful = original", but "ugly" does not mean "copy"). The linear CHOCO
+fit spreads one slope over both sides, and so underestimates the rise for
+the works rated well above the participant's average. Syntheticness is
+closer to linear: it falls steadily on the ugly side too, with a milder
+steepening at the beautiful end (quadratic z of about 2, against about 4 for
+authenticity).
+
+### Authenticity with a quadratic beauty term
+
+`AuthenticityBeautyQuad` (`models.R`) refits `AuthenticityBeauty` with
+`Condition * (Beauty_w + I(Beauty_w^2))` on every CHOCO parameter. It
+replaces `AuthenticityBeauty` only if it predicts clearly better (LOO) **and**
+changes the numbers the manuscript reports; otherwise it documents the shape.
+
+
+```{.r .cell-code}
+if (!quad_ready) {
+  make_asis("", '::: {.callout-warning title="Estimates not available yet"}',
+            "`AuthenticityBeautyQuad`: in `analysis/server`, `./hpc combine` (check 4,000 draws), `./hpc extract`, `./hpc loo AuthenticityBeauty` and `./hpc loo AuthenticityBeautyQuad`, then `./hpc pull 'estimates/AuthenticityBeautyQuad.rds'` and `./hpc pull 'loo/*.rds'`.",
+            ":::", "")
+} else {
+  sd_b <- sd(pilot_d$Beauty_w)
+  slopes <- bind_rows(lapply(c(-0.4, -0.2, 0, 0.2, 0.4), function(a) {
+    grid_slopes(quad, at = a) |>
+      filter(Level %in% levels(dftask$Condition)) |>
+      mutate(At = sprintf("%+.0f points (%+.1f SD)", 100 * a, a / sd_b))
+  })) |>
+    rename(Condition = Level)
+  med_both <- bind_rows(
+    mutate(mediation_effects(estimates$AuthenticityBeauty)$effects, Model = "AuthenticityBeauty (linear)"),
+    mutate(mediation_effects(quad)$effects, Model = "AuthenticityBeautyQuad")
+  )
+  loo_files <- file.path("models", "loo", c("AuthenticityBeauty.rds", "AuthenticityBeautyQuad.rds"))
+  loo_tab <- if (all(file.exists(loo_files))) {
+    l <- lapply(loo_files, readRDS)
+    mutate(loo_difference(l[[1]], l[[2]]), across(c(elpd_diff, se_diff, max_pareto_k), \(x) insight::format_value(x)))
+  }
+  make_asis(
+    make_tables(quad$diag, c("Model", "Family", "N_obs", "N_participants", "Chains", "Draws", "Max_Rhat", "Min_ESS_ratio", "Divergent_pct"),
+                "Convergence of AuthenticityBeautyQuad"),
+    make_tables(convergence_by_class(quad), c("Model", "Class", "N", "Max_Rhat", "Min_ESS_bulk"), "Convergence by parameter class"),
+    if (!is.null(loo_tab)) {
+      make_tables(loo_tab, c("Model", "Reference", "elpd_diff", "se_diff", "max_pareto_k"),
+                  "LOO: elpd of the quadratic minus the linear model (> 0: the quadratic predicts better; within ~2 SE: no clear difference)")
+    } else {
+      "*LOO comparison not available yet (`./hpc loo AuthenticityBeauty` and `./hpc loo AuthenticityBeautyQuad`, then `./hpc pull 'loo/*.rds'`).*"
+    },
+    make_tables(format_effects(slopes) |> arrange(Condition), c("Condition", "At", "Diff", "CI", "pd_fmt", "Effect"),
+                "AuthenticityBeautyQuad: change in authenticity per +10% of Phase-1 beauty, below, at and above the participant's mean beauty (% of the slider)"),
+    make_tables(format_effects(med_both) |> filter(Path %in% c("Total", "Direct", "Indirect")) |> arrange(Contrast, Path),
+                c("Contrast", "Path", "Model", "Diff", "CI", "pd_fmt", "Effect"),
+                "Mediation of the label effect by Phase-1 beauty, linear vs. quadratic model (% of the slider)")
+  )
+}
+```
+
+```{=html}
+<div id="lhjanbgfvj" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#lhjanbgfvj table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#lhjanbgfvj thead, #lhjanbgfvj tbody, #lhjanbgfvj tfoot, #lhjanbgfvj tr, #lhjanbgfvj td, #lhjanbgfvj th {
+  border-style: none;
+}
+
+#lhjanbgfvj p {
+  margin: 0;
+  padding: 0;
+}
+
+#lhjanbgfvj .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 13px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 3px;
+  border-top-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 3px;
+  border-right-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 3px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 3px;
+  border-left-color: #D5D5D5;
+}
+
+#lhjanbgfvj .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#lhjanbgfvj .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#lhjanbgfvj .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#lhjanbgfvj .gt_heading {
+  background-color: #FFFFFF;
+  text-align: left;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#lhjanbgfvj .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#lhjanbgfvj .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#lhjanbgfvj .gt_col_heading {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#lhjanbgfvj .gt_column_spanner_outer {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#lhjanbgfvj .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#lhjanbgfvj .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#lhjanbgfvj .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#lhjanbgfvj .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#lhjanbgfvj .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#lhjanbgfvj .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: middle;
+}
+
+#lhjanbgfvj .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#lhjanbgfvj .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#lhjanbgfvj .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 1px;
+  border-left-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 1px;
+  border-right-color: #D5D5D5;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#lhjanbgfvj .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #5F5F5F;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#lhjanbgfvj .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#lhjanbgfvj .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#lhjanbgfvj .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#lhjanbgfvj .gt_summary_row {
+  color: #333333;
+  background-color: #D5D5D5;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#lhjanbgfvj .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D5D5D5;
+}
+
+#lhjanbgfvj .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#lhjanbgfvj .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#lhjanbgfvj .gt_grand_summary_row {
+  color: #FFFFFF;
+  background-color: #929292;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#lhjanbgfvj .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D5D5D5;
+}
+
+#lhjanbgfvj .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D5D5D5;
+}
+
+#lhjanbgfvj .gt_striped {
+  background-color: #F4F4F4;
+}
+
+#lhjanbgfvj .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#lhjanbgfvj .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#lhjanbgfvj .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#lhjanbgfvj .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#lhjanbgfvj .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#lhjanbgfvj .gt_left {
+  text-align: left;
+}
+
+#lhjanbgfvj .gt_center {
+  text-align: center;
+}
+
+#lhjanbgfvj .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#lhjanbgfvj .gt_font_normal {
+  font-weight: normal;
+}
+
+#lhjanbgfvj .gt_font_bold {
+  font-weight: bold;
+}
+
+#lhjanbgfvj .gt_font_italic {
+  font-style: italic;
+}
+
+#lhjanbgfvj .gt_super {
+  font-size: 65%;
+}
+
+#lhjanbgfvj .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#lhjanbgfvj .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#lhjanbgfvj .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#lhjanbgfvj .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#lhjanbgfvj .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#lhjanbgfvj .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#lhjanbgfvj .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#lhjanbgfvj .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#lhjanbgfvj div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+  <thead>
+    <tr class="gt_heading">
+      <td colspan="9" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Convergence of AuthenticityBeautyQuad</td>
+    </tr>
+    
+    <tr class="gt_col_headings">
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Model">Model</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Family">Family</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="N_obs">N_obs</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="N_participants">N_participants</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Chains">Chains</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Draws">Draws</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Max_Rhat">Max_Rhat</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Min_ESS_ratio">Min_ESS_ratio</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Divergent_pct">Divergent_pct</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr><td headers="Model" class="gt_row gt_left">AuthenticityBeautyQuad</td>
+<td headers="Family" class="gt_row gt_left">CHOCO</td>
+<td headers="N_obs" class="gt_row gt_right">15216</td>
+<td headers="N_participants" class="gt_row gt_right">317</td>
+<td headers="Chains" class="gt_row gt_right">8</td>
+<td headers="Draws" class="gt_row gt_right">4000</td>
+<td headers="Max_Rhat" class="gt_row gt_right">1.044</td>
+<td headers="Min_ESS_ratio" class="gt_row gt_right">0.043</td>
+<td headers="Divergent_pct" class="gt_row gt_right">0</td></tr>
+  </tbody>
+  
+</table>
+</div>
+```
+
+
+::: {.callout-note collapse="true" title="Convergence of AuthenticityBeautyQuad (Markdown table, for text readers)"}
+
+|Model                  |Family | N_obs| N_participants| Chains| Draws| Max_Rhat| Min_ESS_ratio| Divergent_pct|
+|:----------------------|:------|-----:|--------------:|------:|-----:|--------:|-------------:|-------------:|
+|AuthenticityBeautyQuad |CHOCO  | 15216|            317|      8|  4000|    1.044|         0.043|             0|
+
+:::
+
+```{=html}
+<div id="pnesehtpmg" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#pnesehtpmg table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#pnesehtpmg thead, #pnesehtpmg tbody, #pnesehtpmg tfoot, #pnesehtpmg tr, #pnesehtpmg td, #pnesehtpmg th {
+  border-style: none;
+}
+
+#pnesehtpmg p {
+  margin: 0;
+  padding: 0;
+}
+
+#pnesehtpmg .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 13px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 3px;
+  border-top-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 3px;
+  border-right-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 3px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 3px;
+  border-left-color: #D5D5D5;
+}
+
+#pnesehtpmg .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#pnesehtpmg .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#pnesehtpmg .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#pnesehtpmg .gt_heading {
+  background-color: #FFFFFF;
+  text-align: left;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#pnesehtpmg .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#pnesehtpmg .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#pnesehtpmg .gt_col_heading {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#pnesehtpmg .gt_column_spanner_outer {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#pnesehtpmg .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#pnesehtpmg .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#pnesehtpmg .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#pnesehtpmg .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#pnesehtpmg .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#pnesehtpmg .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: middle;
+}
+
+#pnesehtpmg .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#pnesehtpmg .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#pnesehtpmg .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 1px;
+  border-left-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 1px;
+  border-right-color: #D5D5D5;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#pnesehtpmg .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #5F5F5F;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#pnesehtpmg .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#pnesehtpmg .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#pnesehtpmg .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#pnesehtpmg .gt_summary_row {
+  color: #333333;
+  background-color: #D5D5D5;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#pnesehtpmg .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D5D5D5;
+}
+
+#pnesehtpmg .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#pnesehtpmg .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#pnesehtpmg .gt_grand_summary_row {
+  color: #FFFFFF;
+  background-color: #929292;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#pnesehtpmg .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D5D5D5;
+}
+
+#pnesehtpmg .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D5D5D5;
+}
+
+#pnesehtpmg .gt_striped {
+  background-color: #F4F4F4;
+}
+
+#pnesehtpmg .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#pnesehtpmg .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#pnesehtpmg .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#pnesehtpmg .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#pnesehtpmg .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#pnesehtpmg .gt_left {
+  text-align: left;
+}
+
+#pnesehtpmg .gt_center {
+  text-align: center;
+}
+
+#pnesehtpmg .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#pnesehtpmg .gt_font_normal {
+  font-weight: normal;
+}
+
+#pnesehtpmg .gt_font_bold {
+  font-weight: bold;
+}
+
+#pnesehtpmg .gt_font_italic {
+  font-style: italic;
+}
+
+#pnesehtpmg .gt_super {
+  font-size: 65%;
+}
+
+#pnesehtpmg .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#pnesehtpmg .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#pnesehtpmg .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#pnesehtpmg .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#pnesehtpmg .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#pnesehtpmg .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#pnesehtpmg .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#pnesehtpmg .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#pnesehtpmg div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+  <thead>
+    <tr class="gt_heading">
+      <td colspan="5" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Convergence by parameter class</td>
+    </tr>
+    
+    <tr class="gt_col_headings">
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Model">Model</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Class">Class</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="N">N</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Max_Rhat">Max_Rhat</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Min_ESS_bulk">Min_ESS_bulk</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr><td headers="Model" class="gt_row gt_left">AuthenticityBeautyQuad</td>
+<td headers="Class" class="gt_row gt_left">b (fixed effects)</td>
+<td headers="N" class="gt_row gt_right">80</td>
+<td headers="Max_Rhat" class="gt_row gt_right">1.031</td>
+<td headers="Min_ESS_bulk" class="gt_row gt_right">171</td></tr>
+    <tr><td headers="Model" class="gt_row gt_left gt_striped">AuthenticityBeautyQuad</td>
+<td headers="Class" class="gt_row gt_left gt_striped">sd (random-effect SDs)</td>
+<td headers="N" class="gt_row gt_right gt_striped">47</td>
+<td headers="Max_Rhat" class="gt_row gt_right gt_striped">1.033</td>
+<td headers="Min_ESS_bulk" class="gt_row gt_right gt_striped">281</td></tr>
+    <tr><td headers="Model" class="gt_row gt_left">AuthenticityBeautyQuad</td>
+<td headers="Class" class="gt_row gt_left">cor (random-effect correlations)</td>
+<td headers="N" class="gt_row gt_right">93</td>
+<td headers="Max_Rhat" class="gt_row gt_right">1.044</td>
+<td headers="Min_ESS_bulk" class="gt_row gt_right">236</td></tr>
+    <tr><td headers="Model" class="gt_row gt_left gt_striped">AuthenticityBeautyQuad</td>
+<td headers="Class" class="gt_row gt_left gt_striped">other</td>
+<td headers="N" class="gt_row gt_right gt_striped">2</td>
+<td headers="Max_Rhat" class="gt_row gt_right gt_striped">1.007</td>
+<td headers="Min_ESS_bulk" class="gt_row gt_right gt_striped">681</td></tr>
+  </tbody>
+  
+</table>
+</div>
+```
+
+
+::: {.callout-note collapse="true" title="Convergence by parameter class (Markdown table, for text readers)"}
+
+|Model                  |Class                            |  N| Max_Rhat| Min_ESS_bulk|
+|:----------------------|:--------------------------------|--:|--------:|------------:|
+|AuthenticityBeautyQuad |b (fixed effects)                | 80|    1.031|          171|
+|AuthenticityBeautyQuad |sd (random-effect SDs)           | 47|    1.033|          281|
+|AuthenticityBeautyQuad |cor (random-effect correlations) | 93|    1.044|          236|
+|AuthenticityBeautyQuad |other                            |  2|    1.007|          681|
+
+:::
+
+```{=html}
+<div id="madeoniclv" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#madeoniclv table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#madeoniclv thead, #madeoniclv tbody, #madeoniclv tfoot, #madeoniclv tr, #madeoniclv td, #madeoniclv th {
+  border-style: none;
+}
+
+#madeoniclv p {
+  margin: 0;
+  padding: 0;
+}
+
+#madeoniclv .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 13px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 3px;
+  border-top-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 3px;
+  border-right-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 3px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 3px;
+  border-left-color: #D5D5D5;
+}
+
+#madeoniclv .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#madeoniclv .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#madeoniclv .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#madeoniclv .gt_heading {
+  background-color: #FFFFFF;
+  text-align: left;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#madeoniclv .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#madeoniclv .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#madeoniclv .gt_col_heading {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#madeoniclv .gt_column_spanner_outer {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#madeoniclv .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#madeoniclv .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#madeoniclv .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#madeoniclv .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#madeoniclv .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#madeoniclv .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: middle;
+}
+
+#madeoniclv .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#madeoniclv .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#madeoniclv .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 1px;
+  border-left-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 1px;
+  border-right-color: #D5D5D5;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#madeoniclv .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #5F5F5F;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#madeoniclv .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#madeoniclv .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#madeoniclv .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#madeoniclv .gt_summary_row {
+  color: #333333;
+  background-color: #D5D5D5;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#madeoniclv .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D5D5D5;
+}
+
+#madeoniclv .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#madeoniclv .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#madeoniclv .gt_grand_summary_row {
+  color: #FFFFFF;
+  background-color: #929292;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#madeoniclv .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D5D5D5;
+}
+
+#madeoniclv .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D5D5D5;
+}
+
+#madeoniclv .gt_striped {
+  background-color: #F4F4F4;
+}
+
+#madeoniclv .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#madeoniclv .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#madeoniclv .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#madeoniclv .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#madeoniclv .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#madeoniclv .gt_left {
+  text-align: left;
+}
+
+#madeoniclv .gt_center {
+  text-align: center;
+}
+
+#madeoniclv .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#madeoniclv .gt_font_normal {
+  font-weight: normal;
+}
+
+#madeoniclv .gt_font_bold {
+  font-weight: bold;
+}
+
+#madeoniclv .gt_font_italic {
+  font-style: italic;
+}
+
+#madeoniclv .gt_super {
+  font-size: 65%;
+}
+
+#madeoniclv .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#madeoniclv .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#madeoniclv .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#madeoniclv .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#madeoniclv .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#madeoniclv .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#madeoniclv .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#madeoniclv .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#madeoniclv div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+  <thead>
+    <tr class="gt_heading">
+      <td colspan="5" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>LOO: elpd of the quadratic minus the linear model (&gt; 0: the quadratic predicts better; within ~2 SE: no clear difference)</td>
+    </tr>
+    
+    <tr class="gt_col_headings">
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Model">Model</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Reference">Reference</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="elpd_diff">elpd_diff</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="se_diff">se_diff</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="max_pareto_k">max_pareto_k</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr><td headers="Model" class="gt_row gt_left">AuthenticityBeautyQuad</td>
+<td headers="Reference" class="gt_row gt_left">AuthenticityBeauty</td>
+<td headers="elpd_diff" class="gt_row gt_right">-11.43</td>
+<td headers="se_diff" class="gt_row gt_right">18.49</td>
+<td headers="max_pareto_k" class="gt_row gt_right">1.72</td></tr>
+  </tbody>
+  
+</table>
+</div>
+```
+
+
+::: {.callout-note collapse="true" title="LOO: elpd of the quadratic minus the linear model (> 0: the quadratic predicts better; within ~2 SE: no clear difference) (Markdown table, for text readers)"}
+
+|Model                  |Reference          |elpd_diff |se_diff |max_pareto_k |
+|:----------------------|:------------------|:---------|:-------|:------------|
+|AuthenticityBeautyQuad |AuthenticityBeauty |-11.43    |18.49   |1.72         |
+
+:::
+
+```{=html}
+<div id="ccvsffbgvp" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#ccvsffbgvp table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#ccvsffbgvp thead, #ccvsffbgvp tbody, #ccvsffbgvp tfoot, #ccvsffbgvp tr, #ccvsffbgvp td, #ccvsffbgvp th {
+  border-style: none;
+}
+
+#ccvsffbgvp p {
+  margin: 0;
+  padding: 0;
+}
+
+#ccvsffbgvp .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 13px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 3px;
+  border-top-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 3px;
+  border-right-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 3px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 3px;
+  border-left-color: #D5D5D5;
+}
+
+#ccvsffbgvp .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#ccvsffbgvp .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#ccvsffbgvp .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#ccvsffbgvp .gt_heading {
+  background-color: #FFFFFF;
+  text-align: left;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#ccvsffbgvp .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#ccvsffbgvp .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#ccvsffbgvp .gt_col_heading {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#ccvsffbgvp .gt_column_spanner_outer {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#ccvsffbgvp .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#ccvsffbgvp .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#ccvsffbgvp .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#ccvsffbgvp .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#ccvsffbgvp .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#ccvsffbgvp .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: middle;
+}
+
+#ccvsffbgvp .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#ccvsffbgvp .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#ccvsffbgvp .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 1px;
+  border-left-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 1px;
+  border-right-color: #D5D5D5;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#ccvsffbgvp .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #5F5F5F;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#ccvsffbgvp .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#ccvsffbgvp .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#ccvsffbgvp .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#ccvsffbgvp .gt_summary_row {
+  color: #333333;
+  background-color: #D5D5D5;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#ccvsffbgvp .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D5D5D5;
+}
+
+#ccvsffbgvp .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#ccvsffbgvp .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#ccvsffbgvp .gt_grand_summary_row {
+  color: #FFFFFF;
+  background-color: #929292;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#ccvsffbgvp .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D5D5D5;
+}
+
+#ccvsffbgvp .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D5D5D5;
+}
+
+#ccvsffbgvp .gt_striped {
+  background-color: #F4F4F4;
+}
+
+#ccvsffbgvp .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#ccvsffbgvp .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#ccvsffbgvp .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#ccvsffbgvp .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#ccvsffbgvp .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#ccvsffbgvp .gt_left {
+  text-align: left;
+}
+
+#ccvsffbgvp .gt_center {
+  text-align: center;
+}
+
+#ccvsffbgvp .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#ccvsffbgvp .gt_font_normal {
+  font-weight: normal;
+}
+
+#ccvsffbgvp .gt_font_bold {
+  font-weight: bold;
+}
+
+#ccvsffbgvp .gt_font_italic {
+  font-style: italic;
+}
+
+#ccvsffbgvp .gt_super {
+  font-size: 65%;
+}
+
+#ccvsffbgvp .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#ccvsffbgvp .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#ccvsffbgvp .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#ccvsffbgvp .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#ccvsffbgvp .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#ccvsffbgvp .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#ccvsffbgvp .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#ccvsffbgvp .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#ccvsffbgvp div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+  <thead>
+    <tr class="gt_heading">
+      <td colspan="6" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>AuthenticityBeautyQuad: change in authenticity per +10% of Phase-1 beauty, below, at and above the participant's mean beauty (% of the slider)</td>
+    </tr>
+    
+    <tr class="gt_col_headings">
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Condition">Condition</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="At">At</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Diff">Diff</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="CI">CI</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="pd_fmt">pd_fmt</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Effect">Effect</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr><td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">AI-Generated</td>
+<td headers="At" class="gt_row gt_left" style="color: #9E9E9E;">-40 points (-1.9 SD)</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.38</td>
+<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.41, 0.78]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">75.20%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">AI-Generated</td>
+<td headers="At" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">-20 points (-0.9 SD)</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">0.61</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[0.03, 1.26]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">97.15%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">AI-Generated</td>
+<td headers="At" class="gt_row gt_left" style="background-color: #E8F5E9;">+0 points (+0.0 SD)</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">1.55</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[1.04, 2.05]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">AI-Generated</td>
+<td headers="At" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">+20 points (+0.9 SD)</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">2.46</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[1.66, 3.24]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">AI-Generated</td>
+<td headers="At" class="gt_row gt_left" style="background-color: #E8F5E9;">+40 points (+1.9 SD)</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">3.22</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[2.19, 4.16]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Human Forgery</td>
+<td headers="At" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">-40 points (-1.9 SD)</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.06</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.18, 1.15]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">54.52%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">Human Forgery</td>
+<td headers="At" class="gt_row gt_left" style="background-color: #E8F5E9;">-20 points (-0.9 SD)</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">0.75</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[0.11, 1.41]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">98.95%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Human Forgery</td>
+<td headers="At" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">+0 points (+0.0 SD)</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">1.57</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[1.06, 2.07]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">Human Forgery</td>
+<td headers="At" class="gt_row gt_left" style="background-color: #E8F5E9;">+20 points (+0.9 SD)</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">2.42</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[1.60, 3.23]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Human Forgery</td>
+<td headers="At" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">+40 points (+1.9 SD)</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">3.17</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[2.05, 4.21]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Original</td>
+<td headers="At" class="gt_row gt_left" style="color: #9E9E9E;">-40 points (-1.9 SD)</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.25</td>
+<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.94, 1.27]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">66.85%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Human Original</td>
+<td headers="At" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">-20 points (-0.9 SD)</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">1.13</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[0.47, 1.76]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">99.98%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">Human Original</td>
+<td headers="At" class="gt_row gt_left" style="background-color: #E8F5E9;">+0 points (+0.0 SD)</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">2.00</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[1.52, 2.45]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Human Original</td>
+<td headers="At" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">+20 points (+0.9 SD)</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">2.78</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[2.13, 3.39]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">Human Original</td>
+<td headers="At" class="gt_row gt_left" style="background-color: #E8F5E9;">+40 points (+1.9 SD)</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">3.33</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[2.52, 4.01]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+  </tbody>
+  
+</table>
+</div>
+```
+
+
+::: {.callout-note collapse="true" title="AuthenticityBeautyQuad: change in authenticity per +10% of Phase-1 beauty, below, at and above the participant's mean beauty (% of the slider) (Markdown table, for text readers)"}
+
+|Condition      |At                   |Diff  |CI            |pd_fmt |Effect   |
+|:--------------|:--------------------|:-----|:-------------|:------|:--------|
+|AI-Generated   |-40 points (-1.9 SD) |-0.38 |[-1.41, 0.78] |75.20% |n.s.     |
+|AI-Generated   |-20 points (-0.9 SD) |0.61  |[0.03, 1.26]  |97.15% |Positive |
+|AI-Generated   |+0 points (+0.0 SD)  |1.55  |[1.04, 2.05]  |100%   |Positive |
+|AI-Generated   |+20 points (+0.9 SD) |2.46  |[1.66, 3.24]  |100%   |Positive |
+|AI-Generated   |+40 points (+1.9 SD) |3.22  |[2.19, 4.16]  |100%   |Positive |
+|Human Forgery  |-40 points (-1.9 SD) |-0.06 |[-1.18, 1.15] |54.52% |n.s.     |
+|Human Forgery  |-20 points (-0.9 SD) |0.75  |[0.11, 1.41]  |98.95% |Positive |
+|Human Forgery  |+0 points (+0.0 SD)  |1.57  |[1.06, 2.07]  |100%   |Positive |
+|Human Forgery  |+20 points (+0.9 SD) |2.42  |[1.60, 3.23]  |100%   |Positive |
+|Human Forgery  |+40 points (+1.9 SD) |3.17  |[2.05, 4.21]  |100%   |Positive |
+|Human Original |-40 points (-1.9 SD) |0.25  |[-0.94, 1.27] |66.85% |n.s.     |
+|Human Original |-20 points (-0.9 SD) |1.13  |[0.47, 1.76]  |99.98% |Positive |
+|Human Original |+0 points (+0.0 SD)  |2.00  |[1.52, 2.45]  |100%   |Positive |
+|Human Original |+20 points (+0.9 SD) |2.78  |[2.13, 3.39]  |100%   |Positive |
+|Human Original |+40 points (+1.9 SD) |3.33  |[2.52, 4.01]  |100%   |Positive |
+
+:::
+
+```{=html}
+<div id="sxbkrqzpeq" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#sxbkrqzpeq table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#sxbkrqzpeq thead, #sxbkrqzpeq tbody, #sxbkrqzpeq tfoot, #sxbkrqzpeq tr, #sxbkrqzpeq td, #sxbkrqzpeq th {
+  border-style: none;
+}
+
+#sxbkrqzpeq p {
+  margin: 0;
+  padding: 0;
+}
+
+#sxbkrqzpeq .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 13px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 3px;
+  border-top-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 3px;
+  border-right-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 3px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 3px;
+  border-left-color: #D5D5D5;
+}
+
+#sxbkrqzpeq .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#sxbkrqzpeq .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#sxbkrqzpeq .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#sxbkrqzpeq .gt_heading {
+  background-color: #FFFFFF;
+  text-align: left;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#sxbkrqzpeq .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#sxbkrqzpeq .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#sxbkrqzpeq .gt_col_heading {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#sxbkrqzpeq .gt_column_spanner_outer {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#sxbkrqzpeq .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#sxbkrqzpeq .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#sxbkrqzpeq .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#sxbkrqzpeq .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#sxbkrqzpeq .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#sxbkrqzpeq .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: middle;
+}
+
+#sxbkrqzpeq .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#sxbkrqzpeq .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#sxbkrqzpeq .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 1px;
+  border-left-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 1px;
+  border-right-color: #D5D5D5;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#sxbkrqzpeq .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #5F5F5F;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#sxbkrqzpeq .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#sxbkrqzpeq .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#sxbkrqzpeq .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#sxbkrqzpeq .gt_summary_row {
+  color: #333333;
+  background-color: #D5D5D5;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#sxbkrqzpeq .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D5D5D5;
+}
+
+#sxbkrqzpeq .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#sxbkrqzpeq .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#sxbkrqzpeq .gt_grand_summary_row {
+  color: #FFFFFF;
+  background-color: #929292;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#sxbkrqzpeq .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D5D5D5;
+}
+
+#sxbkrqzpeq .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D5D5D5;
+}
+
+#sxbkrqzpeq .gt_striped {
+  background-color: #F4F4F4;
+}
+
+#sxbkrqzpeq .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#sxbkrqzpeq .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#sxbkrqzpeq .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#sxbkrqzpeq .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#sxbkrqzpeq .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#sxbkrqzpeq .gt_left {
+  text-align: left;
+}
+
+#sxbkrqzpeq .gt_center {
+  text-align: center;
+}
+
+#sxbkrqzpeq .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#sxbkrqzpeq .gt_font_normal {
+  font-weight: normal;
+}
+
+#sxbkrqzpeq .gt_font_bold {
+  font-weight: bold;
+}
+
+#sxbkrqzpeq .gt_font_italic {
+  font-style: italic;
+}
+
+#sxbkrqzpeq .gt_super {
+  font-size: 65%;
+}
+
+#sxbkrqzpeq .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#sxbkrqzpeq .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#sxbkrqzpeq .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#sxbkrqzpeq .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#sxbkrqzpeq .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#sxbkrqzpeq .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#sxbkrqzpeq .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#sxbkrqzpeq .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#sxbkrqzpeq div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+  <thead>
+    <tr class="gt_heading">
+      <td colspan="6" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Mediation of the label effect by Phase-1 beauty, linear vs. quadratic model (% of the slider)</td>
+    </tr>
+    
+    <tr class="gt_col_headings">
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Path">Path</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Model">Model</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Diff">Diff</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="CI">CI</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="pd_fmt">pd_fmt</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Effect">Effect</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr class="gt_group_heading_row">
+      <th colspan="6" class="gt_group_heading" scope="colgroup" id="AI-Generated - Human Forgery">AI-Generated - Human Forgery</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Forgery  Path" class="gt_row gt_left" style="color: #9E9E9E;">Direct</td>
+<td headers="AI-Generated - Human Forgery  Model" class="gt_row gt_left" style="color: #9E9E9E;">AuthenticityBeauty (linear)</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.92</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.42, 2.12]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">91.65%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Direct</td>
+<td headers="AI-Generated - Human Forgery  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AuthenticityBeautyQuad</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.82</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.56, 2.29]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">86.90%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Path" class="gt_row gt_left" style="background-color: #FFEBEE;">Indirect</td>
+<td headers="AI-Generated - Human Forgery  Model" class="gt_row gt_left" style="background-color: #FFEBEE;">AuthenticityBeauty (linear)</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-0.35</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-0.54, -0.20]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Path" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Indirect</td>
+<td headers="AI-Generated - Human Forgery  Model" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">AuthenticityBeautyQuad</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-0.40</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-0.59, -0.21]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Path" class="gt_row gt_left" style="color: #9E9E9E;">Total</td>
+<td headers="AI-Generated - Human Forgery  Model" class="gt_row gt_left" style="color: #9E9E9E;">AuthenticityBeauty (linear)</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.56</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.67, 1.85]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">79.67%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Total</td>
+<td headers="AI-Generated - Human Forgery  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AuthenticityBeautyQuad</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.42</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.00, 1.90]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">71.45%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr class="gt_group_heading_row">
+      <th colspan="6" class="gt_group_heading" scope="colgroup" id="AI-Generated - Human Original">AI-Generated - Human Original</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Original  Path" class="gt_row gt_left" style="color: #9E9E9E;">Direct</td>
+<td headers="AI-Generated - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">AuthenticityBeauty (linear)</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.61</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.76, 0.69]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">83.40%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Direct</td>
+<td headers="AI-Generated - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AuthenticityBeautyQuad</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.50</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.83, 0.78]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">77.28%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Path" class="gt_row gt_left" style="background-color: #FFEBEE;">Indirect</td>
+<td headers="AI-Generated - Human Original  Model" class="gt_row gt_left" style="background-color: #FFEBEE;">AuthenticityBeauty (linear)</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-0.83</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-1.16, -0.54]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Path" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Indirect</td>
+<td headers="AI-Generated - Human Original  Model" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">AuthenticityBeautyQuad</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-0.99</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-1.36, -0.66]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Path" class="gt_row gt_left" style="background-color: #FFEBEE;">Total</td>
+<td headers="AI-Generated - Human Original  Model" class="gt_row gt_left" style="background-color: #FFEBEE;">AuthenticityBeauty (linear)</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-1.44</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-2.63, -0.23]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">98.88%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Path" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Total</td>
+<td headers="AI-Generated - Human Original  Model" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">AuthenticityBeautyQuad</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-1.51</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-2.78, -0.11]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">98.52%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr class="gt_group_heading_row">
+      <th colspan="6" class="gt_group_heading" scope="colgroup" id="Human Forgery - Human Original">Human Forgery - Human Original</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="Human Forgery - Human Original  Path" class="gt_row gt_left" style="background-color: #FFEBEE;">Direct</td>
+<td headers="Human Forgery - Human Original  Model" class="gt_row gt_left" style="background-color: #FFEBEE;">AuthenticityBeauty (linear)</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-1.46</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-2.72, -0.25]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.17%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Direct</td>
+<td headers="Human Forgery - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AuthenticityBeautyQuad</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-1.32</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-2.65, 0.15]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">96.78%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Path" class="gt_row gt_left" style="background-color: #FFEBEE;">Indirect</td>
+<td headers="Human Forgery - Human Original  Model" class="gt_row gt_left" style="background-color: #FFEBEE;">AuthenticityBeauty (linear)</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-0.52</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-0.72, -0.30]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Path" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Indirect</td>
+<td headers="Human Forgery - Human Original  Model" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">AuthenticityBeautyQuad</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-0.59</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-0.85, -0.37]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Path" class="gt_row gt_left" style="background-color: #FFEBEE;">Total</td>
+<td headers="Human Forgery - Human Original  Model" class="gt_row gt_left" style="background-color: #FFEBEE;">AuthenticityBeauty (linear)</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-1.99</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-3.28, -0.80]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.98%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Path" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Total</td>
+<td headers="Human Forgery - Human Original  Model" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">AuthenticityBeautyQuad</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-1.91</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-3.33, -0.51]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.52%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+  </tbody>
+  
+</table>
+</div>
+```
+
+
+::: {.callout-note collapse="true" title="Mediation of the label effect by Phase-1 beauty, linear vs. quadratic model (% of the slider) (Markdown table, for text readers)"}
+
+|Contrast                       |Path     |Model                       |Diff  |CI             |pd_fmt |Effect   |
+|:------------------------------|:--------|:---------------------------|:-----|:--------------|:------|:--------|
+|AI-Generated - Human Forgery   |Direct   |AuthenticityBeauty (linear) |0.92  |[-0.42, 2.12]  |91.65% |n.s.     |
+|AI-Generated - Human Forgery   |Direct   |AuthenticityBeautyQuad      |0.82  |[-0.56, 2.29]  |86.90% |n.s.     |
+|AI-Generated - Human Forgery   |Indirect |AuthenticityBeauty (linear) |-0.35 |[-0.54, -0.20] |100%   |Negative |
+|AI-Generated - Human Forgery   |Indirect |AuthenticityBeautyQuad      |-0.40 |[-0.59, -0.21] |100%   |Negative |
+|AI-Generated - Human Forgery   |Total    |AuthenticityBeauty (linear) |0.56  |[-0.67, 1.85]  |79.67% |n.s.     |
+|AI-Generated - Human Forgery   |Total    |AuthenticityBeautyQuad      |0.42  |[-1.00, 1.90]  |71.45% |n.s.     |
+|AI-Generated - Human Original  |Direct   |AuthenticityBeauty (linear) |-0.61 |[-1.76, 0.69]  |83.40% |n.s.     |
+|AI-Generated - Human Original  |Direct   |AuthenticityBeautyQuad      |-0.50 |[-1.83, 0.78]  |77.28% |n.s.     |
+|AI-Generated - Human Original  |Indirect |AuthenticityBeauty (linear) |-0.83 |[-1.16, -0.54] |100%   |Negative |
+|AI-Generated - Human Original  |Indirect |AuthenticityBeautyQuad      |-0.99 |[-1.36, -0.66] |100%   |Negative |
+|AI-Generated - Human Original  |Total    |AuthenticityBeauty (linear) |-1.44 |[-2.63, -0.23] |98.88% |Negative |
+|AI-Generated - Human Original  |Total    |AuthenticityBeautyQuad      |-1.51 |[-2.78, -0.11] |98.52% |Negative |
+|Human Forgery - Human Original |Direct   |AuthenticityBeauty (linear) |-1.46 |[-2.72, -0.25] |99.17% |Negative |
+|Human Forgery - Human Original |Direct   |AuthenticityBeautyQuad      |-1.32 |[-2.65, 0.15]  |96.78% |n.s.     |
+|Human Forgery - Human Original |Indirect |AuthenticityBeauty (linear) |-0.52 |[-0.72, -0.30] |100%   |Negative |
+|Human Forgery - Human Original |Indirect |AuthenticityBeautyQuad      |-0.59 |[-0.85, -0.37] |100%   |Negative |
+|Human Forgery - Human Original |Total    |AuthenticityBeauty (linear) |-1.99 |[-3.28, -0.80] |99.98% |Negative |
+|Human Forgery - Human Original |Total    |AuthenticityBeautyQuad      |-1.91 |[-3.33, -0.51] |99.52% |Negative |
+
+:::
+
+
+::: {.cell}
+
+```{.r .cell-code}
+bind_rows(lapply(c(-0.4, -0.2, 0, 0.2, 0.4), function(a) {
+  bind_rows(lapply(c("response", choco_pars), function(p) {
+    mutate(grid_slopes(quad, par = p, at = a), Parameter = p, At = a, .before = 1)
+  }))
+})) |>
+  write.csv("../data/results_determinants_quadratic.csv", row.names = FALSE)
 ```
 :::
 
