@@ -462,6 +462,48 @@ plot_predictions("MeaningSR")
 moderation_tables("MeaningSR")
 ```
 
+### The categorical components on the odds scale
+
+The gap tables above are in percentage points. For a probability parameter
+(beauty's `mu`, the probability of the "beautiful" side; meaning's `pzero`),
+a label effect that is constant on the log-odds scale shrinks in percentage
+points as the baseline probability approaches 0 or 1, so a smaller gap at
+high self-relevance can be scale compression rather than a weaker label
+effect. `moderation_odds()` (estimates.R) gives, at -1 SD and +1 SD of
+self-relevance, the two probabilities and their odds ratio, and the
+difference in log odds ratios between the two levels ("High - Low"; 0 = no
+moderation on the odds scale). This is the check behind the manuscript's
+statement (2026-09-25) that self-relevance does not attenuate the label
+penalty on any component: the AI label about doubles the odds of a "not at
+all meaningful" answer at both levels of self-relevance.
+
+```{r}
+#| results: asis
+#| eval: !expr ready("BeautySR", "MeaningSR")
+
+odds_table <- function(name, par, what) {
+  moderation_odds(estimates[[name]], par = par) |>
+    mutate(
+      Contrast = factor(Contrast, levels = contrast_order),
+      `P (reference)` = ifelse(is.na(P_ref), "", sprintf("%.1f%% [%.1f, %.1f]", P_ref, P_ref_low, P_ref_high)),
+      `P (label)` = ifelse(is.na(P), "", sprintf("%.1f%% [%.1f, %.1f]", P, P_low, P_high)),
+      Estimate = ifelse(At == "High - Low",
+                        sprintf("log-OR difference %.2f [%.2f, %.2f]", OR, OR_low, OR_high),
+                        sprintf("OR %.2f [%.2f, %.2f]", OR, OR_low, OR_high)),
+      Effect = ifelse(At == "High - Low",
+                      ifelse(sign(OR_low) == sign(OR_high), ifelse(OR < 0, "Negative", "Positive"), "n.s."),
+                      ifelse(OR_low > 1 | OR_high < 1, ifelse(OR < 1, "Negative", "Positive"), "n.s."))
+    ) |>
+    arrange(Contrast) |>
+    (\(d) make_tables(d, c("Contrast", "At", "P (reference)", "P (label)", "Estimate", "Effect"),
+                      sprintf("%s: %s at -1 SD (Low) and +1 SD (High) of self-relevance, on the odds scale", estimates[[name]]$label, what)))()
+}
+make_asis(
+  odds_table("MeaningSR", "pzero", "probability of answering 'not at all meaningful' (pzero)"),
+  odds_table("BeautySR", "mu", "probability of the 'beautiful' side (mu)")
+)
+```
+
 ### Controlling for follow-up beauty
 
 The same model with follow-up beauty as a competing moderator
@@ -736,11 +778,12 @@ make_asis(
 
 ## (C) Self-relevance and memory
 
-Observed only. The self-reference effect (Lee et al., 2023; Salgues et al.,
-2024) predicts better memory for self-relevant works; the models will be
-categorical, as in `4_memory.qmd`, with SR (and follow-up beauty) added to
-the models of the recalled label and of the recalled belief. Chance levels:
-1/3 for the label, 1/4 for the belief.
+The self-reference effect (Lee et al., 2023; Salgues et al., 2024) predicts
+better memory for self-relevant works. Observed rates and an lme4 pilot
+first, then the categorical model (`MemorySR`, as in `4_memory.qmd`) that
+separates hits from false alarms. The models of the recalled belief and label
+with SR as a covariate are in `4_memory.qmd` ("Memory or Re-inference?").
+Chance levels: 1/3 for the label, 1/4 for the belief.
 
 ```{r}
 #| fig-width: 10
@@ -826,6 +869,123 @@ effect on hits can be told apart from one on false alarms. The Phase-1
 appraisal, rated before any memory judgment and for old items only, is the
 cleaner predictor of what was encoded (`4_memory.qmd`, "Memory by Phase-1
 Appraisal").
+
+### Model: MemorySR
+
+**MemorySR** (`server/models.R`, 2026-09-25): the categorical model of the
+recalled label (as `MemoryCondition`, "Not recognized" carrying recognition)
+on all 96 items, with self-relevance and follow-up beauty (centred within
+participant over the 96 artworks, quadratic terms as `MemoryAppraisal`)
+given separate slopes for old and new items (`Type:`). The Old slopes are
+the effect on hits, the New slopes the effect on false alarms; a
+self-reference effect on *memory* needs the two to differ. Predictions per
+label are averaged over the three old labels ("Old") and shown against the
+new items ("New"). Probabilities compress near 0, and the false-alarm rate
+is near 10% while the hit rate is near 45%, so the comparison that matters
+is on the odds scale (last table).
+
+```{r}
+#| results: asis
+
+memsr_ready <- file.exists("models/estimates/MemorySR.rds")
+if (!memsr_ready) {
+  make_asis("", '::: {.callout-warning title="Estimates not available yet"}',
+            "`MemorySR`: in `analysis/server`, `./hpc combine MemorySR` (check 4,000 draws), `./hpc extract MemorySR`, then `./hpc pull 'estimates/MemorySR.rds'`.",
+            ":::", "")
+}
+```
+
+```{r}
+#| results: asis
+#| eval: !expr memsr_ready
+
+est_sr <- read_estimates("MemorySR")$MemorySR
+g_sr <- est_sr$grid
+D_sr <- est_sr$draws
+old_levels <- setdiff(unique(g_sr$Level), "New Items")
+rows <- lapply(setNames(nm = c(old_levels, "New Items")), function(l) which(g_sr$Level == l))
+# Old: the three labels averaged (same grid order within each level)
+D_old <- Reduce(`+`, lapply(old_levels, function(l) D_sr[, rows[[l]], , drop = FALSE])) / length(old_levels)
+est_old <- list(grid = mutate(g_sr[rows[[old_levels[1]]], ], Level = "Old"), draws = D_old)
+est_new <- list(grid = mutate(g_sr[rows[["New Items"]], ], Level = "New"), draws = D_sr[, rows[["New Items"]], , drop = FALSE])
+fx_old <- memory_grid_effects(est_old)
+fx_new <- memory_grid_effects(est_new)
+sr_labels <- c(SR_w = "Self-relevance", Beauty2_w = "Follow-up beauty")
+fmt_pp <- function(d) {
+  d |> mutate(Predictor = sr_labels[Predictor],
+              Effect_at = Effect,
+              Effect = ifelse(sign(CI_low) != sign(CI_high), "n.s.", ifelse(Median < 0, "Negative", "Positive")),
+              Diff = insight::format_value(Median),
+              CI = sprintf("[%s, %s]", insight::format_value(CI_low), insight::format_value(CI_high)),
+              pd_fmt = insight::format_pd(pd, name = NULL))
+}
+rec_pp <- bind_rows(fx_old$effects, fx_new$effects) |>
+  filter(Outcome == "P(recognised)", Effect %in% c("-2 SD", "+2 SD")) |> fmt_pp()
+lab_pp <- fx_old$effects |>
+  filter(Outcome != "P(recognised)", Type == "unique", Effect %in% c("-2 SD", "+2 SD")) |> fmt_pp()
+# Odds scale: log odds of "seen before" at +/-2 SD minus at the mean, for
+# old (hits) and new (false alarms) items, and their difference
+lo <- function(est, type, pred, at) {
+  g <- est$grid; i <- which(g$Type == type & g$Predictor == pred & !is.na(g$At) & g$At == at)
+  p <- 1 - est$draws[, i, "Not recognized"]
+  log(p / (1 - p))
+}
+odds <- bind_rows(lapply(c("unique", "joint"), function(type) bind_rows(lapply(names(sr_labels), function(pred) bind_rows(lapply(c("-2 SD", "+2 SD"), function(at) {
+  d_old <- lo(est_old, type, pred, at) - lo(est_old, type, pred, "Mean")
+  d_new <- lo(est_new, type, pred, at) - lo(est_new, type, pred, "Mean")
+  desc <- function(x) { ci <- bayestestR::hdi(x, ci = 0.95); c(median(x), ci$CI_low, ci$CI_high, as.numeric(bayestestR::p_direction(x))) }
+  o <- desc(d_old); n <- desc(d_new); dd <- desc(d_new - d_old)
+  data.frame(Type = type, Predictor = sr_labels[pred], At = at,
+             `Old (hits)` = sprintf("%.2f [%.2f, %.2f]", o[1], o[2], o[3]),
+             `New (false alarms)` = sprintf("%.2f [%.2f, %.2f]", n[1], n[2], n[3]),
+             `New - Old` = sprintf("%.2f [%.2f, %.2f]", dd[1], dd[2], dd[3]),
+             pd_fmt = insight::format_pd(dd[4], name = NULL),
+             Effect = ifelse(sign(dd[2]) != sign(dd[3]), "n.s.", ifelse(dd[1] < 0, "Negative", "Positive")),
+             check.names = FALSE)
+}))))))
+make_asis(
+  make_tables(est_sr$diag, c("Model", "Family", "N_obs", "N_participants", "Chains", "Draws", "Max_Rhat", "Min_ESS_ratio", "Divergent_pct"),
+              "Convergence of MemorySR"),
+  make_tables(rec_pp, c("Level", "Type", "Predictor", "Effect_at", "Diff", "CI", "pd_fmt", "Effect"),
+              "MemorySR: P(\"seen before\") at -2 / +2 SD of the rating minus at the participant's mean, for old items (hits, averaged over the three labels) and new items (false alarms), percentage points (unique: other rating at the mean; joint: it follows along)"),
+  make_tables(odds, c("Type", "Predictor", "At", "Old (hits)", "New (false alarms)", "New - Old", "pd_fmt", "Effect"),
+              "MemorySR: the same on the log-odds scale (log odds ratio of \"seen before\" at -2 / +2 SD vs. the mean), and the difference between new and old items (0 = the rating raises false alarms as much as hits)"),
+  make_tables(lab_pp, c("Type", "Predictor", "Effect_at", "Outcome", "Diff", "CI", "pd_fmt", "Effect"),
+              "MemorySR: recalled label among recognised old artworks at -2 / +2 SD of the rating minus at the mean (label shown averaged), percentage points")
+)
+```
+
+```{r}
+#| fig-width: 11
+#| fig-height: 4
+#| eval: !expr memsr_ready
+
+bind_rows(fx_old$curves, fx_new$curves) |>
+  filter(Type == "unique", abs(x) <= 0.5, Outcome == "P(recognised)") |>
+  mutate(Predictor = sr_labels[Predictor], Level = fct_relevel(Level, "Old", "New")) |>
+  ggplot(aes(x = 100 * x, y = Median, color = Level, fill = Level)) +
+  geom_ribbon(aes(ymin = CI_low, ymax = CI_high), alpha = 0.15, color = NA) +
+  geom_line(linewidth = 1) +
+  facet_wrap(~Predictor) +
+  scale_color_manual(values = c(Old = "#F51D56", New = "#607D8B"), labels = c(Old = "Old (hits)", New = "New (false alarms)")) +
+  scale_fill_manual(values = c(Old = "#F51D56", New = "#607D8B"), labels = c(Old = "Old (hits)", New = "New (false alarms)")) +
+  labs(x = "Rating relative to the participant's mean (points of the scale)", y = "Answered \"seen before\" (%)",
+       color = NULL, fill = NULL,
+       caption = "Population-level predictions (random effects at 0; the other rating at the participant's mean; old items averaged over the three labels) with 95% CI.") +
+  theme_minimal() +
+  theme(legend.position = "top", strip.text = element_text(face = "bold"))
+```
+
+```{r}
+#| eval: !expr memsr_ready
+
+write.csv(bind_rows(
+  mutate(bind_rows(fx_old$effects, fx_new$effects), Table = "Probability (pp)"),
+  mutate(odds, Table = "Log odds ratio")
+), "../data/results_selfrelevance_memory.csv", row.names = FALSE)
+```
+
+### Observed: source memory by self-relevance
 
 ```{r}
 #| fig-width: 10

@@ -84,10 +84,10 @@ Table: Provenance of the estimates read by this report.
 |AuthenticitySR            |AuthenticitySR.rds            |  4000|    1.042|2026-09-24 19:38 |
 |ArtificialitySR           |ArtificialitySR.rds           |  4000|    1.144|2026-09-24 19:43 |
 |SelfRelevance             |SelfRelevance.rds             |  4000|    1.085|2026-09-22 20:32 |
-|Beauty                    |Beauty.rds                    |  4000|    1.068|2026-09-22 19:58 |
-|Meaning                   |Meaning.rds                   |  4000|    1.041|2026-09-22 19:57 |
-|Reality                   |Reality.rds                   |  4000|    1.071|2026-09-22 19:57 |
-|Authenticity              |Authenticity.rds              |  4000|    1.065|2026-09-22 19:57 |
+|Beauty                    |Beauty.rds                    |  4000|    1.068|2026-09-26 09:12 |
+|Meaning                   |Meaning.rds                   |  4000|    1.041|2026-09-25 22:34 |
+|Reality                   |Reality.rds                   |  4000|    1.071|2026-09-26 09:12 |
+|Authenticity              |Authenticity.rds              |  4000|    1.065|2026-09-26 09:13 |
 |RealityBeautyControl      |RealityBeautyControl.rds      |  4000|    1.044|2026-09-23 19:55 |
 |AuthenticityBeautyControl |AuthenticityBeautyControl.rds |  4000|    1.056|2026-09-23 20:36 |
 |ArtificialityBeauty       |ArtificialityBeauty.rds       |  4000|    1.198|2026-09-23 20:05 |
@@ -6317,59 +6317,43 @@ moderation_tables("MeaningSR")
 
 :::
 
-### Controlling for follow-up beauty
+### The categorical components on the odds scale
 
-The same model with follow-up beauty as a competing moderator
-(predictions at `Beauty2_w = 0`). The last table puts the two side by side:
-the change in the label gap per +10% of each rating (the differences between
-labels of each slope), with and without follow-up beauty in the model.
-
-
-```{.r .cell-code}
-pending("BeautySRControl")
-```
-
-
-::: {.cell}
-
-```{.r .cell-code}
-plot_predictions("BeautySRControl")
-```
-
-::: {.cell-output-display}
-![](6_selfrelevance_files/figure-html/unnamed-chunk-17-1.png){width=960}
-:::
-:::
-
+The gap tables above are in percentage points. For a probability parameter
+(beauty's `mu`, the probability of the "beautiful" side; meaning's `pzero`),
+a label effect that is constant on the log-odds scale shrinks in percentage
+points as the baseline probability approaches 0 or 1, so a smaller gap at
+high self-relevance can be scale compression rather than a weaker label
+effect. `moderation_odds()` (estimates.R) gives, at -1 SD and +1 SD of
+self-relevance, the two probabilities and their odds ratio, and the
+difference in log odds ratios between the two levels ("High - Low"; 0 = no
+moderation on the odds scale). This is the check behind the manuscript's
+statement (2026-09-25) that self-relevance does not attenuate the label
+penalty on any component: the AI label about doubles the odds of a "not at
+all meaningful" answer at both levels of self-relevance.
 
 
 ```{.r .cell-code}
-est_ctrl <- estimates$BeautySRControl
-b2_slopes <- bind_rows(lapply(c("response", mediation_info$BeautySRControl$dpars), function(p) {
-  covariate_slopes(est_ctrl, "Beauty2_w", par = p, pairs = TRUE) |>
-    mutate(Parameter = factor(par_labels$Beauty[[p]], levels = par_labels$Beauty))
-})) |>
-  rename(Condition = Level) |>
-  format_effects() |>
-  arrange(Parameter)
-
-gap_change <- bind_rows(
-  mutate(moderation$BeautySRControl$response$slopes, Predictor = "Self-relevance", Model = "BeautySRControl"),
-  mutate(rename(covariate_slopes(est_ctrl, "Beauty2_w", pairs = TRUE), Condition = Level),
-         Predictor = "Follow-up beauty", Model = "BeautySRControl"),
-  if (ready("BeautySR")) mutate(moderation$BeautySR$response$slopes, Predictor = "Self-relevance", Model = "BeautySR (no follow-up beauty)")
-) |>
-  filter(Condition %in% contrast_order) |>
-  mutate(Contrast = factor(Condition, levels = contrast_order)) |>
-  format_effects() |>
-  arrange(Contrast, Predictor, Model)
-
+odds_table <- function(name, par, what) {
+  moderation_odds(estimates[[name]], par = par) |>
+    mutate(
+      Contrast = factor(Contrast, levels = contrast_order),
+      `P (reference)` = ifelse(is.na(P_ref), "", sprintf("%.1f%% [%.1f, %.1f]", P_ref, P_ref_low, P_ref_high)),
+      `P (label)` = ifelse(is.na(P), "", sprintf("%.1f%% [%.1f, %.1f]", P, P_low, P_high)),
+      Estimate = ifelse(At == "High - Low",
+                        sprintf("log-OR difference %.2f [%.2f, %.2f]", OR, OR_low, OR_high),
+                        sprintf("OR %.2f [%.2f, %.2f]", OR, OR_low, OR_high)),
+      Effect = ifelse(At == "High - Low",
+                      ifelse(sign(OR_low) == sign(OR_high), ifelse(OR < 0, "Negative", "Positive"), "n.s."),
+                      ifelse(OR_low > 1 | OR_high < 1, ifelse(OR < 1, "Negative", "Positive"), "n.s."))
+    ) |>
+    arrange(Contrast) |>
+    (\(d) make_tables(d, c("Contrast", "At", "P (reference)", "P (label)", "Estimate", "Effect"),
+                      sprintf("%s: %s at -1 SD (Low) and +1 SD (High) of self-relevance, on the odds scale", estimates[[name]]$label, what)))()
+}
 make_asis(
-  moderation_tables("BeautySRControl"),
-  make_tables(b2_slopes, c("Parameter", "Condition", "Diff", "CI", "pd_fmt", "Effect"),
-              "Phase-1 beauty: change per +10% of follow-up beauty (SR at average), per label and between labels"),
-  make_tables(gap_change, c("Contrast", "Predictor", "Model", "Diff", "CI", "pd_fmt", "Effect"),
-              "Change in the label gap in Phase-1 beauty (% of the slider) per +10% of self-relevance or of follow-up beauty")
+  odds_table("MeaningSR", "pzero", "probability of answering 'not at all meaningful' (pzero)"),
+  odds_table("BeautySR", "mu", "probability of the 'beautiful' side (mu)")
 )
 ```
 
@@ -6826,14 +6810,14 @@ make_asis(
 <table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
   <thead>
     <tr class="gt_heading">
-      <td colspan="5" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Phase-1 Beauty by Self-Relevance, controlling follow-up Beauty: label contrasts at average self-relevance (% of the scale / percentage points)</td>
+      <td colspan="5" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Phase-1 Meaning by Self-Relevance: probability of answering 'not at all meaningful' (pzero) at -1 SD (Low) and +1 SD (High) of self-relevance, on the odds scale</td>
     </tr>
     
     <tr class="gt_col_headings">
-      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Parameter">Parameter</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Diff">Diff</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="CI">CI</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="pd_fmt">pd_fmt</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="At">At</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="P-(reference)">P (reference)</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="P-(label)">P (label)</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Estimate">Estimate</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Effect">Effect</th>
     </tr>
   </thead>
@@ -6841,87 +6825,57 @@ make_asis(
     <tr class="gt_group_heading_row">
       <th colspan="5" class="gt_group_heading" scope="colgroup" id="AI-Generated - Human Original">AI-Generated - Human Original</th>
     </tr>
-    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">Mean response (beauty)</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-6.60</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-8.02, -5.19]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-13.70</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-17.92, -9.40]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-5.56</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-6.80, -4.36]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Confidence on the Ugly side [confleft]</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">4.35</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[2.31, 6.34]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
+    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Original  At" class="gt_row gt_left" style="background-color: #E8F5E9;">Low</td>
+<td headers="AI-Generated - Human Original  P (reference)" class="gt_row gt_left" style="background-color: #E8F5E9;">6.1% [3.7, 9.0]</td>
+<td headers="AI-Generated - Human Original  P (label)" class="gt_row gt_left" style="background-color: #E8F5E9;">12.0% [7.7, 17.5]</td>
+<td headers="AI-Generated - Human Original  Estimate" class="gt_row gt_left" style="background-color: #E8F5E9;">OR 2.10 [1.56, 2.69]</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="AI-Generated - Human Original  At" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">High</td>
+<td headers="AI-Generated - Human Original  P (reference)" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">3.2% [1.9, 4.7]</td>
+<td headers="AI-Generated - Human Original  P (label)" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">6.5% [4.0, 9.9]</td>
+<td headers="AI-Generated - Human Original  Estimate" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">OR 2.12 [1.53, 2.82]</td>
 <td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">Mean response, main model (all participants, no SR term)</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-7.06</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-8.22, -5.92]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Original  At" class="gt_row gt_left" style="color: #9E9E9E;">High - Low</td>
+<td headers="AI-Generated - Human Original  P (reference)" class="gt_row gt_left" style="color: #9E9E9E;"></td>
+<td headers="AI-Generated - Human Original  P (label)" class="gt_row gt_left" style="color: #9E9E9E;"></td>
+<td headers="AI-Generated - Human Original  Estimate" class="gt_row gt_left" style="color: #9E9E9E;">log-OR difference 0.01 [-0.29, 0.29]</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
     <tr class="gt_group_heading_row">
       <th colspan="5" class="gt_group_heading" scope="colgroup" id="Human Forgery - Human Original">Human Forgery - Human Original</th>
     </tr>
-    <tr class="gt_row_group_first"><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Mean response (beauty)</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.34</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-4.61, -2.06]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-5.83</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-9.53, -2.10]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.85%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.80</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-4.97, -2.63]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_left" style="background-color: #E8F5E9;">Confidence on the Ugly side [confleft]</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">2.37</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[0.33, 4.34]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">98.88%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Mean response, main model (all participants, no SR term)</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.66</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-4.59, -2.80]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr class="gt_row_group_first"><td headers="Human Forgery - Human Original  At" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Low</td>
+<td headers="Human Forgery - Human Original  P (reference)" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">6.1% [3.7, 9.0]</td>
+<td headers="Human Forgery - Human Original  P (label)" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">8.3% [5.1, 12.1]</td>
+<td headers="Human Forgery - Human Original  Estimate" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">OR 1.39 [1.09, 1.74]</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Human Forgery - Human Original  At" class="gt_row gt_left" style="color: #9E9E9E;">High</td>
+<td headers="Human Forgery - Human Original  P (reference)" class="gt_row gt_left" style="color: #9E9E9E;">3.2% [1.9, 4.7]</td>
+<td headers="Human Forgery - Human Original  P (label)" class="gt_row gt_left" style="color: #9E9E9E;">3.9% [2.3, 5.8]</td>
+<td headers="Human Forgery - Human Original  Estimate" class="gt_row gt_left" style="color: #9E9E9E;">OR 1.22 [0.90, 1.55]</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Human Forgery - Human Original  At" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">High - Low</td>
+<td headers="Human Forgery - Human Original  P (reference)" class="gt_row gt_left gt_striped" style="color: #9E9E9E;"></td>
+<td headers="Human Forgery - Human Original  P (label)" class="gt_row gt_left gt_striped" style="color: #9E9E9E;"></td>
+<td headers="Human Forgery - Human Original  Estimate" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">log-OR difference -0.13 [-0.40, 0.16]</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
     <tr class="gt_group_heading_row">
       <th colspan="5" class="gt_group_heading" scope="colgroup" id="AI-Generated - Human Forgery">AI-Generated - Human Forgery</th>
     </tr>
-    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">Mean response (beauty)</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-3.27</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-4.80, -1.80]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-7.90</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-12.43, -3.39]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.90%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-1.76</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-3.05, -0.59]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.67%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.99</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.15, 4.09]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">96.50%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">Mean response, main model (all participants, no SR term)</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-3.39</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-4.49, -2.32]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Forgery  At" class="gt_row gt_left" style="background-color: #E8F5E9;">Low</td>
+<td headers="AI-Generated - Human Forgery  P (reference)" class="gt_row gt_left" style="background-color: #E8F5E9;">8.3% [5.1, 12.1]</td>
+<td headers="AI-Generated - Human Forgery  P (label)" class="gt_row gt_left" style="background-color: #E8F5E9;">12.0% [7.7, 17.5]</td>
+<td headers="AI-Generated - Human Forgery  Estimate" class="gt_row gt_left" style="background-color: #E8F5E9;">OR 1.51 [1.11, 1.99]</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  At" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">High</td>
+<td headers="AI-Generated - Human Forgery  P (reference)" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">3.9% [2.3, 5.8]</td>
+<td headers="AI-Generated - Human Forgery  P (label)" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">6.5% [4.0, 9.9]</td>
+<td headers="AI-Generated - Human Forgery  Estimate" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">OR 1.75 [1.22, 2.40]</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  At" class="gt_row gt_left" style="color: #9E9E9E;">High - Low</td>
+<td headers="AI-Generated - Human Forgery  P (reference)" class="gt_row gt_left" style="color: #9E9E9E;"></td>
+<td headers="AI-Generated - Human Forgery  P (label)" class="gt_row gt_left" style="color: #9E9E9E;"></td>
+<td headers="AI-Generated - Human Forgery  Estimate" class="gt_row gt_left" style="color: #9E9E9E;">log-OR difference 0.14 [-0.20, 0.48]</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
   </tbody>
   
 </table>
@@ -6929,25 +6883,19 @@ make_asis(
 ```
 
 
-::: {.callout-note collapse="true" title="Phase-1 Beauty by Self-Relevance, controlling follow-up Beauty: label contrasts at average self-relevance (% of the scale / percentage points) (Markdown table, for text readers)"}
+::: {.callout-note collapse="true" title="Phase-1 Meaning by Self-Relevance: probability of answering 'not at all meaningful' (pzero) at -1 SD (Low) and +1 SD (High) of self-relevance, on the odds scale (Markdown table, for text readers)"}
 
-|Contrast                       |Parameter                                                |Diff   |CI              |pd_fmt |Effect   |
-|:------------------------------|:--------------------------------------------------------|:------|:---------------|:------|:--------|
-|AI-Generated - Human Original  |Mean response (beauty)                                   |-6.60  |[-8.02, -5.19]  |100%   |Negative |
-|AI-Generated - Human Original  |p(Beautiful side) [mu]                                   |-13.70 |[-17.92, -9.40] |100%   |Negative |
-|AI-Generated - Human Original  |Confidence on the Beautiful side [confright]             |-5.56  |[-6.80, -4.36]  |100%   |Negative |
-|AI-Generated - Human Original  |Confidence on the Ugly side [confleft]                   |4.35   |[2.31, 6.34]    |100%   |Positive |
-|AI-Generated - Human Original  |Mean response, main model (all participants, no SR term) |-7.06  |[-8.22, -5.92]  |100%   |Negative |
-|Human Forgery - Human Original |Mean response (beauty)                                   |-3.34  |[-4.61, -2.06]  |100%   |Negative |
-|Human Forgery - Human Original |p(Beautiful side) [mu]                                   |-5.83  |[-9.53, -2.10]  |99.85% |Negative |
-|Human Forgery - Human Original |Confidence on the Beautiful side [confright]             |-3.80  |[-4.97, -2.63]  |100%   |Negative |
-|Human Forgery - Human Original |Confidence on the Ugly side [confleft]                   |2.37   |[0.33, 4.34]    |98.88% |Positive |
-|Human Forgery - Human Original |Mean response, main model (all participants, no SR term) |-3.66  |[-4.59, -2.80]  |100%   |Negative |
-|AI-Generated - Human Forgery   |Mean response (beauty)                                   |-3.27  |[-4.80, -1.80]  |100%   |Negative |
-|AI-Generated - Human Forgery   |p(Beautiful side) [mu]                                   |-7.90  |[-12.43, -3.39] |99.90% |Negative |
-|AI-Generated - Human Forgery   |Confidence on the Beautiful side [confright]             |-1.76  |[-3.05, -0.59]  |99.67% |Negative |
-|AI-Generated - Human Forgery   |Confidence on the Ugly side [confleft]                   |1.99   |[-0.15, 4.09]   |96.50% |n.s.     |
-|AI-Generated - Human Forgery   |Mean response, main model (all participants, no SR term) |-3.39  |[-4.49, -2.32]  |100%   |Negative |
+|Contrast                       |At         |P (reference)    |P (label)         |Estimate                              |Effect   |
+|:------------------------------|:----------|:----------------|:-----------------|:-------------------------------------|:--------|
+|AI-Generated - Human Original  |Low        |6.1% [3.7, 9.0]  |12.0% [7.7, 17.5] |OR 2.10 [1.56, 2.69]                  |Positive |
+|AI-Generated - Human Original  |High       |3.2% [1.9, 4.7]  |6.5% [4.0, 9.9]   |OR 2.12 [1.53, 2.82]                  |Positive |
+|AI-Generated - Human Original  |High - Low |                 |                  |log-OR difference 0.01 [-0.29, 0.29]  |n.s.     |
+|Human Forgery - Human Original |Low        |6.1% [3.7, 9.0]  |8.3% [5.1, 12.1]  |OR 1.39 [1.09, 1.74]                  |Positive |
+|Human Forgery - Human Original |High       |3.2% [1.9, 4.7]  |3.9% [2.3, 5.8]   |OR 1.22 [0.90, 1.55]                  |n.s.     |
+|Human Forgery - Human Original |High - Low |                 |                  |log-OR difference -0.13 [-0.40, 0.16] |n.s.     |
+|AI-Generated - Human Forgery   |Low        |8.3% [5.1, 12.1] |12.0% [7.7, 17.5] |OR 1.51 [1.11, 1.99]                  |Positive |
+|AI-Generated - Human Forgery   |High       |3.9% [2.3, 5.8]  |6.5% [4.0, 9.9]   |OR 1.75 [1.22, 2.40]                  |Positive |
+|AI-Generated - Human Forgery   |High - Low |                 |                  |log-OR difference 0.14 [-0.20, 0.48]  |n.s.     |
 
 :::
 
@@ -7404,316 +7352,72 @@ make_asis(
 <table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
   <thead>
     <tr class="gt_heading">
-      <td colspan="6" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Phase-1 Beauty by Self-Relevance, controlling follow-up Beauty: label gap at low, average and high self-relevance, and its change (High - Low)</td>
+      <td colspan="5" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Phase-1 Beauty by Self-Relevance: probability of the 'beautiful' side (mu) at -1 SD (Low) and +1 SD (High) of self-relevance, on the odds scale</td>
     </tr>
     
     <tr class="gt_col_headings">
-      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="Parameter">Parameter</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="At">At</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Diff">Diff</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="CI">CI</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="pd_fmt">pd_fmt</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="At">At</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="P-(reference)">P (reference)</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="P-(label)">P (label)</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Estimate">Estimate</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Effect">Effect</th>
     </tr>
   </thead>
   <tbody class="gt_table_body">
     <tr class="gt_group_heading_row">
-      <th colspan="6" class="gt_group_heading" scope="colgroup" id="AI-Generated - Human Original">AI-Generated - Human Original</th>
+      <th colspan="5" class="gt_group_heading" scope="colgroup" id="AI-Generated - Human Original">AI-Generated - Human Original</th>
     </tr>
-    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Mean response (beauty)</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-7.00</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-8.83, -5.06]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Original  At" class="gt_row gt_left" style="background-color: #FFEBEE;">Low</td>
+<td headers="AI-Generated - Human Original  P (reference)" class="gt_row gt_left" style="background-color: #FFEBEE;">47.9% [37.7, 58.0]</td>
+<td headers="AI-Generated - Human Original  P (label)" class="gt_row gt_left" style="background-color: #FFEBEE;">33.1% [23.9, 42.6]</td>
+<td headers="AI-Generated - Human Original  Estimate" class="gt_row gt_left" style="background-color: #FFEBEE;">OR 0.54 [0.43, 0.66]</td>
 <td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Mean response (beauty)</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-6.60</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-8.07, -5.24]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+    <tr><td headers="AI-Generated - Human Original  At" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">High</td>
+<td headers="AI-Generated - Human Original  P (reference)" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">79.2% [72.2, 85.7]</td>
+<td headers="AI-Generated - Human Original  P (label)" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">69.6% [61.1, 78.6]</td>
+<td headers="AI-Generated - Human Original  Estimate" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">OR 0.60 [0.46, 0.74]</td>
 <td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Mean response (beauty)</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">High SR (+1 SD)</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-6.00</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-7.93, -4.04]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Mean response (beauty)</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.99</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.63, 3.54]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">76.92%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-16.92</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-22.75, -11.28]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-13.70</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-17.94, -9.45]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">High SR (+1 SD)</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-10.12</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-16.11, -4.80]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">6.84</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.78, 14.43]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">96.00%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-5.17</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-6.75, -3.59]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-5.56</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-6.79, -4.34]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">High SR (+1 SD)</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-5.93</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-7.66, -4.33]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.80</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-2.81, 1.58]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">76.28%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Confidence on the Ugly side [confleft]</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #E8F5E9;">Low SR (-1 SD)</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">3.19</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[0.67, 5.75]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">99.20%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Confidence on the Ugly side [confleft]</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Average SR</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">4.35</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[2.26, 6.27]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Confidence on the Ugly side [confleft]</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #E8F5E9;">High SR (+1 SD)</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">5.52</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[2.55, 8.56]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">2.33</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.70, 6.08]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">87.65%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Original  At" class="gt_row gt_left" style="color: #9E9E9E;">High - Low</td>
+<td headers="AI-Generated - Human Original  P (reference)" class="gt_row gt_left" style="color: #9E9E9E;"></td>
+<td headers="AI-Generated - Human Original  P (label)" class="gt_row gt_left" style="color: #9E9E9E;"></td>
+<td headers="AI-Generated - Human Original  Estimate" class="gt_row gt_left" style="color: #9E9E9E;">log-OR difference 0.10 [-0.20, 0.39]</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
     <tr class="gt_group_heading_row">
-      <th colspan="6" class="gt_group_heading" scope="colgroup" id="Human Forgery - Human Original">Human Forgery - Human Original</th>
+      <th colspan="5" class="gt_group_heading" scope="colgroup" id="Human Forgery - Human Original">Human Forgery - Human Original</th>
     </tr>
-    <tr class="gt_row_group_first"><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Mean response (beauty)</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-3.31</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-5.10, -1.58]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Mean response (beauty)</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.34</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-4.60, -2.06]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+    <tr class="gt_row_group_first"><td headers="Human Forgery - Human Original  At" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Low</td>
+<td headers="Human Forgery - Human Original  P (reference)" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">47.9% [37.7, 58.0]</td>
+<td headers="Human Forgery - Human Original  P (label)" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">41.6% [32.4, 51.8]</td>
+<td headers="Human Forgery - Human Original  Estimate" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">OR 0.77 [0.63, 0.93]</td>
 <td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Mean response (beauty)</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">High SR (+1 SD)</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-3.40</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-5.08, -1.54]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+    <tr><td headers="Human Forgery - Human Original  At" class="gt_row gt_left" style="background-color: #FFEBEE;">High</td>
+<td headers="Human Forgery - Human Original  P (reference)" class="gt_row gt_left" style="background-color: #FFEBEE;">79.2% [72.2, 85.7]</td>
+<td headers="Human Forgery - Human Original  P (label)" class="gt_row gt_left" style="background-color: #FFEBEE;">75.5% [67.7, 82.5]</td>
+<td headers="Human Forgery - Human Original  Estimate" class="gt_row gt_left" style="background-color: #FFEBEE;">OR 0.80 [0.63, 0.99]</td>
 <td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Mean response (beauty)</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.08</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-2.63, 2.36]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">52.30%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-6.96</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-12.26, -1.72]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.30%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-5.83</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-9.49, -2.06]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.85%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="color: #9E9E9E;">High SR (+1 SD)</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-4.64</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-10.05, 0.15]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">96.65%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">2.23</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-4.85, 10.02]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">71.05%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-2.72</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-4.23, -1.08]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.80</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-5.04, -2.71]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">High SR (+1 SD)</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-4.93</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-6.54, -3.32]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-2.22</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-4.26, 0.12]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">97.42%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="color: #9E9E9E;">Low SR (-1 SD)</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">2.50</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.32, 5.01]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">96.38%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Confidence on the Ugly side [confleft]</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Average SR</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">2.37</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[0.27, 4.27]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">98.88%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="color: #9E9E9E;">High SR (+1 SD)</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">2.22</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.64, 5.21]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">93.42%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.32</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-4.15, 3.52]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">55.53%</td>
+    <tr><td headers="Human Forgery - Human Original  At" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">High - Low</td>
+<td headers="Human Forgery - Human Original  P (reference)" class="gt_row gt_left gt_striped" style="color: #9E9E9E;"></td>
+<td headers="Human Forgery - Human Original  P (label)" class="gt_row gt_left gt_striped" style="color: #9E9E9E;"></td>
+<td headers="Human Forgery - Human Original  Estimate" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">log-OR difference 0.03 [-0.26, 0.32]</td>
 <td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
     <tr class="gt_group_heading_row">
-      <th colspan="6" class="gt_group_heading" scope="colgroup" id="AI-Generated - Human Forgery">AI-Generated - Human Forgery</th>
+      <th colspan="5" class="gt_group_heading" scope="colgroup" id="AI-Generated - Human Forgery">AI-Generated - Human Forgery</th>
     </tr>
-    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Mean response (beauty)</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-3.71</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-5.68, -1.73]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.98%</td>
+    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Forgery  At" class="gt_row gt_left" style="background-color: #FFEBEE;">Low</td>
+<td headers="AI-Generated - Human Forgery  P (reference)" class="gt_row gt_left" style="background-color: #FFEBEE;">41.6% [32.4, 51.8]</td>
+<td headers="AI-Generated - Human Forgery  P (label)" class="gt_row gt_left" style="background-color: #FFEBEE;">33.1% [23.9, 42.6]</td>
+<td headers="AI-Generated - Human Forgery  Estimate" class="gt_row gt_left" style="background-color: #FFEBEE;">OR 0.69 [0.56, 0.86]</td>
 <td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Mean response (beauty)</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.27</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-4.77, -1.78]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+    <tr><td headers="AI-Generated - Human Forgery  At" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">High</td>
+<td headers="AI-Generated - Human Forgery  P (reference)" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">75.5% [67.7, 82.5]</td>
+<td headers="AI-Generated - Human Forgery  P (label)" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">69.6% [61.1, 78.6]</td>
+<td headers="AI-Generated - Human Forgery  Estimate" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">OR 0.74 [0.57, 0.93]</td>
 <td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Mean response (beauty)</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="background-color: #FFEBEE;">High SR (+1 SD)</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-2.59</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-4.58, -0.42]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.33%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Mean response (beauty)</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.10</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.53, 4.15]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">78.20%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-10.06</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-16.36, -4.22]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.95%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-7.90</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-12.53, -3.52]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.90%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="color: #9E9E9E;">High SR (+1 SD)</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-5.37</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-11.43, 1.16]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">95.83%</td>
+    <tr><td headers="AI-Generated - Human Forgery  At" class="gt_row gt_left" style="color: #9E9E9E;">High - Low</td>
+<td headers="AI-Generated - Human Forgery  P (reference)" class="gt_row gt_left" style="color: #9E9E9E;"></td>
+<td headers="AI-Generated - Human Forgery  P (label)" class="gt_row gt_left" style="color: #9E9E9E;"></td>
+<td headers="AI-Generated - Human Forgery  Estimate" class="gt_row gt_left" style="color: #9E9E9E;">log-OR difference 0.07 [-0.24, 0.38]</td>
 <td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">4.67</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-4.59, 13.08]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">85.55%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-2.47</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-4.15, -0.90]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.88%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-1.76</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-3.02, -0.57]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.67%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="color: #9E9E9E;">High SR (+1 SD)</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-1.02</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-2.70, 0.69]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">87.92%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.45</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.67, 3.78]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">90.00%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="color: #9E9E9E;">Low SR (-1 SD)</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.68</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-2.00, 3.50]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">68.62%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Average SR</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.99</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.16, 4.07]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">96.50%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="color: #9E9E9E;">High SR (+1 SD)</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">3.30</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[0.00, 6.40]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">97.47%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">2.62</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.51, 6.75]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">88.20%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
   </tbody>
   
 </table>
@@ -7721,60 +7425,77 @@ make_asis(
 ```
 
 
-::: {.callout-note collapse="true" title="Phase-1 Beauty by Self-Relevance, controlling follow-up Beauty: label gap at low, average and high self-relevance, and its change (High - Low) (Markdown table, for text readers)"}
+::: {.callout-note collapse="true" title="Phase-1 Beauty by Self-Relevance: probability of the 'beautiful' side (mu) at -1 SD (Low) and +1 SD (High) of self-relevance, on the odds scale (Markdown table, for text readers)"}
 
-|Contrast                       |Parameter                                    |At              |Diff   |CI               |pd_fmt |Effect   |
-|:------------------------------|:--------------------------------------------|:---------------|:------|:----------------|:------|:--------|
-|AI-Generated - Human Original  |Mean response (beauty)                       |Low SR (-1 SD)  |-7.00  |[-8.83, -5.06]   |100%   |Negative |
-|AI-Generated - Human Original  |Mean response (beauty)                       |Average SR      |-6.60  |[-8.07, -5.24]   |100%   |Negative |
-|AI-Generated - Human Original  |Mean response (beauty)                       |High SR (+1 SD) |-6.00  |[-7.93, -4.04]   |100%   |Negative |
-|AI-Generated - Human Original  |Mean response (beauty)                       |High - Low      |0.99   |[-1.63, 3.54]    |76.92% |n.s.     |
-|AI-Generated - Human Original  |p(Beautiful side) [mu]                       |Low SR (-1 SD)  |-16.92 |[-22.75, -11.28] |100%   |Negative |
-|AI-Generated - Human Original  |p(Beautiful side) [mu]                       |Average SR      |-13.70 |[-17.94, -9.45]  |100%   |Negative |
-|AI-Generated - Human Original  |p(Beautiful side) [mu]                       |High SR (+1 SD) |-10.12 |[-16.11, -4.80]  |100%   |Negative |
-|AI-Generated - Human Original  |p(Beautiful side) [mu]                       |High - Low      |6.84   |[-0.78, 14.43]   |96.00% |n.s.     |
-|AI-Generated - Human Original  |Confidence on the Beautiful side [confright] |Low SR (-1 SD)  |-5.17  |[-6.75, -3.59]   |100%   |Negative |
-|AI-Generated - Human Original  |Confidence on the Beautiful side [confright] |Average SR      |-5.56  |[-6.79, -4.34]   |100%   |Negative |
-|AI-Generated - Human Original  |Confidence on the Beautiful side [confright] |High SR (+1 SD) |-5.93  |[-7.66, -4.33]   |100%   |Negative |
-|AI-Generated - Human Original  |Confidence on the Beautiful side [confright] |High - Low      |-0.80  |[-2.81, 1.58]    |76.28% |n.s.     |
-|AI-Generated - Human Original  |Confidence on the Ugly side [confleft]       |Low SR (-1 SD)  |3.19   |[0.67, 5.75]     |99.20% |Positive |
-|AI-Generated - Human Original  |Confidence on the Ugly side [confleft]       |Average SR      |4.35   |[2.26, 6.27]     |100%   |Positive |
-|AI-Generated - Human Original  |Confidence on the Ugly side [confleft]       |High SR (+1 SD) |5.52   |[2.55, 8.56]     |100%   |Positive |
-|AI-Generated - Human Original  |Confidence on the Ugly side [confleft]       |High - Low      |2.33   |[-1.70, 6.08]    |87.65% |n.s.     |
-|Human Forgery - Human Original |Mean response (beauty)                       |Low SR (-1 SD)  |-3.31  |[-5.10, -1.58]   |100%   |Negative |
-|Human Forgery - Human Original |Mean response (beauty)                       |Average SR      |-3.34  |[-4.60, -2.06]   |100%   |Negative |
-|Human Forgery - Human Original |Mean response (beauty)                       |High SR (+1 SD) |-3.40  |[-5.08, -1.54]   |100%   |Negative |
-|Human Forgery - Human Original |Mean response (beauty)                       |High - Low      |-0.08  |[-2.63, 2.36]    |52.30% |n.s.     |
-|Human Forgery - Human Original |p(Beautiful side) [mu]                       |Low SR (-1 SD)  |-6.96  |[-12.26, -1.72]  |99.30% |Negative |
-|Human Forgery - Human Original |p(Beautiful side) [mu]                       |Average SR      |-5.83  |[-9.49, -2.06]   |99.85% |Negative |
-|Human Forgery - Human Original |p(Beautiful side) [mu]                       |High SR (+1 SD) |-4.64  |[-10.05, 0.15]   |96.65% |n.s.     |
-|Human Forgery - Human Original |p(Beautiful side) [mu]                       |High - Low      |2.23   |[-4.85, 10.02]   |71.05% |n.s.     |
-|Human Forgery - Human Original |Confidence on the Beautiful side [confright] |Low SR (-1 SD)  |-2.72  |[-4.23, -1.08]   |100%   |Negative |
-|Human Forgery - Human Original |Confidence on the Beautiful side [confright] |Average SR      |-3.80  |[-5.04, -2.71]   |100%   |Negative |
-|Human Forgery - Human Original |Confidence on the Beautiful side [confright] |High SR (+1 SD) |-4.93  |[-6.54, -3.32]   |100%   |Negative |
-|Human Forgery - Human Original |Confidence on the Beautiful side [confright] |High - Low      |-2.22  |[-4.26, 0.12]    |97.42% |n.s.     |
-|Human Forgery - Human Original |Confidence on the Ugly side [confleft]       |Low SR (-1 SD)  |2.50   |[-0.32, 5.01]    |96.38% |n.s.     |
-|Human Forgery - Human Original |Confidence on the Ugly side [confleft]       |Average SR      |2.37   |[0.27, 4.27]     |98.88% |Positive |
-|Human Forgery - Human Original |Confidence on the Ugly side [confleft]       |High SR (+1 SD) |2.22   |[-0.64, 5.21]    |93.42% |n.s.     |
-|Human Forgery - Human Original |Confidence on the Ugly side [confleft]       |High - Low      |-0.32  |[-4.15, 3.52]    |55.53% |n.s.     |
-|AI-Generated - Human Forgery   |Mean response (beauty)                       |Low SR (-1 SD)  |-3.71  |[-5.68, -1.73]   |99.98% |Negative |
-|AI-Generated - Human Forgery   |Mean response (beauty)                       |Average SR      |-3.27  |[-4.77, -1.78]   |100%   |Negative |
-|AI-Generated - Human Forgery   |Mean response (beauty)                       |High SR (+1 SD) |-2.59  |[-4.58, -0.42]   |99.33% |Negative |
-|AI-Generated - Human Forgery   |Mean response (beauty)                       |High - Low      |1.10   |[-1.53, 4.15]    |78.20% |n.s.     |
-|AI-Generated - Human Forgery   |p(Beautiful side) [mu]                       |Low SR (-1 SD)  |-10.06 |[-16.36, -4.22]  |99.95% |Negative |
-|AI-Generated - Human Forgery   |p(Beautiful side) [mu]                       |Average SR      |-7.90  |[-12.53, -3.52]  |99.90% |Negative |
-|AI-Generated - Human Forgery   |p(Beautiful side) [mu]                       |High SR (+1 SD) |-5.37  |[-11.43, 1.16]   |95.83% |n.s.     |
-|AI-Generated - Human Forgery   |p(Beautiful side) [mu]                       |High - Low      |4.67   |[-4.59, 13.08]   |85.55% |n.s.     |
-|AI-Generated - Human Forgery   |Confidence on the Beautiful side [confright] |Low SR (-1 SD)  |-2.47  |[-4.15, -0.90]   |99.88% |Negative |
-|AI-Generated - Human Forgery   |Confidence on the Beautiful side [confright] |Average SR      |-1.76  |[-3.02, -0.57]   |99.67% |Negative |
-|AI-Generated - Human Forgery   |Confidence on the Beautiful side [confright] |High SR (+1 SD) |-1.02  |[-2.70, 0.69]    |87.92% |n.s.     |
-|AI-Generated - Human Forgery   |Confidence on the Beautiful side [confright] |High - Low      |1.45   |[-0.67, 3.78]    |90.00% |n.s.     |
-|AI-Generated - Human Forgery   |Confidence on the Ugly side [confleft]       |Low SR (-1 SD)  |0.68   |[-2.00, 3.50]    |68.62% |n.s.     |
-|AI-Generated - Human Forgery   |Confidence on the Ugly side [confleft]       |Average SR      |1.99   |[-0.16, 4.07]    |96.50% |n.s.     |
-|AI-Generated - Human Forgery   |Confidence on the Ugly side [confleft]       |High SR (+1 SD) |3.30   |[0.00, 6.40]     |97.47% |n.s.     |
-|AI-Generated - Human Forgery   |Confidence on the Ugly side [confleft]       |High - Low      |2.62   |[-1.51, 6.75]    |88.20% |n.s.     |
+|Contrast                       |At         |P (reference)      |P (label)          |Estimate                             |Effect   |
+|:------------------------------|:----------|:------------------|:------------------|:------------------------------------|:--------|
+|AI-Generated - Human Original  |Low        |47.9% [37.7, 58.0] |33.1% [23.9, 42.6] |OR 0.54 [0.43, 0.66]                 |Negative |
+|AI-Generated - Human Original  |High       |79.2% [72.2, 85.7] |69.6% [61.1, 78.6] |OR 0.60 [0.46, 0.74]                 |Negative |
+|AI-Generated - Human Original  |High - Low |                   |                   |log-OR difference 0.10 [-0.20, 0.39] |n.s.     |
+|Human Forgery - Human Original |Low        |47.9% [37.7, 58.0] |41.6% [32.4, 51.8] |OR 0.77 [0.63, 0.93]                 |Negative |
+|Human Forgery - Human Original |High       |79.2% [72.2, 85.7] |75.5% [67.7, 82.5] |OR 0.80 [0.63, 0.99]                 |Negative |
+|Human Forgery - Human Original |High - Low |                   |                   |log-OR difference 0.03 [-0.26, 0.32] |n.s.     |
+|AI-Generated - Human Forgery   |Low        |41.6% [32.4, 51.8] |33.1% [23.9, 42.6] |OR 0.69 [0.56, 0.86]                 |Negative |
+|AI-Generated - Human Forgery   |High       |75.5% [67.7, 82.5] |69.6% [61.1, 78.6] |OR 0.74 [0.57, 0.93]                 |Negative |
+|AI-Generated - Human Forgery   |High - Low |                   |                   |log-OR difference 0.07 [-0.24, 0.38] |n.s.     |
 
 :::
+
+### Controlling for follow-up beauty
+
+The same model with follow-up beauty as a competing moderator
+(predictions at `Beauty2_w = 0`). The last table puts the two side by side:
+the change in the label gap per +10% of each rating (the differences between
+labels of each slope), with and without follow-up beauty in the model.
+
+
+```{.r .cell-code}
+pending("BeautySRControl")
+```
+
+
+::: {.cell}
+
+```{.r .cell-code}
+plot_predictions("BeautySRControl")
+```
+
+::: {.cell-output-display}
+![](6_selfrelevance_files/figure-html/unnamed-chunk-18-1.png){width=960}
+:::
+:::
+
+
+
+```{.r .cell-code}
+est_ctrl <- estimates$BeautySRControl
+b2_slopes <- bind_rows(lapply(c("response", mediation_info$BeautySRControl$dpars), function(p) {
+  covariate_slopes(est_ctrl, "Beauty2_w", par = p, pairs = TRUE) |>
+    mutate(Parameter = factor(par_labels$Beauty[[p]], levels = par_labels$Beauty))
+})) |>
+  rename(Condition = Level) |>
+  format_effects() |>
+  arrange(Parameter)
+
+gap_change <- bind_rows(
+  mutate(moderation$BeautySRControl$response$slopes, Predictor = "Self-relevance", Model = "BeautySRControl"),
+  mutate(rename(covariate_slopes(est_ctrl, "Beauty2_w", pairs = TRUE), Condition = Level),
+         Predictor = "Follow-up beauty", Model = "BeautySRControl"),
+  if (ready("BeautySR")) mutate(moderation$BeautySR$response$slopes, Predictor = "Self-relevance", Model = "BeautySR (no follow-up beauty)")
+) |>
+  filter(Condition %in% contrast_order) |>
+  mutate(Contrast = factor(Condition, levels = contrast_order)) |>
+  format_effects() |>
+  arrange(Contrast, Predictor, Model)
+
+make_asis(
+  moderation_tables("BeautySRControl"),
+  make_tables(b2_slopes, c("Parameter", "Condition", "Diff", "CI", "pd_fmt", "Effect"),
+              "Phase-1 beauty: change per +10% of follow-up beauty (SR at average), per label and between labels"),
+  make_tables(gap_change, c("Contrast", "Predictor", "Model", "Diff", "CI", "pd_fmt", "Effect"),
+              "Change in the label gap in Phase-1 beauty (% of the slider) per +10% of self-relevance or of follow-up beauty")
+)
+```
 
 ```{=html}
 <div id="uagahqetwy" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
@@ -8229,12 +7950,11 @@ make_asis(
 <table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
   <thead>
     <tr class="gt_heading">
-      <td colspan="6" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Phase-1 Beauty by Self-Relevance, controlling follow-up Beauty: change per +10% of self-relevance, per label and between labels</td>
+      <td colspan="5" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Phase-1 Beauty by Self-Relevance, controlling follow-up Beauty: label contrasts at average self-relevance (% of the scale / percentage points)</td>
     </tr>
     
     <tr class="gt_col_headings">
-      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="Parameter">Parameter</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Condition">Condition</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Parameter">Parameter</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Diff">Diff</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="CI">CI</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="pd_fmt">pd_fmt</th>
@@ -8242,150 +7962,90 @@ make_asis(
     </tr>
   </thead>
   <tbody class="gt_table_body">
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Mean response (beauty)</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">1.08</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[0.66, 1.53]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Mean response (beauty)</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">1.06</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[0.59, 1.52]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Mean response (beauty)</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">AI-Generated</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">1.30</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[0.81, 1.83]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Mean response (beauty)</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.23</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.35, 0.81]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">77.48%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Mean response (beauty)</td>
-<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.01</td>
-<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.59, 0.52]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">51.73%</td>
-<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Mean response (beauty)</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.25</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.34, 0.94]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">78.33%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">p(Beautiful side) [mu]</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">2.32</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[1.04, 3.64]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">p(Beautiful side) [mu]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">2.81</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[1.40, 4.23]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">p(Beautiful side) [mu]</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">AI-Generated</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">3.85</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[2.27, 5.40]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.54</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.16, 3.27]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">96.00%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
-<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.50</td>
-<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.07, 2.24]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">71.12%</td>
-<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.05</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.12, 2.87]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">85.62%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Confidence on the Beautiful side [confright]</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">0.90</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[0.50, 1.28]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Confidence on the Beautiful side [confright]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">0.42</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[0.05, 0.81]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">97.97%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Confidence on the Beautiful side [confright]</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">AI-Generated</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">0.73</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[0.38, 1.10]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.18</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.62, 0.35]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">76.30%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
-<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.49</td>
-<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.93, 0.03]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">97.42%</td>
-<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.32</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.15, 0.83]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">89.95%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.34</td>
-<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.99, 0.27]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">85.32%</td>
-<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.41</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.11, 0.31]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">87.05%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">AI-Generated</td>
-<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.17</td>
-<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.49, 0.85]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">69.20%</td>
-<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.51</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.37, 1.34]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">87.65%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.07</td>
-<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.91, 0.77]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">55.53%</td>
-<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.58</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.33, 1.48]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">88.20%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr class="gt_group_heading_row">
+      <th colspan="5" class="gt_group_heading" scope="colgroup" id="AI-Generated - Human Original">AI-Generated - Human Original</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">Mean response (beauty)</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-6.60</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-8.02, -5.19]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-13.70</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-17.92, -9.40]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-5.56</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-6.80, -4.36]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Confidence on the Ugly side [confleft]</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">4.35</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[2.31, 6.34]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">Mean response, main model (all participants, no SR term)</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-7.06</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-8.22, -5.92]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr class="gt_group_heading_row">
+      <th colspan="5" class="gt_group_heading" scope="colgroup" id="Human Forgery - Human Original">Human Forgery - Human Original</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Mean response (beauty)</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.34</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-4.61, -2.06]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-5.83</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-9.53, -2.10]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.85%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.80</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-4.97, -2.63]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_left" style="background-color: #E8F5E9;">Confidence on the Ugly side [confleft]</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">2.37</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[0.33, 4.34]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">98.88%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Mean response, main model (all participants, no SR term)</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.66</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-4.59, -2.80]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr class="gt_group_heading_row">
+      <th colspan="5" class="gt_group_heading" scope="colgroup" id="AI-Generated - Human Forgery">AI-Generated - Human Forgery</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">Mean response (beauty)</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-3.27</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-4.80, -1.80]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-7.90</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-12.43, -3.39]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.90%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-1.76</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-3.05, -0.59]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.67%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.99</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.15, 4.09]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">96.50%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">Mean response, main model (all participants, no SR term)</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-3.39</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-4.49, -2.32]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
   </tbody>
   
 </table>
@@ -8393,34 +8053,25 @@ make_asis(
 ```
 
 
-::: {.callout-note collapse="true" title="Phase-1 Beauty by Self-Relevance, controlling follow-up Beauty: change per +10% of self-relevance, per label and between labels (Markdown table, for text readers)"}
+::: {.callout-note collapse="true" title="Phase-1 Beauty by Self-Relevance, controlling follow-up Beauty: label contrasts at average self-relevance (% of the scale / percentage points) (Markdown table, for text readers)"}
 
-|Parameter                                    |Condition                      |Diff  |CI            |pd_fmt |Effect   |
-|:--------------------------------------------|:------------------------------|:-----|:-------------|:------|:--------|
-|Mean response (beauty)                       |Human Original                 |1.08  |[0.66, 1.53]  |100%   |Positive |
-|Mean response (beauty)                       |Human Forgery                  |1.06  |[0.59, 1.52]  |100%   |Positive |
-|Mean response (beauty)                       |AI-Generated                   |1.30  |[0.81, 1.83]  |100%   |Positive |
-|Mean response (beauty)                       |AI-Generated - Human Original  |0.23  |[-0.35, 0.81] |77.48% |n.s.     |
-|Mean response (beauty)                       |Human Forgery - Human Original |-0.01 |[-0.59, 0.52] |51.73% |n.s.     |
-|Mean response (beauty)                       |AI-Generated - Human Forgery   |0.25  |[-0.34, 0.94] |78.33% |n.s.     |
-|p(Beautiful side) [mu]                       |Human Original                 |2.32  |[1.04, 3.64]  |100%   |Positive |
-|p(Beautiful side) [mu]                       |Human Forgery                  |2.81  |[1.40, 4.23]  |100%   |Positive |
-|p(Beautiful side) [mu]                       |AI-Generated                   |3.85  |[2.27, 5.40]  |100%   |Positive |
-|p(Beautiful side) [mu]                       |AI-Generated - Human Original  |1.54  |[-0.16, 3.27] |96.00% |n.s.     |
-|p(Beautiful side) [mu]                       |Human Forgery - Human Original |0.50  |[-1.07, 2.24] |71.12% |n.s.     |
-|p(Beautiful side) [mu]                       |AI-Generated - Human Forgery   |1.05  |[-1.12, 2.87] |85.62% |n.s.     |
-|Confidence on the Beautiful side [confright] |Human Original                 |0.90  |[0.50, 1.28]  |100%   |Positive |
-|Confidence on the Beautiful side [confright] |Human Forgery                  |0.42  |[0.05, 0.81]  |97.97% |Positive |
-|Confidence on the Beautiful side [confright] |AI-Generated                   |0.73  |[0.38, 1.10]  |100%   |Positive |
-|Confidence on the Beautiful side [confright] |AI-Generated - Human Original  |-0.18 |[-0.62, 0.35] |76.30% |n.s.     |
-|Confidence on the Beautiful side [confright] |Human Forgery - Human Original |-0.49 |[-0.93, 0.03] |97.42% |n.s.     |
-|Confidence on the Beautiful side [confright] |AI-Generated - Human Forgery   |0.32  |[-0.15, 0.83] |89.95% |n.s.     |
-|Confidence on the Ugly side [confleft]       |Human Original                 |-0.34 |[-0.99, 0.27] |85.32% |n.s.     |
-|Confidence on the Ugly side [confleft]       |Human Forgery                  |-0.41 |[-1.11, 0.31] |87.05% |n.s.     |
-|Confidence on the Ugly side [confleft]       |AI-Generated                   |0.17  |[-0.49, 0.85] |69.20% |n.s.     |
-|Confidence on the Ugly side [confleft]       |AI-Generated - Human Original  |0.51  |[-0.37, 1.34] |87.65% |n.s.     |
-|Confidence on the Ugly side [confleft]       |Human Forgery - Human Original |-0.07 |[-0.91, 0.77] |55.53% |n.s.     |
-|Confidence on the Ugly side [confleft]       |AI-Generated - Human Forgery   |0.58  |[-0.33, 1.48] |88.20% |n.s.     |
+|Contrast                       |Parameter                                                |Diff   |CI              |pd_fmt |Effect   |
+|:------------------------------|:--------------------------------------------------------|:------|:---------------|:------|:--------|
+|AI-Generated - Human Original  |Mean response (beauty)                                   |-6.60  |[-8.02, -5.19]  |100%   |Negative |
+|AI-Generated - Human Original  |p(Beautiful side) [mu]                                   |-13.70 |[-17.92, -9.40] |100%   |Negative |
+|AI-Generated - Human Original  |Confidence on the Beautiful side [confright]             |-5.56  |[-6.80, -4.36]  |100%   |Negative |
+|AI-Generated - Human Original  |Confidence on the Ugly side [confleft]                   |4.35   |[2.31, 6.34]    |100%   |Positive |
+|AI-Generated - Human Original  |Mean response, main model (all participants, no SR term) |-7.06  |[-8.22, -5.92]  |100%   |Negative |
+|Human Forgery - Human Original |Mean response (beauty)                                   |-3.34  |[-4.61, -2.06]  |100%   |Negative |
+|Human Forgery - Human Original |p(Beautiful side) [mu]                                   |-5.83  |[-9.53, -2.10]  |99.85% |Negative |
+|Human Forgery - Human Original |Confidence on the Beautiful side [confright]             |-3.80  |[-4.97, -2.63]  |100%   |Negative |
+|Human Forgery - Human Original |Confidence on the Ugly side [confleft]                   |2.37   |[0.33, 4.34]    |98.88% |Positive |
+|Human Forgery - Human Original |Mean response, main model (all participants, no SR term) |-3.66  |[-4.59, -2.80]  |100%   |Negative |
+|AI-Generated - Human Forgery   |Mean response (beauty)                                   |-3.27  |[-4.80, -1.80]  |100%   |Negative |
+|AI-Generated - Human Forgery   |p(Beautiful side) [mu]                                   |-7.90  |[-12.43, -3.39] |99.90% |Negative |
+|AI-Generated - Human Forgery   |Confidence on the Beautiful side [confright]             |-1.76  |[-3.05, -0.59]  |99.67% |Negative |
+|AI-Generated - Human Forgery   |Confidence on the Ugly side [confleft]                   |1.99   |[-0.15, 4.09]   |96.50% |n.s.     |
+|AI-Generated - Human Forgery   |Mean response, main model (all participants, no SR term) |-3.39  |[-4.49, -2.32]  |100%   |Negative |
 
 :::
 
@@ -8877,12 +8528,12 @@ make_asis(
 <table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
   <thead>
     <tr class="gt_heading">
-      <td colspan="6" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Phase-1 beauty: change per +10% of follow-up beauty (SR at average), per label and between labels</td>
+      <td colspan="6" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Phase-1 Beauty by Self-Relevance, controlling follow-up Beauty: label gap at low, average and high self-relevance, and its change (High - Low)</td>
     </tr>
     
     <tr class="gt_col_headings">
       <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="Parameter">Parameter</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Condition">Condition</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="At">At</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Diff">Diff</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="CI">CI</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="pd_fmt">pd_fmt</th>
@@ -8890,150 +8541,303 @@ make_asis(
     </tr>
   </thead>
   <tbody class="gt_table_body">
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Mean response (beauty)</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">4.85</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[4.20, 5.52]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Mean response (beauty)</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">4.86</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[4.22, 5.58]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Mean response (beauty)</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">AI-Generated</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">4.72</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[4.03, 5.32]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Mean response (beauty)</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.14</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.86, 0.54]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">64.80%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Mean response (beauty)</td>
-<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.01</td>
-<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.64, 0.60]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">50.82%</td>
-<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Mean response (beauty)</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.15</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.93, 0.51]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">65.60%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">p(Beautiful side) [mu]</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">11.67</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[9.66, 13.58]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">p(Beautiful side) [mu]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">12.47</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[10.55, 14.35]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">p(Beautiful side) [mu]</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">AI-Generated</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">11.92</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[10.20, 13.76]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.26</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.88, 2.36]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">59.67%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
-<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.79</td>
-<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.12, 2.67]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">80.38%</td>
-<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.54</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-2.73, 1.64]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">68.38%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Confidence on the Beautiful side [confright]</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">2.58</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[2.08, 3.09]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Confidence on the Beautiful side [confright]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">2.00</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[1.45, 2.52]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Confidence on the Beautiful side [confright]</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">AI-Generated</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">2.02</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[1.50, 2.49]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.56</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.15, 0.01]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">97.20%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
-<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.59</td>
-<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.15, 0.01]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">97.60%</td>
-<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.03</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.63, 0.64]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">53.15%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Ugly side [confleft]</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #FFEBEE;">Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-2.47</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-3.26, -1.71]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Confidence on the Ugly side [confleft]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-2.53</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-3.35, -1.60]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Ugly side [confleft]</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #FFEBEE;">AI-Generated</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-2.53</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-3.32, -1.70]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.08</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.89, 0.76]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">56.27%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.06</td>
-<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.91, 0.83]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">55.73%</td>
-<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.01</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.88, 0.97]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">51.02%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr class="gt_group_heading_row">
+      <th colspan="6" class="gt_group_heading" scope="colgroup" id="AI-Generated - Human Original">AI-Generated - Human Original</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Mean response (beauty)</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-7.00</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-8.83, -5.06]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Mean response (beauty)</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-6.60</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-8.07, -5.24]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Mean response (beauty)</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">High SR (+1 SD)</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-6.00</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-7.93, -4.04]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Mean response (beauty)</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.99</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.63, 3.54]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">76.92%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-16.92</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-22.75, -11.28]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-13.70</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-17.94, -9.45]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">High SR (+1 SD)</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-10.12</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-16.11, -4.80]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">6.84</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.78, 14.43]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">96.00%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-5.17</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-6.75, -3.59]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-5.56</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-6.79, -4.34]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">High SR (+1 SD)</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-5.93</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-7.66, -4.33]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.80</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-2.81, 1.58]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">76.28%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Confidence on the Ugly side [confleft]</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #E8F5E9;">Low SR (-1 SD)</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">3.19</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[0.67, 5.75]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">99.20%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Confidence on the Ugly side [confleft]</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Average SR</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">4.35</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[2.26, 6.27]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Confidence on the Ugly side [confleft]</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #E8F5E9;">High SR (+1 SD)</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">5.52</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[2.55, 8.56]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">2.33</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.70, 6.08]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">87.65%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr class="gt_group_heading_row">
+      <th colspan="6" class="gt_group_heading" scope="colgroup" id="Human Forgery - Human Original">Human Forgery - Human Original</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Mean response (beauty)</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-3.31</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-5.10, -1.58]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Mean response (beauty)</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.34</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-4.60, -2.06]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Mean response (beauty)</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">High SR (+1 SD)</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-3.40</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-5.08, -1.54]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Mean response (beauty)</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.08</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-2.63, 2.36]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">52.30%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-6.96</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-12.26, -1.72]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.30%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-5.83</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-9.49, -2.06]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.85%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="color: #9E9E9E;">High SR (+1 SD)</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-4.64</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-10.05, 0.15]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">96.65%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">2.23</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-4.85, 10.02]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">71.05%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-2.72</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-4.23, -1.08]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.80</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-5.04, -2.71]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">High SR (+1 SD)</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-4.93</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-6.54, -3.32]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-2.22</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-4.26, 0.12]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">97.42%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="color: #9E9E9E;">Low SR (-1 SD)</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">2.50</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.32, 5.01]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">96.38%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Confidence on the Ugly side [confleft]</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Average SR</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">2.37</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[0.27, 4.27]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">98.88%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="color: #9E9E9E;">High SR (+1 SD)</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">2.22</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.64, 5.21]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">93.42%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.32</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-4.15, 3.52]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">55.53%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr class="gt_group_heading_row">
+      <th colspan="6" class="gt_group_heading" scope="colgroup" id="AI-Generated - Human Forgery">AI-Generated - Human Forgery</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Mean response (beauty)</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-3.71</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-5.68, -1.73]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.98%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Mean response (beauty)</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.27</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-4.77, -1.78]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Mean response (beauty)</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="background-color: #FFEBEE;">High SR (+1 SD)</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-2.59</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-4.58, -0.42]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.33%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Mean response (beauty)</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.10</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.53, 4.15]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">78.20%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-10.06</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-16.36, -4.22]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.95%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-7.90</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-12.53, -3.52]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.90%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="color: #9E9E9E;">High SR (+1 SD)</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-5.37</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-11.43, 1.16]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">95.83%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">4.67</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-4.59, 13.08]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">85.55%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-2.47</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-4.15, -0.90]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.88%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-1.76</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-3.02, -0.57]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.67%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="color: #9E9E9E;">High SR (+1 SD)</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-1.02</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-2.70, 0.69]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">87.92%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.45</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.67, 3.78]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">90.00%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="color: #9E9E9E;">Low SR (-1 SD)</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.68</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-2.00, 3.50]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">68.62%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Average SR</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.99</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.16, 4.07]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">96.50%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="color: #9E9E9E;">High SR (+1 SD)</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">3.30</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[0.00, 6.40]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">97.47%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">2.62</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.51, 6.75]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">88.20%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
   </tbody>
   
 </table>
@@ -9041,34 +8845,58 @@ make_asis(
 ```
 
 
-::: {.callout-note collapse="true" title="Phase-1 beauty: change per +10% of follow-up beauty (SR at average), per label and between labels (Markdown table, for text readers)"}
+::: {.callout-note collapse="true" title="Phase-1 Beauty by Self-Relevance, controlling follow-up Beauty: label gap at low, average and high self-relevance, and its change (High - Low) (Markdown table, for text readers)"}
 
-|Parameter                                    |Condition                      |Diff  |CI             |pd_fmt |Effect   |
-|:--------------------------------------------|:------------------------------|:-----|:--------------|:------|:--------|
-|Mean response (beauty)                       |Human Original                 |4.85  |[4.20, 5.52]   |100%   |Positive |
-|Mean response (beauty)                       |Human Forgery                  |4.86  |[4.22, 5.58]   |100%   |Positive |
-|Mean response (beauty)                       |AI-Generated                   |4.72  |[4.03, 5.32]   |100%   |Positive |
-|Mean response (beauty)                       |AI-Generated - Human Original  |-0.14 |[-0.86, 0.54]  |64.80% |n.s.     |
-|Mean response (beauty)                       |Human Forgery - Human Original |0.01  |[-0.64, 0.60]  |50.82% |n.s.     |
-|Mean response (beauty)                       |AI-Generated - Human Forgery   |-0.15 |[-0.93, 0.51]  |65.60% |n.s.     |
-|p(Beautiful side) [mu]                       |Human Original                 |11.67 |[9.66, 13.58]  |100%   |Positive |
-|p(Beautiful side) [mu]                       |Human Forgery                  |12.47 |[10.55, 14.35] |100%   |Positive |
-|p(Beautiful side) [mu]                       |AI-Generated                   |11.92 |[10.20, 13.76] |100%   |Positive |
-|p(Beautiful side) [mu]                       |AI-Generated - Human Original  |0.26  |[-1.88, 2.36]  |59.67% |n.s.     |
-|p(Beautiful side) [mu]                       |Human Forgery - Human Original |0.79  |[-1.12, 2.67]  |80.38% |n.s.     |
-|p(Beautiful side) [mu]                       |AI-Generated - Human Forgery   |-0.54 |[-2.73, 1.64]  |68.38% |n.s.     |
-|Confidence on the Beautiful side [confright] |Human Original                 |2.58  |[2.08, 3.09]   |100%   |Positive |
-|Confidence on the Beautiful side [confright] |Human Forgery                  |2.00  |[1.45, 2.52]   |100%   |Positive |
-|Confidence on the Beautiful side [confright] |AI-Generated                   |2.02  |[1.50, 2.49]   |100%   |Positive |
-|Confidence on the Beautiful side [confright] |AI-Generated - Human Original  |-0.56 |[-1.15, 0.01]  |97.20% |n.s.     |
-|Confidence on the Beautiful side [confright] |Human Forgery - Human Original |-0.59 |[-1.15, 0.01]  |97.60% |n.s.     |
-|Confidence on the Beautiful side [confright] |AI-Generated - Human Forgery   |0.03  |[-0.63, 0.64]  |53.15% |n.s.     |
-|Confidence on the Ugly side [confleft]       |Human Original                 |-2.47 |[-3.26, -1.71] |100%   |Negative |
-|Confidence on the Ugly side [confleft]       |Human Forgery                  |-2.53 |[-3.35, -1.60] |100%   |Negative |
-|Confidence on the Ugly side [confleft]       |AI-Generated                   |-2.53 |[-3.32, -1.70] |100%   |Negative |
-|Confidence on the Ugly side [confleft]       |AI-Generated - Human Original  |-0.08 |[-0.89, 0.76]  |56.27% |n.s.     |
-|Confidence on the Ugly side [confleft]       |Human Forgery - Human Original |-0.06 |[-0.91, 0.83]  |55.73% |n.s.     |
-|Confidence on the Ugly side [confleft]       |AI-Generated - Human Forgery   |-0.01 |[-0.88, 0.97]  |51.02% |n.s.     |
+|Contrast                       |Parameter                                    |At              |Diff   |CI               |pd_fmt |Effect   |
+|:------------------------------|:--------------------------------------------|:---------------|:------|:----------------|:------|:--------|
+|AI-Generated - Human Original  |Mean response (beauty)                       |Low SR (-1 SD)  |-7.00  |[-8.83, -5.06]   |100%   |Negative |
+|AI-Generated - Human Original  |Mean response (beauty)                       |Average SR      |-6.60  |[-8.07, -5.24]   |100%   |Negative |
+|AI-Generated - Human Original  |Mean response (beauty)                       |High SR (+1 SD) |-6.00  |[-7.93, -4.04]   |100%   |Negative |
+|AI-Generated - Human Original  |Mean response (beauty)                       |High - Low      |0.99   |[-1.63, 3.54]    |76.92% |n.s.     |
+|AI-Generated - Human Original  |p(Beautiful side) [mu]                       |Low SR (-1 SD)  |-16.92 |[-22.75, -11.28] |100%   |Negative |
+|AI-Generated - Human Original  |p(Beautiful side) [mu]                       |Average SR      |-13.70 |[-17.94, -9.45]  |100%   |Negative |
+|AI-Generated - Human Original  |p(Beautiful side) [mu]                       |High SR (+1 SD) |-10.12 |[-16.11, -4.80]  |100%   |Negative |
+|AI-Generated - Human Original  |p(Beautiful side) [mu]                       |High - Low      |6.84   |[-0.78, 14.43]   |96.00% |n.s.     |
+|AI-Generated - Human Original  |Confidence on the Beautiful side [confright] |Low SR (-1 SD)  |-5.17  |[-6.75, -3.59]   |100%   |Negative |
+|AI-Generated - Human Original  |Confidence on the Beautiful side [confright] |Average SR      |-5.56  |[-6.79, -4.34]   |100%   |Negative |
+|AI-Generated - Human Original  |Confidence on the Beautiful side [confright] |High SR (+1 SD) |-5.93  |[-7.66, -4.33]   |100%   |Negative |
+|AI-Generated - Human Original  |Confidence on the Beautiful side [confright] |High - Low      |-0.80  |[-2.81, 1.58]    |76.28% |n.s.     |
+|AI-Generated - Human Original  |Confidence on the Ugly side [confleft]       |Low SR (-1 SD)  |3.19   |[0.67, 5.75]     |99.20% |Positive |
+|AI-Generated - Human Original  |Confidence on the Ugly side [confleft]       |Average SR      |4.35   |[2.26, 6.27]     |100%   |Positive |
+|AI-Generated - Human Original  |Confidence on the Ugly side [confleft]       |High SR (+1 SD) |5.52   |[2.55, 8.56]     |100%   |Positive |
+|AI-Generated - Human Original  |Confidence on the Ugly side [confleft]       |High - Low      |2.33   |[-1.70, 6.08]    |87.65% |n.s.     |
+|Human Forgery - Human Original |Mean response (beauty)                       |Low SR (-1 SD)  |-3.31  |[-5.10, -1.58]   |100%   |Negative |
+|Human Forgery - Human Original |Mean response (beauty)                       |Average SR      |-3.34  |[-4.60, -2.06]   |100%   |Negative |
+|Human Forgery - Human Original |Mean response (beauty)                       |High SR (+1 SD) |-3.40  |[-5.08, -1.54]   |100%   |Negative |
+|Human Forgery - Human Original |Mean response (beauty)                       |High - Low      |-0.08  |[-2.63, 2.36]    |52.30% |n.s.     |
+|Human Forgery - Human Original |p(Beautiful side) [mu]                       |Low SR (-1 SD)  |-6.96  |[-12.26, -1.72]  |99.30% |Negative |
+|Human Forgery - Human Original |p(Beautiful side) [mu]                       |Average SR      |-5.83  |[-9.49, -2.06]   |99.85% |Negative |
+|Human Forgery - Human Original |p(Beautiful side) [mu]                       |High SR (+1 SD) |-4.64  |[-10.05, 0.15]   |96.65% |n.s.     |
+|Human Forgery - Human Original |p(Beautiful side) [mu]                       |High - Low      |2.23   |[-4.85, 10.02]   |71.05% |n.s.     |
+|Human Forgery - Human Original |Confidence on the Beautiful side [confright] |Low SR (-1 SD)  |-2.72  |[-4.23, -1.08]   |100%   |Negative |
+|Human Forgery - Human Original |Confidence on the Beautiful side [confright] |Average SR      |-3.80  |[-5.04, -2.71]   |100%   |Negative |
+|Human Forgery - Human Original |Confidence on the Beautiful side [confright] |High SR (+1 SD) |-4.93  |[-6.54, -3.32]   |100%   |Negative |
+|Human Forgery - Human Original |Confidence on the Beautiful side [confright] |High - Low      |-2.22  |[-4.26, 0.12]    |97.42% |n.s.     |
+|Human Forgery - Human Original |Confidence on the Ugly side [confleft]       |Low SR (-1 SD)  |2.50   |[-0.32, 5.01]    |96.38% |n.s.     |
+|Human Forgery - Human Original |Confidence on the Ugly side [confleft]       |Average SR      |2.37   |[0.27, 4.27]     |98.88% |Positive |
+|Human Forgery - Human Original |Confidence on the Ugly side [confleft]       |High SR (+1 SD) |2.22   |[-0.64, 5.21]    |93.42% |n.s.     |
+|Human Forgery - Human Original |Confidence on the Ugly side [confleft]       |High - Low      |-0.32  |[-4.15, 3.52]    |55.53% |n.s.     |
+|AI-Generated - Human Forgery   |Mean response (beauty)                       |Low SR (-1 SD)  |-3.71  |[-5.68, -1.73]   |99.98% |Negative |
+|AI-Generated - Human Forgery   |Mean response (beauty)                       |Average SR      |-3.27  |[-4.77, -1.78]   |100%   |Negative |
+|AI-Generated - Human Forgery   |Mean response (beauty)                       |High SR (+1 SD) |-2.59  |[-4.58, -0.42]   |99.33% |Negative |
+|AI-Generated - Human Forgery   |Mean response (beauty)                       |High - Low      |1.10   |[-1.53, 4.15]    |78.20% |n.s.     |
+|AI-Generated - Human Forgery   |p(Beautiful side) [mu]                       |Low SR (-1 SD)  |-10.06 |[-16.36, -4.22]  |99.95% |Negative |
+|AI-Generated - Human Forgery   |p(Beautiful side) [mu]                       |Average SR      |-7.90  |[-12.53, -3.52]  |99.90% |Negative |
+|AI-Generated - Human Forgery   |p(Beautiful side) [mu]                       |High SR (+1 SD) |-5.37  |[-11.43, 1.16]   |95.83% |n.s.     |
+|AI-Generated - Human Forgery   |p(Beautiful side) [mu]                       |High - Low      |4.67   |[-4.59, 13.08]   |85.55% |n.s.     |
+|AI-Generated - Human Forgery   |Confidence on the Beautiful side [confright] |Low SR (-1 SD)  |-2.47  |[-4.15, -0.90]   |99.88% |Negative |
+|AI-Generated - Human Forgery   |Confidence on the Beautiful side [confright] |Average SR      |-1.76  |[-3.02, -0.57]   |99.67% |Negative |
+|AI-Generated - Human Forgery   |Confidence on the Beautiful side [confright] |High SR (+1 SD) |-1.02  |[-2.70, 0.69]    |87.92% |n.s.     |
+|AI-Generated - Human Forgery   |Confidence on the Beautiful side [confright] |High - Low      |1.45   |[-0.67, 3.78]    |90.00% |n.s.     |
+|AI-Generated - Human Forgery   |Confidence on the Ugly side [confleft]       |Low SR (-1 SD)  |0.68   |[-2.00, 3.50]    |68.62% |n.s.     |
+|AI-Generated - Human Forgery   |Confidence on the Ugly side [confleft]       |Average SR      |1.99   |[-0.16, 4.07]    |96.50% |n.s.     |
+|AI-Generated - Human Forgery   |Confidence on the Ugly side [confleft]       |High SR (+1 SD) |3.30   |[0.00, 6.40]     |97.47% |n.s.     |
+|AI-Generated - Human Forgery   |Confidence on the Ugly side [confleft]       |High - Low      |2.62   |[-1.51, 6.75]    |88.20% |n.s.     |
 
 :::
 
@@ -9525,12 +9353,12 @@ make_asis(
 <table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
   <thead>
     <tr class="gt_heading">
-      <td colspan="6" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Change in the label gap in Phase-1 beauty (% of the slider) per +10% of self-relevance or of follow-up beauty</td>
+      <td colspan="6" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Phase-1 Beauty by Self-Relevance, controlling follow-up Beauty: change per +10% of self-relevance, per label and between labels</td>
     </tr>
     
     <tr class="gt_col_headings">
-      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Predictor">Predictor</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Model">Model</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="Parameter">Parameter</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Condition">Condition</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Diff">Diff</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="CI">CI</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="pd_fmt">pd_fmt</th>
@@ -9538,69 +9366,150 @@ make_asis(
     </tr>
   </thead>
   <tbody class="gt_table_body">
-    <tr class="gt_group_heading_row">
-      <th colspan="6" class="gt_group_heading" scope="colgroup" id="AI-Generated - Human Original">AI-Generated - Human Original</th>
-    </tr>
-    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Original  Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Follow-up beauty</td>
-<td headers="AI-Generated - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">BeautySRControl</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.14</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.86, 0.54]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">64.80%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Predictor" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Self-relevance</td>
-<td headers="AI-Generated - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">BeautySR (no follow-up beauty)</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.08</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.53, 0.64]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">60.75%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Self-relevance</td>
-<td headers="AI-Generated - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">BeautySRControl</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.23</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.35, 0.81]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">77.48%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr class="gt_group_heading_row">
-      <th colspan="6" class="gt_group_heading" scope="colgroup" id="Human Forgery - Human Original">Human Forgery - Human Original</th>
-    </tr>
-    <tr class="gt_row_group_first"><td headers="Human Forgery - Human Original  Predictor" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Follow-up beauty</td>
-<td headers="Human Forgery - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">BeautySRControl</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.01</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.64, 0.60]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">50.82%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Self-relevance</td>
-<td headers="Human Forgery - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">BeautySR (no follow-up beauty)</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.06</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.58, 0.49]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">58.80%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Predictor" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Self-relevance</td>
-<td headers="Human Forgery - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">BeautySRControl</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.01</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.59, 0.52]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">51.73%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr class="gt_group_heading_row">
-      <th colspan="6" class="gt_group_heading" scope="colgroup" id="AI-Generated - Human Forgery">AI-Generated - Human Forgery</th>
-    </tr>
-    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Forgery  Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Follow-up beauty</td>
-<td headers="AI-Generated - Human Forgery  Model" class="gt_row gt_left" style="color: #9E9E9E;">BeautySRControl</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.15</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.93, 0.51]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">65.60%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Predictor" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Self-relevance</td>
-<td headers="AI-Generated - Human Forgery  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">BeautySR (no follow-up beauty)</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.14</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.52, 0.71]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">68.30%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Self-relevance</td>
-<td headers="AI-Generated - Human Forgery  Model" class="gt_row gt_left" style="color: #9E9E9E;">BeautySRControl</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.25</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.34, 0.94]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">78.33%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Mean response (beauty)</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">1.08</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[0.66, 1.53]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Mean response (beauty)</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">1.06</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[0.59, 1.52]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Mean response (beauty)</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">AI-Generated</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">1.30</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[0.81, 1.83]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Mean response (beauty)</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.23</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.35, 0.81]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">77.48%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Mean response (beauty)</td>
+<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.01</td>
+<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.59, 0.52]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">51.73%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Mean response (beauty)</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.25</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.34, 0.94]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">78.33%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">p(Beautiful side) [mu]</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">2.32</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[1.04, 3.64]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">p(Beautiful side) [mu]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">2.81</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[1.40, 4.23]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">p(Beautiful side) [mu]</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">AI-Generated</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">3.85</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[2.27, 5.40]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.54</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.16, 3.27]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">96.00%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
+<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.50</td>
+<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.07, 2.24]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">71.12%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.05</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.12, 2.87]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">85.62%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Confidence on the Beautiful side [confright]</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">0.90</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[0.50, 1.28]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Confidence on the Beautiful side [confright]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">0.42</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[0.05, 0.81]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">97.97%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Confidence on the Beautiful side [confright]</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">AI-Generated</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">0.73</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[0.38, 1.10]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.18</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.62, 0.35]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">76.30%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
+<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.49</td>
+<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.93, 0.03]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">97.42%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.32</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.15, 0.83]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">89.95%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.34</td>
+<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.99, 0.27]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">85.32%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.41</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.11, 0.31]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">87.05%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">AI-Generated</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.17</td>
+<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.49, 0.85]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">69.20%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.51</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.37, 1.34]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">87.65%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.07</td>
+<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.91, 0.77]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">55.53%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.58</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.33, 1.48]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">88.20%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
   </tbody>
   
 </table>
@@ -9608,73 +9517,36 @@ make_asis(
 ```
 
 
-::: {.callout-note collapse="true" title="Change in the label gap in Phase-1 beauty (% of the slider) per +10% of self-relevance or of follow-up beauty (Markdown table, for text readers)"}
+::: {.callout-note collapse="true" title="Phase-1 Beauty by Self-Relevance, controlling follow-up Beauty: change per +10% of self-relevance, per label and between labels (Markdown table, for text readers)"}
 
-|Contrast                       |Predictor        |Model                          |Diff  |CI            |pd_fmt |Effect |
-|:------------------------------|:----------------|:------------------------------|:-----|:-------------|:------|:------|
-|AI-Generated - Human Original  |Follow-up beauty |BeautySRControl                |-0.14 |[-0.86, 0.54] |64.80% |n.s.   |
-|AI-Generated - Human Original  |Self-relevance   |BeautySR (no follow-up beauty) |0.08  |[-0.53, 0.64] |60.75% |n.s.   |
-|AI-Generated - Human Original  |Self-relevance   |BeautySRControl                |0.23  |[-0.35, 0.81] |77.48% |n.s.   |
-|Human Forgery - Human Original |Follow-up beauty |BeautySRControl                |0.01  |[-0.64, 0.60] |50.82% |n.s.   |
-|Human Forgery - Human Original |Self-relevance   |BeautySR (no follow-up beauty) |-0.06 |[-0.58, 0.49] |58.80% |n.s.   |
-|Human Forgery - Human Original |Self-relevance   |BeautySRControl                |-0.01 |[-0.59, 0.52] |51.73% |n.s.   |
-|AI-Generated - Human Forgery   |Follow-up beauty |BeautySRControl                |-0.15 |[-0.93, 0.51] |65.60% |n.s.   |
-|AI-Generated - Human Forgery   |Self-relevance   |BeautySR (no follow-up beauty) |0.14  |[-0.52, 0.71] |68.30% |n.s.   |
-|AI-Generated - Human Forgery   |Self-relevance   |BeautySRControl                |0.25  |[-0.34, 0.94] |78.33% |n.s.   |
+|Parameter                                    |Condition                      |Diff  |CI            |pd_fmt |Effect   |
+|:--------------------------------------------|:------------------------------|:-----|:-------------|:------|:--------|
+|Mean response (beauty)                       |Human Original                 |1.08  |[0.66, 1.53]  |100%   |Positive |
+|Mean response (beauty)                       |Human Forgery                  |1.06  |[0.59, 1.52]  |100%   |Positive |
+|Mean response (beauty)                       |AI-Generated                   |1.30  |[0.81, 1.83]  |100%   |Positive |
+|Mean response (beauty)                       |AI-Generated - Human Original  |0.23  |[-0.35, 0.81] |77.48% |n.s.     |
+|Mean response (beauty)                       |Human Forgery - Human Original |-0.01 |[-0.59, 0.52] |51.73% |n.s.     |
+|Mean response (beauty)                       |AI-Generated - Human Forgery   |0.25  |[-0.34, 0.94] |78.33% |n.s.     |
+|p(Beautiful side) [mu]                       |Human Original                 |2.32  |[1.04, 3.64]  |100%   |Positive |
+|p(Beautiful side) [mu]                       |Human Forgery                  |2.81  |[1.40, 4.23]  |100%   |Positive |
+|p(Beautiful side) [mu]                       |AI-Generated                   |3.85  |[2.27, 5.40]  |100%   |Positive |
+|p(Beautiful side) [mu]                       |AI-Generated - Human Original  |1.54  |[-0.16, 3.27] |96.00% |n.s.     |
+|p(Beautiful side) [mu]                       |Human Forgery - Human Original |0.50  |[-1.07, 2.24] |71.12% |n.s.     |
+|p(Beautiful side) [mu]                       |AI-Generated - Human Forgery   |1.05  |[-1.12, 2.87] |85.62% |n.s.     |
+|Confidence on the Beautiful side [confright] |Human Original                 |0.90  |[0.50, 1.28]  |100%   |Positive |
+|Confidence on the Beautiful side [confright] |Human Forgery                  |0.42  |[0.05, 0.81]  |97.97% |Positive |
+|Confidence on the Beautiful side [confright] |AI-Generated                   |0.73  |[0.38, 1.10]  |100%   |Positive |
+|Confidence on the Beautiful side [confright] |AI-Generated - Human Original  |-0.18 |[-0.62, 0.35] |76.30% |n.s.     |
+|Confidence on the Beautiful side [confright] |Human Forgery - Human Original |-0.49 |[-0.93, 0.03] |97.42% |n.s.     |
+|Confidence on the Beautiful side [confright] |AI-Generated - Human Forgery   |0.32  |[-0.15, 0.83] |89.95% |n.s.     |
+|Confidence on the Ugly side [confleft]       |Human Original                 |-0.34 |[-0.99, 0.27] |85.32% |n.s.     |
+|Confidence on the Ugly side [confleft]       |Human Forgery                  |-0.41 |[-1.11, 0.31] |87.05% |n.s.     |
+|Confidence on the Ugly side [confleft]       |AI-Generated                   |0.17  |[-0.49, 0.85] |69.20% |n.s.     |
+|Confidence on the Ugly side [confleft]       |AI-Generated - Human Original  |0.51  |[-0.37, 1.34] |87.65% |n.s.     |
+|Confidence on the Ugly side [confleft]       |Human Forgery - Human Original |-0.07 |[-0.91, 0.77] |55.53% |n.s.     |
+|Confidence on the Ugly side [confleft]       |AI-Generated - Human Forgery   |0.58  |[-0.33, 1.48] |88.20% |n.s.     |
 
 :::
-
-### Between persons: the participant's average self-relevance
-
-`SR_w` compares an artwork with the participant's other artworks, so a person
-who finds every work self-relevant and one who finds none are alike at
-`SR_w = 0`. **BeautySRBetween** adds each participant's mean SR (`SR_b`, 0-1,
-centred on the mean of the participant means) next to `SR_w` (a
-within-between, or Mundlak, decomposition): its `Condition x SR_b` terms ask
-whether people who find art more self-relevant show a smaller label gap. The
-`SR_w` terms estimate the same within-person moderation as BeautySR. `SR_b`
-slopes are per +10% of the participant's mean SR (0.6 points of the 0-6
-scale); the participant means have an SD of
-1.07
-points. Between-person differences are open to scale use (a participant who
-answers high on every slider), which the within-person slopes are not.
-
-
-```{.r .cell-code}
-pending("BeautySRBetween")
-```
-
-
-```{.r .cell-code}
-est_btw <- estimates$BeautySRBetween
-sr_b_sd <- sd(summarise(dfsr, m = mean(SelfRelevance), .by = "Participant")$m)
-btw_slopes <- bind_rows(lapply(c("response", mediation_info$BeautySRBetween$dpars), function(p) {
-  covariate_slopes(est_btw, "SR_b", par = p, pairs = TRUE) |>
-    mutate(Parameter = factor(par_labels$Beauty[[p]], levels = par_labels$Beauty))
-})) |>
-  rename(Condition = Level) |>
-  format_effects() |>
-  arrange(Parameter)
-
-gap_levels <- bind_rows(
-  mutate(moderation$BeautySRBetween$response$slopes, Predictor = "Self-relevance, within person (SR_w)", Model = "BeautySRBetween"),
-  mutate(rename(covariate_slopes(est_btw, "SR_b", pairs = TRUE), Condition = Level),
-         Predictor = "Self-relevance, participant's mean (SR_b)", Model = "BeautySRBetween"),
-  if (ready("BeautySR")) mutate(moderation$BeautySR$response$slopes, Predictor = "Self-relevance, within person (SR_w)", Model = "BeautySR (within only)")
-) |>
-  filter(Condition %in% contrast_order) |>
-  mutate(Contrast = factor(Condition, levels = contrast_order)) |>
-  format_effects() |>
-  arrange(Contrast, Predictor, Model)
-
-make_asis(
-  moderation_tables("BeautySRBetween"),
-  make_tables(btw_slopes, c("Parameter", "Condition", "Diff", "CI", "pd_fmt", "Effect"),
-              "Phase-1 beauty: change per +10% of the participant's mean self-relevance (SR_b), per label and between labels"),
-  make_tables(gap_levels, c("Contrast", "Predictor", "Model", "Diff", "CI", "pd_fmt", "Effect"),
-              sprintf("Change in the label gap in Phase-1 beauty (%% of the slider) per +10%% of self-relevance, within and between persons (1 SD of the participant means = %.0f%% of the scale)", 100 * sr_b_sd))
-)
-```
 
 ```{=html}
 <div id="ohxowozjyz" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
@@ -10129,11 +10001,12 @@ make_asis(
 <table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
   <thead>
     <tr class="gt_heading">
-      <td colspan="5" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Phase-1 Beauty by within- and between-person Self-Relevance: label contrasts at average self-relevance (% of the scale / percentage points)</td>
+      <td colspan="6" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Phase-1 beauty: change per +10% of follow-up beauty (SR at average), per label and between labels</td>
     </tr>
     
     <tr class="gt_col_headings">
-      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Parameter">Parameter</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="Parameter">Parameter</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Condition">Condition</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Diff">Diff</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="CI">CI</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="pd_fmt">pd_fmt</th>
@@ -10141,90 +10014,150 @@ make_asis(
     </tr>
   </thead>
   <tbody class="gt_table_body">
-    <tr class="gt_group_heading_row">
-      <th colspan="5" class="gt_group_heading" scope="colgroup" id="AI-Generated - Human Original">AI-Generated - Human Original</th>
-    </tr>
-    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">Mean response (beauty)</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-6.90</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-8.27, -5.50]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-13.57</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-17.42, -9.44]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-6.11</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-7.27, -4.85]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Confidence on the Ugly side [confleft]</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">4.03</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[2.04, 5.82]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">Mean response, main model (all participants, no SR term)</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-7.06</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-8.22, -5.92]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr class="gt_group_heading_row">
-      <th colspan="5" class="gt_group_heading" scope="colgroup" id="Human Forgery - Human Original">Human Forgery - Human Original</th>
-    </tr>
-    <tr class="gt_row_group_first"><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Mean response (beauty)</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.48</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-4.74, -2.28]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-5.48</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-8.94, -2.10]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.92%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-4.38</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-5.54, -3.23]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_left" style="background-color: #E8F5E9;">Confidence on the Ugly side [confleft]</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">2.05</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[0.14, 4.08]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">98.25%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Mean response, main model (all participants, no SR term)</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.66</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-4.59, -2.80]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr class="gt_group_heading_row">
-      <th colspan="5" class="gt_group_heading" scope="colgroup" id="AI-Generated - Human Forgery">AI-Generated - Human Forgery</th>
-    </tr>
-    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">Mean response (beauty)</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-3.42</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-4.85, -1.99]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-8.10</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-12.15, -3.83]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.98%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-1.71</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-2.91, -0.52]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.72%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.93</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.13, 3.95]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">96.80%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">Mean response, main model (all participants, no SR term)</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-3.39</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-4.49, -2.32]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Mean response (beauty)</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">4.85</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[4.20, 5.52]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Mean response (beauty)</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">4.86</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[4.22, 5.58]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Mean response (beauty)</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">AI-Generated</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">4.72</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[4.03, 5.32]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Mean response (beauty)</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.14</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.86, 0.54]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">64.80%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Mean response (beauty)</td>
+<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.01</td>
+<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.64, 0.60]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">50.82%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Mean response (beauty)</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.15</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.93, 0.51]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">65.60%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">p(Beautiful side) [mu]</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">11.67</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[9.66, 13.58]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">p(Beautiful side) [mu]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">12.47</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[10.55, 14.35]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">p(Beautiful side) [mu]</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">AI-Generated</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">11.92</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[10.20, 13.76]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.26</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.88, 2.36]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">59.67%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
+<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.79</td>
+<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.12, 2.67]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">80.38%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.54</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-2.73, 1.64]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">68.38%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Confidence on the Beautiful side [confright]</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">2.58</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[2.08, 3.09]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Confidence on the Beautiful side [confright]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">2.00</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[1.45, 2.52]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Confidence on the Beautiful side [confright]</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">AI-Generated</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">2.02</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[1.50, 2.49]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.56</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.15, 0.01]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">97.20%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
+<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.59</td>
+<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.15, 0.01]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">97.60%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.03</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.63, 0.64]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">53.15%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Ugly side [confleft]</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #FFEBEE;">Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-2.47</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-3.26, -1.71]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Confidence on the Ugly side [confleft]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-2.53</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-3.35, -1.60]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Ugly side [confleft]</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #FFEBEE;">AI-Generated</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-2.53</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-3.32, -1.70]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.08</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.89, 0.76]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">56.27%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.06</td>
+<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.91, 0.83]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">55.73%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.01</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.88, 0.97]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">51.02%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
   </tbody>
   
 </table>
@@ -10232,25 +10165,34 @@ make_asis(
 ```
 
 
-::: {.callout-note collapse="true" title="Phase-1 Beauty by within- and between-person Self-Relevance: label contrasts at average self-relevance (% of the scale / percentage points) (Markdown table, for text readers)"}
+::: {.callout-note collapse="true" title="Phase-1 beauty: change per +10% of follow-up beauty (SR at average), per label and between labels (Markdown table, for text readers)"}
 
-|Contrast                       |Parameter                                                |Diff   |CI              |pd_fmt |Effect   |
-|:------------------------------|:--------------------------------------------------------|:------|:---------------|:------|:--------|
-|AI-Generated - Human Original  |Mean response (beauty)                                   |-6.90  |[-8.27, -5.50]  |100%   |Negative |
-|AI-Generated - Human Original  |p(Beautiful side) [mu]                                   |-13.57 |[-17.42, -9.44] |100%   |Negative |
-|AI-Generated - Human Original  |Confidence on the Beautiful side [confright]             |-6.11  |[-7.27, -4.85]  |100%   |Negative |
-|AI-Generated - Human Original  |Confidence on the Ugly side [confleft]                   |4.03   |[2.04, 5.82]    |100%   |Positive |
-|AI-Generated - Human Original  |Mean response, main model (all participants, no SR term) |-7.06  |[-8.22, -5.92]  |100%   |Negative |
-|Human Forgery - Human Original |Mean response (beauty)                                   |-3.48  |[-4.74, -2.28]  |100%   |Negative |
-|Human Forgery - Human Original |p(Beautiful side) [mu]                                   |-5.48  |[-8.94, -2.10]  |99.92% |Negative |
-|Human Forgery - Human Original |Confidence on the Beautiful side [confright]             |-4.38  |[-5.54, -3.23]  |100%   |Negative |
-|Human Forgery - Human Original |Confidence on the Ugly side [confleft]                   |2.05   |[0.14, 4.08]    |98.25% |Positive |
-|Human Forgery - Human Original |Mean response, main model (all participants, no SR term) |-3.66  |[-4.59, -2.80]  |100%   |Negative |
-|AI-Generated - Human Forgery   |Mean response (beauty)                                   |-3.42  |[-4.85, -1.99]  |100%   |Negative |
-|AI-Generated - Human Forgery   |p(Beautiful side) [mu]                                   |-8.10  |[-12.15, -3.83] |99.98% |Negative |
-|AI-Generated - Human Forgery   |Confidence on the Beautiful side [confright]             |-1.71  |[-2.91, -0.52]  |99.72% |Negative |
-|AI-Generated - Human Forgery   |Confidence on the Ugly side [confleft]                   |1.93   |[-0.13, 3.95]   |96.80% |n.s.     |
-|AI-Generated - Human Forgery   |Mean response, main model (all participants, no SR term) |-3.39  |[-4.49, -2.32]  |100%   |Negative |
+|Parameter                                    |Condition                      |Diff  |CI             |pd_fmt |Effect   |
+|:--------------------------------------------|:------------------------------|:-----|:--------------|:------|:--------|
+|Mean response (beauty)                       |Human Original                 |4.85  |[4.20, 5.52]   |100%   |Positive |
+|Mean response (beauty)                       |Human Forgery                  |4.86  |[4.22, 5.58]   |100%   |Positive |
+|Mean response (beauty)                       |AI-Generated                   |4.72  |[4.03, 5.32]   |100%   |Positive |
+|Mean response (beauty)                       |AI-Generated - Human Original  |-0.14 |[-0.86, 0.54]  |64.80% |n.s.     |
+|Mean response (beauty)                       |Human Forgery - Human Original |0.01  |[-0.64, 0.60]  |50.82% |n.s.     |
+|Mean response (beauty)                       |AI-Generated - Human Forgery   |-0.15 |[-0.93, 0.51]  |65.60% |n.s.     |
+|p(Beautiful side) [mu]                       |Human Original                 |11.67 |[9.66, 13.58]  |100%   |Positive |
+|p(Beautiful side) [mu]                       |Human Forgery                  |12.47 |[10.55, 14.35] |100%   |Positive |
+|p(Beautiful side) [mu]                       |AI-Generated                   |11.92 |[10.20, 13.76] |100%   |Positive |
+|p(Beautiful side) [mu]                       |AI-Generated - Human Original  |0.26  |[-1.88, 2.36]  |59.67% |n.s.     |
+|p(Beautiful side) [mu]                       |Human Forgery - Human Original |0.79  |[-1.12, 2.67]  |80.38% |n.s.     |
+|p(Beautiful side) [mu]                       |AI-Generated - Human Forgery   |-0.54 |[-2.73, 1.64]  |68.38% |n.s.     |
+|Confidence on the Beautiful side [confright] |Human Original                 |2.58  |[2.08, 3.09]   |100%   |Positive |
+|Confidence on the Beautiful side [confright] |Human Forgery                  |2.00  |[1.45, 2.52]   |100%   |Positive |
+|Confidence on the Beautiful side [confright] |AI-Generated                   |2.02  |[1.50, 2.49]   |100%   |Positive |
+|Confidence on the Beautiful side [confright] |AI-Generated - Human Original  |-0.56 |[-1.15, 0.01]  |97.20% |n.s.     |
+|Confidence on the Beautiful side [confright] |Human Forgery - Human Original |-0.59 |[-1.15, 0.01]  |97.60% |n.s.     |
+|Confidence on the Beautiful side [confright] |AI-Generated - Human Forgery   |0.03  |[-0.63, 0.64]  |53.15% |n.s.     |
+|Confidence on the Ugly side [confleft]       |Human Original                 |-2.47 |[-3.26, -1.71] |100%   |Negative |
+|Confidence on the Ugly side [confleft]       |Human Forgery                  |-2.53 |[-3.35, -1.60] |100%   |Negative |
+|Confidence on the Ugly side [confleft]       |AI-Generated                   |-2.53 |[-3.32, -1.70] |100%   |Negative |
+|Confidence on the Ugly side [confleft]       |AI-Generated - Human Original  |-0.08 |[-0.89, 0.76]  |56.27% |n.s.     |
+|Confidence on the Ugly side [confleft]       |Human Forgery - Human Original |-0.06 |[-0.91, 0.83]  |55.73% |n.s.     |
+|Confidence on the Ugly side [confleft]       |AI-Generated - Human Forgery   |-0.01 |[-0.88, 0.97]  |51.02% |n.s.     |
 
 :::
 
@@ -10707,12 +10649,12 @@ make_asis(
 <table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
   <thead>
     <tr class="gt_heading">
-      <td colspan="6" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Phase-1 Beauty by within- and between-person Self-Relevance: label gap at low, average and high self-relevance, and its change (High - Low)</td>
+      <td colspan="6" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Change in the label gap in Phase-1 beauty (% of the slider) per +10% of self-relevance or of follow-up beauty</td>
     </tr>
     
     <tr class="gt_col_headings">
-      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="Parameter">Parameter</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="At">At</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Predictor">Predictor</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Model">Model</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Diff">Diff</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="CI">CI</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="pd_fmt">pd_fmt</th>
@@ -10723,300 +10665,66 @@ make_asis(
     <tr class="gt_group_heading_row">
       <th colspan="6" class="gt_group_heading" scope="colgroup" id="AI-Generated - Human Original">AI-Generated - Human Original</th>
     </tr>
-    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Mean response (beauty)</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-6.51</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-8.33, -4.77]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Mean response (beauty)</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-6.90</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-8.27, -5.50]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Mean response (beauty)</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">High SR (+1 SD)</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-6.33</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-7.99, -4.74]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Mean response (beauty)</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.15</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-2.25, 2.52]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">54.07%</td>
+    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Original  Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Follow-up beauty</td>
+<td headers="AI-Generated - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">BeautySRControl</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.14</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.86, 0.54]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">64.80%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Predictor" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Self-relevance</td>
+<td headers="AI-Generated - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">BeautySR (no follow-up beauty)</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.08</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.53, 0.64]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">60.75%</td>
 <td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-14.67</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-19.12, -9.34]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-13.57</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-17.47, -9.54]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">High SR (+1 SD)</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-9.62</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-14.15, -4.90]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">5.04</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.56, 11.81]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">92.42%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-5.25</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-6.95, -3.80]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-6.11</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-7.33, -4.94]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">High SR (+1 SD)</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-6.94</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-8.44, -5.44]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-1.67</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-3.65, 0.45]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">94.38%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Confidence on the Ugly side [confleft]</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #E8F5E9;">Low SR (-1 SD)</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">3.07</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[0.79, 5.39]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">99.30%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Confidence on the Ugly side [confleft]</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Average SR</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">4.03</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[2.06, 5.82]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Confidence on the Ugly side [confleft]</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #E8F5E9;">High SR (+1 SD)</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">4.87</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[1.93, 7.75]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">99.92%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.75</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.77, 5.75]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">83.08%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Self-relevance</td>
+<td headers="AI-Generated - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">BeautySRControl</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.23</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.35, 0.81]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">77.48%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
     <tr class="gt_group_heading_row">
       <th colspan="6" class="gt_group_heading" scope="colgroup" id="Human Forgery - Human Original">Human Forgery - Human Original</th>
     </tr>
-    <tr class="gt_row_group_first"><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Mean response (beauty)</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-3.25</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-4.97, -1.53]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.98%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Mean response (beauty)</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.48</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-4.72, -2.27]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Mean response (beauty)</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">High SR (+1 SD)</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-3.66</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-5.13, -2.28]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Mean response (beauty)</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.40</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-2.58, 1.85]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">63.55%</td>
+    <tr class="gt_row_group_first"><td headers="Human Forgery - Human Original  Predictor" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Follow-up beauty</td>
+<td headers="Human Forgery - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">BeautySRControl</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.01</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.64, 0.60]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">50.82%</td>
 <td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-6.28</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-11.34, -1.93]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.33%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-5.48</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-8.91, -2.09]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.92%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="color: #9E9E9E;">High SR (+1 SD)</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-3.78</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-7.59, 0.26]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">97.25%</td>
+    <tr><td headers="Human Forgery - Human Original  Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Self-relevance</td>
+<td headers="Human Forgery - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">BeautySR (no follow-up beauty)</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.06</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.58, 0.49]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">58.80%</td>
 <td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">2.50</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-3.93, 8.50]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">77.75%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-2.93</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-4.54, -1.33]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.98%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-4.38</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-5.56, -3.26]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">High SR (+1 SD)</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-5.98</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-7.53, -4.53]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">High - Low</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.07</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-5.27, -1.04]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.78%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Confidence on the Ugly side [confleft]</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="background-color: #E8F5E9;">Low SR (-1 SD)</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">2.45</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[0.00, 4.79]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">98.30%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Confidence on the Ugly side [confleft]</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Average SR</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">2.05</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[0.13, 4.05]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">98.25%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="color: #9E9E9E;">High SR (+1 SD)</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">1.64</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.40, 4.51]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">86.10%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.80</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-4.85, 2.71]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">66.15%</td>
+    <tr><td headers="Human Forgery - Human Original  Predictor" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Self-relevance</td>
+<td headers="Human Forgery - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">BeautySRControl</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.01</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.59, 0.52]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">51.73%</td>
 <td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
     <tr class="gt_group_heading_row">
       <th colspan="6" class="gt_group_heading" scope="colgroup" id="AI-Generated - Human Forgery">AI-Generated - Human Forgery</th>
     </tr>
-    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Mean response (beauty)</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-3.23</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-5.17, -1.50]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Mean response (beauty)</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.42</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-4.84, -1.98]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Mean response (beauty)</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="background-color: #FFEBEE;">High SR (+1 SD)</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-2.70</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-4.43, -0.88]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.92%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Mean response (beauty)</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.54</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.96, 2.94]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">65.60%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-8.38</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-13.27, -3.08]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.90%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-8.10</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-11.99, -3.70]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.98%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="background-color: #FFEBEE;">High SR (+1 SD)</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-5.77</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-10.86, -1.04]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.33%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">2.46</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-4.02, 9.79]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">75.83%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-2.34</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-3.93, -0.77]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.65%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-1.71</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-2.90, -0.51]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.72%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="color: #9E9E9E;">High SR (+1 SD)</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.94</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-2.43, 0.74]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">88.52%</td>
+    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Forgery  Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Follow-up beauty</td>
+<td headers="AI-Generated - Human Forgery  Model" class="gt_row gt_left" style="color: #9E9E9E;">BeautySRControl</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.15</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.93, 0.51]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">65.60%</td>
 <td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.38</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.74, 3.42]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">89.90%</td>
+    <tr><td headers="AI-Generated - Human Forgery  Predictor" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Self-relevance</td>
+<td headers="AI-Generated - Human Forgery  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">BeautySR (no follow-up beauty)</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.14</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.52, 0.71]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">68.30%</td>
 <td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="color: #9E9E9E;">Low SR (-1 SD)</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.58</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.90, 3.18]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">67.00%</td>
+    <tr><td headers="AI-Generated - Human Forgery  Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Self-relevance</td>
+<td headers="AI-Generated - Human Forgery  Model" class="gt_row gt_left" style="color: #9E9E9E;">BeautySRControl</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.25</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.34, 0.94]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">78.33%</td>
 <td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Average SR</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.93</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.04, 4.02]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">96.80%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Confidence on the Ugly side [confleft]</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="background-color: #E8F5E9;">High SR (+1 SD)</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">3.19</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[0.17, 6.45]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">97.75%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">2.61</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.39, 6.69]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">89.40%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
   </tbody>
   
 </table>
@@ -11024,60 +10732,73 @@ make_asis(
 ```
 
 
-::: {.callout-note collapse="true" title="Phase-1 Beauty by within- and between-person Self-Relevance: label gap at low, average and high self-relevance, and its change (High - Low) (Markdown table, for text readers)"}
+::: {.callout-note collapse="true" title="Change in the label gap in Phase-1 beauty (% of the slider) per +10% of self-relevance or of follow-up beauty (Markdown table, for text readers)"}
 
-|Contrast                       |Parameter                                    |At              |Diff   |CI              |pd_fmt |Effect   |
-|:------------------------------|:--------------------------------------------|:---------------|:------|:---------------|:------|:--------|
-|AI-Generated - Human Original  |Mean response (beauty)                       |Low SR (-1 SD)  |-6.51  |[-8.33, -4.77]  |100%   |Negative |
-|AI-Generated - Human Original  |Mean response (beauty)                       |Average SR      |-6.90  |[-8.27, -5.50]  |100%   |Negative |
-|AI-Generated - Human Original  |Mean response (beauty)                       |High SR (+1 SD) |-6.33  |[-7.99, -4.74]  |100%   |Negative |
-|AI-Generated - Human Original  |Mean response (beauty)                       |High - Low      |0.15   |[-2.25, 2.52]   |54.07% |n.s.     |
-|AI-Generated - Human Original  |p(Beautiful side) [mu]                       |Low SR (-1 SD)  |-14.67 |[-19.12, -9.34] |100%   |Negative |
-|AI-Generated - Human Original  |p(Beautiful side) [mu]                       |Average SR      |-13.57 |[-17.47, -9.54] |100%   |Negative |
-|AI-Generated - Human Original  |p(Beautiful side) [mu]                       |High SR (+1 SD) |-9.62  |[-14.15, -4.90] |100%   |Negative |
-|AI-Generated - Human Original  |p(Beautiful side) [mu]                       |High - Low      |5.04   |[-1.56, 11.81]  |92.42% |n.s.     |
-|AI-Generated - Human Original  |Confidence on the Beautiful side [confright] |Low SR (-1 SD)  |-5.25  |[-6.95, -3.80]  |100%   |Negative |
-|AI-Generated - Human Original  |Confidence on the Beautiful side [confright] |Average SR      |-6.11  |[-7.33, -4.94]  |100%   |Negative |
-|AI-Generated - Human Original  |Confidence on the Beautiful side [confright] |High SR (+1 SD) |-6.94  |[-8.44, -5.44]  |100%   |Negative |
-|AI-Generated - Human Original  |Confidence on the Beautiful side [confright] |High - Low      |-1.67  |[-3.65, 0.45]   |94.38% |n.s.     |
-|AI-Generated - Human Original  |Confidence on the Ugly side [confleft]       |Low SR (-1 SD)  |3.07   |[0.79, 5.39]    |99.30% |Positive |
-|AI-Generated - Human Original  |Confidence on the Ugly side [confleft]       |Average SR      |4.03   |[2.06, 5.82]    |100%   |Positive |
-|AI-Generated - Human Original  |Confidence on the Ugly side [confleft]       |High SR (+1 SD) |4.87   |[1.93, 7.75]    |99.92% |Positive |
-|AI-Generated - Human Original  |Confidence on the Ugly side [confleft]       |High - Low      |1.75   |[-1.77, 5.75]   |83.08% |n.s.     |
-|Human Forgery - Human Original |Mean response (beauty)                       |Low SR (-1 SD)  |-3.25  |[-4.97, -1.53]  |99.98% |Negative |
-|Human Forgery - Human Original |Mean response (beauty)                       |Average SR      |-3.48  |[-4.72, -2.27]  |100%   |Negative |
-|Human Forgery - Human Original |Mean response (beauty)                       |High SR (+1 SD) |-3.66  |[-5.13, -2.28]  |100%   |Negative |
-|Human Forgery - Human Original |Mean response (beauty)                       |High - Low      |-0.40  |[-2.58, 1.85]   |63.55% |n.s.     |
-|Human Forgery - Human Original |p(Beautiful side) [mu]                       |Low SR (-1 SD)  |-6.28  |[-11.34, -1.93] |99.33% |Negative |
-|Human Forgery - Human Original |p(Beautiful side) [mu]                       |Average SR      |-5.48  |[-8.91, -2.09]  |99.92% |Negative |
-|Human Forgery - Human Original |p(Beautiful side) [mu]                       |High SR (+1 SD) |-3.78  |[-7.59, 0.26]   |97.25% |n.s.     |
-|Human Forgery - Human Original |p(Beautiful side) [mu]                       |High - Low      |2.50   |[-3.93, 8.50]   |77.75% |n.s.     |
-|Human Forgery - Human Original |Confidence on the Beautiful side [confright] |Low SR (-1 SD)  |-2.93  |[-4.54, -1.33]  |99.98% |Negative |
-|Human Forgery - Human Original |Confidence on the Beautiful side [confright] |Average SR      |-4.38  |[-5.56, -3.26]  |100%   |Negative |
-|Human Forgery - Human Original |Confidence on the Beautiful side [confright] |High SR (+1 SD) |-5.98  |[-7.53, -4.53]  |100%   |Negative |
-|Human Forgery - Human Original |Confidence on the Beautiful side [confright] |High - Low      |-3.07  |[-5.27, -1.04]  |99.78% |Negative |
-|Human Forgery - Human Original |Confidence on the Ugly side [confleft]       |Low SR (-1 SD)  |2.45   |[0.00, 4.79]    |98.30% |Positive |
-|Human Forgery - Human Original |Confidence on the Ugly side [confleft]       |Average SR      |2.05   |[0.13, 4.05]    |98.25% |Positive |
-|Human Forgery - Human Original |Confidence on the Ugly side [confleft]       |High SR (+1 SD) |1.64   |[-1.40, 4.51]   |86.10% |n.s.     |
-|Human Forgery - Human Original |Confidence on the Ugly side [confleft]       |High - Low      |-0.80  |[-4.85, 2.71]   |66.15% |n.s.     |
-|AI-Generated - Human Forgery   |Mean response (beauty)                       |Low SR (-1 SD)  |-3.23  |[-5.17, -1.50]  |100%   |Negative |
-|AI-Generated - Human Forgery   |Mean response (beauty)                       |Average SR      |-3.42  |[-4.84, -1.98]  |100%   |Negative |
-|AI-Generated - Human Forgery   |Mean response (beauty)                       |High SR (+1 SD) |-2.70  |[-4.43, -0.88]  |99.92% |Negative |
-|AI-Generated - Human Forgery   |Mean response (beauty)                       |High - Low      |0.54   |[-1.96, 2.94]   |65.60% |n.s.     |
-|AI-Generated - Human Forgery   |p(Beautiful side) [mu]                       |Low SR (-1 SD)  |-8.38  |[-13.27, -3.08] |99.90% |Negative |
-|AI-Generated - Human Forgery   |p(Beautiful side) [mu]                       |Average SR      |-8.10  |[-11.99, -3.70] |99.98% |Negative |
-|AI-Generated - Human Forgery   |p(Beautiful side) [mu]                       |High SR (+1 SD) |-5.77  |[-10.86, -1.04] |99.33% |Negative |
-|AI-Generated - Human Forgery   |p(Beautiful side) [mu]                       |High - Low      |2.46   |[-4.02, 9.79]   |75.83% |n.s.     |
-|AI-Generated - Human Forgery   |Confidence on the Beautiful side [confright] |Low SR (-1 SD)  |-2.34  |[-3.93, -0.77]  |99.65% |Negative |
-|AI-Generated - Human Forgery   |Confidence on the Beautiful side [confright] |Average SR      |-1.71  |[-2.90, -0.51]  |99.72% |Negative |
-|AI-Generated - Human Forgery   |Confidence on the Beautiful side [confright] |High SR (+1 SD) |-0.94  |[-2.43, 0.74]   |88.52% |n.s.     |
-|AI-Generated - Human Forgery   |Confidence on the Beautiful side [confright] |High - Low      |1.38   |[-0.74, 3.42]   |89.90% |n.s.     |
-|AI-Generated - Human Forgery   |Confidence on the Ugly side [confleft]       |Low SR (-1 SD)  |0.58   |[-1.90, 3.18]   |67.00% |n.s.     |
-|AI-Generated - Human Forgery   |Confidence on the Ugly side [confleft]       |Average SR      |1.93   |[-0.04, 4.02]   |96.80% |n.s.     |
-|AI-Generated - Human Forgery   |Confidence on the Ugly side [confleft]       |High SR (+1 SD) |3.19   |[0.17, 6.45]    |97.75% |Positive |
-|AI-Generated - Human Forgery   |Confidence on the Ugly side [confleft]       |High - Low      |2.61   |[-1.39, 6.69]   |89.40% |n.s.     |
+|Contrast                       |Predictor        |Model                          |Diff  |CI            |pd_fmt |Effect |
+|:------------------------------|:----------------|:------------------------------|:-----|:-------------|:------|:------|
+|AI-Generated - Human Original  |Follow-up beauty |BeautySRControl                |-0.14 |[-0.86, 0.54] |64.80% |n.s.   |
+|AI-Generated - Human Original  |Self-relevance   |BeautySR (no follow-up beauty) |0.08  |[-0.53, 0.64] |60.75% |n.s.   |
+|AI-Generated - Human Original  |Self-relevance   |BeautySRControl                |0.23  |[-0.35, 0.81] |77.48% |n.s.   |
+|Human Forgery - Human Original |Follow-up beauty |BeautySRControl                |0.01  |[-0.64, 0.60] |50.82% |n.s.   |
+|Human Forgery - Human Original |Self-relevance   |BeautySR (no follow-up beauty) |-0.06 |[-0.58, 0.49] |58.80% |n.s.   |
+|Human Forgery - Human Original |Self-relevance   |BeautySRControl                |-0.01 |[-0.59, 0.52] |51.73% |n.s.   |
+|AI-Generated - Human Forgery   |Follow-up beauty |BeautySRControl                |-0.15 |[-0.93, 0.51] |65.60% |n.s.   |
+|AI-Generated - Human Forgery   |Self-relevance   |BeautySR (no follow-up beauty) |0.14  |[-0.52, 0.71] |68.30% |n.s.   |
+|AI-Generated - Human Forgery   |Self-relevance   |BeautySRControl                |0.25  |[-0.34, 0.94] |78.33% |n.s.   |
 
 :::
+
+### Between persons: the participant's average self-relevance
+
+`SR_w` compares an artwork with the participant's other artworks, so a person
+who finds every work self-relevant and one who finds none are alike at
+`SR_w = 0`. **BeautySRBetween** adds each participant's mean SR (`SR_b`, 0-1,
+centred on the mean of the participant means) next to `SR_w` (a
+within-between, or Mundlak, decomposition): its `Condition x SR_b` terms ask
+whether people who find art more self-relevant show a smaller label gap. The
+`SR_w` terms estimate the same within-person moderation as BeautySR. `SR_b`
+slopes are per +10% of the participant's mean SR (0.6 points of the 0-6
+scale); the participant means have an SD of
+1.07
+points. Between-person differences are open to scale use (a participant who
+answers high on every slider), which the within-person slopes are not.
+
+
+```{.r .cell-code}
+pending("BeautySRBetween")
+```
+
+
+```{.r .cell-code}
+est_btw <- estimates$BeautySRBetween
+sr_b_sd <- sd(summarise(dfsr, m = mean(SelfRelevance), .by = "Participant")$m)
+btw_slopes <- bind_rows(lapply(c("response", mediation_info$BeautySRBetween$dpars), function(p) {
+  covariate_slopes(est_btw, "SR_b", par = p, pairs = TRUE) |>
+    mutate(Parameter = factor(par_labels$Beauty[[p]], levels = par_labels$Beauty))
+})) |>
+  rename(Condition = Level) |>
+  format_effects() |>
+  arrange(Parameter)
+
+gap_levels <- bind_rows(
+  mutate(moderation$BeautySRBetween$response$slopes, Predictor = "Self-relevance, within person (SR_w)", Model = "BeautySRBetween"),
+  mutate(rename(covariate_slopes(est_btw, "SR_b", pairs = TRUE), Condition = Level),
+         Predictor = "Self-relevance, participant's mean (SR_b)", Model = "BeautySRBetween"),
+  if (ready("BeautySR")) mutate(moderation$BeautySR$response$slopes, Predictor = "Self-relevance, within person (SR_w)", Model = "BeautySR (within only)")
+) |>
+  filter(Condition %in% contrast_order) |>
+  mutate(Contrast = factor(Condition, levels = contrast_order)) |>
+  format_effects() |>
+  arrange(Contrast, Predictor, Model)
+
+make_asis(
+  moderation_tables("BeautySRBetween"),
+  make_tables(btw_slopes, c("Parameter", "Condition", "Diff", "CI", "pd_fmt", "Effect"),
+              "Phase-1 beauty: change per +10% of the participant's mean self-relevance (SR_b), per label and between labels"),
+  make_tables(gap_levels, c("Contrast", "Predictor", "Model", "Diff", "CI", "pd_fmt", "Effect"),
+              sprintf("Change in the label gap in Phase-1 beauty (%% of the slider) per +10%% of self-relevance, within and between persons (1 SD of the participant means = %.0f%% of the scale)", 100 * sr_b_sd))
+)
+```
 
 ```{=html}
 <div id="lejpwkwfps" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
@@ -11532,12 +11253,11 @@ make_asis(
 <table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
   <thead>
     <tr class="gt_heading">
-      <td colspan="6" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Phase-1 Beauty by within- and between-person Self-Relevance: change per +10% of self-relevance, per label and between labels</td>
+      <td colspan="5" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Phase-1 Beauty by within- and between-person Self-Relevance: label contrasts at average self-relevance (% of the scale / percentage points)</td>
     </tr>
     
     <tr class="gt_col_headings">
-      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="Parameter">Parameter</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Condition">Condition</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Parameter">Parameter</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Diff">Diff</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="CI">CI</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="pd_fmt">pd_fmt</th>
@@ -11545,150 +11265,90 @@ make_asis(
     </tr>
   </thead>
   <tbody class="gt_table_body">
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Mean response (beauty)</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">3.13</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[2.59, 3.65]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Mean response (beauty)</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">3.06</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[2.55, 3.58]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Mean response (beauty)</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">AI-Generated</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">3.20</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[2.71, 3.71]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Mean response (beauty)</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.08</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.52, 0.64]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">59.85%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Mean response (beauty)</td>
-<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.06</td>
-<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.58, 0.49]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">59.77%</td>
-<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Mean response (beauty)</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.14</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.47, 0.73]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">67.05%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">p(Beautiful side) [mu]</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">7.02</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[5.52, 8.49]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">p(Beautiful side) [mu]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">7.61</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[6.14, 9.05]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">p(Beautiful side) [mu]</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">AI-Generated</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">8.25</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[6.88, 9.68]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.28</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.36, 2.96]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">92.73%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
-<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.63</td>
-<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.88, 2.16]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">78.53%</td>
-<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.63</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.98, 2.48]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">76.42%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Confidence on the Beautiful side [confright]</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">1.87</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[1.47, 2.26]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Confidence on the Beautiful side [confright]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">1.19</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[0.82, 1.55]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Confidence on the Beautiful side [confright]</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">AI-Generated</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">1.50</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[1.12, 1.86]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.37</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.81, 0.10]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">94.42%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #FFEBEE;">Human Forgery - Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-0.68</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-1.15, -0.22]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.78%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.30</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.16, 0.75]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">89.88%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Ugly side [confleft]</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #FFEBEE;">Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-1.22</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-1.81, -0.60]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Confidence on the Ugly side [confleft]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-1.39</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-2.09, -0.67]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.98%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Ugly side [confleft]</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #FFEBEE;">AI-Generated</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-0.82</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-1.47, -0.11]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.00%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.38</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.37, 1.28]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">83.08%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.18</td>
-<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.07, 0.59]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">66.15%</td>
-<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.58</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.30, 1.48]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">89.40%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr class="gt_group_heading_row">
+      <th colspan="5" class="gt_group_heading" scope="colgroup" id="AI-Generated - Human Original">AI-Generated - Human Original</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">Mean response (beauty)</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-6.90</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-8.27, -5.50]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-13.57</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-17.42, -9.44]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-6.11</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-7.27, -4.85]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Confidence on the Ugly side [confleft]</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">4.03</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[2.04, 5.82]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">Mean response, main model (all participants, no SR term)</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-7.06</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-8.22, -5.92]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr class="gt_group_heading_row">
+      <th colspan="5" class="gt_group_heading" scope="colgroup" id="Human Forgery - Human Original">Human Forgery - Human Original</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Mean response (beauty)</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.48</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-4.74, -2.28]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-5.48</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-8.94, -2.10]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.92%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-4.38</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-5.54, -3.23]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_left" style="background-color: #E8F5E9;">Confidence on the Ugly side [confleft]</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">2.05</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[0.14, 4.08]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">98.25%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Mean response, main model (all participants, no SR term)</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.66</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-4.59, -2.80]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr class="gt_group_heading_row">
+      <th colspan="5" class="gt_group_heading" scope="colgroup" id="AI-Generated - Human Forgery">AI-Generated - Human Forgery</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">Mean response (beauty)</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-3.42</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-4.85, -1.99]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-8.10</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-12.15, -3.83]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.98%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-1.71</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-2.91, -0.52]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.72%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.93</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.13, 3.95]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">96.80%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">Mean response, main model (all participants, no SR term)</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-3.39</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-4.49, -2.32]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
   </tbody>
   
 </table>
@@ -11696,34 +11356,25 @@ make_asis(
 ```
 
 
-::: {.callout-note collapse="true" title="Phase-1 Beauty by within- and between-person Self-Relevance: change per +10% of self-relevance, per label and between labels (Markdown table, for text readers)"}
+::: {.callout-note collapse="true" title="Phase-1 Beauty by within- and between-person Self-Relevance: label contrasts at average self-relevance (% of the scale / percentage points) (Markdown table, for text readers)"}
 
-|Parameter                                    |Condition                      |Diff  |CI             |pd_fmt |Effect   |
-|:--------------------------------------------|:------------------------------|:-----|:--------------|:------|:--------|
-|Mean response (beauty)                       |Human Original                 |3.13  |[2.59, 3.65]   |100%   |Positive |
-|Mean response (beauty)                       |Human Forgery                  |3.06  |[2.55, 3.58]   |100%   |Positive |
-|Mean response (beauty)                       |AI-Generated                   |3.20  |[2.71, 3.71]   |100%   |Positive |
-|Mean response (beauty)                       |AI-Generated - Human Original  |0.08  |[-0.52, 0.64]  |59.85% |n.s.     |
-|Mean response (beauty)                       |Human Forgery - Human Original |-0.06 |[-0.58, 0.49]  |59.77% |n.s.     |
-|Mean response (beauty)                       |AI-Generated - Human Forgery   |0.14  |[-0.47, 0.73]  |67.05% |n.s.     |
-|p(Beautiful side) [mu]                       |Human Original                 |7.02  |[5.52, 8.49]   |100%   |Positive |
-|p(Beautiful side) [mu]                       |Human Forgery                  |7.61  |[6.14, 9.05]   |100%   |Positive |
-|p(Beautiful side) [mu]                       |AI-Generated                   |8.25  |[6.88, 9.68]   |100%   |Positive |
-|p(Beautiful side) [mu]                       |AI-Generated - Human Original  |1.28  |[-0.36, 2.96]  |92.73% |n.s.     |
-|p(Beautiful side) [mu]                       |Human Forgery - Human Original |0.63  |[-0.88, 2.16]  |78.53% |n.s.     |
-|p(Beautiful side) [mu]                       |AI-Generated - Human Forgery   |0.63  |[-0.98, 2.48]  |76.42% |n.s.     |
-|Confidence on the Beautiful side [confright] |Human Original                 |1.87  |[1.47, 2.26]   |100%   |Positive |
-|Confidence on the Beautiful side [confright] |Human Forgery                  |1.19  |[0.82, 1.55]   |100%   |Positive |
-|Confidence on the Beautiful side [confright] |AI-Generated                   |1.50  |[1.12, 1.86]   |100%   |Positive |
-|Confidence on the Beautiful side [confright] |AI-Generated - Human Original  |-0.37 |[-0.81, 0.10]  |94.42% |n.s.     |
-|Confidence on the Beautiful side [confright] |Human Forgery - Human Original |-0.68 |[-1.15, -0.22] |99.78% |Negative |
-|Confidence on the Beautiful side [confright] |AI-Generated - Human Forgery   |0.30  |[-0.16, 0.75]  |89.88% |n.s.     |
-|Confidence on the Ugly side [confleft]       |Human Original                 |-1.22 |[-1.81, -0.60] |100%   |Negative |
-|Confidence on the Ugly side [confleft]       |Human Forgery                  |-1.39 |[-2.09, -0.67] |99.98% |Negative |
-|Confidence on the Ugly side [confleft]       |AI-Generated                   |-0.82 |[-1.47, -0.11] |99.00% |Negative |
-|Confidence on the Ugly side [confleft]       |AI-Generated - Human Original  |0.38  |[-0.37, 1.28]  |83.08% |n.s.     |
-|Confidence on the Ugly side [confleft]       |Human Forgery - Human Original |-0.18 |[-1.07, 0.59]  |66.15% |n.s.     |
-|Confidence on the Ugly side [confleft]       |AI-Generated - Human Forgery   |0.58  |[-0.30, 1.48]  |89.40% |n.s.     |
+|Contrast                       |Parameter                                                |Diff   |CI              |pd_fmt |Effect   |
+|:------------------------------|:--------------------------------------------------------|:------|:---------------|:------|:--------|
+|AI-Generated - Human Original  |Mean response (beauty)                                   |-6.90  |[-8.27, -5.50]  |100%   |Negative |
+|AI-Generated - Human Original  |p(Beautiful side) [mu]                                   |-13.57 |[-17.42, -9.44] |100%   |Negative |
+|AI-Generated - Human Original  |Confidence on the Beautiful side [confright]             |-6.11  |[-7.27, -4.85]  |100%   |Negative |
+|AI-Generated - Human Original  |Confidence on the Ugly side [confleft]                   |4.03   |[2.04, 5.82]    |100%   |Positive |
+|AI-Generated - Human Original  |Mean response, main model (all participants, no SR term) |-7.06  |[-8.22, -5.92]  |100%   |Negative |
+|Human Forgery - Human Original |Mean response (beauty)                                   |-3.48  |[-4.74, -2.28]  |100%   |Negative |
+|Human Forgery - Human Original |p(Beautiful side) [mu]                                   |-5.48  |[-8.94, -2.10]  |99.92% |Negative |
+|Human Forgery - Human Original |Confidence on the Beautiful side [confright]             |-4.38  |[-5.54, -3.23]  |100%   |Negative |
+|Human Forgery - Human Original |Confidence on the Ugly side [confleft]                   |2.05   |[0.14, 4.08]    |98.25% |Positive |
+|Human Forgery - Human Original |Mean response, main model (all participants, no SR term) |-3.66  |[-4.59, -2.80]  |100%   |Negative |
+|AI-Generated - Human Forgery   |Mean response (beauty)                                   |-3.42  |[-4.85, -1.99]  |100%   |Negative |
+|AI-Generated - Human Forgery   |p(Beautiful side) [mu]                                   |-8.10  |[-12.15, -3.83] |99.98% |Negative |
+|AI-Generated - Human Forgery   |Confidence on the Beautiful side [confright]             |-1.71  |[-2.91, -0.52]  |99.72% |Negative |
+|AI-Generated - Human Forgery   |Confidence on the Ugly side [confleft]                   |1.93   |[-0.13, 3.95]   |96.80% |n.s.     |
+|AI-Generated - Human Forgery   |Mean response, main model (all participants, no SR term) |-3.39  |[-4.49, -2.32]  |100%   |Negative |
 
 :::
 
@@ -12180,12 +11831,12 @@ make_asis(
 <table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
   <thead>
     <tr class="gt_heading">
-      <td colspan="6" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Phase-1 beauty: change per +10% of the participant's mean self-relevance (SR_b), per label and between labels</td>
+      <td colspan="6" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Phase-1 Beauty by within- and between-person Self-Relevance: label gap at low, average and high self-relevance, and its change (High - Low)</td>
     </tr>
     
     <tr class="gt_col_headings">
       <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="Parameter">Parameter</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Condition">Condition</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="At">At</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Diff">Diff</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="CI">CI</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="pd_fmt">pd_fmt</th>
@@ -12193,150 +11844,303 @@ make_asis(
     </tr>
   </thead>
   <tbody class="gt_table_body">
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Mean response (beauty)</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">1.81</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[1.03, 2.68]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Mean response (beauty)</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">1.89</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[1.11, 2.75]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Mean response (beauty)</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">AI-Generated</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">2.32</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[1.45, 3.24]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Mean response (beauty)</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.53</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.12, 1.16]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">94.25%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Mean response (beauty)</td>
-<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.10</td>
-<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.47, 0.72]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">63.52%</td>
-<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Mean response (beauty)</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.43</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.24, 1.16]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">89.28%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">p(Beautiful side) [mu]</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">3.67</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[1.44, 5.96]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">99.95%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">p(Beautiful side) [mu]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">3.50</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[1.26, 5.85]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">99.90%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">p(Beautiful side) [mu]</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">AI-Generated</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">5.13</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[2.76, 7.92]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">99.98%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.47</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.33, 3.37]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">93.92%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
-<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.17</td>
-<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.96, 1.45]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">57.73%</td>
-<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.63</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.37, 3.66]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">94.45%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Confidence on the Beautiful side [confright]</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">1.13</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[0.27, 1.98]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">99.50%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Confidence on the Beautiful side [confright]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">1.48</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[0.63, 2.28]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">99.95%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Confidence on the Beautiful side [confright]</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">AI-Generated</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">1.34</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[0.49, 2.13]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">99.98%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.20</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.32, 0.76]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">77.42%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
-<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.34</td>
-<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.19, 0.89]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">88.38%</td>
-<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.14</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.64, 0.42]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">68.70%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Ugly side [confleft]</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #FFEBEE;">Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-1.26</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-2.31, -0.22]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.15%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Confidence on the Ugly side [confleft]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-1.82</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-3.10, -0.78]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.98%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Ugly side [confleft]</td>
-<td headers="Condition" class="gt_row gt_left" style="background-color: #FFEBEE;">AI-Generated</td>
-<td headers="Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-1.56</td>
-<td headers="CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-2.80, -0.48]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.58%</td>
-<td headers="Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.29</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.12, 0.59]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">74.50%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
-<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.55</td>
-<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.47, 0.27]</td>
-<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">89.28%</td>
-<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
-<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
-<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.25</td>
-<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.62, 1.16]</td>
-<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">70.00%</td>
-<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr class="gt_group_heading_row">
+      <th colspan="6" class="gt_group_heading" scope="colgroup" id="AI-Generated - Human Original">AI-Generated - Human Original</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Mean response (beauty)</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-6.51</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-8.33, -4.77]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Mean response (beauty)</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-6.90</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-8.27, -5.50]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Mean response (beauty)</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">High SR (+1 SD)</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-6.33</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-7.99, -4.74]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Mean response (beauty)</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.15</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-2.25, 2.52]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">54.07%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-14.67</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-19.12, -9.34]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-13.57</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-17.47, -9.54]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">High SR (+1 SD)</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-9.62</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-14.15, -4.90]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">5.04</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.56, 11.81]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">92.42%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-5.25</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-6.95, -3.80]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-6.11</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-7.33, -4.94]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">High SR (+1 SD)</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-6.94</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-8.44, -5.44]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-1.67</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-3.65, 0.45]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">94.38%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Confidence on the Ugly side [confleft]</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #E8F5E9;">Low SR (-1 SD)</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">3.07</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[0.79, 5.39]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">99.30%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Confidence on the Ugly side [confleft]</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Average SR</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">4.03</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[2.06, 5.82]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Confidence on the Ugly side [confleft]</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center" style="background-color: #E8F5E9;">High SR (+1 SD)</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">4.87</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[1.93, 7.75]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">99.92%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="AI-Generated - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.75</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.77, 5.75]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">83.08%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr class="gt_group_heading_row">
+      <th colspan="6" class="gt_group_heading" scope="colgroup" id="Human Forgery - Human Original">Human Forgery - Human Original</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Mean response (beauty)</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-3.25</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-4.97, -1.53]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.98%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Mean response (beauty)</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.48</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-4.72, -2.27]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Mean response (beauty)</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">High SR (+1 SD)</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-3.66</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-5.13, -2.28]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Mean response (beauty)</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.40</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-2.58, 1.85]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">63.55%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-6.28</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-11.34, -1.93]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.33%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-5.48</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-8.91, -2.09]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.92%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="color: #9E9E9E;">High SR (+1 SD)</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-3.78</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-7.59, 0.26]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">97.25%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">2.50</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-3.93, 8.50]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">77.75%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-2.93</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-4.54, -1.33]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.98%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-4.38</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-5.56, -3.26]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="background-color: #FFEBEE;">High SR (+1 SD)</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-5.98</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-7.53, -4.53]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">High - Low</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.07</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-5.27, -1.04]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.78%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Confidence on the Ugly side [confleft]</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="background-color: #E8F5E9;">Low SR (-1 SD)</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">2.45</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[0.00, 4.79]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">98.30%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Confidence on the Ugly side [confleft]</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Average SR</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">2.05</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[0.13, 4.05]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">98.25%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center" style="color: #9E9E9E;">High SR (+1 SD)</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">1.64</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.40, 4.51]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">86.10%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="Human Forgery - Human Original  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.80</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-4.85, 2.71]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">66.15%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr class="gt_group_heading_row">
+      <th colspan="6" class="gt_group_heading" scope="colgroup" id="AI-Generated - Human Forgery">AI-Generated - Human Forgery</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Mean response (beauty)</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-3.23</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-5.17, -1.50]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Mean response (beauty)</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.42</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-4.84, -1.98]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Mean response (beauty)</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="background-color: #FFEBEE;">High SR (+1 SD)</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-2.70</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-4.43, -0.88]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.92%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Mean response (beauty)</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.54</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.96, 2.94]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">65.60%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-8.38</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-13.27, -3.08]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.90%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-8.10</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-11.99, -3.70]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.98%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">p(Beautiful side) [mu]</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="background-color: #FFEBEE;">High SR (+1 SD)</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-5.77</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-10.86, -1.04]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.33%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">2.46</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-4.02, 9.79]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">75.83%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="background-color: #FFEBEE;">Low SR (-1 SD)</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-2.34</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-3.93, -0.77]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.65%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Average SR</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-1.71</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-2.90, -0.51]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.72%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="color: #9E9E9E;">High SR (+1 SD)</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.94</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-2.43, 0.74]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">88.52%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.38</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.74, 3.42]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">89.90%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="color: #9E9E9E;">Low SR (-1 SD)</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.58</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.90, 3.18]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">67.00%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Average SR</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.93</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.04, 4.02]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">96.80%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Confidence on the Ugly side [confleft]</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center" style="background-color: #E8F5E9;">High SR (+1 SD)</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">3.19</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[0.17, 6.45]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">97.75%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="AI-Generated - Human Forgery  At" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">High - Low</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">2.61</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.39, 6.69]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">89.40%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
   </tbody>
   
 </table>
@@ -12344,34 +12148,58 @@ make_asis(
 ```
 
 
-::: {.callout-note collapse="true" title="Phase-1 beauty: change per +10% of the participant's mean self-relevance (SR_b), per label and between labels (Markdown table, for text readers)"}
+::: {.callout-note collapse="true" title="Phase-1 Beauty by within- and between-person Self-Relevance: label gap at low, average and high self-relevance, and its change (High - Low) (Markdown table, for text readers)"}
 
-|Parameter                                    |Condition                      |Diff  |CI             |pd_fmt |Effect   |
-|:--------------------------------------------|:------------------------------|:-----|:--------------|:------|:--------|
-|Mean response (beauty)                       |Human Original                 |1.81  |[1.03, 2.68]   |100%   |Positive |
-|Mean response (beauty)                       |Human Forgery                  |1.89  |[1.11, 2.75]   |100%   |Positive |
-|Mean response (beauty)                       |AI-Generated                   |2.32  |[1.45, 3.24]   |100%   |Positive |
-|Mean response (beauty)                       |AI-Generated - Human Original  |0.53  |[-0.12, 1.16]  |94.25% |n.s.     |
-|Mean response (beauty)                       |Human Forgery - Human Original |0.10  |[-0.47, 0.72]  |63.52% |n.s.     |
-|Mean response (beauty)                       |AI-Generated - Human Forgery   |0.43  |[-0.24, 1.16]  |89.28% |n.s.     |
-|p(Beautiful side) [mu]                       |Human Original                 |3.67  |[1.44, 5.96]   |99.95% |Positive |
-|p(Beautiful side) [mu]                       |Human Forgery                  |3.50  |[1.26, 5.85]   |99.90% |Positive |
-|p(Beautiful side) [mu]                       |AI-Generated                   |5.13  |[2.76, 7.92]   |99.98% |Positive |
-|p(Beautiful side) [mu]                       |AI-Generated - Human Original  |1.47  |[-0.33, 3.37]  |93.92% |n.s.     |
-|p(Beautiful side) [mu]                       |Human Forgery - Human Original |-0.17 |[-1.96, 1.45]  |57.73% |n.s.     |
-|p(Beautiful side) [mu]                       |AI-Generated - Human Forgery   |1.63  |[-0.37, 3.66]  |94.45% |n.s.     |
-|Confidence on the Beautiful side [confright] |Human Original                 |1.13  |[0.27, 1.98]   |99.50% |Positive |
-|Confidence on the Beautiful side [confright] |Human Forgery                  |1.48  |[0.63, 2.28]   |99.95% |Positive |
-|Confidence on the Beautiful side [confright] |AI-Generated                   |1.34  |[0.49, 2.13]   |99.98% |Positive |
-|Confidence on the Beautiful side [confright] |AI-Generated - Human Original  |0.20  |[-0.32, 0.76]  |77.42% |n.s.     |
-|Confidence on the Beautiful side [confright] |Human Forgery - Human Original |0.34  |[-0.19, 0.89]  |88.38% |n.s.     |
-|Confidence on the Beautiful side [confright] |AI-Generated - Human Forgery   |-0.14 |[-0.64, 0.42]  |68.70% |n.s.     |
-|Confidence on the Ugly side [confleft]       |Human Original                 |-1.26 |[-2.31, -0.22] |99.15% |Negative |
-|Confidence on the Ugly side [confleft]       |Human Forgery                  |-1.82 |[-3.10, -0.78] |99.98% |Negative |
-|Confidence on the Ugly side [confleft]       |AI-Generated                   |-1.56 |[-2.80, -0.48] |99.58% |Negative |
-|Confidence on the Ugly side [confleft]       |AI-Generated - Human Original  |-0.29 |[-1.12, 0.59]  |74.50% |n.s.     |
-|Confidence on the Ugly side [confleft]       |Human Forgery - Human Original |-0.55 |[-1.47, 0.27]  |89.28% |n.s.     |
-|Confidence on the Ugly side [confleft]       |AI-Generated - Human Forgery   |0.25  |[-0.62, 1.16]  |70.00% |n.s.     |
+|Contrast                       |Parameter                                    |At              |Diff   |CI              |pd_fmt |Effect   |
+|:------------------------------|:--------------------------------------------|:---------------|:------|:---------------|:------|:--------|
+|AI-Generated - Human Original  |Mean response (beauty)                       |Low SR (-1 SD)  |-6.51  |[-8.33, -4.77]  |100%   |Negative |
+|AI-Generated - Human Original  |Mean response (beauty)                       |Average SR      |-6.90  |[-8.27, -5.50]  |100%   |Negative |
+|AI-Generated - Human Original  |Mean response (beauty)                       |High SR (+1 SD) |-6.33  |[-7.99, -4.74]  |100%   |Negative |
+|AI-Generated - Human Original  |Mean response (beauty)                       |High - Low      |0.15   |[-2.25, 2.52]   |54.07% |n.s.     |
+|AI-Generated - Human Original  |p(Beautiful side) [mu]                       |Low SR (-1 SD)  |-14.67 |[-19.12, -9.34] |100%   |Negative |
+|AI-Generated - Human Original  |p(Beautiful side) [mu]                       |Average SR      |-13.57 |[-17.47, -9.54] |100%   |Negative |
+|AI-Generated - Human Original  |p(Beautiful side) [mu]                       |High SR (+1 SD) |-9.62  |[-14.15, -4.90] |100%   |Negative |
+|AI-Generated - Human Original  |p(Beautiful side) [mu]                       |High - Low      |5.04   |[-1.56, 11.81]  |92.42% |n.s.     |
+|AI-Generated - Human Original  |Confidence on the Beautiful side [confright] |Low SR (-1 SD)  |-5.25  |[-6.95, -3.80]  |100%   |Negative |
+|AI-Generated - Human Original  |Confidence on the Beautiful side [confright] |Average SR      |-6.11  |[-7.33, -4.94]  |100%   |Negative |
+|AI-Generated - Human Original  |Confidence on the Beautiful side [confright] |High SR (+1 SD) |-6.94  |[-8.44, -5.44]  |100%   |Negative |
+|AI-Generated - Human Original  |Confidence on the Beautiful side [confright] |High - Low      |-1.67  |[-3.65, 0.45]   |94.38% |n.s.     |
+|AI-Generated - Human Original  |Confidence on the Ugly side [confleft]       |Low SR (-1 SD)  |3.07   |[0.79, 5.39]    |99.30% |Positive |
+|AI-Generated - Human Original  |Confidence on the Ugly side [confleft]       |Average SR      |4.03   |[2.06, 5.82]    |100%   |Positive |
+|AI-Generated - Human Original  |Confidence on the Ugly side [confleft]       |High SR (+1 SD) |4.87   |[1.93, 7.75]    |99.92% |Positive |
+|AI-Generated - Human Original  |Confidence on the Ugly side [confleft]       |High - Low      |1.75   |[-1.77, 5.75]   |83.08% |n.s.     |
+|Human Forgery - Human Original |Mean response (beauty)                       |Low SR (-1 SD)  |-3.25  |[-4.97, -1.53]  |99.98% |Negative |
+|Human Forgery - Human Original |Mean response (beauty)                       |Average SR      |-3.48  |[-4.72, -2.27]  |100%   |Negative |
+|Human Forgery - Human Original |Mean response (beauty)                       |High SR (+1 SD) |-3.66  |[-5.13, -2.28]  |100%   |Negative |
+|Human Forgery - Human Original |Mean response (beauty)                       |High - Low      |-0.40  |[-2.58, 1.85]   |63.55% |n.s.     |
+|Human Forgery - Human Original |p(Beautiful side) [mu]                       |Low SR (-1 SD)  |-6.28  |[-11.34, -1.93] |99.33% |Negative |
+|Human Forgery - Human Original |p(Beautiful side) [mu]                       |Average SR      |-5.48  |[-8.91, -2.09]  |99.92% |Negative |
+|Human Forgery - Human Original |p(Beautiful side) [mu]                       |High SR (+1 SD) |-3.78  |[-7.59, 0.26]   |97.25% |n.s.     |
+|Human Forgery - Human Original |p(Beautiful side) [mu]                       |High - Low      |2.50   |[-3.93, 8.50]   |77.75% |n.s.     |
+|Human Forgery - Human Original |Confidence on the Beautiful side [confright] |Low SR (-1 SD)  |-2.93  |[-4.54, -1.33]  |99.98% |Negative |
+|Human Forgery - Human Original |Confidence on the Beautiful side [confright] |Average SR      |-4.38  |[-5.56, -3.26]  |100%   |Negative |
+|Human Forgery - Human Original |Confidence on the Beautiful side [confright] |High SR (+1 SD) |-5.98  |[-7.53, -4.53]  |100%   |Negative |
+|Human Forgery - Human Original |Confidence on the Beautiful side [confright] |High - Low      |-3.07  |[-5.27, -1.04]  |99.78% |Negative |
+|Human Forgery - Human Original |Confidence on the Ugly side [confleft]       |Low SR (-1 SD)  |2.45   |[0.00, 4.79]    |98.30% |Positive |
+|Human Forgery - Human Original |Confidence on the Ugly side [confleft]       |Average SR      |2.05   |[0.13, 4.05]    |98.25% |Positive |
+|Human Forgery - Human Original |Confidence on the Ugly side [confleft]       |High SR (+1 SD) |1.64   |[-1.40, 4.51]   |86.10% |n.s.     |
+|Human Forgery - Human Original |Confidence on the Ugly side [confleft]       |High - Low      |-0.80  |[-4.85, 2.71]   |66.15% |n.s.     |
+|AI-Generated - Human Forgery   |Mean response (beauty)                       |Low SR (-1 SD)  |-3.23  |[-5.17, -1.50]  |100%   |Negative |
+|AI-Generated - Human Forgery   |Mean response (beauty)                       |Average SR      |-3.42  |[-4.84, -1.98]  |100%   |Negative |
+|AI-Generated - Human Forgery   |Mean response (beauty)                       |High SR (+1 SD) |-2.70  |[-4.43, -0.88]  |99.92% |Negative |
+|AI-Generated - Human Forgery   |Mean response (beauty)                       |High - Low      |0.54   |[-1.96, 2.94]   |65.60% |n.s.     |
+|AI-Generated - Human Forgery   |p(Beautiful side) [mu]                       |Low SR (-1 SD)  |-8.38  |[-13.27, -3.08] |99.90% |Negative |
+|AI-Generated - Human Forgery   |p(Beautiful side) [mu]                       |Average SR      |-8.10  |[-11.99, -3.70] |99.98% |Negative |
+|AI-Generated - Human Forgery   |p(Beautiful side) [mu]                       |High SR (+1 SD) |-5.77  |[-10.86, -1.04] |99.33% |Negative |
+|AI-Generated - Human Forgery   |p(Beautiful side) [mu]                       |High - Low      |2.46   |[-4.02, 9.79]   |75.83% |n.s.     |
+|AI-Generated - Human Forgery   |Confidence on the Beautiful side [confright] |Low SR (-1 SD)  |-2.34  |[-3.93, -0.77]  |99.65% |Negative |
+|AI-Generated - Human Forgery   |Confidence on the Beautiful side [confright] |Average SR      |-1.71  |[-2.90, -0.51]  |99.72% |Negative |
+|AI-Generated - Human Forgery   |Confidence on the Beautiful side [confright] |High SR (+1 SD) |-0.94  |[-2.43, 0.74]   |88.52% |n.s.     |
+|AI-Generated - Human Forgery   |Confidence on the Beautiful side [confright] |High - Low      |1.38   |[-0.74, 3.42]   |89.90% |n.s.     |
+|AI-Generated - Human Forgery   |Confidence on the Ugly side [confleft]       |Low SR (-1 SD)  |0.58   |[-1.90, 3.18]   |67.00% |n.s.     |
+|AI-Generated - Human Forgery   |Confidence on the Ugly side [confleft]       |Average SR      |1.93   |[-0.04, 4.02]   |96.80% |n.s.     |
+|AI-Generated - Human Forgery   |Confidence on the Ugly side [confleft]       |High SR (+1 SD) |3.19   |[0.17, 6.45]    |97.75% |Positive |
+|AI-Generated - Human Forgery   |Confidence on the Ugly side [confleft]       |High - Low      |2.61   |[-1.39, 6.69]   |89.40% |n.s.     |
 
 :::
 
@@ -12828,12 +12656,12 @@ make_asis(
 <table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
   <thead>
     <tr class="gt_heading">
-      <td colspan="6" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Change in the label gap in Phase-1 beauty (% of the slider) per +10% of self-relevance, within and between persons (1 SD of the participant means = 18% of the scale)</td>
+      <td colspan="6" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Phase-1 Beauty by within- and between-person Self-Relevance: change per +10% of self-relevance, per label and between labels</td>
     </tr>
     
     <tr class="gt_col_headings">
-      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Predictor">Predictor</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Model">Model</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="Parameter">Parameter</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Condition">Condition</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Diff">Diff</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="CI">CI</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="pd_fmt">pd_fmt</th>
@@ -12841,69 +12669,150 @@ make_asis(
     </tr>
   </thead>
   <tbody class="gt_table_body">
-    <tr class="gt_group_heading_row">
-      <th colspan="6" class="gt_group_heading" scope="colgroup" id="AI-Generated - Human Original">AI-Generated - Human Original</th>
-    </tr>
-    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Original  Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Self-relevance, participant's mean (SR_b)</td>
-<td headers="AI-Generated - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">BeautySRBetween</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.53</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.12, 1.16]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">94.25%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Predictor" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Self-relevance, within person (SR_w)</td>
-<td headers="AI-Generated - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">BeautySR (within only)</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.08</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.53, 0.64]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">60.75%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Original  Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Self-relevance, within person (SR_w)</td>
-<td headers="AI-Generated - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">BeautySRBetween</td>
-<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.08</td>
-<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.52, 0.64]</td>
-<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">59.85%</td>
-<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr class="gt_group_heading_row">
-      <th colspan="6" class="gt_group_heading" scope="colgroup" id="Human Forgery - Human Original">Human Forgery - Human Original</th>
-    </tr>
-    <tr class="gt_row_group_first"><td headers="Human Forgery - Human Original  Predictor" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Self-relevance, participant's mean (SR_b)</td>
-<td headers="Human Forgery - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">BeautySRBetween</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.10</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.47, 0.72]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">63.52%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Self-relevance, within person (SR_w)</td>
-<td headers="Human Forgery - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">BeautySR (within only)</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.06</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.58, 0.49]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">58.80%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Human Forgery - Human Original  Predictor" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Self-relevance, within person (SR_w)</td>
-<td headers="Human Forgery - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">BeautySRBetween</td>
-<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.06</td>
-<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.58, 0.49]</td>
-<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">59.77%</td>
-<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr class="gt_group_heading_row">
-      <th colspan="6" class="gt_group_heading" scope="colgroup" id="AI-Generated - Human Forgery">AI-Generated - Human Forgery</th>
-    </tr>
-    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Forgery  Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Self-relevance, participant's mean (SR_b)</td>
-<td headers="AI-Generated - Human Forgery  Model" class="gt_row gt_left" style="color: #9E9E9E;">BeautySRBetween</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.43</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.24, 1.16]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">89.28%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Predictor" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Self-relevance, within person (SR_w)</td>
-<td headers="AI-Generated - Human Forgery  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">BeautySR (within only)</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.14</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.52, 0.71]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">68.30%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="AI-Generated - Human Forgery  Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Self-relevance, within person (SR_w)</td>
-<td headers="AI-Generated - Human Forgery  Model" class="gt_row gt_left" style="color: #9E9E9E;">BeautySRBetween</td>
-<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.14</td>
-<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.47, 0.73]</td>
-<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">67.05%</td>
-<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Mean response (beauty)</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">3.13</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[2.59, 3.65]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Mean response (beauty)</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">3.06</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[2.55, 3.58]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Mean response (beauty)</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">AI-Generated</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">3.20</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[2.71, 3.71]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Mean response (beauty)</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.08</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.52, 0.64]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">59.85%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Mean response (beauty)</td>
+<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.06</td>
+<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.58, 0.49]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">59.77%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Mean response (beauty)</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.14</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.47, 0.73]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">67.05%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">p(Beautiful side) [mu]</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">7.02</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[5.52, 8.49]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">p(Beautiful side) [mu]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">7.61</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[6.14, 9.05]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">p(Beautiful side) [mu]</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">AI-Generated</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">8.25</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[6.88, 9.68]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.28</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.36, 2.96]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">92.73%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
+<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.63</td>
+<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.88, 2.16]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">78.53%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.63</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.98, 2.48]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">76.42%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Confidence on the Beautiful side [confright]</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">1.87</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[1.47, 2.26]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Confidence on the Beautiful side [confright]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">1.19</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[0.82, 1.55]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Confidence on the Beautiful side [confright]</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">AI-Generated</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">1.50</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[1.12, 1.86]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.37</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.81, 0.10]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">94.42%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Beautiful side [confright]</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #FFEBEE;">Human Forgery - Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-0.68</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-1.15, -0.22]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.78%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.30</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.16, 0.75]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">89.88%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Ugly side [confleft]</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #FFEBEE;">Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-1.22</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-1.81, -0.60]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Confidence on the Ugly side [confleft]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-1.39</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-2.09, -0.67]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.98%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Ugly side [confleft]</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #FFEBEE;">AI-Generated</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-0.82</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-1.47, -0.11]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.00%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.38</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.37, 1.28]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">83.08%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.18</td>
+<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.07, 0.59]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">66.15%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.58</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.30, 1.48]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">89.40%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
   </tbody>
   
 </table>
@@ -12911,155 +12820,36 @@ make_asis(
 ```
 
 
-::: {.callout-note collapse="true" title="Change in the label gap in Phase-1 beauty (% of the slider) per +10% of self-relevance, within and between persons (1 SD of the participant means = 18% of the scale) (Markdown table, for text readers)"}
+::: {.callout-note collapse="true" title="Phase-1 Beauty by within- and between-person Self-Relevance: change per +10% of self-relevance, per label and between labels (Markdown table, for text readers)"}
 
-|Contrast                       |Predictor                                 |Model                  |Diff  |CI            |pd_fmt |Effect |
-|:------------------------------|:-----------------------------------------|:----------------------|:-----|:-------------|:------|:------|
-|AI-Generated - Human Original  |Self-relevance, participant's mean (SR_b) |BeautySRBetween        |0.53  |[-0.12, 1.16] |94.25% |n.s.   |
-|AI-Generated - Human Original  |Self-relevance, within person (SR_w)      |BeautySR (within only) |0.08  |[-0.53, 0.64] |60.75% |n.s.   |
-|AI-Generated - Human Original  |Self-relevance, within person (SR_w)      |BeautySRBetween        |0.08  |[-0.52, 0.64] |59.85% |n.s.   |
-|Human Forgery - Human Original |Self-relevance, participant's mean (SR_b) |BeautySRBetween        |0.10  |[-0.47, 0.72] |63.52% |n.s.   |
-|Human Forgery - Human Original |Self-relevance, within person (SR_w)      |BeautySR (within only) |-0.06 |[-0.58, 0.49] |58.80% |n.s.   |
-|Human Forgery - Human Original |Self-relevance, within person (SR_w)      |BeautySRBetween        |-0.06 |[-0.58, 0.49] |59.77% |n.s.   |
-|AI-Generated - Human Forgery   |Self-relevance, participant's mean (SR_b) |BeautySRBetween        |0.43  |[-0.24, 1.16] |89.28% |n.s.   |
-|AI-Generated - Human Forgery   |Self-relevance, within person (SR_w)      |BeautySR (within only) |0.14  |[-0.52, 0.71] |68.30% |n.s.   |
-|AI-Generated - Human Forgery   |Self-relevance, within person (SR_w)      |BeautySRBetween        |0.14  |[-0.47, 0.73] |67.05% |n.s.   |
+|Parameter                                    |Condition                      |Diff  |CI             |pd_fmt |Effect   |
+|:--------------------------------------------|:------------------------------|:-----|:--------------|:------|:--------|
+|Mean response (beauty)                       |Human Original                 |3.13  |[2.59, 3.65]   |100%   |Positive |
+|Mean response (beauty)                       |Human Forgery                  |3.06  |[2.55, 3.58]   |100%   |Positive |
+|Mean response (beauty)                       |AI-Generated                   |3.20  |[2.71, 3.71]   |100%   |Positive |
+|Mean response (beauty)                       |AI-Generated - Human Original  |0.08  |[-0.52, 0.64]  |59.85% |n.s.     |
+|Mean response (beauty)                       |Human Forgery - Human Original |-0.06 |[-0.58, 0.49]  |59.77% |n.s.     |
+|Mean response (beauty)                       |AI-Generated - Human Forgery   |0.14  |[-0.47, 0.73]  |67.05% |n.s.     |
+|p(Beautiful side) [mu]                       |Human Original                 |7.02  |[5.52, 8.49]   |100%   |Positive |
+|p(Beautiful side) [mu]                       |Human Forgery                  |7.61  |[6.14, 9.05]   |100%   |Positive |
+|p(Beautiful side) [mu]                       |AI-Generated                   |8.25  |[6.88, 9.68]   |100%   |Positive |
+|p(Beautiful side) [mu]                       |AI-Generated - Human Original  |1.28  |[-0.36, 2.96]  |92.73% |n.s.     |
+|p(Beautiful side) [mu]                       |Human Forgery - Human Original |0.63  |[-0.88, 2.16]  |78.53% |n.s.     |
+|p(Beautiful side) [mu]                       |AI-Generated - Human Forgery   |0.63  |[-0.98, 2.48]  |76.42% |n.s.     |
+|Confidence on the Beautiful side [confright] |Human Original                 |1.87  |[1.47, 2.26]   |100%   |Positive |
+|Confidence on the Beautiful side [confright] |Human Forgery                  |1.19  |[0.82, 1.55]   |100%   |Positive |
+|Confidence on the Beautiful side [confright] |AI-Generated                   |1.50  |[1.12, 1.86]   |100%   |Positive |
+|Confidence on the Beautiful side [confright] |AI-Generated - Human Original  |-0.37 |[-0.81, 0.10]  |94.42% |n.s.     |
+|Confidence on the Beautiful side [confright] |Human Forgery - Human Original |-0.68 |[-1.15, -0.22] |99.78% |Negative |
+|Confidence on the Beautiful side [confright] |AI-Generated - Human Forgery   |0.30  |[-0.16, 0.75]  |89.88% |n.s.     |
+|Confidence on the Ugly side [confleft]       |Human Original                 |-1.22 |[-1.81, -0.60] |100%   |Negative |
+|Confidence on the Ugly side [confleft]       |Human Forgery                  |-1.39 |[-2.09, -0.67] |99.98% |Negative |
+|Confidence on the Ugly side [confleft]       |AI-Generated                   |-0.82 |[-1.47, -0.11] |99.00% |Negative |
+|Confidence on the Ugly side [confleft]       |AI-Generated - Human Original  |0.38  |[-0.37, 1.28]  |83.08% |n.s.     |
+|Confidence on the Ugly side [confleft]       |Human Forgery - Human Original |-0.18 |[-1.07, 0.59]  |66.15% |n.s.     |
+|Confidence on the Ugly side [confleft]       |AI-Generated - Human Forgery   |0.58  |[-0.30, 1.48]  |89.40% |n.s.     |
 
 :::
-
-## (B) Self-relevance and human origin
-
-Are works that feel self-relevant judged more human and more original, over
-and above how beautiful they are, and does that need a label?
-
-### Observed
-
-
-::: {.cell}
-
-```{.r .cell-code}
-bind_rows(observed_by(dfsr, "Reality"), observed_by(dfsr, "Authenticity")) |>
-  mutate(Outcome = recode(Outcome, Reality = "Syntheticness (0 = AI, 100 = Human)",
-                          Authenticity = "Authenticity (0 = Copy, 100 = Original)")) |>
-  plot_observed()
-```
-
-::: {.cell-output-display}
-![](6_selfrelevance_files/figure-html/unnamed-chunk-21-1.png){width=960}
-:::
-:::
-
-
-
-::: {.cell}
-
-```{.r .cell-code}
-observed_by(filter(dfmem, Recognition == "No"), "PerceivedArtificiality", by = "Type") |>
-  mutate(Outcome = "Perceived artificiality, items judged new (0 = Very Human, 100 = Very Artificial)") |>
-  plot_observed(by = "Type")
-```
-
-::: {.cell-output-display}
-![](6_selfrelevance_files/figure-html/unnamed-chunk-22-1.png){width=576}
-:::
-:::
-
-
-### Syntheticness and authenticity
-
-
-```{.r .cell-code}
-pending("RealitySR", "AuthenticitySR")
-```
-
-
-::: {.cell}
-
-```{.r .cell-code}
-dat_cues <- bind_rows(lapply(names(beliefs), function(o) mutate(beliefs[[o]]$response$cues, Belief = o))) |>
-  mutate(Predictor = factor(predictor_labels[Mediator], levels = predictor_labels))
-
-dat_cues |>
-  filter(Condition %in% levels(dfsr$Condition)) |>
-  mutate(Condition = factor(Condition, levels = levels(dfsr$Condition))) |>
-  ggplot(aes(x = Median, y = Predictor, xmin = CI_low, xmax = CI_high, color = Condition)) +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
-  geom_pointrange(position = position_dodge(width = 0.5)) +
-  facet_wrap(~Belief) +
-  scale_y_discrete(limits = rev) +
-  scale_color_manual(values = cols) +
-  labs(x = "Change in the belief per +10% of the predictor (% of the belief slider, 95% HDI)", y = NULL,
-       color = "Label", caption = "The other two predictors held at the participant's average.") +
-  theme_minimal() +
-  theme(legend.position = "top", strip.text = element_text(face = "bold"))
-```
-
-::: {.cell-output-display}
-![](6_selfrelevance_files/figure-html/unnamed-chunk-24-1.png){width=960}
-:::
-:::
-
-
-
-```{.r .cell-code}
-tab_cues <- bind_rows(lapply(names(beliefs), function(o) {
-  labs_par <- par_labels[[appraisal_info[[belief_models[[o]]]]$outcome]]
-  bind_rows(lapply(names(beliefs[[o]]), function(p) {
-    mutate(beliefs[[o]][[p]]$cues, Parameter = labs_par[[p]])
-  })) |>
-    mutate(Contrast = o)
-})) |>
-  mutate(Predictor = factor(predictor_labels[Mediator], levels = predictor_labels)) |>
-  format_effects() |>
-  arrange(Contrast, Predictor, Parameter)
-
-# The same slopes without SR in the model (same 217 participants)
-tab_ref <- bind_rows(lapply(names(beliefs), function(o) {
-  n <- belief_models[[o]]
-  ctrl <- reference[[paste0(appraisal_info[[n]]$outcome, "BeautyControl")]]
-  bind_rows(
-    mutate(dat_cues[dat_cues$Belief == o, ], Model = n),
-    mutate(rename(grid_slopes(ctrl), Condition = Level), Predictor = "Phase-1 beauty", Model = paste0(ctrl$outcome, " (no SR)")),
-    mutate(rename(covariate_slopes(ctrl, "Beauty2_w", pairs = TRUE), Condition = Level), Predictor = "Follow-up beauty", Model = paste0(ctrl$outcome, " (no SR)"))
-  ) |>
-    mutate(Contrast = o)
-})) |>
-  mutate(Predictor = factor(Predictor, levels = predictor_labels),
-         Condition = factor(Condition, levels = c(levels(dfsr$Condition), contrast_order))) |>
-  format_effects() |>
-  arrange(Contrast, Predictor, Condition, Model)
-
-tab_dec <- bind_rows(lapply(names(beliefs), function(o) {
-  mutate(beliefs[[o]]$response$effects, Contrast = paste0(o, ": ", Contrast))
-})) |>
-  filter(Path %in% c("Total", "Direct", "Indirect (Beauty)", "Indirect (SR)", "Indirect (Beauty2)",
-                     "Mediator (Beauty)", "Mediator (SR)", "Mediator (Beauty2)")) |>
-  mutate(Path = str_replace_all(Path, c("\\(SR\\)" = "(Self-relevance)", "\\(Beauty2\\)" = "(Follow-up beauty)", "\\(Beauty\\)" = "(Phase-1 beauty)"))) |>
-  format_effects()
-
-tab_con <- bind_rows(lapply(names(beliefs), function(o) {
-  n <- belief_models[[o]]
-  outcome <- appraisal_info[[n]]$outcome
-  bind_rows(
-    prep_contrasts(estimates[[n]]$contrasts, outcome) |> mutate(Model = n),
-    prep_contrasts(reference[[outcome]]$contrasts, outcome) |> mutate(Model = paste(outcome, "(main model, no rating terms)"))
-  ) |>
-    filter(Parameter %in% c("response", "mu", "confright", "confleft")) |>
-    mutate(Contrast = paste0(o, ": ", Contrast))
-})) |>
-  arrange(Contrast, Parameter)
-
-make_asis(
-  make_tables(tab_cues, c("Contrast", "Predictor", "Parameter", "Condition", "Diff", "CI", "pd_fmt", "Effect"),
-              "Unique change in the belief per +10% of each predictor, the others at the participant's average, per label and between labels (% of the slider / percentage points)"),
-  make_tables(tab_ref, c("Contrast", "Predictor", "Condition", "Model", "Diff", "CI", "pd_fmt", "Effect"),
-              "Mean response: the same slopes with and without self-relevance in the model"),
-  make_tables(tab_dec, c("Contrast", "Path", "Diff", "CI", "pd_fmt", "Effect"),
-              "Decomposition of the label effect (% of the belief slider; Mediator rows: the label's shift in that rating, % of its scale)"),
-  make_tables(tab_con, c("Contrast", "Model", "Parameter", "Diff", "CI", "pd_fmt", "Effect"),
-              "Label contrasts at the participant's average ratings, next to the main model")
-)
-```
 
 ```{=html}
 <div id="jeebplyqeq" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
@@ -13508,6 +13298,1340 @@ make_asis(
 }
 
 #jeebplyqeq div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+  <thead>
+    <tr class="gt_heading">
+      <td colspan="6" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Phase-1 beauty: change per +10% of the participant's mean self-relevance (SR_b), per label and between labels</td>
+    </tr>
+    
+    <tr class="gt_col_headings">
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" scope="col" id="Parameter">Parameter</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Condition">Condition</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Diff">Diff</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="CI">CI</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="pd_fmt">pd_fmt</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Effect">Effect</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Mean response (beauty)</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">1.81</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[1.03, 2.68]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Mean response (beauty)</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">1.89</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[1.11, 2.75]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Mean response (beauty)</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">AI-Generated</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">2.32</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[1.45, 3.24]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Mean response (beauty)</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.53</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.12, 1.16]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">94.25%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Mean response (beauty)</td>
+<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.10</td>
+<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.47, 0.72]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">63.52%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Mean response (beauty)</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.43</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.24, 1.16]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">89.28%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">p(Beautiful side) [mu]</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">3.67</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[1.44, 5.96]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">99.95%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">p(Beautiful side) [mu]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">3.50</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[1.26, 5.85]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">99.90%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">p(Beautiful side) [mu]</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">AI-Generated</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">5.13</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[2.76, 7.92]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">99.98%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.47</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.33, 3.37]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">93.92%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
+<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.17</td>
+<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.96, 1.45]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">57.73%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">p(Beautiful side) [mu]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.63</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.37, 3.66]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">94.45%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Confidence on the Beautiful side [confright]</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">1.13</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[0.27, 1.98]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">99.50%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #E8F5E9;">Confidence on the Beautiful side [confright]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">1.48</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[0.63, 2.28]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">99.95%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #E8F5E9;">Confidence on the Beautiful side [confright]</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #E8F5E9;">AI-Generated</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #E8F5E9;">1.34</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #E8F5E9;">[0.49, 2.13]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #E8F5E9;">99.98%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.20</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.32, 0.76]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">77.42%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
+<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.34</td>
+<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.19, 0.89]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">88.38%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Beautiful side [confright]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.14</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.64, 0.42]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">68.70%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Ugly side [confleft]</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #FFEBEE;">Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-1.26</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-2.31, -0.22]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.15%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="background-color: #FFEBEE;">Confidence on the Ugly side [confleft]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-1.82</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-3.10, -0.78]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.98%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="background-color: #FFEBEE;">Confidence on the Ugly side [confleft]</td>
+<td headers="Condition" class="gt_row gt_left" style="background-color: #FFEBEE;">AI-Generated</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-1.56</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-2.80, -0.48]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.58%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Original</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.29</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.12, 0.59]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">74.50%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="Condition" class="gt_row gt_left" style="color: #9E9E9E;">Human Forgery - Human Original</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.55</td>
+<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.47, 0.27]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">89.28%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Parameter" class="gt_row gt_center gt_striped" style="color: #9E9E9E;">Confidence on the Ugly side [confleft]</td>
+<td headers="Condition" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">AI-Generated - Human Forgery</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.25</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.62, 1.16]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">70.00%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+  </tbody>
+  
+</table>
+</div>
+```
+
+
+::: {.callout-note collapse="true" title="Phase-1 beauty: change per +10% of the participant's mean self-relevance (SR_b), per label and between labels (Markdown table, for text readers)"}
+
+|Parameter                                    |Condition                      |Diff  |CI             |pd_fmt |Effect   |
+|:--------------------------------------------|:------------------------------|:-----|:--------------|:------|:--------|
+|Mean response (beauty)                       |Human Original                 |1.81  |[1.03, 2.68]   |100%   |Positive |
+|Mean response (beauty)                       |Human Forgery                  |1.89  |[1.11, 2.75]   |100%   |Positive |
+|Mean response (beauty)                       |AI-Generated                   |2.32  |[1.45, 3.24]   |100%   |Positive |
+|Mean response (beauty)                       |AI-Generated - Human Original  |0.53  |[-0.12, 1.16]  |94.25% |n.s.     |
+|Mean response (beauty)                       |Human Forgery - Human Original |0.10  |[-0.47, 0.72]  |63.52% |n.s.     |
+|Mean response (beauty)                       |AI-Generated - Human Forgery   |0.43  |[-0.24, 1.16]  |89.28% |n.s.     |
+|p(Beautiful side) [mu]                       |Human Original                 |3.67  |[1.44, 5.96]   |99.95% |Positive |
+|p(Beautiful side) [mu]                       |Human Forgery                  |3.50  |[1.26, 5.85]   |99.90% |Positive |
+|p(Beautiful side) [mu]                       |AI-Generated                   |5.13  |[2.76, 7.92]   |99.98% |Positive |
+|p(Beautiful side) [mu]                       |AI-Generated - Human Original  |1.47  |[-0.33, 3.37]  |93.92% |n.s.     |
+|p(Beautiful side) [mu]                       |Human Forgery - Human Original |-0.17 |[-1.96, 1.45]  |57.73% |n.s.     |
+|p(Beautiful side) [mu]                       |AI-Generated - Human Forgery   |1.63  |[-0.37, 3.66]  |94.45% |n.s.     |
+|Confidence on the Beautiful side [confright] |Human Original                 |1.13  |[0.27, 1.98]   |99.50% |Positive |
+|Confidence on the Beautiful side [confright] |Human Forgery                  |1.48  |[0.63, 2.28]   |99.95% |Positive |
+|Confidence on the Beautiful side [confright] |AI-Generated                   |1.34  |[0.49, 2.13]   |99.98% |Positive |
+|Confidence on the Beautiful side [confright] |AI-Generated - Human Original  |0.20  |[-0.32, 0.76]  |77.42% |n.s.     |
+|Confidence on the Beautiful side [confright] |Human Forgery - Human Original |0.34  |[-0.19, 0.89]  |88.38% |n.s.     |
+|Confidence on the Beautiful side [confright] |AI-Generated - Human Forgery   |-0.14 |[-0.64, 0.42]  |68.70% |n.s.     |
+|Confidence on the Ugly side [confleft]       |Human Original                 |-1.26 |[-2.31, -0.22] |99.15% |Negative |
+|Confidence on the Ugly side [confleft]       |Human Forgery                  |-1.82 |[-3.10, -0.78] |99.98% |Negative |
+|Confidence on the Ugly side [confleft]       |AI-Generated                   |-1.56 |[-2.80, -0.48] |99.58% |Negative |
+|Confidence on the Ugly side [confleft]       |AI-Generated - Human Original  |-0.29 |[-1.12, 0.59]  |74.50% |n.s.     |
+|Confidence on the Ugly side [confleft]       |Human Forgery - Human Original |-0.55 |[-1.47, 0.27]  |89.28% |n.s.     |
+|Confidence on the Ugly side [confleft]       |AI-Generated - Human Forgery   |0.25  |[-0.62, 1.16]  |70.00% |n.s.     |
+
+:::
+
+```{=html}
+<div id="mlnnrlcdjk" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#mlnnrlcdjk table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#mlnnrlcdjk thead, #mlnnrlcdjk tbody, #mlnnrlcdjk tfoot, #mlnnrlcdjk tr, #mlnnrlcdjk td, #mlnnrlcdjk th {
+  border-style: none;
+}
+
+#mlnnrlcdjk p {
+  margin: 0;
+  padding: 0;
+}
+
+#mlnnrlcdjk .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 13px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 3px;
+  border-top-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 3px;
+  border-right-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 3px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 3px;
+  border-left-color: #D5D5D5;
+}
+
+#mlnnrlcdjk .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#mlnnrlcdjk .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#mlnnrlcdjk .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#mlnnrlcdjk .gt_heading {
+  background-color: #FFFFFF;
+  text-align: left;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#mlnnrlcdjk .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#mlnnrlcdjk .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#mlnnrlcdjk .gt_col_heading {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#mlnnrlcdjk .gt_column_spanner_outer {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#mlnnrlcdjk .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#mlnnrlcdjk .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#mlnnrlcdjk .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#mlnnrlcdjk .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#mlnnrlcdjk .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#mlnnrlcdjk .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: middle;
+}
+
+#mlnnrlcdjk .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#mlnnrlcdjk .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#mlnnrlcdjk .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 1px;
+  border-left-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 1px;
+  border-right-color: #D5D5D5;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#mlnnrlcdjk .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #5F5F5F;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#mlnnrlcdjk .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#mlnnrlcdjk .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#mlnnrlcdjk .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#mlnnrlcdjk .gt_summary_row {
+  color: #333333;
+  background-color: #D5D5D5;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#mlnnrlcdjk .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D5D5D5;
+}
+
+#mlnnrlcdjk .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#mlnnrlcdjk .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#mlnnrlcdjk .gt_grand_summary_row {
+  color: #FFFFFF;
+  background-color: #929292;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#mlnnrlcdjk .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D5D5D5;
+}
+
+#mlnnrlcdjk .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D5D5D5;
+}
+
+#mlnnrlcdjk .gt_striped {
+  background-color: #F4F4F4;
+}
+
+#mlnnrlcdjk .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#mlnnrlcdjk .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#mlnnrlcdjk .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#mlnnrlcdjk .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#mlnnrlcdjk .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#mlnnrlcdjk .gt_left {
+  text-align: left;
+}
+
+#mlnnrlcdjk .gt_center {
+  text-align: center;
+}
+
+#mlnnrlcdjk .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#mlnnrlcdjk .gt_font_normal {
+  font-weight: normal;
+}
+
+#mlnnrlcdjk .gt_font_bold {
+  font-weight: bold;
+}
+
+#mlnnrlcdjk .gt_font_italic {
+  font-style: italic;
+}
+
+#mlnnrlcdjk .gt_super {
+  font-size: 65%;
+}
+
+#mlnnrlcdjk .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#mlnnrlcdjk .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#mlnnrlcdjk .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#mlnnrlcdjk .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#mlnnrlcdjk .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#mlnnrlcdjk .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#mlnnrlcdjk .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#mlnnrlcdjk .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#mlnnrlcdjk div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+  <thead>
+    <tr class="gt_heading">
+      <td colspan="6" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Change in the label gap in Phase-1 beauty (% of the slider) per +10% of self-relevance, within and between persons (1 SD of the participant means = 18% of the scale)</td>
+    </tr>
+    
+    <tr class="gt_col_headings">
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Predictor">Predictor</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Model">Model</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Diff">Diff</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="CI">CI</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="pd_fmt">pd_fmt</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Effect">Effect</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr class="gt_group_heading_row">
+      <th colspan="6" class="gt_group_heading" scope="colgroup" id="AI-Generated - Human Original">AI-Generated - Human Original</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Original  Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Self-relevance, participant's mean (SR_b)</td>
+<td headers="AI-Generated - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">BeautySRBetween</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.53</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.12, 1.16]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">94.25%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Predictor" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Self-relevance, within person (SR_w)</td>
+<td headers="AI-Generated - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">BeautySR (within only)</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.08</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.53, 0.64]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">60.75%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Original  Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Self-relevance, within person (SR_w)</td>
+<td headers="AI-Generated - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">BeautySRBetween</td>
+<td headers="AI-Generated - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.08</td>
+<td headers="AI-Generated - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.52, 0.64]</td>
+<td headers="AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">59.85%</td>
+<td headers="AI-Generated - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr class="gt_group_heading_row">
+      <th colspan="6" class="gt_group_heading" scope="colgroup" id="Human Forgery - Human Original">Human Forgery - Human Original</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="Human Forgery - Human Original  Predictor" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Self-relevance, participant's mean (SR_b)</td>
+<td headers="Human Forgery - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">BeautySRBetween</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.10</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.47, 0.72]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">63.52%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Self-relevance, within person (SR_w)</td>
+<td headers="Human Forgery - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">BeautySR (within only)</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.06</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.58, 0.49]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">58.80%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Human Forgery - Human Original  Predictor" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Self-relevance, within person (SR_w)</td>
+<td headers="Human Forgery - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">BeautySRBetween</td>
+<td headers="Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.06</td>
+<td headers="Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.58, 0.49]</td>
+<td headers="Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">59.77%</td>
+<td headers="Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr class="gt_group_heading_row">
+      <th colspan="6" class="gt_group_heading" scope="colgroup" id="AI-Generated - Human Forgery">AI-Generated - Human Forgery</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="AI-Generated - Human Forgery  Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Self-relevance, participant's mean (SR_b)</td>
+<td headers="AI-Generated - Human Forgery  Model" class="gt_row gt_left" style="color: #9E9E9E;">BeautySRBetween</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.43</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.24, 1.16]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">89.28%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Predictor" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Self-relevance, within person (SR_w)</td>
+<td headers="AI-Generated - Human Forgery  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">BeautySR (within only)</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.14</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.52, 0.71]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">68.30%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="AI-Generated - Human Forgery  Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Self-relevance, within person (SR_w)</td>
+<td headers="AI-Generated - Human Forgery  Model" class="gt_row gt_left" style="color: #9E9E9E;">BeautySRBetween</td>
+<td headers="AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.14</td>
+<td headers="AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.47, 0.73]</td>
+<td headers="AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">67.05%</td>
+<td headers="AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+  </tbody>
+  
+</table>
+</div>
+```
+
+
+::: {.callout-note collapse="true" title="Change in the label gap in Phase-1 beauty (% of the slider) per +10% of self-relevance, within and between persons (1 SD of the participant means = 18% of the scale) (Markdown table, for text readers)"}
+
+|Contrast                       |Predictor                                 |Model                  |Diff  |CI            |pd_fmt |Effect |
+|:------------------------------|:-----------------------------------------|:----------------------|:-----|:-------------|:------|:------|
+|AI-Generated - Human Original  |Self-relevance, participant's mean (SR_b) |BeautySRBetween        |0.53  |[-0.12, 1.16] |94.25% |n.s.   |
+|AI-Generated - Human Original  |Self-relevance, within person (SR_w)      |BeautySR (within only) |0.08  |[-0.53, 0.64] |60.75% |n.s.   |
+|AI-Generated - Human Original  |Self-relevance, within person (SR_w)      |BeautySRBetween        |0.08  |[-0.52, 0.64] |59.85% |n.s.   |
+|Human Forgery - Human Original |Self-relevance, participant's mean (SR_b) |BeautySRBetween        |0.10  |[-0.47, 0.72] |63.52% |n.s.   |
+|Human Forgery - Human Original |Self-relevance, within person (SR_w)      |BeautySR (within only) |-0.06 |[-0.58, 0.49] |58.80% |n.s.   |
+|Human Forgery - Human Original |Self-relevance, within person (SR_w)      |BeautySRBetween        |-0.06 |[-0.58, 0.49] |59.77% |n.s.   |
+|AI-Generated - Human Forgery   |Self-relevance, participant's mean (SR_b) |BeautySRBetween        |0.43  |[-0.24, 1.16] |89.28% |n.s.   |
+|AI-Generated - Human Forgery   |Self-relevance, within person (SR_w)      |BeautySR (within only) |0.14  |[-0.52, 0.71] |68.30% |n.s.   |
+|AI-Generated - Human Forgery   |Self-relevance, within person (SR_w)      |BeautySRBetween        |0.14  |[-0.47, 0.73] |67.05% |n.s.   |
+
+:::
+
+## (B) Self-relevance and human origin
+
+Are works that feel self-relevant judged more human and more original, over
+and above how beautiful they are, and does that need a label?
+
+### Observed
+
+
+::: {.cell}
+
+```{.r .cell-code}
+bind_rows(observed_by(dfsr, "Reality"), observed_by(dfsr, "Authenticity")) |>
+  mutate(Outcome = recode(Outcome, Reality = "Syntheticness (0 = AI, 100 = Human)",
+                          Authenticity = "Authenticity (0 = Copy, 100 = Original)")) |>
+  plot_observed()
+```
+
+::: {.cell-output-display}
+![](6_selfrelevance_files/figure-html/unnamed-chunk-22-1.png){width=960}
+:::
+:::
+
+
+
+::: {.cell}
+
+```{.r .cell-code}
+observed_by(filter(dfmem, Recognition == "No"), "PerceivedArtificiality", by = "Type") |>
+  mutate(Outcome = "Perceived artificiality, items judged new (0 = Very Human, 100 = Very Artificial)") |>
+  plot_observed(by = "Type")
+```
+
+::: {.cell-output-display}
+![](6_selfrelevance_files/figure-html/unnamed-chunk-23-1.png){width=576}
+:::
+:::
+
+
+### Syntheticness and authenticity
+
+
+```{.r .cell-code}
+pending("RealitySR", "AuthenticitySR")
+```
+
+
+::: {.cell}
+
+```{.r .cell-code}
+dat_cues <- bind_rows(lapply(names(beliefs), function(o) mutate(beliefs[[o]]$response$cues, Belief = o))) |>
+  mutate(Predictor = factor(predictor_labels[Mediator], levels = predictor_labels))
+
+dat_cues |>
+  filter(Condition %in% levels(dfsr$Condition)) |>
+  mutate(Condition = factor(Condition, levels = levels(dfsr$Condition))) |>
+  ggplot(aes(x = Median, y = Predictor, xmin = CI_low, xmax = CI_high, color = Condition)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_pointrange(position = position_dodge(width = 0.5)) +
+  facet_wrap(~Belief) +
+  scale_y_discrete(limits = rev) +
+  scale_color_manual(values = cols) +
+  labs(x = "Change in the belief per +10% of the predictor (% of the belief slider, 95% HDI)", y = NULL,
+       color = "Label", caption = "The other two predictors held at the participant's average.") +
+  theme_minimal() +
+  theme(legend.position = "top", strip.text = element_text(face = "bold"))
+```
+
+::: {.cell-output-display}
+![](6_selfrelevance_files/figure-html/unnamed-chunk-25-1.png){width=960}
+:::
+:::
+
+
+
+```{.r .cell-code}
+tab_cues <- bind_rows(lapply(names(beliefs), function(o) {
+  labs_par <- par_labels[[appraisal_info[[belief_models[[o]]]]$outcome]]
+  bind_rows(lapply(names(beliefs[[o]]), function(p) {
+    mutate(beliefs[[o]][[p]]$cues, Parameter = labs_par[[p]])
+  })) |>
+    mutate(Contrast = o)
+})) |>
+  mutate(Predictor = factor(predictor_labels[Mediator], levels = predictor_labels)) |>
+  format_effects() |>
+  arrange(Contrast, Predictor, Parameter)
+
+# The same slopes without SR in the model (same 217 participants)
+tab_ref <- bind_rows(lapply(names(beliefs), function(o) {
+  n <- belief_models[[o]]
+  ctrl <- reference[[paste0(appraisal_info[[n]]$outcome, "BeautyControl")]]
+  bind_rows(
+    mutate(dat_cues[dat_cues$Belief == o, ], Model = n),
+    mutate(rename(grid_slopes(ctrl), Condition = Level), Predictor = "Phase-1 beauty", Model = paste0(ctrl$outcome, " (no SR)")),
+    mutate(rename(covariate_slopes(ctrl, "Beauty2_w", pairs = TRUE), Condition = Level), Predictor = "Follow-up beauty", Model = paste0(ctrl$outcome, " (no SR)"))
+  ) |>
+    mutate(Contrast = o)
+})) |>
+  mutate(Predictor = factor(Predictor, levels = predictor_labels),
+         Condition = factor(Condition, levels = c(levels(dfsr$Condition), contrast_order))) |>
+  format_effects() |>
+  arrange(Contrast, Predictor, Condition, Model)
+
+tab_dec <- bind_rows(lapply(names(beliefs), function(o) {
+  mutate(beliefs[[o]]$response$effects, Contrast = paste0(o, ": ", Contrast))
+})) |>
+  filter(Path %in% c("Total", "Direct", "Indirect (Beauty)", "Indirect (SR)", "Indirect (Beauty2)",
+                     "Mediator (Beauty)", "Mediator (SR)", "Mediator (Beauty2)")) |>
+  mutate(Path = str_replace_all(Path, c("\\(SR\\)" = "(Self-relevance)", "\\(Beauty2\\)" = "(Follow-up beauty)", "\\(Beauty\\)" = "(Phase-1 beauty)"))) |>
+  format_effects()
+
+tab_con <- bind_rows(lapply(names(beliefs), function(o) {
+  n <- belief_models[[o]]
+  outcome <- appraisal_info[[n]]$outcome
+  bind_rows(
+    prep_contrasts(estimates[[n]]$contrasts, outcome) |> mutate(Model = n),
+    prep_contrasts(reference[[outcome]]$contrasts, outcome) |> mutate(Model = paste(outcome, "(main model, no rating terms)"))
+  ) |>
+    filter(Parameter %in% c("response", "mu", "confright", "confleft")) |>
+    mutate(Contrast = paste0(o, ": ", Contrast))
+})) |>
+  arrange(Contrast, Parameter)
+
+make_asis(
+  make_tables(tab_cues, c("Contrast", "Predictor", "Parameter", "Condition", "Diff", "CI", "pd_fmt", "Effect"),
+              "Unique change in the belief per +10% of each predictor, the others at the participant's average, per label and between labels (% of the slider / percentage points)"),
+  make_tables(tab_ref, c("Contrast", "Predictor", "Condition", "Model", "Diff", "CI", "pd_fmt", "Effect"),
+              "Mean response: the same slopes with and without self-relevance in the model"),
+  make_tables(tab_dec, c("Contrast", "Path", "Diff", "CI", "pd_fmt", "Effect"),
+              "Decomposition of the label effect (% of the belief slider; Mediator rows: the label's shift in that rating, % of its scale)"),
+  make_tables(tab_con, c("Contrast", "Model", "Parameter", "Diff", "CI", "pd_fmt", "Effect"),
+              "Label contrasts at the participant's average ratings, next to the main model")
+)
+```
+
+```{=html}
+<div id="bwhkvpfjrk" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#bwhkvpfjrk table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#bwhkvpfjrk thead, #bwhkvpfjrk tbody, #bwhkvpfjrk tfoot, #bwhkvpfjrk tr, #bwhkvpfjrk td, #bwhkvpfjrk th {
+  border-style: none;
+}
+
+#bwhkvpfjrk p {
+  margin: 0;
+  padding: 0;
+}
+
+#bwhkvpfjrk .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 13px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 3px;
+  border-top-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 3px;
+  border-right-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 3px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 3px;
+  border-left-color: #D5D5D5;
+}
+
+#bwhkvpfjrk .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#bwhkvpfjrk .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#bwhkvpfjrk .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#bwhkvpfjrk .gt_heading {
+  background-color: #FFFFFF;
+  text-align: left;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#bwhkvpfjrk .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#bwhkvpfjrk .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#bwhkvpfjrk .gt_col_heading {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#bwhkvpfjrk .gt_column_spanner_outer {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#bwhkvpfjrk .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#bwhkvpfjrk .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#bwhkvpfjrk .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#bwhkvpfjrk .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#bwhkvpfjrk .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#bwhkvpfjrk .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: middle;
+}
+
+#bwhkvpfjrk .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#bwhkvpfjrk .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#bwhkvpfjrk .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 1px;
+  border-left-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 1px;
+  border-right-color: #D5D5D5;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#bwhkvpfjrk .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #5F5F5F;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#bwhkvpfjrk .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#bwhkvpfjrk .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#bwhkvpfjrk .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#bwhkvpfjrk .gt_summary_row {
+  color: #333333;
+  background-color: #D5D5D5;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#bwhkvpfjrk .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D5D5D5;
+}
+
+#bwhkvpfjrk .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#bwhkvpfjrk .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#bwhkvpfjrk .gt_grand_summary_row {
+  color: #FFFFFF;
+  background-color: #929292;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#bwhkvpfjrk .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D5D5D5;
+}
+
+#bwhkvpfjrk .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D5D5D5;
+}
+
+#bwhkvpfjrk .gt_striped {
+  background-color: #F4F4F4;
+}
+
+#bwhkvpfjrk .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#bwhkvpfjrk .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#bwhkvpfjrk .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#bwhkvpfjrk .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#bwhkvpfjrk .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#bwhkvpfjrk .gt_left {
+  text-align: left;
+}
+
+#bwhkvpfjrk .gt_center {
+  text-align: center;
+}
+
+#bwhkvpfjrk .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#bwhkvpfjrk .gt_font_normal {
+  font-weight: normal;
+}
+
+#bwhkvpfjrk .gt_font_bold {
+  font-weight: bold;
+}
+
+#bwhkvpfjrk .gt_font_italic {
+  font-style: italic;
+}
+
+#bwhkvpfjrk .gt_super {
+  font-size: 65%;
+}
+
+#bwhkvpfjrk .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#bwhkvpfjrk .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#bwhkvpfjrk .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#bwhkvpfjrk .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#bwhkvpfjrk .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#bwhkvpfjrk .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#bwhkvpfjrk .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#bwhkvpfjrk .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#bwhkvpfjrk div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
   height: 0px !important;
 }
 </style>
@@ -14701,23 +15825,23 @@ make_asis(
 :::
 
 ```{=html}
-<div id="mlnnrlcdjk" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#mlnnrlcdjk table {
+<div id="fgyfwdwgfo" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#fgyfwdwgfo table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-#mlnnrlcdjk thead, #mlnnrlcdjk tbody, #mlnnrlcdjk tfoot, #mlnnrlcdjk tr, #mlnnrlcdjk td, #mlnnrlcdjk th {
+#fgyfwdwgfo thead, #fgyfwdwgfo tbody, #fgyfwdwgfo tfoot, #fgyfwdwgfo tr, #fgyfwdwgfo td, #fgyfwdwgfo th {
   border-style: none;
 }
 
-#mlnnrlcdjk p {
+#fgyfwdwgfo p {
   margin: 0;
   padding: 0;
 }
 
-#mlnnrlcdjk .gt_table {
+#fgyfwdwgfo .gt_table {
   display: table;
   border-collapse: collapse;
   line-height: normal;
@@ -14743,12 +15867,12 @@ make_asis(
   border-left-color: #D5D5D5;
 }
 
-#mlnnrlcdjk .gt_caption {
+#fgyfwdwgfo .gt_caption {
   padding-top: 4px;
   padding-bottom: 4px;
 }
 
-#mlnnrlcdjk .gt_title {
+#fgyfwdwgfo .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -14760,7 +15884,7 @@ make_asis(
   border-bottom-width: 0;
 }
 
-#mlnnrlcdjk .gt_subtitle {
+#fgyfwdwgfo .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -14772,7 +15896,7 @@ make_asis(
   border-top-width: 0;
 }
 
-#mlnnrlcdjk .gt_heading {
+#fgyfwdwgfo .gt_heading {
   background-color: #FFFFFF;
   text-align: left;
   border-bottom-color: #FFFFFF;
@@ -14784,13 +15908,13 @@ make_asis(
   border-right-color: #D3D3D3;
 }
 
-#mlnnrlcdjk .gt_bottom_border {
+#fgyfwdwgfo .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D5D5D5;
 }
 
-#mlnnrlcdjk .gt_col_headings {
+#fgyfwdwgfo .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D5D5D5;
@@ -14805,7 +15929,7 @@ make_asis(
   border-right-color: #D3D3D3;
 }
 
-#mlnnrlcdjk .gt_col_heading {
+#fgyfwdwgfo .gt_col_heading {
   color: #FFFFFF;
   background-color: #000000;
   font-size: 100%;
@@ -14825,7 +15949,7 @@ make_asis(
   overflow-x: hidden;
 }
 
-#mlnnrlcdjk .gt_column_spanner_outer {
+#fgyfwdwgfo .gt_column_spanner_outer {
   color: #FFFFFF;
   background-color: #000000;
   font-size: 100%;
@@ -14837,15 +15961,15 @@ make_asis(
   padding-right: 4px;
 }
 
-#mlnnrlcdjk .gt_column_spanner_outer:first-child {
+#fgyfwdwgfo .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#mlnnrlcdjk .gt_column_spanner_outer:last-child {
+#fgyfwdwgfo .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#mlnnrlcdjk .gt_column_spanner {
+#fgyfwdwgfo .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D5D5D5;
@@ -14857,11 +15981,11 @@ make_asis(
   width: 100%;
 }
 
-#mlnnrlcdjk .gt_spanner_row {
+#fgyfwdwgfo .gt_spanner_row {
   border-bottom-style: hidden;
 }
 
-#mlnnrlcdjk .gt_group_heading {
+#fgyfwdwgfo .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -14887,7 +16011,7 @@ make_asis(
   text-align: left;
 }
 
-#mlnnrlcdjk .gt_empty_group_heading {
+#fgyfwdwgfo .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -14902,15 +16026,15 @@ make_asis(
   vertical-align: middle;
 }
 
-#mlnnrlcdjk .gt_from_md > :first-child {
+#fgyfwdwgfo .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#mlnnrlcdjk .gt_from_md > :last-child {
+#fgyfwdwgfo .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#mlnnrlcdjk .gt_row {
+#fgyfwdwgfo .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -14929,7 +16053,7 @@ make_asis(
   overflow-x: hidden;
 }
 
-#mlnnrlcdjk .gt_stub {
+#fgyfwdwgfo .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -14942,7 +16066,7 @@ make_asis(
   padding-right: 5px;
 }
 
-#mlnnrlcdjk .gt_stub_row_group {
+#fgyfwdwgfo .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -14956,15 +16080,15 @@ make_asis(
   vertical-align: top;
 }
 
-#mlnnrlcdjk .gt_row_group_first td {
+#fgyfwdwgfo .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#mlnnrlcdjk .gt_row_group_first th {
+#fgyfwdwgfo .gt_row_group_first th {
   border-top-width: 2px;
 }
 
-#mlnnrlcdjk .gt_summary_row {
+#fgyfwdwgfo .gt_summary_row {
   color: #333333;
   background-color: #D5D5D5;
   text-transform: inherit;
@@ -14974,16 +16098,16 @@ make_asis(
   padding-right: 5px;
 }
 
-#mlnnrlcdjk .gt_first_summary_row {
+#fgyfwdwgfo .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D5D5D5;
 }
 
-#mlnnrlcdjk .gt_first_summary_row.thick {
+#fgyfwdwgfo .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#mlnnrlcdjk .gt_last_summary_row {
+#fgyfwdwgfo .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -14993,7 +16117,7 @@ make_asis(
   border-bottom-color: #D5D5D5;
 }
 
-#mlnnrlcdjk .gt_grand_summary_row {
+#fgyfwdwgfo .gt_grand_summary_row {
   color: #FFFFFF;
   background-color: #929292;
   text-transform: inherit;
@@ -15003,7 +16127,7 @@ make_asis(
   padding-right: 5px;
 }
 
-#mlnnrlcdjk .gt_first_grand_summary_row {
+#fgyfwdwgfo .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -15013,7 +16137,7 @@ make_asis(
   border-top-color: #D5D5D5;
 }
 
-#mlnnrlcdjk .gt_last_grand_summary_row_top {
+#fgyfwdwgfo .gt_last_grand_summary_row_top {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -15023,11 +16147,11 @@ make_asis(
   border-bottom-color: #D5D5D5;
 }
 
-#mlnnrlcdjk .gt_striped {
+#fgyfwdwgfo .gt_striped {
   background-color: #F4F4F4;
 }
 
-#mlnnrlcdjk .gt_table_body {
+#fgyfwdwgfo .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D5D5D5;
@@ -15036,7 +16160,7 @@ make_asis(
   border-bottom-color: #D5D5D5;
 }
 
-#mlnnrlcdjk .gt_footnotes {
+#fgyfwdwgfo .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -15050,7 +16174,7 @@ make_asis(
   border-right-color: #D3D3D3;
 }
 
-#mlnnrlcdjk .gt_footnote {
+#fgyfwdwgfo .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-top: 4px;
@@ -15059,7 +16183,7 @@ make_asis(
   padding-right: 5px;
 }
 
-#mlnnrlcdjk .gt_sourcenotes {
+#fgyfwdwgfo .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -15073,7 +16197,7 @@ make_asis(
   border-right-color: #D3D3D3;
 }
 
-#mlnnrlcdjk .gt_sourcenote {
+#fgyfwdwgfo .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -15081,72 +16205,72 @@ make_asis(
   padding-right: 5px;
 }
 
-#mlnnrlcdjk .gt_left {
+#fgyfwdwgfo .gt_left {
   text-align: left;
 }
 
-#mlnnrlcdjk .gt_center {
+#fgyfwdwgfo .gt_center {
   text-align: center;
 }
 
-#mlnnrlcdjk .gt_right {
+#fgyfwdwgfo .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#mlnnrlcdjk .gt_font_normal {
+#fgyfwdwgfo .gt_font_normal {
   font-weight: normal;
 }
 
-#mlnnrlcdjk .gt_font_bold {
+#fgyfwdwgfo .gt_font_bold {
   font-weight: bold;
 }
 
-#mlnnrlcdjk .gt_font_italic {
+#fgyfwdwgfo .gt_font_italic {
   font-style: italic;
 }
 
-#mlnnrlcdjk .gt_super {
+#fgyfwdwgfo .gt_super {
   font-size: 65%;
 }
 
-#mlnnrlcdjk .gt_footnote_marks {
+#fgyfwdwgfo .gt_footnote_marks {
   font-size: 75%;
   vertical-align: 0.4em;
   position: initial;
 }
 
-#mlnnrlcdjk .gt_asterisk {
+#fgyfwdwgfo .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#mlnnrlcdjk .gt_indent_1 {
+#fgyfwdwgfo .gt_indent_1 {
   text-indent: 5px;
 }
 
-#mlnnrlcdjk .gt_indent_2 {
+#fgyfwdwgfo .gt_indent_2 {
   text-indent: 10px;
 }
 
-#mlnnrlcdjk .gt_indent_3 {
+#fgyfwdwgfo .gt_indent_3 {
   text-indent: 15px;
 }
 
-#mlnnrlcdjk .gt_indent_4 {
+#fgyfwdwgfo .gt_indent_4 {
   text-indent: 20px;
 }
 
-#mlnnrlcdjk .gt_indent_5 {
+#fgyfwdwgfo .gt_indent_5 {
   text-indent: 25px;
 }
 
-#mlnnrlcdjk .katex-display {
+#fgyfwdwgfo .katex-display {
   display: inline-flex !important;
   margin-bottom: 0.75em !important;
 }
 
-#mlnnrlcdjk div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+#fgyfwdwgfo div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
   height: 0px !important;
 }
 </style>
@@ -15668,1670 +16792,6 @@ make_asis(
 :::
 
 ```{=html}
-<div id="bwhkvpfjrk" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#bwhkvpfjrk table {
-  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-#bwhkvpfjrk thead, #bwhkvpfjrk tbody, #bwhkvpfjrk tfoot, #bwhkvpfjrk tr, #bwhkvpfjrk td, #bwhkvpfjrk th {
-  border-style: none;
-}
-
-#bwhkvpfjrk p {
-  margin: 0;
-  padding: 0;
-}
-
-#bwhkvpfjrk .gt_table {
-  display: table;
-  border-collapse: collapse;
-  line-height: normal;
-  margin-left: auto;
-  margin-right: auto;
-  color: #333333;
-  font-size: 13px;
-  font-weight: normal;
-  font-style: normal;
-  background-color: #FFFFFF;
-  width: auto;
-  border-top-style: solid;
-  border-top-width: 3px;
-  border-top-color: #D5D5D5;
-  border-right-style: solid;
-  border-right-width: 3px;
-  border-right-color: #D5D5D5;
-  border-bottom-style: solid;
-  border-bottom-width: 3px;
-  border-bottom-color: #D5D5D5;
-  border-left-style: solid;
-  border-left-width: 3px;
-  border-left-color: #D5D5D5;
-}
-
-#bwhkvpfjrk .gt_caption {
-  padding-top: 4px;
-  padding-bottom: 4px;
-}
-
-#bwhkvpfjrk .gt_title {
-  color: #333333;
-  font-size: 125%;
-  font-weight: initial;
-  padding-top: 4px;
-  padding-bottom: 4px;
-  padding-left: 5px;
-  padding-right: 5px;
-  border-bottom-color: #FFFFFF;
-  border-bottom-width: 0;
-}
-
-#bwhkvpfjrk .gt_subtitle {
-  color: #333333;
-  font-size: 85%;
-  font-weight: initial;
-  padding-top: 3px;
-  padding-bottom: 5px;
-  padding-left: 5px;
-  padding-right: 5px;
-  border-top-color: #FFFFFF;
-  border-top-width: 0;
-}
-
-#bwhkvpfjrk .gt_heading {
-  background-color: #FFFFFF;
-  text-align: left;
-  border-bottom-color: #FFFFFF;
-  border-left-style: none;
-  border-left-width: 1px;
-  border-left-color: #D3D3D3;
-  border-right-style: none;
-  border-right-width: 1px;
-  border-right-color: #D3D3D3;
-}
-
-#bwhkvpfjrk .gt_bottom_border {
-  border-bottom-style: solid;
-  border-bottom-width: 2px;
-  border-bottom-color: #D5D5D5;
-}
-
-#bwhkvpfjrk .gt_col_headings {
-  border-top-style: solid;
-  border-top-width: 2px;
-  border-top-color: #D5D5D5;
-  border-bottom-style: solid;
-  border-bottom-width: 2px;
-  border-bottom-color: #D5D5D5;
-  border-left-style: none;
-  border-left-width: 1px;
-  border-left-color: #D3D3D3;
-  border-right-style: none;
-  border-right-width: 1px;
-  border-right-color: #D3D3D3;
-}
-
-#bwhkvpfjrk .gt_col_heading {
-  color: #FFFFFF;
-  background-color: #000000;
-  font-size: 100%;
-  font-weight: normal;
-  text-transform: inherit;
-  border-left-style: none;
-  border-left-width: 1px;
-  border-left-color: #D3D3D3;
-  border-right-style: none;
-  border-right-width: 1px;
-  border-right-color: #D3D3D3;
-  vertical-align: bottom;
-  padding-top: 5px;
-  padding-bottom: 6px;
-  padding-left: 5px;
-  padding-right: 5px;
-  overflow-x: hidden;
-}
-
-#bwhkvpfjrk .gt_column_spanner_outer {
-  color: #FFFFFF;
-  background-color: #000000;
-  font-size: 100%;
-  font-weight: normal;
-  text-transform: inherit;
-  padding-top: 0;
-  padding-bottom: 0;
-  padding-left: 4px;
-  padding-right: 4px;
-}
-
-#bwhkvpfjrk .gt_column_spanner_outer:first-child {
-  padding-left: 0;
-}
-
-#bwhkvpfjrk .gt_column_spanner_outer:last-child {
-  padding-right: 0;
-}
-
-#bwhkvpfjrk .gt_column_spanner {
-  border-bottom-style: solid;
-  border-bottom-width: 2px;
-  border-bottom-color: #D5D5D5;
-  vertical-align: bottom;
-  padding-top: 5px;
-  padding-bottom: 5px;
-  overflow-x: hidden;
-  display: inline-block;
-  width: 100%;
-}
-
-#bwhkvpfjrk .gt_spanner_row {
-  border-bottom-style: hidden;
-}
-
-#bwhkvpfjrk .gt_group_heading {
-  padding-top: 8px;
-  padding-bottom: 8px;
-  padding-left: 5px;
-  padding-right: 5px;
-  color: #333333;
-  background-color: #FFFFFF;
-  font-size: 100%;
-  font-weight: initial;
-  text-transform: inherit;
-  border-top-style: solid;
-  border-top-width: 2px;
-  border-top-color: #D5D5D5;
-  border-bottom-style: solid;
-  border-bottom-width: 2px;
-  border-bottom-color: #D5D5D5;
-  border-left-style: none;
-  border-left-width: 1px;
-  border-left-color: #D3D3D3;
-  border-right-style: none;
-  border-right-width: 1px;
-  border-right-color: #D3D3D3;
-  vertical-align: middle;
-  text-align: left;
-}
-
-#bwhkvpfjrk .gt_empty_group_heading {
-  padding: 0.5px;
-  color: #333333;
-  background-color: #FFFFFF;
-  font-size: 100%;
-  font-weight: initial;
-  border-top-style: solid;
-  border-top-width: 2px;
-  border-top-color: #D5D5D5;
-  border-bottom-style: solid;
-  border-bottom-width: 2px;
-  border-bottom-color: #D5D5D5;
-  vertical-align: middle;
-}
-
-#bwhkvpfjrk .gt_from_md > :first-child {
-  margin-top: 0;
-}
-
-#bwhkvpfjrk .gt_from_md > :last-child {
-  margin-bottom: 0;
-}
-
-#bwhkvpfjrk .gt_row {
-  padding-top: 8px;
-  padding-bottom: 8px;
-  padding-left: 5px;
-  padding-right: 5px;
-  margin: 10px;
-  border-top-style: solid;
-  border-top-width: 1px;
-  border-top-color: #D5D5D5;
-  border-left-style: solid;
-  border-left-width: 1px;
-  border-left-color: #D5D5D5;
-  border-right-style: solid;
-  border-right-width: 1px;
-  border-right-color: #D5D5D5;
-  vertical-align: middle;
-  overflow-x: hidden;
-}
-
-#bwhkvpfjrk .gt_stub {
-  color: #333333;
-  background-color: #FFFFFF;
-  font-size: 100%;
-  font-weight: initial;
-  text-transform: inherit;
-  border-right-style: solid;
-  border-right-width: 2px;
-  border-right-color: #5F5F5F;
-  padding-left: 5px;
-  padding-right: 5px;
-}
-
-#bwhkvpfjrk .gt_stub_row_group {
-  color: #333333;
-  background-color: #FFFFFF;
-  font-size: 100%;
-  font-weight: initial;
-  text-transform: inherit;
-  border-right-style: solid;
-  border-right-width: 2px;
-  border-right-color: #D3D3D3;
-  padding-left: 5px;
-  padding-right: 5px;
-  vertical-align: top;
-}
-
-#bwhkvpfjrk .gt_row_group_first td {
-  border-top-width: 2px;
-}
-
-#bwhkvpfjrk .gt_row_group_first th {
-  border-top-width: 2px;
-}
-
-#bwhkvpfjrk .gt_summary_row {
-  color: #333333;
-  background-color: #D5D5D5;
-  text-transform: inherit;
-  padding-top: 8px;
-  padding-bottom: 8px;
-  padding-left: 5px;
-  padding-right: 5px;
-}
-
-#bwhkvpfjrk .gt_first_summary_row {
-  border-top-style: solid;
-  border-top-color: #D5D5D5;
-}
-
-#bwhkvpfjrk .gt_first_summary_row.thick {
-  border-top-width: 2px;
-}
-
-#bwhkvpfjrk .gt_last_summary_row {
-  padding-top: 8px;
-  padding-bottom: 8px;
-  padding-left: 5px;
-  padding-right: 5px;
-  border-bottom-style: solid;
-  border-bottom-width: 2px;
-  border-bottom-color: #D5D5D5;
-}
-
-#bwhkvpfjrk .gt_grand_summary_row {
-  color: #FFFFFF;
-  background-color: #929292;
-  text-transform: inherit;
-  padding-top: 8px;
-  padding-bottom: 8px;
-  padding-left: 5px;
-  padding-right: 5px;
-}
-
-#bwhkvpfjrk .gt_first_grand_summary_row {
-  padding-top: 8px;
-  padding-bottom: 8px;
-  padding-left: 5px;
-  padding-right: 5px;
-  border-top-style: double;
-  border-top-width: 6px;
-  border-top-color: #D5D5D5;
-}
-
-#bwhkvpfjrk .gt_last_grand_summary_row_top {
-  padding-top: 8px;
-  padding-bottom: 8px;
-  padding-left: 5px;
-  padding-right: 5px;
-  border-bottom-style: double;
-  border-bottom-width: 6px;
-  border-bottom-color: #D5D5D5;
-}
-
-#bwhkvpfjrk .gt_striped {
-  background-color: #F4F4F4;
-}
-
-#bwhkvpfjrk .gt_table_body {
-  border-top-style: solid;
-  border-top-width: 2px;
-  border-top-color: #D5D5D5;
-  border-bottom-style: solid;
-  border-bottom-width: 2px;
-  border-bottom-color: #D5D5D5;
-}
-
-#bwhkvpfjrk .gt_footnotes {
-  color: #333333;
-  background-color: #FFFFFF;
-  border-bottom-style: none;
-  border-bottom-width: 2px;
-  border-bottom-color: #D3D3D3;
-  border-left-style: none;
-  border-left-width: 2px;
-  border-left-color: #D3D3D3;
-  border-right-style: none;
-  border-right-width: 2px;
-  border-right-color: #D3D3D3;
-}
-
-#bwhkvpfjrk .gt_footnote {
-  margin: 0px;
-  font-size: 90%;
-  padding-top: 4px;
-  padding-bottom: 4px;
-  padding-left: 5px;
-  padding-right: 5px;
-}
-
-#bwhkvpfjrk .gt_sourcenotes {
-  color: #333333;
-  background-color: #FFFFFF;
-  border-bottom-style: none;
-  border-bottom-width: 2px;
-  border-bottom-color: #D3D3D3;
-  border-left-style: none;
-  border-left-width: 2px;
-  border-left-color: #D3D3D3;
-  border-right-style: none;
-  border-right-width: 2px;
-  border-right-color: #D3D3D3;
-}
-
-#bwhkvpfjrk .gt_sourcenote {
-  font-size: 90%;
-  padding-top: 4px;
-  padding-bottom: 4px;
-  padding-left: 5px;
-  padding-right: 5px;
-}
-
-#bwhkvpfjrk .gt_left {
-  text-align: left;
-}
-
-#bwhkvpfjrk .gt_center {
-  text-align: center;
-}
-
-#bwhkvpfjrk .gt_right {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-#bwhkvpfjrk .gt_font_normal {
-  font-weight: normal;
-}
-
-#bwhkvpfjrk .gt_font_bold {
-  font-weight: bold;
-}
-
-#bwhkvpfjrk .gt_font_italic {
-  font-style: italic;
-}
-
-#bwhkvpfjrk .gt_super {
-  font-size: 65%;
-}
-
-#bwhkvpfjrk .gt_footnote_marks {
-  font-size: 75%;
-  vertical-align: 0.4em;
-  position: initial;
-}
-
-#bwhkvpfjrk .gt_asterisk {
-  font-size: 100%;
-  vertical-align: 0;
-}
-
-#bwhkvpfjrk .gt_indent_1 {
-  text-indent: 5px;
-}
-
-#bwhkvpfjrk .gt_indent_2 {
-  text-indent: 10px;
-}
-
-#bwhkvpfjrk .gt_indent_3 {
-  text-indent: 15px;
-}
-
-#bwhkvpfjrk .gt_indent_4 {
-  text-indent: 20px;
-}
-
-#bwhkvpfjrk .gt_indent_5 {
-  text-indent: 25px;
-}
-
-#bwhkvpfjrk .katex-display {
-  display: inline-flex !important;
-  margin-bottom: 0.75em !important;
-}
-
-#bwhkvpfjrk div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
-  height: 0px !important;
-}
-</style>
-<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
-  <thead>
-    <tr class="gt_heading">
-      <td colspan="5" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Decomposition of the label effect (% of the belief slider; Mediator rows: the label's shift in that rating, % of its scale)</td>
-    </tr>
-    
-    <tr class="gt_col_headings">
-      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Path">Path</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Diff">Diff</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="CI">CI</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="pd_fmt">pd_fmt</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Effect">Effect</th>
-    </tr>
-  </thead>
-  <tbody class="gt_table_body">
-    <tr class="gt_group_heading_row">
-      <th colspan="5" class="gt_group_heading" scope="colgroup" id="Syntheticness: AI-Generated - Human Original">Syntheticness: AI-Generated - Human Original</th>
-    </tr>
-    <tr class="gt_row_group_first"><td headers="Syntheticness: AI-Generated - Human Original  Path" class="gt_row gt_left" style="background-color: #FFEBEE;">Total</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-5.21</td>
-<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-7.07, -3.43]</td>
-<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Syntheticness: AI-Generated - Human Original  Path" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Direct</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.69</td>
-<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-5.48, -1.81]</td>
-<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.90%</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Syntheticness: AI-Generated - Human Original  Path" class="gt_row gt_left" style="background-color: #FFEBEE;">Indirect (Phase-1 beauty)</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-1.23</td>
-<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-1.73, -0.79]</td>
-<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Syntheticness: AI-Generated - Human Original  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Indirect (Self-relevance)</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.08</td>
-<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.21, 0.01]</td>
-<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">95.15%</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Syntheticness: AI-Generated - Human Original  Path" class="gt_row gt_left" style="background-color: #FFEBEE;">Indirect (Follow-up beauty)</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-0.18</td>
-<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-0.37, -0.03]</td>
-<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.85%</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Syntheticness: AI-Generated - Human Original  Path" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Mediator (Phase-1 beauty)</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-5.89</td>
-<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-7.02, -4.88]</td>
-<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Syntheticness: AI-Generated - Human Original  Path" class="gt_row gt_left" style="color: #9E9E9E;">Mediator (Self-relevance)</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.87</td>
-<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.89, 0.17]</td>
-<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">95.25%</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Syntheticness: AI-Generated - Human Original  Path" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Mediator (Follow-up beauty)</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-1.74</td>
-<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-2.76, -0.72]</td>
-<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.98%</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr class="gt_group_heading_row">
-      <th colspan="5" class="gt_group_heading" scope="colgroup" id="Syntheticness: Human Forgery - Human Original">Syntheticness: Human Forgery - Human Original</th>
-    </tr>
-    <tr class="gt_row_group_first"><td headers="Syntheticness: Human Forgery - Human Original  Path" class="gt_row gt_left" style="color: #9E9E9E;">Total</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-1.54</td>
-<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-3.30, 0.20]</td>
-<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">95.43%</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Syntheticness: Human Forgery - Human Original  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Direct</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.64</td>
-<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-2.27, 1.19]</td>
-<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">77.08%</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Syntheticness: Human Forgery - Human Original  Path" class="gt_row gt_left" style="background-color: #FFEBEE;">Indirect (Phase-1 beauty)</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-0.70</td>
-<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-1.07, -0.40]</td>
-<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Syntheticness: Human Forgery - Human Original  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Indirect (Self-relevance)</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.02</td>
-<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.10, 0.04]</td>
-<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">80.03%</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Syntheticness: Human Forgery - Human Original  Path" class="gt_row gt_left" style="color: #9E9E9E;">Indirect (Follow-up beauty)</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.15</td>
-<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.35, 0.02]</td>
-<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">96.90%</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Syntheticness: Human Forgery - Human Original  Path" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Mediator (Phase-1 beauty)</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.69</td>
-<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-4.82, -2.63]</td>
-<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Syntheticness: Human Forgery - Human Original  Path" class="gt_row gt_left" style="color: #9E9E9E;">Mediator (Self-relevance)</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.80</td>
-<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.80, 0.23]</td>
-<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">93.90%</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Syntheticness: Human Forgery - Human Original  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Mediator (Follow-up beauty)</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-1.03</td>
-<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-2.10, 0.01]</td>
-<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">96.90%</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr class="gt_group_heading_row">
-      <th colspan="5" class="gt_group_heading" scope="colgroup" id="Syntheticness: AI-Generated - Human Forgery">Syntheticness: AI-Generated - Human Forgery</th>
-    </tr>
-    <tr class="gt_row_group_first"><td headers="Syntheticness: AI-Generated - Human Forgery  Path" class="gt_row gt_left" style="background-color: #FFEBEE;">Total</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-3.67</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-5.55, -1.81]</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Syntheticness: AI-Generated - Human Forgery  Path" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Direct</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.12</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-4.94, -1.21]</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.92%</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Syntheticness: AI-Generated - Human Forgery  Path" class="gt_row gt_left" style="background-color: #FFEBEE;">Indirect (Phase-1 beauty)</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-0.45</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-0.76, -0.19]</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Syntheticness: AI-Generated - Human Forgery  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Indirect (Self-relevance)</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.01</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.12, 0.11]</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">55.10%</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Syntheticness: AI-Generated - Human Forgery  Path" class="gt_row gt_left" style="color: #9E9E9E;">Indirect (Follow-up beauty)</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.07</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.24, 0.03]</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">89.83%</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Syntheticness: AI-Generated - Human Forgery  Path" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Mediator (Phase-1 beauty)</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-2.20</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-3.31, -1.09]</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Syntheticness: AI-Generated - Human Forgery  Path" class="gt_row gt_left" style="color: #9E9E9E;">Mediator (Self-relevance)</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.08</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.15, 1.04]</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">55.15%</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Syntheticness: AI-Generated - Human Forgery  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Mediator (Follow-up beauty)</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.71</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.90, 0.36]</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">89.98%</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr class="gt_group_heading_row">
-      <th colspan="5" class="gt_group_heading" scope="colgroup" id="Authenticity: AI-Generated - Human Original">Authenticity: AI-Generated - Human Original</th>
-    </tr>
-    <tr class="gt_row_group_first"><td headers="Authenticity: AI-Generated - Human Original  Path" class="gt_row gt_left" style="color: #9E9E9E;">Total</td>
-<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-1.32</td>
-<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-2.73, 0.16]</td>
-<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">95.65%</td>
-<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: AI-Generated - Human Original  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Direct</td>
-<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.57</td>
-<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-2.00, 0.96]</td>
-<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">77.62%</td>
-<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: AI-Generated - Human Original  Path" class="gt_row gt_left" style="background-color: #FFEBEE;">Indirect (Phase-1 beauty)</td>
-<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-0.70</td>
-<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-1.10, -0.36]</td>
-<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Authenticity: AI-Generated - Human Original  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Indirect (Self-relevance)</td>
-<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.06</td>
-<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.17, 0.02]</td>
-<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">95.20%</td>
-<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: AI-Generated - Human Original  Path" class="gt_row gt_left" style="color: #9E9E9E;">Indirect (Follow-up beauty)</td>
-<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.02</td>
-<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.10, 0.14]</td>
-<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">65.25%</td>
-<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: AI-Generated - Human Original  Path" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Mediator (Phase-1 beauty)</td>
-<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-5.89</td>
-<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-7.02, -4.88]</td>
-<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Authenticity: AI-Generated - Human Original  Path" class="gt_row gt_left" style="color: #9E9E9E;">Mediator (Self-relevance)</td>
-<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.87</td>
-<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.89, 0.17]</td>
-<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">95.25%</td>
-<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: AI-Generated - Human Original  Path" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Mediator (Follow-up beauty)</td>
-<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-1.74</td>
-<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-2.76, -0.72]</td>
-<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.98%</td>
-<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr class="gt_group_heading_row">
-      <th colspan="5" class="gt_group_heading" scope="colgroup" id="Authenticity: Human Forgery - Human Original">Authenticity: Human Forgery - Human Original</th>
-    </tr>
-    <tr class="gt_row_group_first"><td headers="Authenticity: Human Forgery - Human Original  Path" class="gt_row gt_left" style="background-color: #FFEBEE;">Total</td>
-<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-2.26</td>
-<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-3.80, -0.79]</td>
-<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.83%</td>
-<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Authenticity: Human Forgery - Human Original  Path" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Direct</td>
-<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-1.80</td>
-<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-3.31, -0.34]</td>
-<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">98.92%</td>
-<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Authenticity: Human Forgery - Human Original  Path" class="gt_row gt_left" style="background-color: #FFEBEE;">Indirect (Phase-1 beauty)</td>
-<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-0.36</td>
-<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-0.63, -0.15]</td>
-<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.95%</td>
-<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Authenticity: Human Forgery - Human Original  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Indirect (Self-relevance)</td>
-<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.04</td>
-<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.13, 0.01]</td>
-<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">92.15%</td>
-<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: Human Forgery - Human Original  Path" class="gt_row gt_left" style="color: #9E9E9E;">Indirect (Follow-up beauty)</td>
-<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.04</td>
-<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.14, 0.03]</td>
-<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">88.67%</td>
-<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: Human Forgery - Human Original  Path" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Mediator (Phase-1 beauty)</td>
-<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.69</td>
-<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-4.82, -2.63]</td>
-<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Authenticity: Human Forgery - Human Original  Path" class="gt_row gt_left" style="color: #9E9E9E;">Mediator (Self-relevance)</td>
-<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.80</td>
-<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.80, 0.23]</td>
-<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">93.90%</td>
-<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: Human Forgery - Human Original  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Mediator (Follow-up beauty)</td>
-<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-1.03</td>
-<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-2.10, 0.01]</td>
-<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">96.90%</td>
-<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr class="gt_group_heading_row">
-      <th colspan="5" class="gt_group_heading" scope="colgroup" id="Authenticity: AI-Generated - Human Forgery">Authenticity: AI-Generated - Human Forgery</th>
-    </tr>
-    <tr class="gt_row_group_first"><td headers="Authenticity: AI-Generated - Human Forgery  Path" class="gt_row gt_left" style="color: #9E9E9E;">Total</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.94</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.57, 2.44]</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">88.75%</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: AI-Generated - Human Forgery  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Direct</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.21</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.30, 2.69]</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">94.15%</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: AI-Generated - Human Forgery  Path" class="gt_row gt_left" style="background-color: #FFEBEE;">Indirect (Phase-1 beauty)</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-0.26</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-0.45, -0.08]</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Authenticity: AI-Generated - Human Forgery  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Indirect (Self-relevance)</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.01</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.10, 0.09]</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">55.20%</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: AI-Generated - Human Forgery  Path" class="gt_row gt_left" style="color: #9E9E9E;">Indirect (Follow-up beauty)</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.00</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.04, 0.09]</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">61.75%</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: AI-Generated - Human Forgery  Path" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Mediator (Phase-1 beauty)</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-2.20</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-3.31, -1.09]</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Authenticity: AI-Generated - Human Forgery  Path" class="gt_row gt_left" style="color: #9E9E9E;">Mediator (Self-relevance)</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.08</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.15, 1.04]</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">55.15%</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: AI-Generated - Human Forgery  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Mediator (Follow-up beauty)</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.71</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.90, 0.36]</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">89.98%</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-  </tbody>
-  
-</table>
-</div>
-```
-
-
-::: {.callout-note collapse="true" title="Decomposition of the label effect (% of the belief slider; Mediator rows: the label's shift in that rating, % of its scale) (Markdown table, for text readers)"}
-
-|Contrast                                      |Path                        |Diff  |CI             |pd_fmt |Effect   |
-|:---------------------------------------------|:---------------------------|:-----|:--------------|:------|:--------|
-|Syntheticness: AI-Generated - Human Original  |Total                       |-5.21 |[-7.07, -3.43] |100%   |Negative |
-|Syntheticness: AI-Generated - Human Original  |Direct                      |-3.69 |[-5.48, -1.81] |99.90% |Negative |
-|Syntheticness: AI-Generated - Human Original  |Indirect (Phase-1 beauty)   |-1.23 |[-1.73, -0.79] |100%   |Negative |
-|Syntheticness: AI-Generated - Human Original  |Indirect (Self-relevance)   |-0.08 |[-0.21, 0.01]  |95.15% |n.s.     |
-|Syntheticness: AI-Generated - Human Original  |Indirect (Follow-up beauty) |-0.18 |[-0.37, -0.03] |99.85% |Negative |
-|Syntheticness: AI-Generated - Human Original  |Mediator (Phase-1 beauty)   |-5.89 |[-7.02, -4.88] |100%   |Negative |
-|Syntheticness: AI-Generated - Human Original  |Mediator (Self-relevance)   |-0.87 |[-1.89, 0.17]  |95.25% |n.s.     |
-|Syntheticness: AI-Generated - Human Original  |Mediator (Follow-up beauty) |-1.74 |[-2.76, -0.72] |99.98% |Negative |
-|Syntheticness: Human Forgery - Human Original |Total                       |-1.54 |[-3.30, 0.20]  |95.43% |n.s.     |
-|Syntheticness: Human Forgery - Human Original |Direct                      |-0.64 |[-2.27, 1.19]  |77.08% |n.s.     |
-|Syntheticness: Human Forgery - Human Original |Indirect (Phase-1 beauty)   |-0.70 |[-1.07, -0.40] |100%   |Negative |
-|Syntheticness: Human Forgery - Human Original |Indirect (Self-relevance)   |-0.02 |[-0.10, 0.04]  |80.03% |n.s.     |
-|Syntheticness: Human Forgery - Human Original |Indirect (Follow-up beauty) |-0.15 |[-0.35, 0.02]  |96.90% |n.s.     |
-|Syntheticness: Human Forgery - Human Original |Mediator (Phase-1 beauty)   |-3.69 |[-4.82, -2.63] |100%   |Negative |
-|Syntheticness: Human Forgery - Human Original |Mediator (Self-relevance)   |-0.80 |[-1.80, 0.23]  |93.90% |n.s.     |
-|Syntheticness: Human Forgery - Human Original |Mediator (Follow-up beauty) |-1.03 |[-2.10, 0.01]  |96.90% |n.s.     |
-|Syntheticness: AI-Generated - Human Forgery   |Total                       |-3.67 |[-5.55, -1.81] |100%   |Negative |
-|Syntheticness: AI-Generated - Human Forgery   |Direct                      |-3.12 |[-4.94, -1.21] |99.92% |Negative |
-|Syntheticness: AI-Generated - Human Forgery   |Indirect (Phase-1 beauty)   |-0.45 |[-0.76, -0.19] |100%   |Negative |
-|Syntheticness: AI-Generated - Human Forgery   |Indirect (Self-relevance)   |-0.01 |[-0.12, 0.11]  |55.10% |n.s.     |
-|Syntheticness: AI-Generated - Human Forgery   |Indirect (Follow-up beauty) |-0.07 |[-0.24, 0.03]  |89.83% |n.s.     |
-|Syntheticness: AI-Generated - Human Forgery   |Mediator (Phase-1 beauty)   |-2.20 |[-3.31, -1.09] |100%   |Negative |
-|Syntheticness: AI-Generated - Human Forgery   |Mediator (Self-relevance)   |-0.08 |[-1.15, 1.04]  |55.15% |n.s.     |
-|Syntheticness: AI-Generated - Human Forgery   |Mediator (Follow-up beauty) |-0.71 |[-1.90, 0.36]  |89.98% |n.s.     |
-|Authenticity: AI-Generated - Human Original   |Total                       |-1.32 |[-2.73, 0.16]  |95.65% |n.s.     |
-|Authenticity: AI-Generated - Human Original   |Direct                      |-0.57 |[-2.00, 0.96]  |77.62% |n.s.     |
-|Authenticity: AI-Generated - Human Original   |Indirect (Phase-1 beauty)   |-0.70 |[-1.10, -0.36] |100%   |Negative |
-|Authenticity: AI-Generated - Human Original   |Indirect (Self-relevance)   |-0.06 |[-0.17, 0.02]  |95.20% |n.s.     |
-|Authenticity: AI-Generated - Human Original   |Indirect (Follow-up beauty) |0.02  |[-0.10, 0.14]  |65.25% |n.s.     |
-|Authenticity: AI-Generated - Human Original   |Mediator (Phase-1 beauty)   |-5.89 |[-7.02, -4.88] |100%   |Negative |
-|Authenticity: AI-Generated - Human Original   |Mediator (Self-relevance)   |-0.87 |[-1.89, 0.17]  |95.25% |n.s.     |
-|Authenticity: AI-Generated - Human Original   |Mediator (Follow-up beauty) |-1.74 |[-2.76, -0.72] |99.98% |Negative |
-|Authenticity: Human Forgery - Human Original  |Total                       |-2.26 |[-3.80, -0.79] |99.83% |Negative |
-|Authenticity: Human Forgery - Human Original  |Direct                      |-1.80 |[-3.31, -0.34] |98.92% |Negative |
-|Authenticity: Human Forgery - Human Original  |Indirect (Phase-1 beauty)   |-0.36 |[-0.63, -0.15] |99.95% |Negative |
-|Authenticity: Human Forgery - Human Original  |Indirect (Self-relevance)   |-0.04 |[-0.13, 0.01]  |92.15% |n.s.     |
-|Authenticity: Human Forgery - Human Original  |Indirect (Follow-up beauty) |-0.04 |[-0.14, 0.03]  |88.67% |n.s.     |
-|Authenticity: Human Forgery - Human Original  |Mediator (Phase-1 beauty)   |-3.69 |[-4.82, -2.63] |100%   |Negative |
-|Authenticity: Human Forgery - Human Original  |Mediator (Self-relevance)   |-0.80 |[-1.80, 0.23]  |93.90% |n.s.     |
-|Authenticity: Human Forgery - Human Original  |Mediator (Follow-up beauty) |-1.03 |[-2.10, 0.01]  |96.90% |n.s.     |
-|Authenticity: AI-Generated - Human Forgery    |Total                       |0.94  |[-0.57, 2.44]  |88.75% |n.s.     |
-|Authenticity: AI-Generated - Human Forgery    |Direct                      |1.21  |[-0.30, 2.69]  |94.15% |n.s.     |
-|Authenticity: AI-Generated - Human Forgery    |Indirect (Phase-1 beauty)   |-0.26 |[-0.45, -0.08] |100%   |Negative |
-|Authenticity: AI-Generated - Human Forgery    |Indirect (Self-relevance)   |-0.01 |[-0.10, 0.09]  |55.20% |n.s.     |
-|Authenticity: AI-Generated - Human Forgery    |Indirect (Follow-up beauty) |0.00  |[-0.04, 0.09]  |61.75% |n.s.     |
-|Authenticity: AI-Generated - Human Forgery    |Mediator (Phase-1 beauty)   |-2.20 |[-3.31, -1.09] |100%   |Negative |
-|Authenticity: AI-Generated - Human Forgery    |Mediator (Self-relevance)   |-0.08 |[-1.15, 1.04]  |55.15% |n.s.     |
-|Authenticity: AI-Generated - Human Forgery    |Mediator (Follow-up beauty) |-0.71 |[-1.90, 0.36]  |89.98% |n.s.     |
-
-:::
-
-```{=html}
-<div id="fgyfwdwgfo" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#fgyfwdwgfo table {
-  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-#fgyfwdwgfo thead, #fgyfwdwgfo tbody, #fgyfwdwgfo tfoot, #fgyfwdwgfo tr, #fgyfwdwgfo td, #fgyfwdwgfo th {
-  border-style: none;
-}
-
-#fgyfwdwgfo p {
-  margin: 0;
-  padding: 0;
-}
-
-#fgyfwdwgfo .gt_table {
-  display: table;
-  border-collapse: collapse;
-  line-height: normal;
-  margin-left: auto;
-  margin-right: auto;
-  color: #333333;
-  font-size: 13px;
-  font-weight: normal;
-  font-style: normal;
-  background-color: #FFFFFF;
-  width: auto;
-  border-top-style: solid;
-  border-top-width: 3px;
-  border-top-color: #D5D5D5;
-  border-right-style: solid;
-  border-right-width: 3px;
-  border-right-color: #D5D5D5;
-  border-bottom-style: solid;
-  border-bottom-width: 3px;
-  border-bottom-color: #D5D5D5;
-  border-left-style: solid;
-  border-left-width: 3px;
-  border-left-color: #D5D5D5;
-}
-
-#fgyfwdwgfo .gt_caption {
-  padding-top: 4px;
-  padding-bottom: 4px;
-}
-
-#fgyfwdwgfo .gt_title {
-  color: #333333;
-  font-size: 125%;
-  font-weight: initial;
-  padding-top: 4px;
-  padding-bottom: 4px;
-  padding-left: 5px;
-  padding-right: 5px;
-  border-bottom-color: #FFFFFF;
-  border-bottom-width: 0;
-}
-
-#fgyfwdwgfo .gt_subtitle {
-  color: #333333;
-  font-size: 85%;
-  font-weight: initial;
-  padding-top: 3px;
-  padding-bottom: 5px;
-  padding-left: 5px;
-  padding-right: 5px;
-  border-top-color: #FFFFFF;
-  border-top-width: 0;
-}
-
-#fgyfwdwgfo .gt_heading {
-  background-color: #FFFFFF;
-  text-align: left;
-  border-bottom-color: #FFFFFF;
-  border-left-style: none;
-  border-left-width: 1px;
-  border-left-color: #D3D3D3;
-  border-right-style: none;
-  border-right-width: 1px;
-  border-right-color: #D3D3D3;
-}
-
-#fgyfwdwgfo .gt_bottom_border {
-  border-bottom-style: solid;
-  border-bottom-width: 2px;
-  border-bottom-color: #D5D5D5;
-}
-
-#fgyfwdwgfo .gt_col_headings {
-  border-top-style: solid;
-  border-top-width: 2px;
-  border-top-color: #D5D5D5;
-  border-bottom-style: solid;
-  border-bottom-width: 2px;
-  border-bottom-color: #D5D5D5;
-  border-left-style: none;
-  border-left-width: 1px;
-  border-left-color: #D3D3D3;
-  border-right-style: none;
-  border-right-width: 1px;
-  border-right-color: #D3D3D3;
-}
-
-#fgyfwdwgfo .gt_col_heading {
-  color: #FFFFFF;
-  background-color: #000000;
-  font-size: 100%;
-  font-weight: normal;
-  text-transform: inherit;
-  border-left-style: none;
-  border-left-width: 1px;
-  border-left-color: #D3D3D3;
-  border-right-style: none;
-  border-right-width: 1px;
-  border-right-color: #D3D3D3;
-  vertical-align: bottom;
-  padding-top: 5px;
-  padding-bottom: 6px;
-  padding-left: 5px;
-  padding-right: 5px;
-  overflow-x: hidden;
-}
-
-#fgyfwdwgfo .gt_column_spanner_outer {
-  color: #FFFFFF;
-  background-color: #000000;
-  font-size: 100%;
-  font-weight: normal;
-  text-transform: inherit;
-  padding-top: 0;
-  padding-bottom: 0;
-  padding-left: 4px;
-  padding-right: 4px;
-}
-
-#fgyfwdwgfo .gt_column_spanner_outer:first-child {
-  padding-left: 0;
-}
-
-#fgyfwdwgfo .gt_column_spanner_outer:last-child {
-  padding-right: 0;
-}
-
-#fgyfwdwgfo .gt_column_spanner {
-  border-bottom-style: solid;
-  border-bottom-width: 2px;
-  border-bottom-color: #D5D5D5;
-  vertical-align: bottom;
-  padding-top: 5px;
-  padding-bottom: 5px;
-  overflow-x: hidden;
-  display: inline-block;
-  width: 100%;
-}
-
-#fgyfwdwgfo .gt_spanner_row {
-  border-bottom-style: hidden;
-}
-
-#fgyfwdwgfo .gt_group_heading {
-  padding-top: 8px;
-  padding-bottom: 8px;
-  padding-left: 5px;
-  padding-right: 5px;
-  color: #333333;
-  background-color: #FFFFFF;
-  font-size: 100%;
-  font-weight: initial;
-  text-transform: inherit;
-  border-top-style: solid;
-  border-top-width: 2px;
-  border-top-color: #D5D5D5;
-  border-bottom-style: solid;
-  border-bottom-width: 2px;
-  border-bottom-color: #D5D5D5;
-  border-left-style: none;
-  border-left-width: 1px;
-  border-left-color: #D3D3D3;
-  border-right-style: none;
-  border-right-width: 1px;
-  border-right-color: #D3D3D3;
-  vertical-align: middle;
-  text-align: left;
-}
-
-#fgyfwdwgfo .gt_empty_group_heading {
-  padding: 0.5px;
-  color: #333333;
-  background-color: #FFFFFF;
-  font-size: 100%;
-  font-weight: initial;
-  border-top-style: solid;
-  border-top-width: 2px;
-  border-top-color: #D5D5D5;
-  border-bottom-style: solid;
-  border-bottom-width: 2px;
-  border-bottom-color: #D5D5D5;
-  vertical-align: middle;
-}
-
-#fgyfwdwgfo .gt_from_md > :first-child {
-  margin-top: 0;
-}
-
-#fgyfwdwgfo .gt_from_md > :last-child {
-  margin-bottom: 0;
-}
-
-#fgyfwdwgfo .gt_row {
-  padding-top: 8px;
-  padding-bottom: 8px;
-  padding-left: 5px;
-  padding-right: 5px;
-  margin: 10px;
-  border-top-style: solid;
-  border-top-width: 1px;
-  border-top-color: #D5D5D5;
-  border-left-style: solid;
-  border-left-width: 1px;
-  border-left-color: #D5D5D5;
-  border-right-style: solid;
-  border-right-width: 1px;
-  border-right-color: #D5D5D5;
-  vertical-align: middle;
-  overflow-x: hidden;
-}
-
-#fgyfwdwgfo .gt_stub {
-  color: #333333;
-  background-color: #FFFFFF;
-  font-size: 100%;
-  font-weight: initial;
-  text-transform: inherit;
-  border-right-style: solid;
-  border-right-width: 2px;
-  border-right-color: #5F5F5F;
-  padding-left: 5px;
-  padding-right: 5px;
-}
-
-#fgyfwdwgfo .gt_stub_row_group {
-  color: #333333;
-  background-color: #FFFFFF;
-  font-size: 100%;
-  font-weight: initial;
-  text-transform: inherit;
-  border-right-style: solid;
-  border-right-width: 2px;
-  border-right-color: #D3D3D3;
-  padding-left: 5px;
-  padding-right: 5px;
-  vertical-align: top;
-}
-
-#fgyfwdwgfo .gt_row_group_first td {
-  border-top-width: 2px;
-}
-
-#fgyfwdwgfo .gt_row_group_first th {
-  border-top-width: 2px;
-}
-
-#fgyfwdwgfo .gt_summary_row {
-  color: #333333;
-  background-color: #D5D5D5;
-  text-transform: inherit;
-  padding-top: 8px;
-  padding-bottom: 8px;
-  padding-left: 5px;
-  padding-right: 5px;
-}
-
-#fgyfwdwgfo .gt_first_summary_row {
-  border-top-style: solid;
-  border-top-color: #D5D5D5;
-}
-
-#fgyfwdwgfo .gt_first_summary_row.thick {
-  border-top-width: 2px;
-}
-
-#fgyfwdwgfo .gt_last_summary_row {
-  padding-top: 8px;
-  padding-bottom: 8px;
-  padding-left: 5px;
-  padding-right: 5px;
-  border-bottom-style: solid;
-  border-bottom-width: 2px;
-  border-bottom-color: #D5D5D5;
-}
-
-#fgyfwdwgfo .gt_grand_summary_row {
-  color: #FFFFFF;
-  background-color: #929292;
-  text-transform: inherit;
-  padding-top: 8px;
-  padding-bottom: 8px;
-  padding-left: 5px;
-  padding-right: 5px;
-}
-
-#fgyfwdwgfo .gt_first_grand_summary_row {
-  padding-top: 8px;
-  padding-bottom: 8px;
-  padding-left: 5px;
-  padding-right: 5px;
-  border-top-style: double;
-  border-top-width: 6px;
-  border-top-color: #D5D5D5;
-}
-
-#fgyfwdwgfo .gt_last_grand_summary_row_top {
-  padding-top: 8px;
-  padding-bottom: 8px;
-  padding-left: 5px;
-  padding-right: 5px;
-  border-bottom-style: double;
-  border-bottom-width: 6px;
-  border-bottom-color: #D5D5D5;
-}
-
-#fgyfwdwgfo .gt_striped {
-  background-color: #F4F4F4;
-}
-
-#fgyfwdwgfo .gt_table_body {
-  border-top-style: solid;
-  border-top-width: 2px;
-  border-top-color: #D5D5D5;
-  border-bottom-style: solid;
-  border-bottom-width: 2px;
-  border-bottom-color: #D5D5D5;
-}
-
-#fgyfwdwgfo .gt_footnotes {
-  color: #333333;
-  background-color: #FFFFFF;
-  border-bottom-style: none;
-  border-bottom-width: 2px;
-  border-bottom-color: #D3D3D3;
-  border-left-style: none;
-  border-left-width: 2px;
-  border-left-color: #D3D3D3;
-  border-right-style: none;
-  border-right-width: 2px;
-  border-right-color: #D3D3D3;
-}
-
-#fgyfwdwgfo .gt_footnote {
-  margin: 0px;
-  font-size: 90%;
-  padding-top: 4px;
-  padding-bottom: 4px;
-  padding-left: 5px;
-  padding-right: 5px;
-}
-
-#fgyfwdwgfo .gt_sourcenotes {
-  color: #333333;
-  background-color: #FFFFFF;
-  border-bottom-style: none;
-  border-bottom-width: 2px;
-  border-bottom-color: #D3D3D3;
-  border-left-style: none;
-  border-left-width: 2px;
-  border-left-color: #D3D3D3;
-  border-right-style: none;
-  border-right-width: 2px;
-  border-right-color: #D3D3D3;
-}
-
-#fgyfwdwgfo .gt_sourcenote {
-  font-size: 90%;
-  padding-top: 4px;
-  padding-bottom: 4px;
-  padding-left: 5px;
-  padding-right: 5px;
-}
-
-#fgyfwdwgfo .gt_left {
-  text-align: left;
-}
-
-#fgyfwdwgfo .gt_center {
-  text-align: center;
-}
-
-#fgyfwdwgfo .gt_right {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-#fgyfwdwgfo .gt_font_normal {
-  font-weight: normal;
-}
-
-#fgyfwdwgfo .gt_font_bold {
-  font-weight: bold;
-}
-
-#fgyfwdwgfo .gt_font_italic {
-  font-style: italic;
-}
-
-#fgyfwdwgfo .gt_super {
-  font-size: 65%;
-}
-
-#fgyfwdwgfo .gt_footnote_marks {
-  font-size: 75%;
-  vertical-align: 0.4em;
-  position: initial;
-}
-
-#fgyfwdwgfo .gt_asterisk {
-  font-size: 100%;
-  vertical-align: 0;
-}
-
-#fgyfwdwgfo .gt_indent_1 {
-  text-indent: 5px;
-}
-
-#fgyfwdwgfo .gt_indent_2 {
-  text-indent: 10px;
-}
-
-#fgyfwdwgfo .gt_indent_3 {
-  text-indent: 15px;
-}
-
-#fgyfwdwgfo .gt_indent_4 {
-  text-indent: 20px;
-}
-
-#fgyfwdwgfo .gt_indent_5 {
-  text-indent: 25px;
-}
-
-#fgyfwdwgfo .katex-display {
-  display: inline-flex !important;
-  margin-bottom: 0.75em !important;
-}
-
-#fgyfwdwgfo div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
-  height: 0px !important;
-}
-</style>
-<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
-  <thead>
-    <tr class="gt_heading">
-      <td colspan="6" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Label contrasts at the participant's average ratings, next to the main model</td>
-    </tr>
-    
-    <tr class="gt_col_headings">
-      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Model">Model</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Parameter">Parameter</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Diff">Diff</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="CI">CI</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="pd_fmt">pd_fmt</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Effect">Effect</th>
-    </tr>
-  </thead>
-  <tbody class="gt_table_body">
-    <tr class="gt_group_heading_row">
-      <th colspan="6" class="gt_group_heading" scope="colgroup" id="Authenticity: AI-Generated - Human Forgery">Authenticity: AI-Generated - Human Forgery</th>
-    </tr>
-    <tr class="gt_row_group_first"><td headers="Authenticity: AI-Generated - Human Forgery  Model" class="gt_row gt_left" style="color: #9E9E9E;">AuthenticitySR</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">confleft</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-1.12</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-2.89, 0.73]</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">88.02%</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: AI-Generated - Human Forgery  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Authenticity (main model, no rating terms)</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">confleft</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.42</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.95, 1.05]</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">71.35%</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: AI-Generated - Human Forgery  Model" class="gt_row gt_left" style="color: #9E9E9E;">AuthenticitySR</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">confright</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.73</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.94, 0.50]</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">88.70%</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: AI-Generated - Human Forgery  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Authenticity (main model, no rating terms)</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">confright</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.60</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.67, 0.43]</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">87.88%</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: AI-Generated - Human Forgery  Model" class="gt_row gt_left" style="color: #9E9E9E;">AuthenticitySR</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">mu</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">2.27</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.35, 4.88]</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">95.45%</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: AI-Generated - Human Forgery  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Authenticity (main model, no rating terms)</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">mu</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.41</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.85, 3.60]</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">89.15%</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: AI-Generated - Human Forgery  Model" class="gt_row gt_left" style="color: #9E9E9E;">AuthenticitySR</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">response</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">1.22</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.27, 2.71]</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">94.30%</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: AI-Generated - Human Forgery  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Authenticity (main model, no rating terms)</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">response</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.66</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.63, 1.96]</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">84.85%</td>
-<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr class="gt_group_heading_row">
-      <th colspan="6" class="gt_group_heading" scope="colgroup" id="Authenticity: AI-Generated - Human Original">Authenticity: AI-Generated - Human Original</th>
-    </tr>
-    <tr class="gt_row_group_first"><td headers="Authenticity: AI-Generated - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">AuthenticitySR</td>
-<td headers="Authenticity: AI-Generated - Human Original  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">confleft</td>
-<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.63</td>
-<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-2.39, 1.10]</td>
-<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">75.45%</td>
-<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: AI-Generated - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Authenticity (main model, no rating terms)</td>
-<td headers="Authenticity: AI-Generated - Human Original  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">confleft</td>
-<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.23</td>
-<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.65, 1.14]</td>
-<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">62.18%</td>
-<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: AI-Generated - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">AuthenticitySR</td>
-<td headers="Authenticity: AI-Generated - Human Original  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">confright</td>
-<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.72</td>
-<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.91, 0.51]</td>
-<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">88.12%</td>
-<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: AI-Generated - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Authenticity (main model, no rating terms)</td>
-<td headers="Authenticity: AI-Generated - Human Original  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">confright</td>
-<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.86</td>
-<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.85, 0.13]</td>
-<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">95.75%</td>
-<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: AI-Generated - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">AuthenticitySR</td>
-<td headers="Authenticity: AI-Generated - Human Original  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">mu</td>
-<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.55</td>
-<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-3.04, 1.99]</td>
-<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">67.07%</td>
-<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: AI-Generated - Human Original  Model" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Authenticity (main model, no rating terms)</td>
-<td headers="Authenticity: AI-Generated - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">mu</td>
-<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-2.10</td>
-<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-4.26, -0.05]</td>
-<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">97.72%</td>
-<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Authenticity: AI-Generated - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">AuthenticitySR</td>
-<td headers="Authenticity: AI-Generated - Human Original  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">response</td>
-<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.42</td>
-<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.87, 1.07]</td>
-<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">71.90%</td>
-<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: AI-Generated - Human Original  Model" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Authenticity (main model, no rating terms)</td>
-<td headers="Authenticity: AI-Generated - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">response</td>
-<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-1.39</td>
-<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-2.64, -0.19]</td>
-<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">98.65%</td>
-<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr class="gt_group_heading_row">
-      <th colspan="6" class="gt_group_heading" scope="colgroup" id="Authenticity: Human Forgery - Human Original">Authenticity: Human Forgery - Human Original</th>
-    </tr>
-    <tr class="gt_row_group_first"><td headers="Authenticity: Human Forgery - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">AuthenticitySR</td>
-<td headers="Authenticity: Human Forgery - Human Original  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">confleft</td>
-<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.50</td>
-<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.20, 2.22]</td>
-<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">71.88%</td>
-<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: Human Forgery - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Authenticity (main model, no rating terms)</td>
-<td headers="Authenticity: Human Forgery - Human Original  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">confleft</td>
-<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.20</td>
-<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.18, 1.53]</td>
-<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">61.58%</td>
-<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: Human Forgery - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">AuthenticitySR</td>
-<td headers="Authenticity: Human Forgery - Human Original  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">confright</td>
-<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.01</td>
-<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.16, 1.20]</td>
-<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">50.55%</td>
-<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: Human Forgery - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Authenticity (main model, no rating terms)</td>
-<td headers="Authenticity: Human Forgery - Human Original  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">confright</td>
-<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.26</td>
-<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.28, 0.74]</td>
-<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">69.83%</td>
-<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Authenticity: Human Forgery - Human Original  Model" class="gt_row gt_left" style="background-color: #FFEBEE;">AuthenticitySR</td>
-<td headers="Authenticity: Human Forgery - Human Original  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">mu</td>
-<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-2.82</td>
-<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-5.37, -0.13]</td>
-<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">98.08%</td>
-<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Authenticity: Human Forgery - Human Original  Model" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Authenticity (main model, no rating terms)</td>
-<td headers="Authenticity: Human Forgery - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">mu</td>
-<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.52</td>
-<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-5.60, -1.40]</td>
-<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Authenticity: Human Forgery - Human Original  Model" class="gt_row gt_left" style="background-color: #FFEBEE;">AuthenticitySR</td>
-<td headers="Authenticity: Human Forgery - Human Original  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">response</td>
-<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-1.64</td>
-<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-3.12, -0.13]</td>
-<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">98.08%</td>
-<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Authenticity: Human Forgery - Human Original  Model" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Authenticity (main model, no rating terms)</td>
-<td headers="Authenticity: Human Forgery - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">response</td>
-<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-2.05</td>
-<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-3.31, -0.86]</td>
-<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.92%</td>
-<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr class="gt_group_heading_row">
-      <th colspan="6" class="gt_group_heading" scope="colgroup" id="Syntheticness: AI-Generated - Human Forgery">Syntheticness: AI-Generated - Human Forgery</th>
-    </tr>
-    <tr class="gt_row_group_first"><td headers="Syntheticness: AI-Generated - Human Forgery  Model" class="gt_row gt_left" style="color: #9E9E9E;">RealitySR</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">confleft</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.09</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.39, 1.61]</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">54.65%</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Syntheticness: AI-Generated - Human Forgery  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Reality (main model, no rating terms)</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">confleft</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.50</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.78, 1.81]</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">77.42%</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Syntheticness: AI-Generated - Human Forgery  Model" class="gt_row gt_left" style="background-color: #FFEBEE;">RealitySR</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">confright</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-1.52</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-2.78, -0.29]</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">98.95%</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Syntheticness: AI-Generated - Human Forgery  Model" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Reality (main model, no rating terms)</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">confright</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-1.61</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-2.68, -0.51]</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.70%</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Syntheticness: AI-Generated - Human Forgery  Model" class="gt_row gt_left" style="background-color: #FFEBEE;">RealitySR</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">mu</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-4.51</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-7.60, -1.37]</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.67%</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Syntheticness: AI-Generated - Human Forgery  Model" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Reality (main model, no rating terms)</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">mu</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-5.99</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-8.47, -3.49]</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Syntheticness: AI-Generated - Human Forgery  Model" class="gt_row gt_left" style="background-color: #FFEBEE;">RealitySR</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">response</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-3.10</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-4.98, -1.23]</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.92%</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Syntheticness: AI-Generated - Human Forgery  Model" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Reality (main model, no rating terms)</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">response</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-4.00</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-5.54, -2.54]</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr class="gt_group_heading_row">
-      <th colspan="6" class="gt_group_heading" scope="colgroup" id="Syntheticness: AI-Generated - Human Original">Syntheticness: AI-Generated - Human Original</th>
-    </tr>
-    <tr class="gt_row_group_first"><td headers="Syntheticness: AI-Generated - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">RealitySR</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">confleft</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.90</td>
-<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.55, 2.33]</td>
-<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">89.75%</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Syntheticness: AI-Generated - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Reality (main model, no rating terms)</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">confleft</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.94</td>
-<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.39, 2.24]</td>
-<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">92.25%</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Syntheticness: AI-Generated - Human Original  Model" class="gt_row gt_left" style="background-color: #FFEBEE;">RealitySR</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">confright</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-1.94</td>
-<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-3.20, -0.72]</td>
-<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.90%</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Syntheticness: AI-Generated - Human Original  Model" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Reality (main model, no rating terms)</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">confright</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-2.53</td>
-<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-3.53, -1.49]</td>
-<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Syntheticness: AI-Generated - Human Original  Model" class="gt_row gt_left" style="background-color: #FFEBEE;">RealitySR</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">mu</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-4.85</td>
-<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-7.86, -1.88]</td>
-<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.78%</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Syntheticness: AI-Generated - Human Original  Model" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Reality (main model, no rating terms)</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">mu</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-8.09</td>
-<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-10.39, -5.76]</td>
-<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Syntheticness: AI-Generated - Human Original  Model" class="gt_row gt_left" style="background-color: #FFEBEE;">RealitySR</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">response</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-3.57</td>
-<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-5.42, -1.76]</td>
-<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.90%</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr><td headers="Syntheticness: AI-Generated - Human Original  Model" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Reality (main model, no rating terms)</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">response</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-5.51</td>
-<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-6.94, -4.12]</td>
-<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
-<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-    <tr class="gt_group_heading_row">
-      <th colspan="6" class="gt_group_heading" scope="colgroup" id="Syntheticness: Human Forgery - Human Original">Syntheticness: Human Forgery - Human Original</th>
-    </tr>
-    <tr class="gt_row_group_first"><td headers="Syntheticness: Human Forgery - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">RealitySR</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">confleft</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.81</td>
-<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.67, 2.24]</td>
-<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">86.62%</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Syntheticness: Human Forgery - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Reality (main model, no rating terms)</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">confleft</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.44</td>
-<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.87, 1.74]</td>
-<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">75.22%</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Syntheticness: Human Forgery - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">RealitySR</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">confright</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.42</td>
-<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.65, 0.79]</td>
-<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">75.45%</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Syntheticness: Human Forgery - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Reality (main model, no rating terms)</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">confright</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.92</td>
-<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.98, 0.10]</td>
-<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">96.30%</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Syntheticness: Human Forgery - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">RealitySR</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">mu</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.33</td>
-<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-3.25, 2.49]</td>
-<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">59.40%</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Syntheticness: Human Forgery - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Reality (main model, no rating terms)</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">mu</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-2.05</td>
-<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-4.43, 0.21]</td>
-<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">96.10%</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Syntheticness: Human Forgery - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">RealitySR</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">response</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.47</td>
-<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-2.21, 1.23]</td>
-<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">70.88%</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="Syntheticness: Human Forgery - Human Original  Model" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Reality (main model, no rating terms)</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">response</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-1.48</td>
-<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-2.91, -0.11]</td>
-<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">98.30%</td>
-<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
-  </tbody>
-  
-</table>
-</div>
-```
-
-
-::: {.callout-note collapse="true" title="Label contrasts at the participant's average ratings, next to the main model (Markdown table, for text readers)"}
-
-|Contrast                                      |Model                                      |Parameter |Diff  |CI              |pd_fmt |Effect   |
-|:---------------------------------------------|:------------------------------------------|:---------|:-----|:---------------|:------|:--------|
-|Authenticity: AI-Generated - Human Forgery    |AuthenticitySR                             |confleft  |-1.12 |[-2.89, 0.73]   |88.02% |n.s.     |
-|Authenticity: AI-Generated - Human Forgery    |Authenticity (main model, no rating terms) |confleft  |-0.42 |[-1.95, 1.05]   |71.35% |n.s.     |
-|Authenticity: AI-Generated - Human Forgery    |AuthenticitySR                             |confright |-0.73 |[-1.94, 0.50]   |88.70% |n.s.     |
-|Authenticity: AI-Generated - Human Forgery    |Authenticity (main model, no rating terms) |confright |-0.60 |[-1.67, 0.43]   |87.88% |n.s.     |
-|Authenticity: AI-Generated - Human Forgery    |AuthenticitySR                             |mu        |2.27  |[-0.35, 4.88]   |95.45% |n.s.     |
-|Authenticity: AI-Generated - Human Forgery    |Authenticity (main model, no rating terms) |mu        |1.41  |[-0.85, 3.60]   |89.15% |n.s.     |
-|Authenticity: AI-Generated - Human Forgery    |AuthenticitySR                             |response  |1.22  |[-0.27, 2.71]   |94.30% |n.s.     |
-|Authenticity: AI-Generated - Human Forgery    |Authenticity (main model, no rating terms) |response  |0.66  |[-0.63, 1.96]   |84.85% |n.s.     |
-|Authenticity: AI-Generated - Human Original   |AuthenticitySR                             |confleft  |-0.63 |[-2.39, 1.10]   |75.45% |n.s.     |
-|Authenticity: AI-Generated - Human Original   |Authenticity (main model, no rating terms) |confleft  |-0.23 |[-1.65, 1.14]   |62.18% |n.s.     |
-|Authenticity: AI-Generated - Human Original   |AuthenticitySR                             |confright |-0.72 |[-1.91, 0.51]   |88.12% |n.s.     |
-|Authenticity: AI-Generated - Human Original   |Authenticity (main model, no rating terms) |confright |-0.86 |[-1.85, 0.13]   |95.75% |n.s.     |
-|Authenticity: AI-Generated - Human Original   |AuthenticitySR                             |mu        |-0.55 |[-3.04, 1.99]   |67.07% |n.s.     |
-|Authenticity: AI-Generated - Human Original   |Authenticity (main model, no rating terms) |mu        |-2.10 |[-4.26, -0.05]  |97.72% |Negative |
-|Authenticity: AI-Generated - Human Original   |AuthenticitySR                             |response  |-0.42 |[-1.87, 1.07]   |71.90% |n.s.     |
-|Authenticity: AI-Generated - Human Original   |Authenticity (main model, no rating terms) |response  |-1.39 |[-2.64, -0.19]  |98.65% |Negative |
-|Authenticity: Human Forgery - Human Original  |AuthenticitySR                             |confleft  |0.50  |[-1.20, 2.22]   |71.88% |n.s.     |
-|Authenticity: Human Forgery - Human Original  |Authenticity (main model, no rating terms) |confleft  |0.20  |[-1.18, 1.53]   |61.58% |n.s.     |
-|Authenticity: Human Forgery - Human Original  |AuthenticitySR                             |confright |0.01  |[-1.16, 1.20]   |50.55% |n.s.     |
-|Authenticity: Human Forgery - Human Original  |Authenticity (main model, no rating terms) |confright |-0.26 |[-1.28, 0.74]   |69.83% |n.s.     |
-|Authenticity: Human Forgery - Human Original  |AuthenticitySR                             |mu        |-2.82 |[-5.37, -0.13]  |98.08% |Negative |
-|Authenticity: Human Forgery - Human Original  |Authenticity (main model, no rating terms) |mu        |-3.52 |[-5.60, -1.40]  |100%   |Negative |
-|Authenticity: Human Forgery - Human Original  |AuthenticitySR                             |response  |-1.64 |[-3.12, -0.13]  |98.08% |Negative |
-|Authenticity: Human Forgery - Human Original  |Authenticity (main model, no rating terms) |response  |-2.05 |[-3.31, -0.86]  |99.92% |Negative |
-|Syntheticness: AI-Generated - Human Forgery   |RealitySR                                  |confleft  |0.09  |[-1.39, 1.61]   |54.65% |n.s.     |
-|Syntheticness: AI-Generated - Human Forgery   |Reality (main model, no rating terms)      |confleft  |0.50  |[-0.78, 1.81]   |77.42% |n.s.     |
-|Syntheticness: AI-Generated - Human Forgery   |RealitySR                                  |confright |-1.52 |[-2.78, -0.29]  |98.95% |Negative |
-|Syntheticness: AI-Generated - Human Forgery   |Reality (main model, no rating terms)      |confright |-1.61 |[-2.68, -0.51]  |99.70% |Negative |
-|Syntheticness: AI-Generated - Human Forgery   |RealitySR                                  |mu        |-4.51 |[-7.60, -1.37]  |99.67% |Negative |
-|Syntheticness: AI-Generated - Human Forgery   |Reality (main model, no rating terms)      |mu        |-5.99 |[-8.47, -3.49]  |100%   |Negative |
-|Syntheticness: AI-Generated - Human Forgery   |RealitySR                                  |response  |-3.10 |[-4.98, -1.23]  |99.92% |Negative |
-|Syntheticness: AI-Generated - Human Forgery   |Reality (main model, no rating terms)      |response  |-4.00 |[-5.54, -2.54]  |100%   |Negative |
-|Syntheticness: AI-Generated - Human Original  |RealitySR                                  |confleft  |0.90  |[-0.55, 2.33]   |89.75% |n.s.     |
-|Syntheticness: AI-Generated - Human Original  |Reality (main model, no rating terms)      |confleft  |0.94  |[-0.39, 2.24]   |92.25% |n.s.     |
-|Syntheticness: AI-Generated - Human Original  |RealitySR                                  |confright |-1.94 |[-3.20, -0.72]  |99.90% |Negative |
-|Syntheticness: AI-Generated - Human Original  |Reality (main model, no rating terms)      |confright |-2.53 |[-3.53, -1.49]  |100%   |Negative |
-|Syntheticness: AI-Generated - Human Original  |RealitySR                                  |mu        |-4.85 |[-7.86, -1.88]  |99.78% |Negative |
-|Syntheticness: AI-Generated - Human Original  |Reality (main model, no rating terms)      |mu        |-8.09 |[-10.39, -5.76] |100%   |Negative |
-|Syntheticness: AI-Generated - Human Original  |RealitySR                                  |response  |-3.57 |[-5.42, -1.76]  |99.90% |Negative |
-|Syntheticness: AI-Generated - Human Original  |Reality (main model, no rating terms)      |response  |-5.51 |[-6.94, -4.12]  |100%   |Negative |
-|Syntheticness: Human Forgery - Human Original |RealitySR                                  |confleft  |0.81  |[-0.67, 2.24]   |86.62% |n.s.     |
-|Syntheticness: Human Forgery - Human Original |Reality (main model, no rating terms)      |confleft  |0.44  |[-0.87, 1.74]   |75.22% |n.s.     |
-|Syntheticness: Human Forgery - Human Original |RealitySR                                  |confright |-0.42 |[-1.65, 0.79]   |75.45% |n.s.     |
-|Syntheticness: Human Forgery - Human Original |Reality (main model, no rating terms)      |confright |-0.92 |[-1.98, 0.10]   |96.30% |n.s.     |
-|Syntheticness: Human Forgery - Human Original |RealitySR                                  |mu        |-0.33 |[-3.25, 2.49]   |59.40% |n.s.     |
-|Syntheticness: Human Forgery - Human Original |Reality (main model, no rating terms)      |mu        |-2.05 |[-4.43, 0.21]   |96.10% |n.s.     |
-|Syntheticness: Human Forgery - Human Original |RealitySR                                  |response  |-0.47 |[-2.21, 1.23]   |70.88% |n.s.     |
-|Syntheticness: Human Forgery - Human Original |Reality (main model, no rating terms)      |response  |-1.48 |[-2.91, -0.11]  |98.30% |Negative |
-
-:::
-
-### Never-labelled artworks: perceived artificiality
-
-
-```{.r .cell-code}
-pending("ArtificialitySR")
-```
-
-
-::: {.cell}
-
-```{.r .cell-code}
-plot_predictions("ArtificialitySR")
-```
-
-::: {.cell-output-display}
-![](6_selfrelevance_files/figure-html/unnamed-chunk-27-1.png){width=960}
-:::
-:::
-
-
-
-```{.r .cell-code}
-est_art <- estimates$ArtificialitySR
-labs_art <- par_labels$PerceivedArtificiality
-dat_art <- bind_rows(lapply(c("response", mediation_info$ArtificialitySR$dpars), function(p) {
-  bind_rows(
-    mutate(grid_slopes(est_art, par = p), Predictor = "Self-relevance", Model = "ArtificialitySR"),
-    mutate(covariate_slopes(est_art, "Beauty2_w", par = p, pairs = TRUE), Predictor = "Follow-up beauty", Model = "ArtificialitySR"),
-    mutate(grid_slopes(reference$ArtificialityBeauty, par = p), Predictor = "Follow-up beauty", Model = "ArtificialityBeauty (no SR)")
-  ) |>
-    mutate(Parameter = factor(labs_art[[p]], levels = labs_art))
-})) |>
-  mutate(Predictor = factor(Predictor, levels = predictor_labels)) |>
-  format_effects() |>
-  arrange(Predictor, Parameter, Model)
-
-make_asis(
-  make_tables(prep_contrasts(est_art$contrasts, "PerceivedArtificiality") |> filter(Parameter %in% c("response", "mu", "confright", "confleft")),
-              c("Contrast", "Parameter", "Diff", "CI", "pd_fmt", "Effect"),
-              "Perceived artificiality: New - Old items at average ratings (% of the slider / percentage points)"),
-  make_tables(dat_art, c("Predictor", "Parameter", "Model", "Level", "Diff", "CI", "pd_fmt", "Effect"),
-              "Change in perceived artificiality per +10% of self-relevance or follow-up beauty, for old (missed) and new (never labelled) items, and their difference")
-)
-```
-
-```{=html}
 <div id="aisijroggo" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
 <style>#aisijroggo table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
@@ -17784,11 +17244,11 @@ make_asis(
 <table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
   <thead>
     <tr class="gt_heading">
-      <td colspan="5" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Perceived artificiality: New - Old items at average ratings (% of the slider / percentage points)</td>
+      <td colspan="5" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Decomposition of the label effect (% of the belief slider; Mediator rows: the label's shift in that rating, % of its scale)</td>
     </tr>
     
     <tr class="gt_col_headings">
-      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Parameter">Parameter</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Path">Path</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Diff">Diff</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="CI">CI</th>
       <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="pd_fmt">pd_fmt</th>
@@ -17797,28 +17257,263 @@ make_asis(
   </thead>
   <tbody class="gt_table_body">
     <tr class="gt_group_heading_row">
-      <th colspan="5" class="gt_group_heading" scope="colgroup" id="New - Old">New - Old</th>
+      <th colspan="5" class="gt_group_heading" scope="colgroup" id="Syntheticness: AI-Generated - Human Original">Syntheticness: AI-Generated - Human Original</th>
     </tr>
-    <tr class="gt_row_group_first"><td headers="New - Old  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">response</td>
-<td headers="New - Old  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.77</td>
-<td headers="New - Old  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-3.86, 2.51]</td>
-<td headers="New - Old  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">68.38%</td>
-<td headers="New - Old  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="New - Old  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">mu</td>
-<td headers="New - Old  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-2.07</td>
-<td headers="New - Old  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-9.23, 5.58]</td>
-<td headers="New - Old  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">70.85%</td>
-<td headers="New - Old  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="New - Old  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">confright</td>
-<td headers="New - Old  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.43</td>
-<td headers="New - Old  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.76, 2.38]</td>
-<td headers="New - Old  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">66.20%</td>
-<td headers="New - Old  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
-    <tr><td headers="New - Old  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">confleft</td>
-<td headers="New - Old  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.03</td>
-<td headers="New - Old  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.50, 1.62]</td>
-<td headers="New - Old  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">51.82%</td>
-<td headers="New - Old  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr class="gt_row_group_first"><td headers="Syntheticness: AI-Generated - Human Original  Path" class="gt_row gt_left" style="background-color: #FFEBEE;">Total</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-5.21</td>
+<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-7.07, -3.43]</td>
+<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Syntheticness: AI-Generated - Human Original  Path" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Direct</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.69</td>
+<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-5.48, -1.81]</td>
+<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.90%</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Syntheticness: AI-Generated - Human Original  Path" class="gt_row gt_left" style="background-color: #FFEBEE;">Indirect (Phase-1 beauty)</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-1.23</td>
+<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-1.73, -0.79]</td>
+<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Syntheticness: AI-Generated - Human Original  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Indirect (Self-relevance)</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.08</td>
+<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.21, 0.01]</td>
+<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">95.15%</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Syntheticness: AI-Generated - Human Original  Path" class="gt_row gt_left" style="background-color: #FFEBEE;">Indirect (Follow-up beauty)</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-0.18</td>
+<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-0.37, -0.03]</td>
+<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.85%</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Syntheticness: AI-Generated - Human Original  Path" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Mediator (Phase-1 beauty)</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-5.89</td>
+<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-7.02, -4.88]</td>
+<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Syntheticness: AI-Generated - Human Original  Path" class="gt_row gt_left" style="color: #9E9E9E;">Mediator (Self-relevance)</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.87</td>
+<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.89, 0.17]</td>
+<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">95.25%</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Syntheticness: AI-Generated - Human Original  Path" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Mediator (Follow-up beauty)</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-1.74</td>
+<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-2.76, -0.72]</td>
+<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.98%</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr class="gt_group_heading_row">
+      <th colspan="5" class="gt_group_heading" scope="colgroup" id="Syntheticness: Human Forgery - Human Original">Syntheticness: Human Forgery - Human Original</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="Syntheticness: Human Forgery - Human Original  Path" class="gt_row gt_left" style="color: #9E9E9E;">Total</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-1.54</td>
+<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-3.30, 0.20]</td>
+<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">95.43%</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Syntheticness: Human Forgery - Human Original  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Direct</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.64</td>
+<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-2.27, 1.19]</td>
+<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">77.08%</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Syntheticness: Human Forgery - Human Original  Path" class="gt_row gt_left" style="background-color: #FFEBEE;">Indirect (Phase-1 beauty)</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-0.70</td>
+<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-1.07, -0.40]</td>
+<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Syntheticness: Human Forgery - Human Original  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Indirect (Self-relevance)</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.02</td>
+<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.10, 0.04]</td>
+<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">80.03%</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Syntheticness: Human Forgery - Human Original  Path" class="gt_row gt_left" style="color: #9E9E9E;">Indirect (Follow-up beauty)</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.15</td>
+<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.35, 0.02]</td>
+<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">96.90%</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Syntheticness: Human Forgery - Human Original  Path" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Mediator (Phase-1 beauty)</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.69</td>
+<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-4.82, -2.63]</td>
+<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Syntheticness: Human Forgery - Human Original  Path" class="gt_row gt_left" style="color: #9E9E9E;">Mediator (Self-relevance)</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.80</td>
+<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.80, 0.23]</td>
+<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">93.90%</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Syntheticness: Human Forgery - Human Original  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Mediator (Follow-up beauty)</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-1.03</td>
+<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-2.10, 0.01]</td>
+<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">96.90%</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr class="gt_group_heading_row">
+      <th colspan="5" class="gt_group_heading" scope="colgroup" id="Syntheticness: AI-Generated - Human Forgery">Syntheticness: AI-Generated - Human Forgery</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="Syntheticness: AI-Generated - Human Forgery  Path" class="gt_row gt_left" style="background-color: #FFEBEE;">Total</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-3.67</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-5.55, -1.81]</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Syntheticness: AI-Generated - Human Forgery  Path" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Direct</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.12</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-4.94, -1.21]</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.92%</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Syntheticness: AI-Generated - Human Forgery  Path" class="gt_row gt_left" style="background-color: #FFEBEE;">Indirect (Phase-1 beauty)</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-0.45</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-0.76, -0.19]</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Syntheticness: AI-Generated - Human Forgery  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Indirect (Self-relevance)</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.01</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.12, 0.11]</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">55.10%</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Syntheticness: AI-Generated - Human Forgery  Path" class="gt_row gt_left" style="color: #9E9E9E;">Indirect (Follow-up beauty)</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.07</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.24, 0.03]</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">89.83%</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Syntheticness: AI-Generated - Human Forgery  Path" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Mediator (Phase-1 beauty)</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-2.20</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-3.31, -1.09]</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Syntheticness: AI-Generated - Human Forgery  Path" class="gt_row gt_left" style="color: #9E9E9E;">Mediator (Self-relevance)</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.08</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.15, 1.04]</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">55.15%</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Syntheticness: AI-Generated - Human Forgery  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Mediator (Follow-up beauty)</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.71</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.90, 0.36]</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">89.98%</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr class="gt_group_heading_row">
+      <th colspan="5" class="gt_group_heading" scope="colgroup" id="Authenticity: AI-Generated - Human Original">Authenticity: AI-Generated - Human Original</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="Authenticity: AI-Generated - Human Original  Path" class="gt_row gt_left" style="color: #9E9E9E;">Total</td>
+<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-1.32</td>
+<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-2.73, 0.16]</td>
+<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">95.65%</td>
+<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: AI-Generated - Human Original  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Direct</td>
+<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.57</td>
+<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-2.00, 0.96]</td>
+<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">77.62%</td>
+<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: AI-Generated - Human Original  Path" class="gt_row gt_left" style="background-color: #FFEBEE;">Indirect (Phase-1 beauty)</td>
+<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-0.70</td>
+<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-1.10, -0.36]</td>
+<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Authenticity: AI-Generated - Human Original  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Indirect (Self-relevance)</td>
+<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.06</td>
+<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.17, 0.02]</td>
+<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">95.20%</td>
+<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: AI-Generated - Human Original  Path" class="gt_row gt_left" style="color: #9E9E9E;">Indirect (Follow-up beauty)</td>
+<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.02</td>
+<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.10, 0.14]</td>
+<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">65.25%</td>
+<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: AI-Generated - Human Original  Path" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Mediator (Phase-1 beauty)</td>
+<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-5.89</td>
+<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-7.02, -4.88]</td>
+<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Authenticity: AI-Generated - Human Original  Path" class="gt_row gt_left" style="color: #9E9E9E;">Mediator (Self-relevance)</td>
+<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.87</td>
+<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.89, 0.17]</td>
+<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">95.25%</td>
+<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: AI-Generated - Human Original  Path" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Mediator (Follow-up beauty)</td>
+<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-1.74</td>
+<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-2.76, -0.72]</td>
+<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.98%</td>
+<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr class="gt_group_heading_row">
+      <th colspan="5" class="gt_group_heading" scope="colgroup" id="Authenticity: Human Forgery - Human Original">Authenticity: Human Forgery - Human Original</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="Authenticity: Human Forgery - Human Original  Path" class="gt_row gt_left" style="background-color: #FFEBEE;">Total</td>
+<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-2.26</td>
+<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-3.80, -0.79]</td>
+<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.83%</td>
+<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Authenticity: Human Forgery - Human Original  Path" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Direct</td>
+<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-1.80</td>
+<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-3.31, -0.34]</td>
+<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">98.92%</td>
+<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Authenticity: Human Forgery - Human Original  Path" class="gt_row gt_left" style="background-color: #FFEBEE;">Indirect (Phase-1 beauty)</td>
+<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-0.36</td>
+<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-0.63, -0.15]</td>
+<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.95%</td>
+<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Authenticity: Human Forgery - Human Original  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Indirect (Self-relevance)</td>
+<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.04</td>
+<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.13, 0.01]</td>
+<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">92.15%</td>
+<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: Human Forgery - Human Original  Path" class="gt_row gt_left" style="color: #9E9E9E;">Indirect (Follow-up beauty)</td>
+<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.04</td>
+<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.14, 0.03]</td>
+<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">88.67%</td>
+<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: Human Forgery - Human Original  Path" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Mediator (Phase-1 beauty)</td>
+<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.69</td>
+<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-4.82, -2.63]</td>
+<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Authenticity: Human Forgery - Human Original  Path" class="gt_row gt_left" style="color: #9E9E9E;">Mediator (Self-relevance)</td>
+<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.80</td>
+<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.80, 0.23]</td>
+<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">93.90%</td>
+<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: Human Forgery - Human Original  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Mediator (Follow-up beauty)</td>
+<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-1.03</td>
+<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-2.10, 0.01]</td>
+<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">96.90%</td>
+<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr class="gt_group_heading_row">
+      <th colspan="5" class="gt_group_heading" scope="colgroup" id="Authenticity: AI-Generated - Human Forgery">Authenticity: AI-Generated - Human Forgery</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="Authenticity: AI-Generated - Human Forgery  Path" class="gt_row gt_left" style="color: #9E9E9E;">Total</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.94</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.57, 2.44]</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">88.75%</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: AI-Generated - Human Forgery  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Direct</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.21</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.30, 2.69]</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">94.15%</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: AI-Generated - Human Forgery  Path" class="gt_row gt_left" style="background-color: #FFEBEE;">Indirect (Phase-1 beauty)</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-0.26</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-0.45, -0.08]</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Authenticity: AI-Generated - Human Forgery  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Indirect (Self-relevance)</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.01</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.10, 0.09]</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">55.20%</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: AI-Generated - Human Forgery  Path" class="gt_row gt_left" style="color: #9E9E9E;">Indirect (Follow-up beauty)</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.00</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.04, 0.09]</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">61.75%</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: AI-Generated - Human Forgery  Path" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Mediator (Phase-1 beauty)</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-2.20</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-3.31, -1.09]</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Authenticity: AI-Generated - Human Forgery  Path" class="gt_row gt_left" style="color: #9E9E9E;">Mediator (Self-relevance)</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.08</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.15, 1.04]</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">55.15%</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: AI-Generated - Human Forgery  Path" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Mediator (Follow-up beauty)</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.71</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.90, 0.36]</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">89.98%</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
   </tbody>
   
 </table>
@@ -17826,14 +17521,58 @@ make_asis(
 ```
 
 
-::: {.callout-note collapse="true" title="Perceived artificiality: New - Old items at average ratings (% of the slider / percentage points) (Markdown table, for text readers)"}
+::: {.callout-note collapse="true" title="Decomposition of the label effect (% of the belief slider; Mediator rows: the label's shift in that rating, % of its scale) (Markdown table, for text readers)"}
 
-|Contrast  |Parameter |Diff  |CI            |pd_fmt |Effect |
-|:---------|:---------|:-----|:-------------|:------|:------|
-|New - Old |response  |-0.77 |[-3.86, 2.51] |68.38% |n.s.   |
-|New - Old |mu        |-2.07 |[-9.23, 5.58] |70.85% |n.s.   |
-|New - Old |confright |0.43  |[-1.76, 2.38] |66.20% |n.s.   |
-|New - Old |confleft  |0.03  |[-1.50, 1.62] |51.82% |n.s.   |
+|Contrast                                      |Path                        |Diff  |CI             |pd_fmt |Effect   |
+|:---------------------------------------------|:---------------------------|:-----|:--------------|:------|:--------|
+|Syntheticness: AI-Generated - Human Original  |Total                       |-5.21 |[-7.07, -3.43] |100%   |Negative |
+|Syntheticness: AI-Generated - Human Original  |Direct                      |-3.69 |[-5.48, -1.81] |99.90% |Negative |
+|Syntheticness: AI-Generated - Human Original  |Indirect (Phase-1 beauty)   |-1.23 |[-1.73, -0.79] |100%   |Negative |
+|Syntheticness: AI-Generated - Human Original  |Indirect (Self-relevance)   |-0.08 |[-0.21, 0.01]  |95.15% |n.s.     |
+|Syntheticness: AI-Generated - Human Original  |Indirect (Follow-up beauty) |-0.18 |[-0.37, -0.03] |99.85% |Negative |
+|Syntheticness: AI-Generated - Human Original  |Mediator (Phase-1 beauty)   |-5.89 |[-7.02, -4.88] |100%   |Negative |
+|Syntheticness: AI-Generated - Human Original  |Mediator (Self-relevance)   |-0.87 |[-1.89, 0.17]  |95.25% |n.s.     |
+|Syntheticness: AI-Generated - Human Original  |Mediator (Follow-up beauty) |-1.74 |[-2.76, -0.72] |99.98% |Negative |
+|Syntheticness: Human Forgery - Human Original |Total                       |-1.54 |[-3.30, 0.20]  |95.43% |n.s.     |
+|Syntheticness: Human Forgery - Human Original |Direct                      |-0.64 |[-2.27, 1.19]  |77.08% |n.s.     |
+|Syntheticness: Human Forgery - Human Original |Indirect (Phase-1 beauty)   |-0.70 |[-1.07, -0.40] |100%   |Negative |
+|Syntheticness: Human Forgery - Human Original |Indirect (Self-relevance)   |-0.02 |[-0.10, 0.04]  |80.03% |n.s.     |
+|Syntheticness: Human Forgery - Human Original |Indirect (Follow-up beauty) |-0.15 |[-0.35, 0.02]  |96.90% |n.s.     |
+|Syntheticness: Human Forgery - Human Original |Mediator (Phase-1 beauty)   |-3.69 |[-4.82, -2.63] |100%   |Negative |
+|Syntheticness: Human Forgery - Human Original |Mediator (Self-relevance)   |-0.80 |[-1.80, 0.23]  |93.90% |n.s.     |
+|Syntheticness: Human Forgery - Human Original |Mediator (Follow-up beauty) |-1.03 |[-2.10, 0.01]  |96.90% |n.s.     |
+|Syntheticness: AI-Generated - Human Forgery   |Total                       |-3.67 |[-5.55, -1.81] |100%   |Negative |
+|Syntheticness: AI-Generated - Human Forgery   |Direct                      |-3.12 |[-4.94, -1.21] |99.92% |Negative |
+|Syntheticness: AI-Generated - Human Forgery   |Indirect (Phase-1 beauty)   |-0.45 |[-0.76, -0.19] |100%   |Negative |
+|Syntheticness: AI-Generated - Human Forgery   |Indirect (Self-relevance)   |-0.01 |[-0.12, 0.11]  |55.10% |n.s.     |
+|Syntheticness: AI-Generated - Human Forgery   |Indirect (Follow-up beauty) |-0.07 |[-0.24, 0.03]  |89.83% |n.s.     |
+|Syntheticness: AI-Generated - Human Forgery   |Mediator (Phase-1 beauty)   |-2.20 |[-3.31, -1.09] |100%   |Negative |
+|Syntheticness: AI-Generated - Human Forgery   |Mediator (Self-relevance)   |-0.08 |[-1.15, 1.04]  |55.15% |n.s.     |
+|Syntheticness: AI-Generated - Human Forgery   |Mediator (Follow-up beauty) |-0.71 |[-1.90, 0.36]  |89.98% |n.s.     |
+|Authenticity: AI-Generated - Human Original   |Total                       |-1.32 |[-2.73, 0.16]  |95.65% |n.s.     |
+|Authenticity: AI-Generated - Human Original   |Direct                      |-0.57 |[-2.00, 0.96]  |77.62% |n.s.     |
+|Authenticity: AI-Generated - Human Original   |Indirect (Phase-1 beauty)   |-0.70 |[-1.10, -0.36] |100%   |Negative |
+|Authenticity: AI-Generated - Human Original   |Indirect (Self-relevance)   |-0.06 |[-0.17, 0.02]  |95.20% |n.s.     |
+|Authenticity: AI-Generated - Human Original   |Indirect (Follow-up beauty) |0.02  |[-0.10, 0.14]  |65.25% |n.s.     |
+|Authenticity: AI-Generated - Human Original   |Mediator (Phase-1 beauty)   |-5.89 |[-7.02, -4.88] |100%   |Negative |
+|Authenticity: AI-Generated - Human Original   |Mediator (Self-relevance)   |-0.87 |[-1.89, 0.17]  |95.25% |n.s.     |
+|Authenticity: AI-Generated - Human Original   |Mediator (Follow-up beauty) |-1.74 |[-2.76, -0.72] |99.98% |Negative |
+|Authenticity: Human Forgery - Human Original  |Total                       |-2.26 |[-3.80, -0.79] |99.83% |Negative |
+|Authenticity: Human Forgery - Human Original  |Direct                      |-1.80 |[-3.31, -0.34] |98.92% |Negative |
+|Authenticity: Human Forgery - Human Original  |Indirect (Phase-1 beauty)   |-0.36 |[-0.63, -0.15] |99.95% |Negative |
+|Authenticity: Human Forgery - Human Original  |Indirect (Self-relevance)   |-0.04 |[-0.13, 0.01]  |92.15% |n.s.     |
+|Authenticity: Human Forgery - Human Original  |Indirect (Follow-up beauty) |-0.04 |[-0.14, 0.03]  |88.67% |n.s.     |
+|Authenticity: Human Forgery - Human Original  |Mediator (Phase-1 beauty)   |-3.69 |[-4.82, -2.63] |100%   |Negative |
+|Authenticity: Human Forgery - Human Original  |Mediator (Self-relevance)   |-0.80 |[-1.80, 0.23]  |93.90% |n.s.     |
+|Authenticity: Human Forgery - Human Original  |Mediator (Follow-up beauty) |-1.03 |[-2.10, 0.01]  |96.90% |n.s.     |
+|Authenticity: AI-Generated - Human Forgery    |Total                       |0.94  |[-0.57, 2.44]  |88.75% |n.s.     |
+|Authenticity: AI-Generated - Human Forgery    |Direct                      |1.21  |[-0.30, 2.69]  |94.15% |n.s.     |
+|Authenticity: AI-Generated - Human Forgery    |Indirect (Phase-1 beauty)   |-0.26 |[-0.45, -0.08] |100%   |Negative |
+|Authenticity: AI-Generated - Human Forgery    |Indirect (Self-relevance)   |-0.01 |[-0.10, 0.09]  |55.20% |n.s.     |
+|Authenticity: AI-Generated - Human Forgery    |Indirect (Follow-up beauty) |0.00  |[-0.04, 0.09]  |61.75% |n.s.     |
+|Authenticity: AI-Generated - Human Forgery    |Mediator (Phase-1 beauty)   |-2.20 |[-3.31, -1.09] |100%   |Negative |
+|Authenticity: AI-Generated - Human Forgery    |Mediator (Self-relevance)   |-0.08 |[-1.15, 1.04]  |55.15% |n.s.     |
+|Authenticity: AI-Generated - Human Forgery    |Mediator (Follow-up beauty) |-0.71 |[-1.90, 0.36]  |89.98% |n.s.     |
 
 :::
 
@@ -18290,6 +18029,1391 @@ make_asis(
 <table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
   <thead>
     <tr class="gt_heading">
+      <td colspan="6" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Label contrasts at the participant's average ratings, next to the main model</td>
+    </tr>
+    
+    <tr class="gt_col_headings">
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Model">Model</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Parameter">Parameter</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Diff">Diff</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="CI">CI</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="pd_fmt">pd_fmt</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Effect">Effect</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr class="gt_group_heading_row">
+      <th colspan="6" class="gt_group_heading" scope="colgroup" id="Authenticity: AI-Generated - Human Forgery">Authenticity: AI-Generated - Human Forgery</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="Authenticity: AI-Generated - Human Forgery  Model" class="gt_row gt_left" style="color: #9E9E9E;">AuthenticitySR</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">confleft</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-1.12</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-2.89, 0.73]</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">88.02%</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: AI-Generated - Human Forgery  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Authenticity (main model, no rating terms)</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">confleft</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.42</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.95, 1.05]</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">71.35%</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: AI-Generated - Human Forgery  Model" class="gt_row gt_left" style="color: #9E9E9E;">AuthenticitySR</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">confright</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.73</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.94, 0.50]</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">88.70%</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: AI-Generated - Human Forgery  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Authenticity (main model, no rating terms)</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">confright</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.60</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.67, 0.43]</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">87.88%</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: AI-Generated - Human Forgery  Model" class="gt_row gt_left" style="color: #9E9E9E;">AuthenticitySR</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">mu</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">2.27</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.35, 4.88]</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">95.45%</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: AI-Generated - Human Forgery  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Authenticity (main model, no rating terms)</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">mu</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.41</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.85, 3.60]</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">89.15%</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: AI-Generated - Human Forgery  Model" class="gt_row gt_left" style="color: #9E9E9E;">AuthenticitySR</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">response</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">1.22</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.27, 2.71]</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">94.30%</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: AI-Generated - Human Forgery  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Authenticity (main model, no rating terms)</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">response</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.66</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.63, 1.96]</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">84.85%</td>
+<td headers="Authenticity: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr class="gt_group_heading_row">
+      <th colspan="6" class="gt_group_heading" scope="colgroup" id="Authenticity: AI-Generated - Human Original">Authenticity: AI-Generated - Human Original</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="Authenticity: AI-Generated - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">AuthenticitySR</td>
+<td headers="Authenticity: AI-Generated - Human Original  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">confleft</td>
+<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.63</td>
+<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-2.39, 1.10]</td>
+<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">75.45%</td>
+<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: AI-Generated - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Authenticity (main model, no rating terms)</td>
+<td headers="Authenticity: AI-Generated - Human Original  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">confleft</td>
+<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.23</td>
+<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.65, 1.14]</td>
+<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">62.18%</td>
+<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: AI-Generated - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">AuthenticitySR</td>
+<td headers="Authenticity: AI-Generated - Human Original  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">confright</td>
+<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.72</td>
+<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.91, 0.51]</td>
+<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">88.12%</td>
+<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: AI-Generated - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Authenticity (main model, no rating terms)</td>
+<td headers="Authenticity: AI-Generated - Human Original  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">confright</td>
+<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.86</td>
+<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.85, 0.13]</td>
+<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">95.75%</td>
+<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: AI-Generated - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">AuthenticitySR</td>
+<td headers="Authenticity: AI-Generated - Human Original  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">mu</td>
+<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.55</td>
+<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-3.04, 1.99]</td>
+<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">67.07%</td>
+<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: AI-Generated - Human Original  Model" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Authenticity (main model, no rating terms)</td>
+<td headers="Authenticity: AI-Generated - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">mu</td>
+<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-2.10</td>
+<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-4.26, -0.05]</td>
+<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">97.72%</td>
+<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Authenticity: AI-Generated - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">AuthenticitySR</td>
+<td headers="Authenticity: AI-Generated - Human Original  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">response</td>
+<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.42</td>
+<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.87, 1.07]</td>
+<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">71.90%</td>
+<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: AI-Generated - Human Original  Model" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Authenticity (main model, no rating terms)</td>
+<td headers="Authenticity: AI-Generated - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">response</td>
+<td headers="Authenticity: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-1.39</td>
+<td headers="Authenticity: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-2.64, -0.19]</td>
+<td headers="Authenticity: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">98.65%</td>
+<td headers="Authenticity: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr class="gt_group_heading_row">
+      <th colspan="6" class="gt_group_heading" scope="colgroup" id="Authenticity: Human Forgery - Human Original">Authenticity: Human Forgery - Human Original</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="Authenticity: Human Forgery - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">AuthenticitySR</td>
+<td headers="Authenticity: Human Forgery - Human Original  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">confleft</td>
+<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.50</td>
+<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.20, 2.22]</td>
+<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">71.88%</td>
+<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: Human Forgery - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Authenticity (main model, no rating terms)</td>
+<td headers="Authenticity: Human Forgery - Human Original  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">confleft</td>
+<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.20</td>
+<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.18, 1.53]</td>
+<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">61.58%</td>
+<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: Human Forgery - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">AuthenticitySR</td>
+<td headers="Authenticity: Human Forgery - Human Original  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">confright</td>
+<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.01</td>
+<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.16, 1.20]</td>
+<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">50.55%</td>
+<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: Human Forgery - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Authenticity (main model, no rating terms)</td>
+<td headers="Authenticity: Human Forgery - Human Original  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">confright</td>
+<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.26</td>
+<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.28, 0.74]</td>
+<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">69.83%</td>
+<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Authenticity: Human Forgery - Human Original  Model" class="gt_row gt_left" style="background-color: #FFEBEE;">AuthenticitySR</td>
+<td headers="Authenticity: Human Forgery - Human Original  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">mu</td>
+<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-2.82</td>
+<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-5.37, -0.13]</td>
+<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">98.08%</td>
+<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Authenticity: Human Forgery - Human Original  Model" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Authenticity (main model, no rating terms)</td>
+<td headers="Authenticity: Human Forgery - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">mu</td>
+<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-3.52</td>
+<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-5.60, -1.40]</td>
+<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Authenticity: Human Forgery - Human Original  Model" class="gt_row gt_left" style="background-color: #FFEBEE;">AuthenticitySR</td>
+<td headers="Authenticity: Human Forgery - Human Original  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">response</td>
+<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-1.64</td>
+<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-3.12, -0.13]</td>
+<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">98.08%</td>
+<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Authenticity: Human Forgery - Human Original  Model" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Authenticity (main model, no rating terms)</td>
+<td headers="Authenticity: Human Forgery - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">response</td>
+<td headers="Authenticity: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-2.05</td>
+<td headers="Authenticity: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-3.31, -0.86]</td>
+<td headers="Authenticity: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.92%</td>
+<td headers="Authenticity: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr class="gt_group_heading_row">
+      <th colspan="6" class="gt_group_heading" scope="colgroup" id="Syntheticness: AI-Generated - Human Forgery">Syntheticness: AI-Generated - Human Forgery</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="Syntheticness: AI-Generated - Human Forgery  Model" class="gt_row gt_left" style="color: #9E9E9E;">RealitySR</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">confleft</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.09</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.39, 1.61]</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">54.65%</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Syntheticness: AI-Generated - Human Forgery  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Reality (main model, no rating terms)</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">confleft</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.50</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.78, 1.81]</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">77.42%</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Syntheticness: AI-Generated - Human Forgery  Model" class="gt_row gt_left" style="background-color: #FFEBEE;">RealitySR</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">confright</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-1.52</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-2.78, -0.29]</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">98.95%</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Syntheticness: AI-Generated - Human Forgery  Model" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Reality (main model, no rating terms)</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">confright</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-1.61</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-2.68, -0.51]</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.70%</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Syntheticness: AI-Generated - Human Forgery  Model" class="gt_row gt_left" style="background-color: #FFEBEE;">RealitySR</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">mu</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-4.51</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-7.60, -1.37]</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.67%</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Syntheticness: AI-Generated - Human Forgery  Model" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Reality (main model, no rating terms)</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">mu</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-5.99</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-8.47, -3.49]</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Syntheticness: AI-Generated - Human Forgery  Model" class="gt_row gt_left" style="background-color: #FFEBEE;">RealitySR</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">response</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-3.10</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-4.98, -1.23]</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.92%</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Syntheticness: AI-Generated - Human Forgery  Model" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Reality (main model, no rating terms)</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">response</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-4.00</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-5.54, -2.54]</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="Syntheticness: AI-Generated - Human Forgery  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr class="gt_group_heading_row">
+      <th colspan="6" class="gt_group_heading" scope="colgroup" id="Syntheticness: AI-Generated - Human Original">Syntheticness: AI-Generated - Human Original</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="Syntheticness: AI-Generated - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">RealitySR</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">confleft</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.90</td>
+<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.55, 2.33]</td>
+<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">89.75%</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Syntheticness: AI-Generated - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Reality (main model, no rating terms)</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">confleft</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.94</td>
+<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.39, 2.24]</td>
+<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">92.25%</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Syntheticness: AI-Generated - Human Original  Model" class="gt_row gt_left" style="background-color: #FFEBEE;">RealitySR</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">confright</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-1.94</td>
+<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-3.20, -0.72]</td>
+<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.90%</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Syntheticness: AI-Generated - Human Original  Model" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Reality (main model, no rating terms)</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">confright</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-2.53</td>
+<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-3.53, -1.49]</td>
+<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Syntheticness: AI-Generated - Human Original  Model" class="gt_row gt_left" style="background-color: #FFEBEE;">RealitySR</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">mu</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-4.85</td>
+<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-7.86, -1.88]</td>
+<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.78%</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Syntheticness: AI-Generated - Human Original  Model" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Reality (main model, no rating terms)</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">mu</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-8.09</td>
+<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-10.39, -5.76]</td>
+<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Syntheticness: AI-Generated - Human Original  Model" class="gt_row gt_left" style="background-color: #FFEBEE;">RealitySR</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Parameter" class="gt_row gt_left" style="background-color: #FFEBEE;">response</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-3.57</td>
+<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-5.42, -1.76]</td>
+<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.90%</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Syntheticness: AI-Generated - Human Original  Model" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Reality (main model, no rating terms)</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">response</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-5.51</td>
+<td headers="Syntheticness: AI-Generated - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-6.94, -4.12]</td>
+<td headers="Syntheticness: AI-Generated - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">100%</td>
+<td headers="Syntheticness: AI-Generated - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr class="gt_group_heading_row">
+      <th colspan="6" class="gt_group_heading" scope="colgroup" id="Syntheticness: Human Forgery - Human Original">Syntheticness: Human Forgery - Human Original</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="Syntheticness: Human Forgery - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">RealitySR</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">confleft</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.81</td>
+<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-0.67, 2.24]</td>
+<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">86.62%</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Syntheticness: Human Forgery - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Reality (main model, no rating terms)</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">confleft</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.44</td>
+<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.87, 1.74]</td>
+<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">75.22%</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Syntheticness: Human Forgery - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">RealitySR</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">confright</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.42</td>
+<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.65, 0.79]</td>
+<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">75.45%</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Syntheticness: Human Forgery - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Reality (main model, no rating terms)</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">confright</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.92</td>
+<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.98, 0.10]</td>
+<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">96.30%</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Syntheticness: Human Forgery - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">RealitySR</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">mu</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.33</td>
+<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-3.25, 2.49]</td>
+<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">59.40%</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Syntheticness: Human Forgery - Human Original  Model" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Reality (main model, no rating terms)</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">mu</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-2.05</td>
+<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-4.43, 0.21]</td>
+<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">96.10%</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Syntheticness: Human Forgery - Human Original  Model" class="gt_row gt_left" style="color: #9E9E9E;">RealitySR</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">response</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.47</td>
+<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-2.21, 1.23]</td>
+<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">70.88%</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Syntheticness: Human Forgery - Human Original  Model" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Reality (main model, no rating terms)</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Parameter" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">response</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-1.48</td>
+<td headers="Syntheticness: Human Forgery - Human Original  CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-2.91, -0.11]</td>
+<td headers="Syntheticness: Human Forgery - Human Original  pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">98.30%</td>
+<td headers="Syntheticness: Human Forgery - Human Original  Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+  </tbody>
+  
+</table>
+</div>
+```
+
+
+::: {.callout-note collapse="true" title="Label contrasts at the participant's average ratings, next to the main model (Markdown table, for text readers)"}
+
+|Contrast                                      |Model                                      |Parameter |Diff  |CI              |pd_fmt |Effect   |
+|:---------------------------------------------|:------------------------------------------|:---------|:-----|:---------------|:------|:--------|
+|Authenticity: AI-Generated - Human Forgery    |AuthenticitySR                             |confleft  |-1.12 |[-2.89, 0.73]   |88.02% |n.s.     |
+|Authenticity: AI-Generated - Human Forgery    |Authenticity (main model, no rating terms) |confleft  |-0.42 |[-1.95, 1.05]   |71.35% |n.s.     |
+|Authenticity: AI-Generated - Human Forgery    |AuthenticitySR                             |confright |-0.73 |[-1.94, 0.50]   |88.70% |n.s.     |
+|Authenticity: AI-Generated - Human Forgery    |Authenticity (main model, no rating terms) |confright |-0.60 |[-1.67, 0.43]   |87.88% |n.s.     |
+|Authenticity: AI-Generated - Human Forgery    |AuthenticitySR                             |mu        |2.27  |[-0.35, 4.88]   |95.45% |n.s.     |
+|Authenticity: AI-Generated - Human Forgery    |Authenticity (main model, no rating terms) |mu        |1.41  |[-0.85, 3.60]   |89.15% |n.s.     |
+|Authenticity: AI-Generated - Human Forgery    |AuthenticitySR                             |response  |1.22  |[-0.27, 2.71]   |94.30% |n.s.     |
+|Authenticity: AI-Generated - Human Forgery    |Authenticity (main model, no rating terms) |response  |0.66  |[-0.63, 1.96]   |84.85% |n.s.     |
+|Authenticity: AI-Generated - Human Original   |AuthenticitySR                             |confleft  |-0.63 |[-2.39, 1.10]   |75.45% |n.s.     |
+|Authenticity: AI-Generated - Human Original   |Authenticity (main model, no rating terms) |confleft  |-0.23 |[-1.65, 1.14]   |62.18% |n.s.     |
+|Authenticity: AI-Generated - Human Original   |AuthenticitySR                             |confright |-0.72 |[-1.91, 0.51]   |88.12% |n.s.     |
+|Authenticity: AI-Generated - Human Original   |Authenticity (main model, no rating terms) |confright |-0.86 |[-1.85, 0.13]   |95.75% |n.s.     |
+|Authenticity: AI-Generated - Human Original   |AuthenticitySR                             |mu        |-0.55 |[-3.04, 1.99]   |67.07% |n.s.     |
+|Authenticity: AI-Generated - Human Original   |Authenticity (main model, no rating terms) |mu        |-2.10 |[-4.26, -0.05]  |97.72% |Negative |
+|Authenticity: AI-Generated - Human Original   |AuthenticitySR                             |response  |-0.42 |[-1.87, 1.07]   |71.90% |n.s.     |
+|Authenticity: AI-Generated - Human Original   |Authenticity (main model, no rating terms) |response  |-1.39 |[-2.64, -0.19]  |98.65% |Negative |
+|Authenticity: Human Forgery - Human Original  |AuthenticitySR                             |confleft  |0.50  |[-1.20, 2.22]   |71.88% |n.s.     |
+|Authenticity: Human Forgery - Human Original  |Authenticity (main model, no rating terms) |confleft  |0.20  |[-1.18, 1.53]   |61.58% |n.s.     |
+|Authenticity: Human Forgery - Human Original  |AuthenticitySR                             |confright |0.01  |[-1.16, 1.20]   |50.55% |n.s.     |
+|Authenticity: Human Forgery - Human Original  |Authenticity (main model, no rating terms) |confright |-0.26 |[-1.28, 0.74]   |69.83% |n.s.     |
+|Authenticity: Human Forgery - Human Original  |AuthenticitySR                             |mu        |-2.82 |[-5.37, -0.13]  |98.08% |Negative |
+|Authenticity: Human Forgery - Human Original  |Authenticity (main model, no rating terms) |mu        |-3.52 |[-5.60, -1.40]  |100%   |Negative |
+|Authenticity: Human Forgery - Human Original  |AuthenticitySR                             |response  |-1.64 |[-3.12, -0.13]  |98.08% |Negative |
+|Authenticity: Human Forgery - Human Original  |Authenticity (main model, no rating terms) |response  |-2.05 |[-3.31, -0.86]  |99.92% |Negative |
+|Syntheticness: AI-Generated - Human Forgery   |RealitySR                                  |confleft  |0.09  |[-1.39, 1.61]   |54.65% |n.s.     |
+|Syntheticness: AI-Generated - Human Forgery   |Reality (main model, no rating terms)      |confleft  |0.50  |[-0.78, 1.81]   |77.42% |n.s.     |
+|Syntheticness: AI-Generated - Human Forgery   |RealitySR                                  |confright |-1.52 |[-2.78, -0.29]  |98.95% |Negative |
+|Syntheticness: AI-Generated - Human Forgery   |Reality (main model, no rating terms)      |confright |-1.61 |[-2.68, -0.51]  |99.70% |Negative |
+|Syntheticness: AI-Generated - Human Forgery   |RealitySR                                  |mu        |-4.51 |[-7.60, -1.37]  |99.67% |Negative |
+|Syntheticness: AI-Generated - Human Forgery   |Reality (main model, no rating terms)      |mu        |-5.99 |[-8.47, -3.49]  |100%   |Negative |
+|Syntheticness: AI-Generated - Human Forgery   |RealitySR                                  |response  |-3.10 |[-4.98, -1.23]  |99.92% |Negative |
+|Syntheticness: AI-Generated - Human Forgery   |Reality (main model, no rating terms)      |response  |-4.00 |[-5.54, -2.54]  |100%   |Negative |
+|Syntheticness: AI-Generated - Human Original  |RealitySR                                  |confleft  |0.90  |[-0.55, 2.33]   |89.75% |n.s.     |
+|Syntheticness: AI-Generated - Human Original  |Reality (main model, no rating terms)      |confleft  |0.94  |[-0.39, 2.24]   |92.25% |n.s.     |
+|Syntheticness: AI-Generated - Human Original  |RealitySR                                  |confright |-1.94 |[-3.20, -0.72]  |99.90% |Negative |
+|Syntheticness: AI-Generated - Human Original  |Reality (main model, no rating terms)      |confright |-2.53 |[-3.53, -1.49]  |100%   |Negative |
+|Syntheticness: AI-Generated - Human Original  |RealitySR                                  |mu        |-4.85 |[-7.86, -1.88]  |99.78% |Negative |
+|Syntheticness: AI-Generated - Human Original  |Reality (main model, no rating terms)      |mu        |-8.09 |[-10.39, -5.76] |100%   |Negative |
+|Syntheticness: AI-Generated - Human Original  |RealitySR                                  |response  |-3.57 |[-5.42, -1.76]  |99.90% |Negative |
+|Syntheticness: AI-Generated - Human Original  |Reality (main model, no rating terms)      |response  |-5.51 |[-6.94, -4.12]  |100%   |Negative |
+|Syntheticness: Human Forgery - Human Original |RealitySR                                  |confleft  |0.81  |[-0.67, 2.24]   |86.62% |n.s.     |
+|Syntheticness: Human Forgery - Human Original |Reality (main model, no rating terms)      |confleft  |0.44  |[-0.87, 1.74]   |75.22% |n.s.     |
+|Syntheticness: Human Forgery - Human Original |RealitySR                                  |confright |-0.42 |[-1.65, 0.79]   |75.45% |n.s.     |
+|Syntheticness: Human Forgery - Human Original |Reality (main model, no rating terms)      |confright |-0.92 |[-1.98, 0.10]   |96.30% |n.s.     |
+|Syntheticness: Human Forgery - Human Original |RealitySR                                  |mu        |-0.33 |[-3.25, 2.49]   |59.40% |n.s.     |
+|Syntheticness: Human Forgery - Human Original |Reality (main model, no rating terms)      |mu        |-2.05 |[-4.43, 0.21]   |96.10% |n.s.     |
+|Syntheticness: Human Forgery - Human Original |RealitySR                                  |response  |-0.47 |[-2.21, 1.23]   |70.88% |n.s.     |
+|Syntheticness: Human Forgery - Human Original |Reality (main model, no rating terms)      |response  |-1.48 |[-2.91, -0.11]  |98.30% |Negative |
+
+:::
+
+### Never-labelled artworks: perceived artificiality
+
+
+```{.r .cell-code}
+pending("ArtificialitySR")
+```
+
+
+::: {.cell}
+
+```{.r .cell-code}
+plot_predictions("ArtificialitySR")
+```
+
+::: {.cell-output-display}
+![](6_selfrelevance_files/figure-html/unnamed-chunk-28-1.png){width=960}
+:::
+:::
+
+
+
+```{.r .cell-code}
+est_art <- estimates$ArtificialitySR
+labs_art <- par_labels$PerceivedArtificiality
+dat_art <- bind_rows(lapply(c("response", mediation_info$ArtificialitySR$dpars), function(p) {
+  bind_rows(
+    mutate(grid_slopes(est_art, par = p), Predictor = "Self-relevance", Model = "ArtificialitySR"),
+    mutate(covariate_slopes(est_art, "Beauty2_w", par = p, pairs = TRUE), Predictor = "Follow-up beauty", Model = "ArtificialitySR"),
+    mutate(grid_slopes(reference$ArtificialityBeauty, par = p), Predictor = "Follow-up beauty", Model = "ArtificialityBeauty (no SR)")
+  ) |>
+    mutate(Parameter = factor(labs_art[[p]], levels = labs_art))
+})) |>
+  mutate(Predictor = factor(Predictor, levels = predictor_labels)) |>
+  format_effects() |>
+  arrange(Predictor, Parameter, Model)
+
+make_asis(
+  make_tables(prep_contrasts(est_art$contrasts, "PerceivedArtificiality") |> filter(Parameter %in% c("response", "mu", "confright", "confleft")),
+              c("Contrast", "Parameter", "Diff", "CI", "pd_fmt", "Effect"),
+              "Perceived artificiality: New - Old items at average ratings (% of the slider / percentage points)"),
+  make_tables(dat_art, c("Predictor", "Parameter", "Model", "Level", "Diff", "CI", "pd_fmt", "Effect"),
+              "Change in perceived artificiality per +10% of self-relevance or follow-up beauty, for old (missed) and new (never labelled) items, and their difference")
+)
+```
+
+```{=html}
+<div id="abxwgrqblu" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#abxwgrqblu table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#abxwgrqblu thead, #abxwgrqblu tbody, #abxwgrqblu tfoot, #abxwgrqblu tr, #abxwgrqblu td, #abxwgrqblu th {
+  border-style: none;
+}
+
+#abxwgrqblu p {
+  margin: 0;
+  padding: 0;
+}
+
+#abxwgrqblu .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 13px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 3px;
+  border-top-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 3px;
+  border-right-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 3px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 3px;
+  border-left-color: #D5D5D5;
+}
+
+#abxwgrqblu .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#abxwgrqblu .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#abxwgrqblu .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#abxwgrqblu .gt_heading {
+  background-color: #FFFFFF;
+  text-align: left;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#abxwgrqblu .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#abxwgrqblu .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#abxwgrqblu .gt_col_heading {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#abxwgrqblu .gt_column_spanner_outer {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#abxwgrqblu .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#abxwgrqblu .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#abxwgrqblu .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#abxwgrqblu .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#abxwgrqblu .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#abxwgrqblu .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: middle;
+}
+
+#abxwgrqblu .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#abxwgrqblu .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#abxwgrqblu .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 1px;
+  border-left-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 1px;
+  border-right-color: #D5D5D5;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#abxwgrqblu .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #5F5F5F;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#abxwgrqblu .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#abxwgrqblu .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#abxwgrqblu .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#abxwgrqblu .gt_summary_row {
+  color: #333333;
+  background-color: #D5D5D5;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#abxwgrqblu .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D5D5D5;
+}
+
+#abxwgrqblu .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#abxwgrqblu .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#abxwgrqblu .gt_grand_summary_row {
+  color: #FFFFFF;
+  background-color: #929292;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#abxwgrqblu .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D5D5D5;
+}
+
+#abxwgrqblu .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D5D5D5;
+}
+
+#abxwgrqblu .gt_striped {
+  background-color: #F4F4F4;
+}
+
+#abxwgrqblu .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#abxwgrqblu .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#abxwgrqblu .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#abxwgrqblu .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#abxwgrqblu .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#abxwgrqblu .gt_left {
+  text-align: left;
+}
+
+#abxwgrqblu .gt_center {
+  text-align: center;
+}
+
+#abxwgrqblu .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#abxwgrqblu .gt_font_normal {
+  font-weight: normal;
+}
+
+#abxwgrqblu .gt_font_bold {
+  font-weight: bold;
+}
+
+#abxwgrqblu .gt_font_italic {
+  font-style: italic;
+}
+
+#abxwgrqblu .gt_super {
+  font-size: 65%;
+}
+
+#abxwgrqblu .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#abxwgrqblu .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#abxwgrqblu .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#abxwgrqblu .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#abxwgrqblu .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#abxwgrqblu .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#abxwgrqblu .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#abxwgrqblu .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#abxwgrqblu div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+  <thead>
+    <tr class="gt_heading">
+      <td colspan="5" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Perceived artificiality: New - Old items at average ratings (% of the slider / percentage points)</td>
+    </tr>
+    
+    <tr class="gt_col_headings">
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Parameter">Parameter</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Diff">Diff</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="CI">CI</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="pd_fmt">pd_fmt</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Effect">Effect</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr class="gt_group_heading_row">
+      <th colspan="5" class="gt_group_heading" scope="colgroup" id="New - Old">New - Old</th>
+    </tr>
+    <tr class="gt_row_group_first"><td headers="New - Old  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">response</td>
+<td headers="New - Old  Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.77</td>
+<td headers="New - Old  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-3.86, 2.51]</td>
+<td headers="New - Old  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">68.38%</td>
+<td headers="New - Old  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="New - Old  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">mu</td>
+<td headers="New - Old  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-2.07</td>
+<td headers="New - Old  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-9.23, 5.58]</td>
+<td headers="New - Old  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">70.85%</td>
+<td headers="New - Old  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="New - Old  Parameter" class="gt_row gt_left" style="color: #9E9E9E;">confright</td>
+<td headers="New - Old  Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.43</td>
+<td headers="New - Old  CI" class="gt_row gt_left" style="color: #9E9E9E;">[-1.76, 2.38]</td>
+<td headers="New - Old  pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">66.20%</td>
+<td headers="New - Old  Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="New - Old  Parameter" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">confleft</td>
+<td headers="New - Old  Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.03</td>
+<td headers="New - Old  CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.50, 1.62]</td>
+<td headers="New - Old  pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">51.82%</td>
+<td headers="New - Old  Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+  </tbody>
+  
+</table>
+</div>
+```
+
+
+::: {.callout-note collapse="true" title="Perceived artificiality: New - Old items at average ratings (% of the slider / percentage points) (Markdown table, for text readers)"}
+
+|Contrast  |Parameter |Diff  |CI            |pd_fmt |Effect |
+|:---------|:---------|:-----|:-------------|:------|:------|
+|New - Old |response  |-0.77 |[-3.86, 2.51] |68.38% |n.s.   |
+|New - Old |mu        |-2.07 |[-9.23, 5.58] |70.85% |n.s.   |
+|New - Old |confright |0.43  |[-1.76, 2.38] |66.20% |n.s.   |
+|New - Old |confleft  |0.03  |[-1.50, 1.62] |51.82% |n.s.   |
+
+:::
+
+```{=html}
+<div id="eikyikiaif" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#eikyikiaif table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#eikyikiaif thead, #eikyikiaif tbody, #eikyikiaif tfoot, #eikyikiaif tr, #eikyikiaif td, #eikyikiaif th {
+  border-style: none;
+}
+
+#eikyikiaif p {
+  margin: 0;
+  padding: 0;
+}
+
+#eikyikiaif .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 13px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 3px;
+  border-top-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 3px;
+  border-right-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 3px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 3px;
+  border-left-color: #D5D5D5;
+}
+
+#eikyikiaif .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#eikyikiaif .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#eikyikiaif .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#eikyikiaif .gt_heading {
+  background-color: #FFFFFF;
+  text-align: left;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#eikyikiaif .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#eikyikiaif .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#eikyikiaif .gt_col_heading {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#eikyikiaif .gt_column_spanner_outer {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#eikyikiaif .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#eikyikiaif .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#eikyikiaif .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#eikyikiaif .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#eikyikiaif .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#eikyikiaif .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: middle;
+}
+
+#eikyikiaif .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#eikyikiaif .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#eikyikiaif .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 1px;
+  border-left-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 1px;
+  border-right-color: #D5D5D5;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#eikyikiaif .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #5F5F5F;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#eikyikiaif .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#eikyikiaif .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#eikyikiaif .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#eikyikiaif .gt_summary_row {
+  color: #333333;
+  background-color: #D5D5D5;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#eikyikiaif .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D5D5D5;
+}
+
+#eikyikiaif .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#eikyikiaif .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#eikyikiaif .gt_grand_summary_row {
+  color: #FFFFFF;
+  background-color: #929292;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#eikyikiaif .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D5D5D5;
+}
+
+#eikyikiaif .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D5D5D5;
+}
+
+#eikyikiaif .gt_striped {
+  background-color: #F4F4F4;
+}
+
+#eikyikiaif .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#eikyikiaif .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#eikyikiaif .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#eikyikiaif .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#eikyikiaif .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#eikyikiaif .gt_left {
+  text-align: left;
+}
+
+#eikyikiaif .gt_center {
+  text-align: center;
+}
+
+#eikyikiaif .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#eikyikiaif .gt_font_normal {
+  font-weight: normal;
+}
+
+#eikyikiaif .gt_font_bold {
+  font-weight: bold;
+}
+
+#eikyikiaif .gt_font_italic {
+  font-style: italic;
+}
+
+#eikyikiaif .gt_super {
+  font-size: 65%;
+}
+
+#eikyikiaif .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#eikyikiaif .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#eikyikiaif .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#eikyikiaif .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#eikyikiaif .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#eikyikiaif .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#eikyikiaif .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#eikyikiaif .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#eikyikiaif div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+  <thead>
+    <tr class="gt_heading">
       <td colspan="8" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Change in perceived artificiality per +10% of self-relevance or follow-up beauty, for old (missed) and new (never labelled) items, and their difference</td>
     </tr>
     
@@ -18645,11 +19769,12 @@ make_asis(
 
 ## (C) Self-relevance and memory
 
-Observed only. The self-reference effect (Lee et al., 2023; Salgues et al.,
-2024) predicts better memory for self-relevant works; the models will be
-categorical, as in `4_memory.qmd`, with SR (and follow-up beauty) added to
-the models of the recalled label and of the recalled belief. Chance levels:
-1/3 for the label, 1/4 for the belief.
+The self-reference effect (Lee et al., 2023; Salgues et al., 2024) predicts
+better memory for self-relevant works. Observed rates and an lme4 pilot
+first, then the categorical model (`MemorySR`, as in `4_memory.qmd`) that
+separates hits from false alarms. The models of the recalled belief and label
+with SR as a covariate are in `4_memory.qmd` ("Memory or Re-inference?").
+Chance levels: 1/3 for the label, 1/4 for the belief.
 
 
 ::: {.cell}
@@ -18677,7 +19802,7 @@ bind_rows(
 ```
 
 ::: {.cell-output-display}
-![](6_selfrelevance_files/figure-html/unnamed-chunk-29-1.png){width=960}
+![](6_selfrelevance_files/figure-html/unnamed-chunk-30-1.png){width=960}
 :::
 :::
 
@@ -19294,6 +20419,2391 @@ appraisal, rated before any memory judgment and for old items only, is the
 cleaner predictor of what was encoded (`4_memory.qmd`, "Memory by Phase-1
 Appraisal").
 
+### Model: MemorySR
+
+**MemorySR** (`server/models.R`, 2026-09-25): the categorical model of the
+recalled label (as `MemoryCondition`, "Not recognized" carrying recognition)
+on all 96 items, with self-relevance and follow-up beauty (centred within
+participant over the 96 artworks, quadratic terms as `MemoryAppraisal`)
+given separate slopes for old and new items (`Type:`). The Old slopes are
+the effect on hits, the New slopes the effect on false alarms; a
+self-reference effect on *memory* needs the two to differ. Predictions per
+label are averaged over the three old labels ("Old") and shown against the
+new items ("New"). Probabilities compress near 0, and the false-alarm rate
+is near 10% while the hit rate is near 45%, so the comparison that matters
+is on the odds scale (last table).
+
+
+```{.r .cell-code}
+memsr_ready <- file.exists("models/estimates/MemorySR.rds")
+if (!memsr_ready) {
+  make_asis("", '::: {.callout-warning title="Estimates not available yet"}',
+            "`MemorySR`: in `analysis/server`, `./hpc combine MemorySR` (check 4,000 draws), `./hpc extract MemorySR`, then `./hpc pull 'estimates/MemorySR.rds'`.",
+            ":::", "")
+}
+```
+
+
+```{.r .cell-code}
+est_sr <- read_estimates("MemorySR")$MemorySR
+g_sr <- est_sr$grid
+D_sr <- est_sr$draws
+old_levels <- setdiff(unique(g_sr$Level), "New Items")
+rows <- lapply(setNames(nm = c(old_levels, "New Items")), function(l) which(g_sr$Level == l))
+# Old: the three labels averaged (same grid order within each level)
+D_old <- Reduce(`+`, lapply(old_levels, function(l) D_sr[, rows[[l]], , drop = FALSE])) / length(old_levels)
+est_old <- list(grid = mutate(g_sr[rows[[old_levels[1]]], ], Level = "Old"), draws = D_old)
+est_new <- list(grid = mutate(g_sr[rows[["New Items"]], ], Level = "New"), draws = D_sr[, rows[["New Items"]], , drop = FALSE])
+fx_old <- memory_grid_effects(est_old)
+fx_new <- memory_grid_effects(est_new)
+sr_labels <- c(SR_w = "Self-relevance", Beauty2_w = "Follow-up beauty")
+fmt_pp <- function(d) {
+  d |> mutate(Predictor = sr_labels[Predictor],
+              Effect_at = Effect,
+              Effect = ifelse(sign(CI_low) != sign(CI_high), "n.s.", ifelse(Median < 0, "Negative", "Positive")),
+              Diff = insight::format_value(Median),
+              CI = sprintf("[%s, %s]", insight::format_value(CI_low), insight::format_value(CI_high)),
+              pd_fmt = insight::format_pd(pd, name = NULL))
+}
+rec_pp <- bind_rows(fx_old$effects, fx_new$effects) |>
+  filter(Outcome == "P(recognised)", Effect %in% c("-2 SD", "+2 SD")) |> fmt_pp()
+lab_pp <- fx_old$effects |>
+  filter(Outcome != "P(recognised)", Type == "unique", Effect %in% c("-2 SD", "+2 SD")) |> fmt_pp()
+# Odds scale: log odds of "seen before" at +/-2 SD minus at the mean, for
+# old (hits) and new (false alarms) items, and their difference
+lo <- function(est, type, pred, at) {
+  g <- est$grid; i <- which(g$Type == type & g$Predictor == pred & !is.na(g$At) & g$At == at)
+  p <- 1 - est$draws[, i, "Not recognized"]
+  log(p / (1 - p))
+}
+odds <- bind_rows(lapply(c("unique", "joint"), function(type) bind_rows(lapply(names(sr_labels), function(pred) bind_rows(lapply(c("-2 SD", "+2 SD"), function(at) {
+  d_old <- lo(est_old, type, pred, at) - lo(est_old, type, pred, "Mean")
+  d_new <- lo(est_new, type, pred, at) - lo(est_new, type, pred, "Mean")
+  desc <- function(x) { ci <- bayestestR::hdi(x, ci = 0.95); c(median(x), ci$CI_low, ci$CI_high, as.numeric(bayestestR::p_direction(x))) }
+  o <- desc(d_old); n <- desc(d_new); dd <- desc(d_new - d_old)
+  data.frame(Type = type, Predictor = sr_labels[pred], At = at,
+             `Old (hits)` = sprintf("%.2f [%.2f, %.2f]", o[1], o[2], o[3]),
+             `New (false alarms)` = sprintf("%.2f [%.2f, %.2f]", n[1], n[2], n[3]),
+             `New - Old` = sprintf("%.2f [%.2f, %.2f]", dd[1], dd[2], dd[3]),
+             pd_fmt = insight::format_pd(dd[4], name = NULL),
+             Effect = ifelse(sign(dd[2]) != sign(dd[3]), "n.s.", ifelse(dd[1] < 0, "Negative", "Positive")),
+             check.names = FALSE)
+}))))))
+make_asis(
+  make_tables(est_sr$diag, c("Model", "Family", "N_obs", "N_participants", "Chains", "Draws", "Max_Rhat", "Min_ESS_ratio", "Divergent_pct"),
+              "Convergence of MemorySR"),
+  make_tables(rec_pp, c("Level", "Type", "Predictor", "Effect_at", "Diff", "CI", "pd_fmt", "Effect"),
+              "MemorySR: P(\"seen before\") at -2 / +2 SD of the rating minus at the participant's mean, for old items (hits, averaged over the three labels) and new items (false alarms), percentage points (unique: other rating at the mean; joint: it follows along)"),
+  make_tables(odds, c("Type", "Predictor", "At", "Old (hits)", "New (false alarms)", "New - Old", "pd_fmt", "Effect"),
+              "MemorySR: the same on the log-odds scale (log odds ratio of \"seen before\" at -2 / +2 SD vs. the mean), and the difference between new and old items (0 = the rating raises false alarms as much as hits)"),
+  make_tables(lab_pp, c("Type", "Predictor", "Effect_at", "Outcome", "Diff", "CI", "pd_fmt", "Effect"),
+              "MemorySR: recalled label among recognised old artworks at -2 / +2 SD of the rating minus at the mean (label shown averaged), percentage points")
+)
+```
+
+```{=html}
+<div id="bwhkvpfjrk" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#bwhkvpfjrk table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#bwhkvpfjrk thead, #bwhkvpfjrk tbody, #bwhkvpfjrk tfoot, #bwhkvpfjrk tr, #bwhkvpfjrk td, #bwhkvpfjrk th {
+  border-style: none;
+}
+
+#bwhkvpfjrk p {
+  margin: 0;
+  padding: 0;
+}
+
+#bwhkvpfjrk .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 13px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 3px;
+  border-top-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 3px;
+  border-right-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 3px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 3px;
+  border-left-color: #D5D5D5;
+}
+
+#bwhkvpfjrk .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#bwhkvpfjrk .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#bwhkvpfjrk .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#bwhkvpfjrk .gt_heading {
+  background-color: #FFFFFF;
+  text-align: left;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#bwhkvpfjrk .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#bwhkvpfjrk .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#bwhkvpfjrk .gt_col_heading {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#bwhkvpfjrk .gt_column_spanner_outer {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#bwhkvpfjrk .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#bwhkvpfjrk .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#bwhkvpfjrk .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#bwhkvpfjrk .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#bwhkvpfjrk .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#bwhkvpfjrk .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: middle;
+}
+
+#bwhkvpfjrk .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#bwhkvpfjrk .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#bwhkvpfjrk .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 1px;
+  border-left-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 1px;
+  border-right-color: #D5D5D5;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#bwhkvpfjrk .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #5F5F5F;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#bwhkvpfjrk .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#bwhkvpfjrk .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#bwhkvpfjrk .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#bwhkvpfjrk .gt_summary_row {
+  color: #333333;
+  background-color: #D5D5D5;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#bwhkvpfjrk .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D5D5D5;
+}
+
+#bwhkvpfjrk .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#bwhkvpfjrk .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#bwhkvpfjrk .gt_grand_summary_row {
+  color: #FFFFFF;
+  background-color: #929292;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#bwhkvpfjrk .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D5D5D5;
+}
+
+#bwhkvpfjrk .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D5D5D5;
+}
+
+#bwhkvpfjrk .gt_striped {
+  background-color: #F4F4F4;
+}
+
+#bwhkvpfjrk .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#bwhkvpfjrk .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#bwhkvpfjrk .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#bwhkvpfjrk .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#bwhkvpfjrk .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#bwhkvpfjrk .gt_left {
+  text-align: left;
+}
+
+#bwhkvpfjrk .gt_center {
+  text-align: center;
+}
+
+#bwhkvpfjrk .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#bwhkvpfjrk .gt_font_normal {
+  font-weight: normal;
+}
+
+#bwhkvpfjrk .gt_font_bold {
+  font-weight: bold;
+}
+
+#bwhkvpfjrk .gt_font_italic {
+  font-style: italic;
+}
+
+#bwhkvpfjrk .gt_super {
+  font-size: 65%;
+}
+
+#bwhkvpfjrk .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#bwhkvpfjrk .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#bwhkvpfjrk .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#bwhkvpfjrk .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#bwhkvpfjrk .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#bwhkvpfjrk .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#bwhkvpfjrk .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#bwhkvpfjrk .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#bwhkvpfjrk div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+  <thead>
+    <tr class="gt_heading">
+      <td colspan="9" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Convergence of MemorySR</td>
+    </tr>
+    
+    <tr class="gt_col_headings">
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Model">Model</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Family">Family</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="N_obs">N_obs</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="N_participants">N_participants</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Chains">Chains</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Draws">Draws</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Max_Rhat">Max_Rhat</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Min_ESS_ratio">Min_ESS_ratio</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Divergent_pct">Divergent_pct</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr><td headers="Model" class="gt_row gt_left">MemorySR</td>
+<td headers="Family" class="gt_row gt_left">Categorical</td>
+<td headers="N_obs" class="gt_row gt_right">21120</td>
+<td headers="N_participants" class="gt_row gt_right">220</td>
+<td headers="Chains" class="gt_row gt_right">8</td>
+<td headers="Draws" class="gt_row gt_right">4000</td>
+<td headers="Max_Rhat" class="gt_row gt_right">1.085</td>
+<td headers="Min_ESS_ratio" class="gt_row gt_right">0.02</td>
+<td headers="Divergent_pct" class="gt_row gt_right">0</td></tr>
+  </tbody>
+  
+</table>
+</div>
+```
+
+
+::: {.callout-note collapse="true" title="Convergence of MemorySR (Markdown table, for text readers)"}
+
+|Model    |Family      | N_obs| N_participants| Chains| Draws| Max_Rhat| Min_ESS_ratio| Divergent_pct|
+|:--------|:-----------|-----:|--------------:|------:|-----:|--------:|-------------:|-------------:|
+|MemorySR |Categorical | 21120|            220|      8|  4000|    1.085|          0.02|             0|
+
+:::
+
+```{=html}
+<div id="fgyfwdwgfo" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#fgyfwdwgfo table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#fgyfwdwgfo thead, #fgyfwdwgfo tbody, #fgyfwdwgfo tfoot, #fgyfwdwgfo tr, #fgyfwdwgfo td, #fgyfwdwgfo th {
+  border-style: none;
+}
+
+#fgyfwdwgfo p {
+  margin: 0;
+  padding: 0;
+}
+
+#fgyfwdwgfo .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 13px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 3px;
+  border-top-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 3px;
+  border-right-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 3px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 3px;
+  border-left-color: #D5D5D5;
+}
+
+#fgyfwdwgfo .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#fgyfwdwgfo .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#fgyfwdwgfo .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#fgyfwdwgfo .gt_heading {
+  background-color: #FFFFFF;
+  text-align: left;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#fgyfwdwgfo .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#fgyfwdwgfo .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#fgyfwdwgfo .gt_col_heading {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#fgyfwdwgfo .gt_column_spanner_outer {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#fgyfwdwgfo .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#fgyfwdwgfo .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#fgyfwdwgfo .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#fgyfwdwgfo .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#fgyfwdwgfo .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#fgyfwdwgfo .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: middle;
+}
+
+#fgyfwdwgfo .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#fgyfwdwgfo .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#fgyfwdwgfo .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 1px;
+  border-left-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 1px;
+  border-right-color: #D5D5D5;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#fgyfwdwgfo .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #5F5F5F;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#fgyfwdwgfo .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#fgyfwdwgfo .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#fgyfwdwgfo .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#fgyfwdwgfo .gt_summary_row {
+  color: #333333;
+  background-color: #D5D5D5;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#fgyfwdwgfo .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D5D5D5;
+}
+
+#fgyfwdwgfo .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#fgyfwdwgfo .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#fgyfwdwgfo .gt_grand_summary_row {
+  color: #FFFFFF;
+  background-color: #929292;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#fgyfwdwgfo .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D5D5D5;
+}
+
+#fgyfwdwgfo .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D5D5D5;
+}
+
+#fgyfwdwgfo .gt_striped {
+  background-color: #F4F4F4;
+}
+
+#fgyfwdwgfo .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#fgyfwdwgfo .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#fgyfwdwgfo .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#fgyfwdwgfo .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#fgyfwdwgfo .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#fgyfwdwgfo .gt_left {
+  text-align: left;
+}
+
+#fgyfwdwgfo .gt_center {
+  text-align: center;
+}
+
+#fgyfwdwgfo .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#fgyfwdwgfo .gt_font_normal {
+  font-weight: normal;
+}
+
+#fgyfwdwgfo .gt_font_bold {
+  font-weight: bold;
+}
+
+#fgyfwdwgfo .gt_font_italic {
+  font-style: italic;
+}
+
+#fgyfwdwgfo .gt_super {
+  font-size: 65%;
+}
+
+#fgyfwdwgfo .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#fgyfwdwgfo .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#fgyfwdwgfo .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#fgyfwdwgfo .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#fgyfwdwgfo .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#fgyfwdwgfo .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#fgyfwdwgfo .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#fgyfwdwgfo .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#fgyfwdwgfo div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+  <thead>
+    <tr class="gt_heading">
+      <td colspan="8" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>MemorySR: P("seen before") at -2 / +2 SD of the rating minus at the participant's mean, for old items (hits, averaged over the three labels) and new items (false alarms), percentage points (unique: other rating at the mean; joint: it follows along)</td>
+    </tr>
+    
+    <tr class="gt_col_headings">
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Level">Level</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Type">Type</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Predictor">Predictor</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Effect_at">Effect_at</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Diff">Diff</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="CI">CI</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="pd_fmt">pd_fmt</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Effect">Effect</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr><td headers="Level" class="gt_row gt_left" style="background-color: #FFEBEE;">Old</td>
+<td headers="Type" class="gt_row gt_left" style="background-color: #FFEBEE;">joint</td>
+<td headers="Predictor" class="gt_row gt_left" style="background-color: #FFEBEE;">Follow-up beauty</td>
+<td headers="Effect_at" class="gt_row gt_left" style="background-color: #FFEBEE;">-2 SD</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-10.72</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-14.87, -6.47]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Level" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Old</td>
+<td headers="Type" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">joint</td>
+<td headers="Predictor" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Follow-up beauty</td>
+<td headers="Effect_at" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">+2 SD</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">15.28</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[9.92, 21.13]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Level" class="gt_row gt_left" style="background-color: #FFEBEE;">Old</td>
+<td headers="Type" class="gt_row gt_left" style="background-color: #FFEBEE;">joint</td>
+<td headers="Predictor" class="gt_row gt_left" style="background-color: #FFEBEE;">Self-relevance</td>
+<td headers="Effect_at" class="gt_row gt_left" style="background-color: #FFEBEE;">-2 SD</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-16.48</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-20.88, -11.94]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Level" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Old</td>
+<td headers="Type" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">joint</td>
+<td headers="Predictor" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Self-relevance</td>
+<td headers="Effect_at" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">+2 SD</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">12.90</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[8.71, 16.84]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Level" class="gt_row gt_left" style="color: #9E9E9E;">Old</td>
+<td headers="Type" class="gt_row gt_left" style="color: #9E9E9E;">unique</td>
+<td headers="Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Follow-up beauty</td>
+<td headers="Effect_at" class="gt_row gt_left" style="color: #9E9E9E;">-2 SD</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-3.15</td>
+<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-7.91, 1.26]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">90.50%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Level" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Old</td>
+<td headers="Type" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">unique</td>
+<td headers="Predictor" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Follow-up beauty</td>
+<td headers="Effect_at" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">+2 SD</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">9.08</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[3.10, 14.58]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">99.90%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Level" class="gt_row gt_left" style="background-color: #FFEBEE;">Old</td>
+<td headers="Type" class="gt_row gt_left" style="background-color: #FFEBEE;">unique</td>
+<td headers="Predictor" class="gt_row gt_left" style="background-color: #FFEBEE;">Self-relevance</td>
+<td headers="Effect_at" class="gt_row gt_left" style="background-color: #FFEBEE;">-2 SD</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-14.84</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-19.55, -10.41]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Level" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Old</td>
+<td headers="Type" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">unique</td>
+<td headers="Predictor" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Self-relevance</td>
+<td headers="Effect_at" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">+2 SD</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">8.10</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[4.25, 12.14]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">100%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Level" class="gt_row gt_left" style="background-color: #FFEBEE;">New</td>
+<td headers="Type" class="gt_row gt_left" style="background-color: #FFEBEE;">joint</td>
+<td headers="Predictor" class="gt_row gt_left" style="background-color: #FFEBEE;">Follow-up beauty</td>
+<td headers="Effect_at" class="gt_row gt_left" style="background-color: #FFEBEE;">-2 SD</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-2.19</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-3.38, -1.17]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Level" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">New</td>
+<td headers="Type" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">joint</td>
+<td headers="Predictor" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Follow-up beauty</td>
+<td headers="Effect_at" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">+2 SD</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">2.58</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[0.63, 4.73]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">99.90%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Level" class="gt_row gt_left" style="background-color: #FFEBEE;">New</td>
+<td headers="Type" class="gt_row gt_left" style="background-color: #FFEBEE;">joint</td>
+<td headers="Predictor" class="gt_row gt_left" style="background-color: #FFEBEE;">Self-relevance</td>
+<td headers="Effect_at" class="gt_row gt_left" style="background-color: #FFEBEE;">-2 SD</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-2.50</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-3.74, -1.51]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">100%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Level" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">New</td>
+<td headers="Type" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">joint</td>
+<td headers="Predictor" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Self-relevance</td>
+<td headers="Effect_at" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">+2 SD</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">2.14</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[0.78, 3.84]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">99.95%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Level" class="gt_row gt_left" style="background-color: #FFEBEE;">New</td>
+<td headers="Type" class="gt_row gt_left" style="background-color: #FFEBEE;">unique</td>
+<td headers="Predictor" class="gt_row gt_left" style="background-color: #FFEBEE;">Follow-up beauty</td>
+<td headers="Effect_at" class="gt_row gt_left" style="background-color: #FFEBEE;">-2 SD</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-1.31</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-2.43, -0.13]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">98.65%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Level" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">New</td>
+<td headers="Type" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">unique</td>
+<td headers="Predictor" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Follow-up beauty</td>
+<td headers="Effect_at" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">+2 SD</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.40</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.23, 3.42]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">95.85%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Level" class="gt_row gt_left" style="background-color: #FFEBEE;">New</td>
+<td headers="Type" class="gt_row gt_left" style="background-color: #FFEBEE;">unique</td>
+<td headers="Predictor" class="gt_row gt_left" style="background-color: #FFEBEE;">Self-relevance</td>
+<td headers="Effect_at" class="gt_row gt_left" style="background-color: #FFEBEE;">-2 SD</td>
+<td headers="Diff" class="gt_row gt_right" style="background-color: #FFEBEE;">-2.04</td>
+<td headers="CI" class="gt_row gt_left" style="background-color: #FFEBEE;">[-3.28, -0.98]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="background-color: #FFEBEE;">99.95%</td>
+<td headers="Effect" class="gt_row gt_left" style="background-color: #FFEBEE;">Negative</td></tr>
+    <tr><td headers="Level" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">New</td>
+<td headers="Type" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">unique</td>
+<td headers="Predictor" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Self-relevance</td>
+<td headers="Effect_at" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">+2 SD</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">1.15</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-0.08, 2.61]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">96.35%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+  </tbody>
+  
+</table>
+</div>
+```
+
+
+::: {.callout-note collapse="true" title="MemorySR: P("seen before") at -2 / +2 SD of the rating minus at the participant's mean, for old items (hits, averaged over the three labels) and new items (false alarms), percentage points (unique: other rating at the mean; joint: it follows along) (Markdown table, for text readers)"}
+
+|Level |Type   |Predictor        |Effect_at |Diff   |CI               |pd_fmt |Effect   |
+|:-----|:------|:----------------|:---------|:------|:----------------|:------|:--------|
+|Old   |joint  |Follow-up beauty |-2 SD     |-10.72 |[-14.87, -6.47]  |100%   |Negative |
+|Old   |joint  |Follow-up beauty |+2 SD     |15.28  |[9.92, 21.13]    |100%   |Positive |
+|Old   |joint  |Self-relevance   |-2 SD     |-16.48 |[-20.88, -11.94] |100%   |Negative |
+|Old   |joint  |Self-relevance   |+2 SD     |12.90  |[8.71, 16.84]    |100%   |Positive |
+|Old   |unique |Follow-up beauty |-2 SD     |-3.15  |[-7.91, 1.26]    |90.50% |n.s.     |
+|Old   |unique |Follow-up beauty |+2 SD     |9.08   |[3.10, 14.58]    |99.90% |Positive |
+|Old   |unique |Self-relevance   |-2 SD     |-14.84 |[-19.55, -10.41] |100%   |Negative |
+|Old   |unique |Self-relevance   |+2 SD     |8.10   |[4.25, 12.14]    |100%   |Positive |
+|New   |joint  |Follow-up beauty |-2 SD     |-2.19  |[-3.38, -1.17]   |100%   |Negative |
+|New   |joint  |Follow-up beauty |+2 SD     |2.58   |[0.63, 4.73]     |99.90% |Positive |
+|New   |joint  |Self-relevance   |-2 SD     |-2.50  |[-3.74, -1.51]   |100%   |Negative |
+|New   |joint  |Self-relevance   |+2 SD     |2.14   |[0.78, 3.84]     |99.95% |Positive |
+|New   |unique |Follow-up beauty |-2 SD     |-1.31  |[-2.43, -0.13]   |98.65% |Negative |
+|New   |unique |Follow-up beauty |+2 SD     |1.40   |[-0.23, 3.42]    |95.85% |n.s.     |
+|New   |unique |Self-relevance   |-2 SD     |-2.04  |[-3.28, -0.98]   |99.95% |Negative |
+|New   |unique |Self-relevance   |+2 SD     |1.15   |[-0.08, 2.61]    |96.35% |n.s.     |
+
+:::
+
+```{=html}
+<div id="aisijroggo" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#aisijroggo table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#aisijroggo thead, #aisijroggo tbody, #aisijroggo tfoot, #aisijroggo tr, #aisijroggo td, #aisijroggo th {
+  border-style: none;
+}
+
+#aisijroggo p {
+  margin: 0;
+  padding: 0;
+}
+
+#aisijroggo .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 13px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 3px;
+  border-top-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 3px;
+  border-right-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 3px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 3px;
+  border-left-color: #D5D5D5;
+}
+
+#aisijroggo .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#aisijroggo .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#aisijroggo .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#aisijroggo .gt_heading {
+  background-color: #FFFFFF;
+  text-align: left;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#aisijroggo .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#aisijroggo .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#aisijroggo .gt_col_heading {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#aisijroggo .gt_column_spanner_outer {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#aisijroggo .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#aisijroggo .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#aisijroggo .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#aisijroggo .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#aisijroggo .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#aisijroggo .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: middle;
+}
+
+#aisijroggo .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#aisijroggo .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#aisijroggo .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 1px;
+  border-left-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 1px;
+  border-right-color: #D5D5D5;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#aisijroggo .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #5F5F5F;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#aisijroggo .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#aisijroggo .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#aisijroggo .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#aisijroggo .gt_summary_row {
+  color: #333333;
+  background-color: #D5D5D5;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#aisijroggo .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D5D5D5;
+}
+
+#aisijroggo .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#aisijroggo .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#aisijroggo .gt_grand_summary_row {
+  color: #FFFFFF;
+  background-color: #929292;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#aisijroggo .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D5D5D5;
+}
+
+#aisijroggo .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D5D5D5;
+}
+
+#aisijroggo .gt_striped {
+  background-color: #F4F4F4;
+}
+
+#aisijroggo .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#aisijroggo .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#aisijroggo .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#aisijroggo .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#aisijroggo .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#aisijroggo .gt_left {
+  text-align: left;
+}
+
+#aisijroggo .gt_center {
+  text-align: center;
+}
+
+#aisijroggo .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#aisijroggo .gt_font_normal {
+  font-weight: normal;
+}
+
+#aisijroggo .gt_font_bold {
+  font-weight: bold;
+}
+
+#aisijroggo .gt_font_italic {
+  font-style: italic;
+}
+
+#aisijroggo .gt_super {
+  font-size: 65%;
+}
+
+#aisijroggo .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#aisijroggo .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#aisijroggo .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#aisijroggo .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#aisijroggo .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#aisijroggo .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#aisijroggo .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#aisijroggo .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#aisijroggo div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+  <thead>
+    <tr class="gt_heading">
+      <td colspan="8" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>MemorySR: the same on the log-odds scale (log odds ratio of "seen before" at -2 / +2 SD vs. the mean), and the difference between new and old items (0 = the rating raises false alarms as much as hits)</td>
+    </tr>
+    
+    <tr class="gt_col_headings">
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Type">Type</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Predictor">Predictor</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="At">At</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Old-(hits)">Old (hits)</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="New-(false-alarms)">New (false alarms)</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="New---Old">New - Old</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="pd_fmt">pd_fmt</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Effect">Effect</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr><td headers="Type" class="gt_row gt_left" style="color: #9E9E9E;">unique</td>
+<td headers="Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Self-relevance</td>
+<td headers="At" class="gt_row gt_left" style="color: #9E9E9E;">-2 SD</td>
+<td headers="Old (hits)" class="gt_row gt_left" style="color: #9E9E9E;">-0.75 [-1.00, -0.52]</td>
+<td headers="New (false alarms)" class="gt_row gt_left" style="color: #9E9E9E;">-0.61 [-0.97, -0.27]</td>
+<td headers="New - Old" class="gt_row gt_left" style="color: #9E9E9E;">0.14 [-0.23, 0.53]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">76.58%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Type" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">unique</td>
+<td headers="Predictor" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Self-relevance</td>
+<td headers="At" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">+2 SD</td>
+<td headers="Old (hits)" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">0.34 [0.19, 0.51]</td>
+<td headers="New (false alarms)" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">0.23 [-0.02, 0.46]</td>
+<td headers="New - Old" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">-0.11 [-0.38, 0.16]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">79.35%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Type" class="gt_row gt_left" style="color: #9E9E9E;">unique</td>
+<td headers="Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Follow-up beauty</td>
+<td headers="At" class="gt_row gt_left" style="color: #9E9E9E;">-2 SD</td>
+<td headers="Old (hits)" class="gt_row gt_left" style="color: #9E9E9E;">-0.14 [-0.36, 0.06]</td>
+<td headers="New (false alarms)" class="gt_row gt_left" style="color: #9E9E9E;">-0.35 [-0.65, -0.04]</td>
+<td headers="New - Old" class="gt_row gt_left" style="color: #9E9E9E;">-0.21 [-0.55, 0.13]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">88.40%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Type" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">unique</td>
+<td headers="Predictor" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Follow-up beauty</td>
+<td headers="At" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">+2 SD</td>
+<td headers="Old (hits)" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">0.38 [0.14, 0.61]</td>
+<td headers="New (false alarms)" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">0.28 [-0.02, 0.62]</td>
+<td headers="New - Old" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">-0.10 [-0.48, 0.29]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">70.23%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Type" class="gt_row gt_left" style="color: #9E9E9E;">joint</td>
+<td headers="Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Self-relevance</td>
+<td headers="At" class="gt_row gt_left" style="color: #9E9E9E;">-2 SD</td>
+<td headers="Old (hits)" class="gt_row gt_left" style="color: #9E9E9E;">-0.86 [-1.11, -0.65]</td>
+<td headers="New (false alarms)" class="gt_row gt_left" style="color: #9E9E9E;">-0.82 [-1.15, -0.50]</td>
+<td headers="New - Old" class="gt_row gt_left" style="color: #9E9E9E;">0.05 [-0.33, 0.40]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">60.62%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Type" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">joint</td>
+<td headers="Predictor" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Self-relevance</td>
+<td headers="At" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">+2 SD</td>
+<td headers="Old (hits)" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">0.54 [0.38, 0.71]</td>
+<td headers="New (false alarms)" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">0.40 [0.16, 0.62]</td>
+<td headers="New - Old" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">-0.14 [-0.39, 0.11]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">85.62%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Type" class="gt_row gt_left" style="color: #9E9E9E;">joint</td>
+<td headers="Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Follow-up beauty</td>
+<td headers="At" class="gt_row gt_left" style="color: #9E9E9E;">-2 SD</td>
+<td headers="Old (hits)" class="gt_row gt_left" style="color: #9E9E9E;">-0.52 [-0.74, -0.33]</td>
+<td headers="New (false alarms)" class="gt_row gt_left" style="color: #9E9E9E;">-0.67 [-0.95, -0.36]</td>
+<td headers="New - Old" class="gt_row gt_left" style="color: #9E9E9E;">-0.15 [-0.51, 0.16]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">81.15%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Type" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">joint</td>
+<td headers="Predictor" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Follow-up beauty</td>
+<td headers="At" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">+2 SD</td>
+<td headers="Old (hits)" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">0.63 [0.41, 0.87]</td>
+<td headers="New (false alarms)" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">0.47 [0.15, 0.75]</td>
+<td headers="New - Old" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">-0.16 [-0.49, 0.20]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">82.45%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+  </tbody>
+  
+</table>
+</div>
+```
+
+
+::: {.callout-note collapse="true" title="MemorySR: the same on the log-odds scale (log odds ratio of "seen before" at -2 / +2 SD vs. the mean), and the difference between new and old items (0 = the rating raises false alarms as much as hits) (Markdown table, for text readers)"}
+
+|Type   |Predictor        |At    |Old (hits)           |New (false alarms)   |New - Old           |pd_fmt |Effect |
+|:------|:----------------|:-----|:--------------------|:--------------------|:-------------------|:------|:------|
+|unique |Self-relevance   |-2 SD |-0.75 [-1.00, -0.52] |-0.61 [-0.97, -0.27] |0.14 [-0.23, 0.53]  |76.58% |n.s.   |
+|unique |Self-relevance   |+2 SD |0.34 [0.19, 0.51]    |0.23 [-0.02, 0.46]   |-0.11 [-0.38, 0.16] |79.35% |n.s.   |
+|unique |Follow-up beauty |-2 SD |-0.14 [-0.36, 0.06]  |-0.35 [-0.65, -0.04] |-0.21 [-0.55, 0.13] |88.40% |n.s.   |
+|unique |Follow-up beauty |+2 SD |0.38 [0.14, 0.61]    |0.28 [-0.02, 0.62]   |-0.10 [-0.48, 0.29] |70.23% |n.s.   |
+|joint  |Self-relevance   |-2 SD |-0.86 [-1.11, -0.65] |-0.82 [-1.15, -0.50] |0.05 [-0.33, 0.40]  |60.62% |n.s.   |
+|joint  |Self-relevance   |+2 SD |0.54 [0.38, 0.71]    |0.40 [0.16, 0.62]    |-0.14 [-0.39, 0.11] |85.62% |n.s.   |
+|joint  |Follow-up beauty |-2 SD |-0.52 [-0.74, -0.33] |-0.67 [-0.95, -0.36] |-0.15 [-0.51, 0.16] |81.15% |n.s.   |
+|joint  |Follow-up beauty |+2 SD |0.63 [0.41, 0.87]    |0.47 [0.15, 0.75]    |-0.16 [-0.49, 0.20] |82.45% |n.s.   |
+
+:::
+
+```{=html}
+<div id="clorxzbidq" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#clorxzbidq table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#clorxzbidq thead, #clorxzbidq tbody, #clorxzbidq tfoot, #clorxzbidq tr, #clorxzbidq td, #clorxzbidq th {
+  border-style: none;
+}
+
+#clorxzbidq p {
+  margin: 0;
+  padding: 0;
+}
+
+#clorxzbidq .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 13px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 3px;
+  border-top-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 3px;
+  border-right-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 3px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 3px;
+  border-left-color: #D5D5D5;
+}
+
+#clorxzbidq .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#clorxzbidq .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#clorxzbidq .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#clorxzbidq .gt_heading {
+  background-color: #FFFFFF;
+  text-align: left;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#clorxzbidq .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#clorxzbidq .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#clorxzbidq .gt_col_heading {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#clorxzbidq .gt_column_spanner_outer {
+  color: #FFFFFF;
+  background-color: #000000;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#clorxzbidq .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#clorxzbidq .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#clorxzbidq .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#clorxzbidq .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#clorxzbidq .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#clorxzbidq .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+  vertical-align: middle;
+}
+
+#clorxzbidq .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#clorxzbidq .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#clorxzbidq .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D5D5D5;
+  border-left-style: solid;
+  border-left-width: 1px;
+  border-left-color: #D5D5D5;
+  border-right-style: solid;
+  border-right-width: 1px;
+  border-right-color: #D5D5D5;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#clorxzbidq .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #5F5F5F;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#clorxzbidq .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#clorxzbidq .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#clorxzbidq .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#clorxzbidq .gt_summary_row {
+  color: #333333;
+  background-color: #D5D5D5;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#clorxzbidq .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D5D5D5;
+}
+
+#clorxzbidq .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#clorxzbidq .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#clorxzbidq .gt_grand_summary_row {
+  color: #FFFFFF;
+  background-color: #929292;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#clorxzbidq .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D5D5D5;
+}
+
+#clorxzbidq .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D5D5D5;
+}
+
+#clorxzbidq .gt_striped {
+  background-color: #F4F4F4;
+}
+
+#clorxzbidq .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D5D5D5;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D5D5D5;
+}
+
+#clorxzbidq .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#clorxzbidq .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#clorxzbidq .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#clorxzbidq .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#clorxzbidq .gt_left {
+  text-align: left;
+}
+
+#clorxzbidq .gt_center {
+  text-align: center;
+}
+
+#clorxzbidq .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#clorxzbidq .gt_font_normal {
+  font-weight: normal;
+}
+
+#clorxzbidq .gt_font_bold {
+  font-weight: bold;
+}
+
+#clorxzbidq .gt_font_italic {
+  font-style: italic;
+}
+
+#clorxzbidq .gt_super {
+  font-size: 65%;
+}
+
+#clorxzbidq .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#clorxzbidq .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#clorxzbidq .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#clorxzbidq .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#clorxzbidq .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#clorxzbidq .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#clorxzbidq .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#clorxzbidq .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#clorxzbidq div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+  <thead>
+    <tr class="gt_heading">
+      <td colspan="8" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>MemorySR: recalled label among recognised old artworks at -2 / +2 SD of the rating minus at the mean (label shown averaged), percentage points</td>
+    </tr>
+    
+    <tr class="gt_col_headings">
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Type">Type</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Predictor">Predictor</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Effect_at">Effect_at</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Outcome">Outcome</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Diff">Diff</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="CI">CI</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="pd_fmt">pd_fmt</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Effect">Effect</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr><td headers="Type" class="gt_row gt_left" style="color: #9E9E9E;">unique</td>
+<td headers="Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Follow-up beauty</td>
+<td headers="Effect_at" class="gt_row gt_left" style="color: #9E9E9E;">-2 SD</td>
+<td headers="Outcome" class="gt_row gt_left" style="color: #9E9E9E;">P(Human Original | recognised)</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-1.11</td>
+<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-6.94, 4.31]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">64.95%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Type" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">unique</td>
+<td headers="Predictor" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Follow-up beauty</td>
+<td headers="Effect_at" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">+2 SD</td>
+<td headers="Outcome" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">P(Human Original | recognised)</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">5.42</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-1.07, 11.25]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">95.03%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Type" class="gt_row gt_left" style="color: #9E9E9E;">unique</td>
+<td headers="Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Self-relevance</td>
+<td headers="Effect_at" class="gt_row gt_left" style="color: #9E9E9E;">-2 SD</td>
+<td headers="Outcome" class="gt_row gt_left" style="color: #9E9E9E;">P(Human Original | recognised)</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-1.66</td>
+<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-8.74, 4.64]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">68.53%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Type" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">unique</td>
+<td headers="Predictor" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Self-relevance</td>
+<td headers="Effect_at" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">+2 SD</td>
+<td headers="Outcome" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">P(Human Original | recognised)</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">7.97</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">[3.66, 12.44]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #E8F5E9;">99.92%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #E8F5E9;">Positive</td></tr>
+    <tr><td headers="Type" class="gt_row gt_left" style="color: #9E9E9E;">unique</td>
+<td headers="Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Follow-up beauty</td>
+<td headers="Effect_at" class="gt_row gt_left" style="color: #9E9E9E;">-2 SD</td>
+<td headers="Outcome" class="gt_row gt_left" style="color: #9E9E9E;">P(Human Forgery | recognised)</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.63</td>
+<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-2.26, 3.69]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">66.10%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Type" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">unique</td>
+<td headers="Predictor" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Follow-up beauty</td>
+<td headers="Effect_at" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">+2 SD</td>
+<td headers="Outcome" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">P(Human Forgery | recognised)</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">0.10</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-2.96, 3.81]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">52.35%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Type" class="gt_row gt_left" style="color: #9E9E9E;">unique</td>
+<td headers="Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Self-relevance</td>
+<td headers="Effect_at" class="gt_row gt_left" style="color: #9E9E9E;">-2 SD</td>
+<td headers="Outcome" class="gt_row gt_left" style="color: #9E9E9E;">P(Human Forgery | recognised)</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">-0.54</td>
+<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-3.97, 3.03]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">61.98%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Type" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">unique</td>
+<td headers="Predictor" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Self-relevance</td>
+<td headers="Effect_at" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">+2 SD</td>
+<td headers="Outcome" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">P(Human Forgery | recognised)</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-0.99</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-3.33, 1.26]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">79.22%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Type" class="gt_row gt_left" style="color: #9E9E9E;">unique</td>
+<td headers="Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Follow-up beauty</td>
+<td headers="Effect_at" class="gt_row gt_left" style="color: #9E9E9E;">-2 SD</td>
+<td headers="Outcome" class="gt_row gt_left" style="color: #9E9E9E;">P(AI-Generated | recognised)</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">0.34</td>
+<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-5.54, 6.00]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">54.65%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Type" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">unique</td>
+<td headers="Predictor" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">Follow-up beauty</td>
+<td headers="Effect_at" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">+2 SD</td>
+<td headers="Outcome" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">P(AI-Generated | recognised)</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">-5.64</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">[-11.33, 0.74]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="color: #9E9E9E;">95.75%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Type" class="gt_row gt_left" style="color: #9E9E9E;">unique</td>
+<td headers="Predictor" class="gt_row gt_left" style="color: #9E9E9E;">Self-relevance</td>
+<td headers="Effect_at" class="gt_row gt_left" style="color: #9E9E9E;">-2 SD</td>
+<td headers="Outcome" class="gt_row gt_left" style="color: #9E9E9E;">P(AI-Generated | recognised)</td>
+<td headers="Diff" class="gt_row gt_right" style="color: #9E9E9E;">2.01</td>
+<td headers="CI" class="gt_row gt_left" style="color: #9E9E9E;">[-4.66, 9.22]</td>
+<td headers="pd_fmt" class="gt_row gt_right" style="color: #9E9E9E;">71.17%</td>
+<td headers="Effect" class="gt_row gt_left" style="color: #9E9E9E;">n.s.</td></tr>
+    <tr><td headers="Type" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">unique</td>
+<td headers="Predictor" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Self-relevance</td>
+<td headers="Effect_at" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">+2 SD</td>
+<td headers="Outcome" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">P(AI-Generated | recognised)</td>
+<td headers="Diff" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">-7.02</td>
+<td headers="CI" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">[-11.34, -2.56]</td>
+<td headers="pd_fmt" class="gt_row gt_right gt_striped" style="background-color: #FFEBEE;">99.88%</td>
+<td headers="Effect" class="gt_row gt_left gt_striped" style="background-color: #FFEBEE;">Negative</td></tr>
+  </tbody>
+  
+</table>
+</div>
+```
+
+
+::: {.callout-note collapse="true" title="MemorySR: recalled label among recognised old artworks at -2 / +2 SD of the rating minus at the mean (label shown averaged), percentage points (Markdown table, for text readers)"}
+
+|Type   |Predictor        |Effect_at |Outcome                             |Diff  |CI              |pd_fmt |Effect   |
+|:------|:----------------|:---------|:-----------------------------------|:-----|:---------------|:------|:--------|
+|unique |Follow-up beauty |-2 SD     |P(Human Original &#124; recognised) |-1.11 |[-6.94, 4.31]   |64.95% |n.s.     |
+|unique |Follow-up beauty |+2 SD     |P(Human Original &#124; recognised) |5.42  |[-1.07, 11.25]  |95.03% |n.s.     |
+|unique |Self-relevance   |-2 SD     |P(Human Original &#124; recognised) |-1.66 |[-8.74, 4.64]   |68.53% |n.s.     |
+|unique |Self-relevance   |+2 SD     |P(Human Original &#124; recognised) |7.97  |[3.66, 12.44]   |99.92% |Positive |
+|unique |Follow-up beauty |-2 SD     |P(Human Forgery &#124; recognised)  |0.63  |[-2.26, 3.69]   |66.10% |n.s.     |
+|unique |Follow-up beauty |+2 SD     |P(Human Forgery &#124; recognised)  |0.10  |[-2.96, 3.81]   |52.35% |n.s.     |
+|unique |Self-relevance   |-2 SD     |P(Human Forgery &#124; recognised)  |-0.54 |[-3.97, 3.03]   |61.98% |n.s.     |
+|unique |Self-relevance   |+2 SD     |P(Human Forgery &#124; recognised)  |-0.99 |[-3.33, 1.26]   |79.22% |n.s.     |
+|unique |Follow-up beauty |-2 SD     |P(AI-Generated &#124; recognised)   |0.34  |[-5.54, 6.00]   |54.65% |n.s.     |
+|unique |Follow-up beauty |+2 SD     |P(AI-Generated &#124; recognised)   |-5.64 |[-11.33, 0.74]  |95.75% |n.s.     |
+|unique |Self-relevance   |-2 SD     |P(AI-Generated &#124; recognised)   |2.01  |[-4.66, 9.22]   |71.17% |n.s.     |
+|unique |Self-relevance   |+2 SD     |P(AI-Generated &#124; recognised)   |-7.02 |[-11.34, -2.56] |99.88% |Negative |
+
+:::
+
+
+::: {.cell}
+
+```{.r .cell-code}
+bind_rows(fx_old$curves, fx_new$curves) |>
+  filter(Type == "unique", abs(x) <= 0.5, Outcome == "P(recognised)") |>
+  mutate(Predictor = sr_labels[Predictor], Level = fct_relevel(Level, "Old", "New")) |>
+  ggplot(aes(x = 100 * x, y = Median, color = Level, fill = Level)) +
+  geom_ribbon(aes(ymin = CI_low, ymax = CI_high), alpha = 0.15, color = NA) +
+  geom_line(linewidth = 1) +
+  facet_wrap(~Predictor) +
+  scale_color_manual(values = c(Old = "#F51D56", New = "#607D8B"), labels = c(Old = "Old (hits)", New = "New (false alarms)")) +
+  scale_fill_manual(values = c(Old = "#F51D56", New = "#607D8B"), labels = c(Old = "Old (hits)", New = "New (false alarms)")) +
+  labs(x = "Rating relative to the participant's mean (points of the scale)", y = "Answered \"seen before\" (%)",
+       color = NULL, fill = NULL,
+       caption = "Population-level predictions (random effects at 0; the other rating at the participant's mean; old items averaged over the three labels) with 95% CI.") +
+  theme_minimal() +
+  theme(legend.position = "top", strip.text = element_text(face = "bold"))
+```
+
+::: {.cell-output-display}
+![](6_selfrelevance_files/figure-html/unnamed-chunk-35-1.png){width=1056}
+:::
+:::
+
+
+
+::: {.cell}
+
+```{.r .cell-code}
+write.csv(bind_rows(
+  mutate(bind_rows(fx_old$effects, fx_new$effects), Table = "Probability (pp)"),
+  mutate(odds, Table = "Log odds ratio")
+), "../data/results_selfrelevance_memory.csv", row.names = FALSE)
+```
+:::
+
+
+### Observed: source memory by self-relevance
+
 
 ::: {.cell}
 
@@ -19321,7 +22831,7 @@ dfmem |>
 ```
 
 ::: {.cell-output-display}
-![](6_selfrelevance_files/figure-html/unnamed-chunk-32-1.png){width=960}
+![](6_selfrelevance_files/figure-html/unnamed-chunk-37-1.png){width=960}
 :::
 :::
 
@@ -19354,7 +22864,7 @@ dfmem |>
 ```
 
 ::: {.cell-output-display}
-![](6_selfrelevance_files/figure-html/unnamed-chunk-33-1.png){width=960}
+![](6_selfrelevance_files/figure-html/unnamed-chunk-38-1.png){width=960}
 :::
 :::
 
@@ -23828,7 +27338,7 @@ ggplot(pilot_sr_gam, aes(x = 100 * x, y = 6 * Fit / 100)) +
 ```
 
 ::: {.cell-output-display}
-![](6_selfrelevance_files/figure-html/unnamed-chunk-41-1.png){width=864}
+![](6_selfrelevance_files/figure-html/unnamed-chunk-46-1.png){width=864}
 :::
 :::
 

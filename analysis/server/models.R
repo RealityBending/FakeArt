@@ -281,6 +281,50 @@ fa_rhs_sr_artificiality <- "Type * (Beauty2_w + SR_w) + (Type * (Beauty2_w + SR_
 fa_rhs_sr_artificiality_slim <- "Type * (Beauty2_w + SR_w) + (Type * (Beauty2_w + SR_w) | Participant) + (1 | Item)"
 fa_rhs_sr_artificiality_extreme <- "Type * (Beauty2_w + SR_w) + (1 | Participant)"
 
+# Durability of the label effect (RQ4, 2026-09-25). The label no longer
+# affects follow-up beauty on average (Beauty2). Two questions remain:
+#
+# (1) Does a residual label effect survive among the artworks the participant
+#     still *recognises*? Beauty2 ~ Condition * Recognition on the old items
+#     of the follow-up file, laid out as fa_rhs_beauty with the old/new
+#     answer in place of Beauty_w (the answer follows the beauty rating in the
+#     same trial, so it stands for the item's memory status, not for a cause
+#     of the rating). Recognition varies within participant and within item.
+fa_rhs_recognition <- "Condition * Recognition + (Condition * Recognition | Participant) + (Condition + Recognition | Item)"
+fa_rhs_recognition_slim <- "Condition * Recognition + (Condition * Recognition | Participant) + (1 | Item)"
+fa_rhs_recognition_extreme <- "Condition * Recognition + (1 | Participant)"
+
+# (2) Does the *belief* the label induced in Phase 2 carry into follow-up
+#     beauty? Beauty2 ~ Condition * Reality_w + Beauty_w: the Phase-2
+#     syntheticness of the same artwork (centred within participant) as the
+#     mediator of the label, with Phase-1 beauty (label-affected, rated before
+#     the belief) held constant, so that the indirect effect through Reality_w
+#     is the belief's own contribution beyond the Phase-1 appraisal. Same
+#     mediation machinery as RealityBeauty (mediation_info, Beauty2Reality).
+#     Task file, the 217 participants with Phase-2 and follow-up data.
+fa_rhs_beauty2_reality <- "Condition * Reality_w + Beauty_w + (Condition * Reality_w + Beauty_w | Participant) + (Condition + Reality_w | Item)"
+fa_rhs_beauty2_reality_slim <- "Condition * Reality_w + Beauty_w + (Condition * Reality_w + Beauty_w | Participant) + (1 | Item)"
+fa_rhs_beauty2_reality_extreme <- "Condition * Reality_w + Beauty_w + (1 | Participant)"
+
+fa_prepare_beauty2_reality <- function(d) {
+  d <- d[!is.na(d$Reality) & !is.na(d$Beauty), ]
+  d$Reality_w <- d$Reality - stats::ave(d$Reality, d$Participant)
+  d$Beauty_w <- d$Beauty - stats::ave(d$Beauty, d$Participant)
+  d
+}
+
+# Memory vs. re-inference (2026-09-25). MemoryBelief shows that the recalled
+# belief follows the actual Phase-2 belief, and MemoryConditionBelief that the
+# recalled label follows it too; but the belief was itself driven by beauty
+# ("beautiful = human"), and beauty and self-relevance are rated again right
+# before the memory answer, so both could be fresh inferences from the current
+# impression rather than memories. The two models below add the Phase-1
+# beauty (what drove the belief) and the follow-up beauty and self-relevance
+# (the current impression) of the same artwork as covariates, all centred
+# within participant over the model's rows (fa_prepare_sr(with = )); a Belief
+# effect that survives them is what memory has to explain.
+fa_prepare_memory_appraisal <- function(d) fa_prepare_sr(d, with = c("Beauty", "Beauty2"))
+
 
 fa_models <- list(
 
@@ -552,6 +596,31 @@ fa_models <- list(
     formula = function() fa_choco("PerceivedArtificiality")
   ),
 
+  # Beauty2Recognition ---------------------------------------------------------
+  # Durability (RQ4): follow-up beauty by label x whether the artwork was
+  # recognised (see fa_rhs_recognition). Follow-up file, old items only
+  # (10,560 rows; Condition drops to its three labels). Extracted like a
+  # 3_models.qmd outcome with Recognition in place of Emotion (outcome_info).
+  Beauty2Recognition = list(
+    outcome = "Beauty2",
+    data = "memory",
+    subset = function(d) d[d$Type == "Old", ],
+    formula = function() {
+      fa_choco("Beauty2", fa_rhs_recognition, fa_rhs_recognition_slim, fa_rhs_recognition_extreme)
+    }
+  ),
+
+  # Beauty2Reality -------------------------------------------------------------
+  # Durability (RQ4): follow-up beauty by label x Phase-2 syntheticness, with
+  # Phase-1 beauty as a covariate (see fa_rhs_beauty2_reality). Task file.
+  Beauty2Reality = list(
+    outcome = "Beauty2",
+    prepare = fa_prepare_beauty2_reality,
+    formula = function() {
+      fa_choco("Beauty2", fa_rhs_beauty2_reality, fa_rhs_beauty2_reality_slim, fa_rhs_beauty2_reality_extreme)
+    }
+  ),
+
   # SELF-RELEVANCE -- moderator and predictor =================================
   # Follow-up participants only (fa_prepare_sr() drops the rest). Read by
   # 6_selfrelevance.qmd; extracted through mediation_info (A, and
@@ -747,6 +816,79 @@ fa_models <- list(
       brms::bf(
         AnswerCondition ~ Condition + Beauty_w + I(Beauty_w^2) + Valence_w + I(Valence_w^2) +
           (1 + Beauty_w + Valence_w | Participant) + (1 | Item),
+        family = brms::categorical(link = "logit")
+      )
+    }
+  ),
+
+  # MemoryBeliefAppraisal --------------------------------------------------------
+  # Memory vs. re-inference (see fa_prepare_memory_appraisal): MemoryBelief
+  # plus the Phase-1 beauty, follow-up beauty and self-relevance of the
+  # artwork. Old items with a recorded belief (10,416 rows, as
+  # MemoryConditionBelief), so Belief keeps its four levels and every row has
+  # the Phase-1 rating. Random Belief effects on both sides as in
+  # MemoryBelief; the ratings enter as fixed slopes (linear: the question is a
+  # control, not the shape). Extracted like MemoryConditionBelief (observed
+  # counterfactuals over Belief) plus the answer probabilities over a grid of
+  # each rating (memory_info `predictors` -> est$by_rating, estimates.R).
+  MemoryBeliefAppraisal = list(
+    outcome = "AnswerBelief",
+    data = "memory",
+    subset = function(d) d[d$Type == "Old" & d$Belief != "None", ],
+    prepare = fa_prepare_memory_appraisal,
+    formula = function() {
+      brms::bf(
+        AnswerBelief ~ Belief + Beauty_w + Beauty2_w + SR_w +
+          (1 + Belief | Participant) + (1 + Belief | Item),
+        family = brms::categorical(link = "logit")
+      )
+    }
+  ),
+
+  # MemoryConditionAppraisal -----------------------------------------------------
+  # The same for the recalled label: MemoryConditionBelief plus the three
+  # ratings. Is the label reconstructed from the stored belief, or from how
+  # beautiful the work is (was) found? MemoryAppraisal already shows the
+  # Phase-1 beauty -> recalled label link without the belief in the model;
+  # here the two compete.
+  MemoryConditionAppraisal = list(
+    outcome = "AnswerCondition",
+    data = "memory",
+    subset = function(d) d[d$Type == "Old" & d$Belief != "None", ],
+    prepare = fa_prepare_memory_appraisal,
+    formula = function() {
+      brms::bf(
+        AnswerCondition ~ Condition + Belief + Beauty_w + Beauty2_w + SR_w +
+          (1 + Condition + Belief | Participant) + (1 + Condition + Belief | Item),
+        family = brms::categorical(link = "logit")
+      )
+    }
+  ),
+
+  # MemorySR ---------------------------------------------------------------------
+  # Self-relevance and memory (6_selfrelevance.qmd, section C; the
+  # preregistered self-reference route). The lme4 pilot found that follow-up
+  # self-relevance and beauty raise the "seen before" answer for new items as
+  # much as for old ones, i.e. a familiarity bias rather than better memory,
+  # so the model keeps all 96 items (Condition with its "New Items" level, as
+  # MemoryCondition) and lets the two ratings' slopes differ between old and
+  # new items (Type:, no Type main effect since Condition carries it): the
+  # Old slopes are the effect on hits, the New slopes on false alarms, and
+  # their difference is what a self-reference effect on memory would need.
+  # Quadratic terms as in MemoryAppraisal (the pilot found a concave SR link);
+  # ratings centred within participant over the 96 items (fa_prepare_sr, as
+  # 6_selfrelevance.qmd's dfmem). Random label and rating slopes over
+  # participants (their false-alarm rate and their use of the ratings), item
+  # intercepts. Extracted by get_memory_grid_estimates() per Condition level
+  # (memory_grid_info, factors = Condition + Type, average = FALSE).
+  MemorySR = list(
+    outcome = "AnswerCondition",
+    data = "memory",
+    prepare = function(d) fa_prepare_sr(d, with = "Beauty2"),
+    formula = function() {
+      brms::bf(
+        AnswerCondition ~ Condition + Type:(SR_w + I(SR_w^2) + Beauty2_w + I(Beauty2_w^2)) +
+          (1 + Condition + SR_w + Beauty2_w | Participant) + (1 | Item),
         family = brms::categorical(link = "logit")
       )
     }

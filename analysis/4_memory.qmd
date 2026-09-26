@@ -67,6 +67,9 @@ follow-up session (220 participants × 96 items = 21,120 rows: 48 seen in Phase 
 | **Memory of Beliefs** | `AnswerBelief`: what the participant recalls believing the artwork was | `Belief`: what they actually reported believing in Phase 2 | Human Original, Human Forgery, AI Original, AI Copy, None |
 | **Memory of the Condition by Belief** | `AnswerCondition` | `Condition` **+** `Belief` (additive; old items with a recorded belief only, 10,416 rows) | Belief: Human Original, Human Forgery, AI Original, AI Copy |
 | **Memory by Phase-1 Appraisal** (MemoryAppraisal, its own section) | `AnswerCondition` | `Condition` + Phase-1 beauty and valence, each centred within participant, with quadratic terms (old items only, 10,560 rows) | continuous |
+| **Memory of Beliefs, controlling the appraisal** (MemoryBeliefAppraisal) | `AnswerBelief` | `Belief` + Phase-1 beauty, follow-up beauty and self-relevance of the artwork, each centred within participant (old items with a recorded belief, 10,416 rows) | Belief levels as above; ratings continuous |
+| **Memory of the Condition by Belief, controlling the appraisal** (MemoryConditionAppraisal) | `AnswerCondition` | `Condition` + `Belief` + the same three ratings (same rows) | as above |
+| **Durability** (Beauty2Recognition, Beauty2Reality; their own section) | `Beauty2`, the follow-up beauty slider (CHOCO) | `Condition * Recognition` (old items, 10,560 rows); `Condition * Reality_w + Beauty_w` (Phase-2 syntheticness and Phase-1 beauty, centred within participant; 217 participants) | Recognition Yes / No; continuous |
 
 All outcomes include **Not recognized** (item judged "new"): correct for
 `New Items`, forgetting for the seen levels. The third model asks whether the
@@ -74,6 +77,16 @@ recalled label is reconstructed from one's own Phase-2 belief: its `Belief`
 means and contrasts are averaged over the label actually shown (computed over
 the observed trials, see `memory_observed()` in `server/estimates.R`), so a
 `Belief` effect is the effect of the belief with the label held constant.
+The two "controlling the appraisal" models (2026-09-26) ask whether those
+`Belief` effects are memory of the belief or a fresh inference from the
+current impression of the work: follow-up beauty and self-relevance were rated
+right before the memory questions, Phase-1 beauty is what drove the belief in
+the first place. Their `Belief` contrasts are computed the same way (ratings
+at their observed values); the ratings' own effects come from population-level
+predictions over a grid of each rating (`by_rating`, as MemoryAppraisal).
+The durability models ask whether the (null) label effect on follow-up beauty
+hides a residual effect among the artworks still recognised, or an effect
+carried by the syntheticness belief the label had induced in Phase 2.
 
 Each section: figure of the probability of each answer per level, convergence,
 marginal means, contrasts (coloured tables of interest + the complete set), and
@@ -367,6 +380,219 @@ make_tables(dat_rec, c("Contrast", "Belief", "P", "Diff", "CI", "pd_fmt", "Effec
 make_memory_summary(estimates$MemoryConditionBelief)
 ```
 
+## Memory or Re-inference? Controlling for the Appraisal
+
+The recalled belief follows the actual Phase-2 belief (Memory of Beliefs),
+and the recalled label follows it too (Memory of the Condition by Belief).
+But the belief was itself driven by beauty ("beautiful = human",
+`5_realitydeterminants.qmd`), and beauty and self-relevance are rated again
+right before the memory questions, so both correspondences could be fresh
+inferences from the current impression of the work rather than memories.
+**MemoryBeliefAppraisal** and **MemoryConditionAppraisal** (`server/models.R`)
+add the Phase-1 beauty (what drove the belief), the follow-up beauty and the
+self-relevance of the artwork (the current impression), centred within
+participant, to the two models above. A `Belief` effect that survives them
+is what memory has to explain; a rating effect on the answer, with the belief
+held constant, is re-inference.
+
+```{r}
+# Same-answer cells the manuscript quotes, in the two models with and without
+# the ratings: Level1 - Level2 on the probability of `Response`, in
+# percentage points. memory_observed() stores each pair once, in either
+# orientation, so the sign is flipped where needed.
+cell_contrast <- function(est, level1, level2, response) {
+  c <- as.data.frame(est$contrasts)
+  r <- c[c$Response1 == response & c$Response2 == response &
+           ((c$Level1 == level1 & c$Level2 == level2) | (c$Level1 == level2 & c$Level2 == level1)), ]
+  if (nrow(r) != 1) return(data.frame(Median = NA, CI_low = NA, CI_high = NA, pd = NA))
+  k <- if (r$Level1 == level1) 1 else -1
+  data.frame(Median = k * r$Median, CI_low = min(k * r$CI_low, k * r$CI_high),
+             CI_high = max(k * r$CI_low, k * r$CI_high), pd = r$pd)
+}
+compare_models <- function(cells, with, without) {
+  fmt <- function(x) sprintf("%s [%s, %s]", insight::format_value(100 * x$Median),
+                             insight::format_value(100 * x$CI_low), insight::format_value(100 * x$CI_high))
+  eff <- function(x) ifelse(sign(x$CI_low) != sign(x$CI_high), "n.s.", ifelse(x$Median < 0, "Negative", "Positive"))
+  bind_rows(lapply(seq_len(nrow(cells)), function(i) {
+    a <- cell_contrast(without, cells$Level1[i], cells$Level2[i], cells$Response[i])
+    b <- cell_contrast(with, cells$Level1[i], cells$Level2[i], cells$Response[i])
+    data.frame(Answer = cells$Response[i], Contrast = paste(cells$Level1[i], "-", cells$Level2[i]),
+               Without = fmt(a), Effect_without = eff(a), With = fmt(b), Effect_with = eff(b))
+  }))
+}
+rating_labels <- c(Beauty_w = "Phase-1 beauty", Beauty2_w = "Follow-up beauty", SR_w = "Self-relevance")
+rating_cols <- c("Phase-1 beauty" = "#E91E63", "Follow-up beauty" = "#9C27B0", "Self-relevance" = "#26A69A")
+fmt_eff <- function(d) {
+  d |> mutate(Effect = ifelse(sign(CI_low) != sign(CI_high), "n.s.", ifelse(Median < 0, "Negative", "Positive")),
+              Diff = insight::format_value(Median),
+              CI = sprintf("[%s, %s]", insight::format_value(CI_low), insight::format_value(CI_high)),
+              pd_fmt = insight::format_pd(pd, name = NULL))
+}
+rating_tables <- function(est, what) {
+  fixed <- est$by_rating$fixed |>
+    filter(str_detect(Parameter, "Beauty_w|Beauty2_w|SR_w")) |>
+    mutate(Answer = str_match(Parameter, "^b_mu([^_]+)_")[, 2],
+           Term = rating_labels[str_remove(Parameter, "^b_mu[^_]+_")]) |>
+    fmt_eff()
+  eff <- memory_grid_effects(est$by_rating)$effects |>
+    filter(Type == "unique", Effect %in% c("-2 SD", "+2 SD")) |>
+    mutate(Predictor = rating_labels[Predictor], At = Effect) |>
+    fmt_eff()
+  make_asis(
+    make_tables(fixed, c("Answer", "Term", "Diff", "CI", "pd_fmt", "Effect"),
+                sprintf("%s: fixed effects of the ratings (log-odds of each answer vs. the reference answer, per full range of the rating; belief and label held constant)", what)),
+    make_tables(eff, c("Outcome", "Predictor", "At", "Diff", "CI", "pd_fmt", "Effect"),
+                sprintf("%s: P(recognised) and P(answer | recognised) at -2 / +2 SD of the rating minus at the participant's mean (other ratings at the mean, averaged over the beliefs and labels), percentage points", what))
+  )
+}
+plot_rating_curves <- function(est, title) {
+  memory_grid_effects(est$by_rating)$curves |>
+    filter(Type == "unique", abs(x) <= 0.5) |>
+    mutate(Predictor = rating_labels[Predictor]) |>
+    ggplot(aes(x = 100 * x, y = Median, color = Predictor, fill = Predictor)) +
+    geom_ribbon(aes(ymin = CI_low, ymax = CI_high), alpha = 0.15, color = NA) +
+    geom_line(linewidth = 1) +
+    facet_wrap(~fct_relevel(Outcome, "P(recognised)"), scales = "free_y", nrow = 1) +
+    scale_color_manual(values = rating_cols) +
+    scale_fill_manual(values = rating_cols) +
+    labs(x = "Rating relative to the participant's mean (points of the scale)", y = "Probability (%)",
+         color = NULL, fill = NULL, title = title,
+         caption = "Population-level predictions (random effects at 0; other ratings at the participant's mean; averaged over the beliefs and labels) with 95% CI.") +
+    theme_minimal() +
+    theme(legend.position = "top", strip.text = element_text(face = "bold", size = 8))
+}
+```
+
+### Memory of Beliefs, controlling the appraisal
+
+```{r}
+estimates$MemoryBeliefAppraisal$means |>
+  mutate(group = make_group(Response)) |>
+  ggplot(aes(x = Belief, y = Median, color = Response)) +
+  geom_line(aes(group = group), position = position_dodge(width = 0.1), linewidth = 1, show.legend = FALSE) +
+  geom_pointrange(aes(group = group, ymin = CI_low, ymax = CI_high), position = position_dodge(width = 0.1), key_glyph = "point") +
+  scale_y_continuous(label = scales::percent, limits = c(0, 1), expand = c(0, 0)) +
+  scale_color_manual(values = cols) +
+  guides(color = guide_legend(override.aes = list(size = 3))) +
+  labs(y = "Proportion of answers (ratings at their observed values)", color = "Answer", x = "Original Belief",
+       title = "Memory of Beliefs, controlling the appraisal") +
+  theme_minimal()
+```
+
+```{r}
+make_memory_tables(estimates$MemoryBeliefAppraisal)
+```
+
+```{r}
+#| results: asis
+
+belief_cells <- tribble(
+  ~Level1, ~Level2, ~Response,
+  "AI Original", "Human Original", "AI Original",
+  "AI Original", "Human Forgery", "AI Original",
+  "AI Original", "Human Original", "Human Original",
+  "Human Original", "Human Forgery", "Human Original",
+  "Human Forgery", "Human Original", "Human Forgery",
+  "AI Copy", "AI Original", "AI Copy"
+)
+make_asis(make_tables(
+  compare_models(belief_cells, estimates$MemoryBeliefAppraisal, estimates$MemoryBelief),
+  c("Answer", "Contrast", "Without", "Effect_without", "With", "Effect_with"),
+  "Memory of Beliefs: the same-answer Belief contrasts (percentage points) without and with the three ratings in the model"))
+```
+
+```{r}
+#| results: asis
+
+rating_tables(estimates$MemoryBeliefAppraisal, "Memory of Beliefs, controlling the appraisal")
+```
+
+```{r}
+#| fig-width: 12
+#| fig-height: 4
+
+plot_rating_curves(estimates$MemoryBeliefAppraisal, "Recalled belief by the ratings of the artwork (belief held constant)")
+```
+
+```{r}
+make_memory_summary(estimates$MemoryBeliefAppraisal)
+```
+
+### Memory of the Condition by Belief, controlling the appraisal
+
+```{r}
+estimates$MemoryConditionAppraisal$means |>
+  mutate(group = make_group(Response)) |>
+  ggplot(aes(x = Belief, y = Median, color = Response)) +
+  geom_line(aes(group = group), position = position_dodge(width = 0.1), linewidth = 1, show.legend = FALSE) +
+  geom_pointrange(aes(group = group, ymin = CI_low, ymax = CI_high), position = position_dodge(width = 0.1), key_glyph = "point") +
+  scale_y_continuous(label = scales::percent, limits = c(0, 1), expand = c(0, 0)) +
+  scale_color_manual(values = cols) +
+  guides(color = guide_legend(override.aes = list(size = 3))) +
+  labs(y = "Proportion of answers (averaged over the label shown; ratings observed)", color = "Recalled label",
+       x = "Own belief in Phase 2", title = "Memory of the Condition by Belief, controlling the appraisal") +
+  theme_minimal()
+```
+
+```{r}
+make_memory_tables(estimates$MemoryConditionAppraisal)
+```
+
+```{r}
+#| results: asis
+
+label_cells <- tribble(
+  ~Level1, ~Level2, ~Response,
+  "AI Original", "Human Original", "AI-Generated",
+  "AI Original", "Human Original", "Human Original",
+  "Human Forgery", "Human Original", "Human Forgery",
+  "AI Original", "Human Original", "Not recognized"
+)
+make_asis(make_tables(
+  compare_models(label_cells, estimates$MemoryConditionAppraisal, estimates$MemoryConditionBelief),
+  c("Answer", "Contrast", "Without", "Effect_without", "With", "Effect_with"),
+  "Memory of the Condition by Belief: the same-answer Belief contrasts (percentage points, label shown held constant) without and with the three ratings in the model"))
+```
+
+```{r}
+#| results: asis
+
+rating_tables(estimates$MemoryConditionAppraisal, "Memory of the Condition by Belief, controlling the appraisal")
+```
+
+```{r}
+#| fig-width: 12
+#| fig-height: 4
+
+plot_rating_curves(estimates$MemoryConditionAppraisal, "Recalled label by the ratings of the artwork (label shown and belief held constant)")
+```
+
+```{r}
+make_memory_summary(estimates$MemoryConditionAppraisal)
+```
+
+```{r}
+#| results: asis
+
+# Generated reading of the two comparisons
+reading <- function(cells, with, without) {
+  vapply(seq_len(nrow(cells)), function(i) {
+    a <- cell_contrast(without, cells$Level1[i], cells$Level2[i], cells$Response[i])
+    b <- cell_contrast(with, cells$Level1[i], cells$Level2[i], cells$Response[i])
+    sprintf("%s (%s - %s): %s -> %s pp, %s", cells$Response[i], cells$Level1[i], cells$Level2[i],
+            insight::format_value(100 * a$Median), insight::format_value(100 * b$Median),
+            ifelse(sign(b$CI_low) != sign(b$CI_high), "not credible with the ratings", "still credible"))
+  }, character(1))
+}
+make_asis("", '::: {.callout-tip title="Memory or re-inference? (generated)"}', "",
+          "**Recalled belief** (Belief contrasts without -> with the three ratings):", "",
+          paste0("- ", reading(belief_cells, estimates$MemoryBeliefAppraisal, estimates$MemoryBelief)), "",
+          "**Recalled label** (label shown held constant):", "",
+          paste0("- ", reading(label_cells, estimates$MemoryConditionAppraisal, estimates$MemoryConditionBelief)), "",
+          "A Belief contrast that keeps its size with the ratings in the model is not explained by the current impression of the work (follow-up beauty, self-relevance) nor by the Phase-1 appraisal that produced the belief; one that shrinks to zero was re-inference. The rating tables say which impression the answers follow: the current one (follow-up beauty, self-relevance) or the Phase-1 one.",
+          "", ":::", "")
+```
+
 ## Memory by Phase-1 Appraisal
 
 Hypothesis 1 of the follow-up preregistration (`memory/ethics/preregistration.md`,
@@ -528,10 +754,144 @@ knitr::kable(data.frame(
 ), format = "pipe", caption = "Item-level correlations of the hit rate (48 old items)")
 ```
 
+## Durability: Follow-up Beauty by Recognition and by the Phase-2 Belief
+
+On average the label no longer affects follow-up beauty (`3_models.qmd`,
+Beauty2: AI-Generated - Human Original -0.9% [-2.0, 0.1]). Two models ask
+whether that null hides something (`server/models.R`, 2026-09-25):
+
+- **Beauty2Recognition**: `Beauty2 ~ Condition * Recognition` (CHOCO, old
+  items). Does a residual label effect survive among the artworks the
+  participant still recognises? The recognition answer follows the beauty
+  rating in the same trial, so it stands for the item's memory status.
+- **Beauty2Reality**: `Beauty2 ~ Condition * Reality_w + Beauty_w` (CHOCO,
+  the 217 participants with Phase-2 and follow-up data). Does the
+  syntheticness belief the label induced in Phase 2 carry into follow-up
+  beauty, beyond the Phase-1 beauty of the same work? The label moved
+  `Reality` in Phase 2, so `mediation_effects()` (as in
+  `5_realitydeterminants.qmd`) splits the label effect on follow-up beauty
+  into a direct part and a part carried by the belief.
+
+```{r}
+#| results: asis
+
+durability_ready <- all(file.exists(file.path("models/estimates", c("Beauty2Recognition.rds", "Beauty2Reality.rds"))))
+if (!durability_ready) {
+  make_asis("", '::: {.callout-warning title="Estimates not available yet"}',
+            "`Beauty2Recognition` / `Beauty2Reality`: in `analysis/server`, `./hpc combine <model>` (check 4,000 draws), `./hpc extract <model>`, then `./hpc pull 'estimates/<model>.rds'`.",
+            ":::", "")
+}
+```
+
+```{r}
+#| results: asis
+#| eval: !expr durability_ready
+
+est_rec <- read_estimates("Beauty2Recognition")$Beauty2Recognition
+est_rea <- read_estimates("Beauty2Reality")$Beauty2Reality
+par_names <- c(response = "Mean response", mu = "P(beautiful side)", confright = "Confidence, beautiful side", confleft = "Confidence, ugly side")
+# Beauty2Recognition: label contrasts within each recognition answer, and the
+# recognition contrast, in % of the slider / percentage points of a dpar
+rec_within <- prep_contrasts(est_rec$contrasts_emo, "Beauty2") |>
+  filter(Parameter %in% names(par_names)) |>
+  mutate(Parameter = par_names[as.character(Parameter)]) |>
+  arrange(Recognition, Contrast, Parameter)
+rec_between <- prep_contrasts(est_rec$contrasts_extra, "Beauty2") |>
+  filter(Parameter %in% names(par_names)) |>
+  mutate(Parameter = par_names[as.character(Parameter)])
+means_rec <- est_rec$means_by |> mutate(across(c(Estimate, CI_low, CI_high), \(x) insight::format_value(100 * x)))
+# Beauty2Reality: mediation through the Phase-2 belief, the belief slope per
+# label, the Phase-1 beauty slope
+med <- mediation_effects(est_rea)
+med_mu <- mediation_effects(est_rea, par = "mu")
+slopes <- bind_rows(mutate(grid_slopes(est_rea), What = "Phase-2 syntheticness (per +10%)"),
+                    mutate(covariate_slopes(est_rea, "Beauty_w"), What = "Phase-1 beauty (per +10%)")) |> fmt_eff()
+make_asis(
+  make_tables(bind_rows(est_rec$diag, est_rea$diag), c("Model", "Family", "N_obs", "N_participants", "Chains", "Draws", "Max_Rhat", "Min_ESS_ratio", "Divergent_pct"),
+              "Convergence of the durability models"),
+  make_tables(means_rec, c("Condition", "Recognition", "Estimate", "CI_low", "CI_high"),
+              "Beauty2Recognition: follow-up beauty (% of the slider) per label and recognition answer"),
+  make_tables(rec_within, c("Recognition", "Contrast", "Parameter", "Diff", "CI", "pd_fmt", "Effect"),
+              "Beauty2Recognition: label contrasts within artworks judged 'seen before' (Yes) and not (No), % of the slider / percentage points"),
+  make_tables(rec_between, c("Contrast", "Parameter", "Diff", "CI", "pd_fmt", "Effect"),
+              "Beauty2Recognition: recognised minus unrecognised artworks (averaged over the labels)"),
+  make_tables(fmt_eff(rename(med$effects, Path = Effect)), c("Contrast", "Path", "Diff", "CI", "pd_fmt", "Effect"),
+              "Beauty2Reality: label effect on follow-up beauty at the participant's mean Phase-1 beauty (% of the slider), split into the part carried by the Phase-2 syntheticness belief (Indirect) and the rest (Direct); 'Mediator (a)' = label effect on the belief (% of its slider, these participants)"),
+  make_tables(fmt_eff(rename(med_mu$effects, Path = Effect)), c("Contrast", "Path", "Diff", "CI", "pd_fmt", "Effect"),
+              "Beauty2Reality: the same on P(beautiful side) (percentage points)"),
+  make_tables(slopes, c("What", "Level", "Diff", "CI", "pd_fmt", "Effect"),
+              "Beauty2Reality: slopes of follow-up beauty (% of the slider) on the Phase-2 belief per label (and their differences), and on Phase-1 beauty")
+)
+```
+
+```{r}
+#| fig-width: 11
+#| fig-height: 4.5
+#| eval: !expr durability_ready
+
+p1 <- est_rec$means_by |>
+  ggplot(aes(x = Recognition, y = 100 * Estimate, color = Condition)) +
+  geom_pointrange(aes(ymin = 100 * CI_low, ymax = 100 * CI_high), position = position_dodge(width = 0.4)) +
+  scale_color_manual(values = cols) +
+  labs(x = "Recognised at follow-up", y = "Follow-up beauty (%)", title = "By recognition") +
+  theme_minimal() + theme(legend.position = "top")
+g <- est_rea$grid
+P <- est_rea$grid_draws
+curve <- bind_rows(lapply(seq_len(nrow(g)), function(i) {
+  ci <- bayestestR::hdi(P[, i], ci = 0.95)
+  data.frame(g[i, ], Median = 100 * median(P[, i]), CI_low = 100 * ci$CI_low, CI_high = 100 * ci$CI_high)
+})) |> filter(abs(Reality_w) <= 0.5)
+p2 <- ggplot(curve, aes(x = 100 * Reality_w, y = Median, color = Condition, fill = Condition)) +
+  geom_ribbon(aes(ymin = CI_low, ymax = CI_high), alpha = 0.15, color = NA) +
+  geom_line(linewidth = 1) +
+  scale_color_manual(values = cols) + scale_fill_manual(values = cols) +
+  labs(x = "Phase-2 syntheticness relative to the participant's mean (points; higher = more human)", y = "Follow-up beauty (%)",
+       title = "By the Phase-2 belief (Phase-1 beauty at the participant's mean)") +
+  theme_minimal() + theme(legend.position = "top")
+p1 + p2 + plot_layout(widths = c(1, 2))
+```
+
+Reading the tables. **Beauty2Recognition**: recognised artworks are rated
+more beautiful than unrecognised ones under every label (the familiarity /
+liking link also seen in `MemorySR`), and the label contrasts are null
+among unrecognised artworks; among recognised ones the mean response shows
+no credible AI penalty either, but the probability of choosing the
+"beautiful" side does drop for AI-labelled works -- a small residual trace
+in the categorical choice, on the works the participant still remembers.
+**Beauty2Reality**: the syntheticness belief formed in Phase 2 predicts
+follow-up beauty beyond the Phase-1 beauty of the same work, under every
+label (the "believed human = beautiful later" slope), and through it the
+AI label carries a small negative indirect effect. The "Total" and "Direct"
+rows are *not* total label effects: they hold Phase-1 beauty at the
+participant's mean, and the label had lowered that rating by ~7%, so an
+AI-labelled work with the same Phase-1 rating as an Original is an
+intrinsically more appealing work, which rebounds at follow-up (the
+positive "direct" term is this conditioning on a label-affected covariate,
+not a lasting benefit of the label). The unconditional label effect on
+follow-up beauty is the `Beauty2` model's (`3_models.qmd`).
+
+```{r}
+#| eval: !expr durability_ready
+
+write.csv(bind_rows(
+  mutate(rec_within, Model = "Beauty2Recognition", Table = "Label contrast within recognition", Contrast = as.character(Contrast)) |>
+    select(Model, Table, Recognition, Contrast, Parameter, Median = Difference_pct, CI_low = CI_low_pct, CI_high = CI_high_pct, pd, Effect),
+  mutate(rec_between, Model = "Beauty2Recognition", Table = "Recognition contrast", Contrast = as.character(Contrast)) |>
+    select(Model, Table, Contrast, Parameter, Median = Difference_pct, CI_low = CI_low_pct, CI_high = CI_high_pct, pd, Effect),
+  mutate(med$effects, Model = "Beauty2Reality", Table = "Mediation (response)", Parameter = "response") |>
+    rename(Effect_type = Effect) |> select(Model, Table, Contrast, Parameter, Effect_type, Median, CI_low, CI_high, pd),
+  mutate(med_mu$effects, Model = "Beauty2Reality", Table = "Mediation (mu)", Parameter = "mu") |>
+    rename(Effect_type = Effect) |> select(Model, Table, Contrast, Parameter, Effect_type, Median, CI_low, CI_high, pd),
+  mutate(slopes, Model = "Beauty2Reality", Table = What, Contrast = Level, Parameter = "response") |>
+    select(Model, Table, Contrast, Parameter, Median, CI_low, CI_high, pd, Effect)
+), "../data/results_memory_durability.csv", row.names = FALSE)
+```
+
 ## Summary
 
 - `data/results_memory_contrasts.csv`: every contrast (level × answer pair), probability scale, with `pd` and `Credible`.
 - `data/results_memory_means.csv`: probability of each answer per level.
+- `data/results_memory_durability.csv`: the Beauty2Recognition / Beauty2Reality tables (label contrasts within recognition, recognition contrast, mediation through the Phase-2 belief, slopes).
 
 ```{r}
 #| label: memory-summary

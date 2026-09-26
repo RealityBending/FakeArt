@@ -723,8 +723,9 @@ p_artificiality
 
 ## Summary
 
-- `data/results_contrasts.csv`: every contrast x parameter x (overall or emotion quadrant), raw and % columns.
+- `data/results_contrasts.csv`: every contrast x parameter x (overall, within an emotion quadrant, or between emotion quadrants), raw and % columns.
 - `data/results_means.csv`: marginal means per label condition (response scale).
+- `data/results_means_emotion.csv`: marginal means per emotion category (response scale), for the models whose estimates carry them; `results_contrasts.csv` has the matching between-category contrasts under `Emotion = "Between emotions"`.
 
 ```{r}
 #| label: summary-collect
@@ -739,7 +740,11 @@ reps <- unname(lapply(estimates[section_order], `[[`, "report"))
 
 results_contrasts <- bind_rows(
   lapply(reps, function(r) mutate(r$contrasts, Emotion = "Overall")),
-  lapply(reps, function(r) r$contrasts_emo)
+  lapply(reps, function(r) r$contrasts_emo),
+  # Contrasts *between* emotion categories (the stimulus main effect, RQ2;
+  # `extra_contrast = "Emotion"` in estimates.R, extracted 2026-09-26), the
+  # Contrast column then naming the two categories
+  lapply(reps, function(r) if (!is.null(r$contrasts_extra)) mutate(r$contrasts_extra, Emotion = "Between emotions") else NULL)
 ) |>
   select(Outcome, Emotion, Contrast, Parameter, Unit, Difference, CI_low, CI_high,
          Difference_pct, CI_low_pct, CI_high_pct, pd, Credible, Effect) |>
@@ -749,6 +754,12 @@ write.csv(results_contrasts, "../data/results_contrasts.csv", row.names = FALSE)
 
 results_means <- bind_rows(lapply(reps, function(r) cbind(Outcome = r$diag$Model, r$means)))
 write.csv(results_means, "../data/results_means.csv", row.names = FALSE)
+# Marginal means per emotion category (response scale), where extracted
+results_means_emotion <- bind_rows(lapply(unname(estimates[section_order]), function(e) {
+  if (is.null(e$means_extra) || !"Emotion" %in% names(e$means_extra)) return(NULL)
+  cbind(Outcome = e$diag$Model, e$means_extra)
+}))
+write.csv(results_means_emotion, "../data/results_means_emotion.csv", row.names = FALSE)
 
 diag_all <- bind_rows(lapply(reps, `[[`, "diag"))
 make_tables(diag_all, names(diag_all), "Convergence of all models")
@@ -773,6 +784,7 @@ make_tables(diag_all, names(diag_all), "Convergence of all models")
 #| fig-alt: "Grid of dot-and-whisker plots, one cell per contrast and outcome, coloured by direction and credibility of the effect."
 
 rez_con <- results_contrasts |>
+  filter(Emotion != "Between emotions") |> # label contrasts only (overall and per quadrant)
   filter(Parameter %in% c("response", "mu", "confright", "confleft", "pzero"), Unit == "%") |>
   mutate(Difference = Difference_pct, CI_low = CI_low_pct, CI_high = CI_high_pct) |>
   mutate(Effect = fct_relevel(Effect, "Negative", "n.s.", "Positive"),

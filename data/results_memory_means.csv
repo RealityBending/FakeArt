@@ -24,6 +24,26 @@
 "MemoryBelief","Belief","None","Human Forgery",0.0273182566750557,0.0228046292915694,0.0331384347577965
 "MemoryBelief","Belief","None","Human Original",0.0646778406440114,0.0562653759523827,0.0761426100970285
 "MemoryBelief","Belief","None","Not recognized",0.860568411724207,0.836973190099129,0.877932618882615
+"MemoryBeliefAppraisal","Belief","AI Copy","AI Copy",0.0487680076535516,0.0408274001084539,0.0579276338788107
+"MemoryBeliefAppraisal","Belief","AI Copy","AI Original",0.139047248044539,0.125835646518276,0.153619637074148
+"MemoryBeliefAppraisal","Belief","AI Copy","Human Forgery",0.0813909109944797,0.0705069513557087,0.0929160348418824
+"MemoryBeliefAppraisal","Belief","AI Copy","Human Original",0.154317441580344,0.13983985747108,0.169600882001473
+"MemoryBeliefAppraisal","Belief","AI Copy","Not recognized",0.575991800636892,0.557619910205558,0.593774959945312
+"MemoryBeliefAppraisal","Belief","AI Original","AI Copy",0.0541188480501712,0.0445979631536146,0.0643332135127773
+"MemoryBeliefAppraisal","Belief","AI Original","AI Original",0.173004635461113,0.157617134586893,0.188620541739101
+"MemoryBeliefAppraisal","Belief","AI Original","Human Forgery",0.0653037067949545,0.0543933007977757,0.0772080666459235
+"MemoryBeliefAppraisal","Belief","AI Original","Human Original",0.140667960584013,0.125412868158924,0.156654630032378
+"MemoryBeliefAppraisal","Belief","AI Original","Not recognized",0.566600196129734,0.546359420258533,0.586009469262431
+"MemoryBeliefAppraisal","Belief","Human Forgery","AI Copy",0.0428575733585689,0.0331136777166925,0.0542151331745071
+"MemoryBeliefAppraisal","Belief","Human Forgery","AI Original",0.113552751153065,0.0964708287021016,0.131328995147333
+"MemoryBeliefAppraisal","Belief","Human Forgery","Human Forgery",0.0925466987633734,0.0793728960366691,0.107238877423993
+"MemoryBeliefAppraisal","Belief","Human Forgery","Human Original",0.188154618828062,0.16921871397773,0.208918782215239
+"MemoryBeliefAppraisal","Belief","Human Forgery","Not recognized",0.562150369323508,0.538554336724653,0.586855403565512
+"MemoryBeliefAppraisal","Belief","Human Original","AI Copy",0.031857892043039,0.0271170258108568,0.0372055358764177
+"MemoryBeliefAppraisal","Belief","Human Original","AI Original",0.10215490196577,0.0930287079974301,0.111594585254186
+"MemoryBeliefAppraisal","Belief","Human Original","Human Forgery",0.0790009248738999,0.0717662479015328,0.0867512596625809
+"MemoryBeliefAppraisal","Belief","Human Original","Human Original",0.214863546225884,0.204135620573883,0.226222465734867
+"MemoryBeliefAppraisal","Belief","Human Original","Not recognized",0.571877940314531,0.559525523163973,0.58424482996658
 "MemoryCondition","Condition","AI-Generated","AI-Generated",0.14554189513142,0.128180508419403,0.165480656603348
 "MemoryCondition","Condition","AI-Generated","Human Forgery",0.0651597642547428,0.0566546887380621,0.0749110257659279
 "MemoryCondition","Condition","AI-Generated","Human Original",0.214018361994607,0.194255049005728,0.235770574862307
@@ -40,6 +60,22 @@
 "MemoryCondition","Condition","New Items","Human Forgery",0.0167052177860143,0.013743493103634,0.0202865101966033
 "MemoryCondition","Condition","New Items","Human Original",0.0602526774366843,0.0525780933326708,0.0692329624655406
 "MemoryCondition","Condition","New Items","Not recognized",0.886412905257751,0.870093392579088,0.899343546217147
+"MemoryConditionAppraisal","Belief","AI Copy","AI-Generated",0.158177281700177,0.143626253352028,0.173607803962033
+"MemoryConditionAppraisal","Belief","AI Copy","Human Forgery",0.0633665938479115,0.0540503911815809,0.073829199979287
+"MemoryConditionAppraisal","Belief","AI Copy","Human Original",0.201873068979874,0.186158306703189,0.217939594511686
+"MemoryConditionAppraisal","Belief","AI Copy","Not recognized",0.57632353062575,0.557973750226191,0.594965134514696
+"MemoryConditionAppraisal","Belief","AI Original","AI-Generated",0.18836064842657,0.171925031751908,0.205352123003677
+"MemoryConditionAppraisal","Belief","AI Original","Human Forgery",0.0521582799059676,0.0426888026018322,0.0626060813757093
+"MemoryConditionAppraisal","Belief","AI Original","Human Original",0.1962559477817,0.179897781727204,0.213183779386758
+"MemoryConditionAppraisal","Belief","AI Original","Not recognized",0.562837223114376,0.543599942512686,0.58293767978186
+"MemoryConditionAppraisal","Belief","Human Forgery","AI-Generated",0.139959025762074,0.121535257368997,0.159250071603076
+"MemoryConditionAppraisal","Belief","Human Forgery","Human Forgery",0.0726688570291853,0.0604996460041774,0.0866861834258082
+"MemoryConditionAppraisal","Belief","Human Forgery","Human Original",0.22418866422979,0.20362002408207,0.245867421263649
+"MemoryConditionAppraisal","Belief","Human Forgery","Not recognized",0.562875919304455,0.538750940256436,0.587023342642103
+"MemoryConditionAppraisal","Belief","Human Original","AI-Generated",0.118783388472983,0.109515457346063,0.128462253654407
+"MemoryConditionAppraisal","Belief","Human Original","Human Forgery",0.0703085494665336,0.0633596628850838,0.077634060476397
+"MemoryConditionAppraisal","Belief","Human Original","Human Original",0.240162993794473,0.228206820027465,0.25162763028584
+"MemoryConditionAppraisal","Belief","Human Original","Not recognized",0.570626775171711,0.558210576921515,0.583536034330677
 "MemoryConditionBelief","Belief","AI Copy","AI-Generated",0.158330366843159,0.143659140618801,0.173088497419243
 "MemoryConditionBelief","Belief","AI Copy","Human Forgery",0.0627711143809881,0.0536707824244856,0.0728766851633899
 "MemoryConditionBelief","Belief","AI Copy","Human Original",0.195933922980029,0.180514341868085,0.212630612174858

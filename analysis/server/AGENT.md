@@ -727,6 +727,123 @@ for a file that existed: the rate limit again; wait ~40 s and retry.
 
 ---
 
+### 3.7d Submitted: durability, memory-vs-inference and self-relevance-memory models (2026-09-25)
+
+A review of the manuscript's Results found three questions the fitted models
+could not answer: whether the (null) follow-up label effect hides a residual
+effect among recognised works or through the Phase-2 belief (RQ4's second
+half, promised in "The present study" and never tested); whether the
+above-chance "memory" of one's own belief, and the reconstruction of the label
+from it, survive the current impression of the work (beauty and self-relevance
+are rated again right before the memory questions, and beauty drives the
+belief); and the self-relevance / memory link the manuscript's TODO names.
+Five models were added **next to** the existing ones (none replaces a fit the
+manuscript quotes):
+
+- `Beauty2Recognition`: `Beauty2 ~ Condition * Recognition` (CHOCO, follow-up
+  file, old items, 10,560 rows). Extracted like a 3_models.qmd outcome with
+  `by = "Recognition"` in place of Emotion (`durability_info`, its own registry so that 3_models.qmd, which reads every `outcome_info` entry, does not require it), so
+  `contrasts_emo` holds the label contrasts within recognised / unrecognised
+  works and `contrasts_extra` the Recognition contrast.
+- `Beauty2Reality`: `Beauty2 ~ Condition * Reality_w + Beauty_w` (CHOCO, task
+  file, 217 participants). `mediation_info`: `mediation_effects()` gives the
+  part of the label effect on follow-up beauty carried by the Phase-2 belief.
+- `MemoryBeliefAppraisal`: `MemoryBelief` + `Beauty_w + Beauty2_w + SR_w`
+  (old items with a belief, 10,416 rows). `MemoryConditionAppraisal`:
+  `MemoryConditionBelief` + the same three. Both in `memory_info` with
+  `estimate = "observed"` (as MemoryConditionBelief) and a new `predictors`
+  field: `get_memory_estimates()` now also runs `memory_grid_draws()` (the
+  grid part of `get_memory_grid_estimates()`, factored out) and stores it as
+  `est$by_rating`, so `memory_grid_effects(est$by_rating)` reads them as
+  `memory_grid_effects(est)` reads MemoryAppraisal. (The local smoke test
+  caught the first version, which put the grid `draws` next to the observed
+  counterfactual `draws` of the same name.)
+- `MemorySR`: `AnswerCondition ~ Condition + Type:(SR_w + SR_w^2 + Beauty2_w +
+  Beauty2_w^2)` on all 96 items (21,120 rows), so hits and false alarms get
+  their own slopes. `memory_grid_info` with `factors = c("Condition", "Type")`
+  and `average = FALSE`: the grid keeps one row per label (`Level`), and
+  `memory_grid_effects()` reports per level.
+
+Also: `extra_contrast = "Emotion"` on Beauty, Valence, Meaning, Worth, Reality
+and Authenticity, computed **last** in `get_estimates()` (with `means_extra`),
+so a re-extraction leaves the 500-iteration contrasts and the posterior
+predictions on the same RNG stream and `results_contrasts.csv` unchanged; it
+adds the emotion main effect the manuscript's RQ2 promises. Re-extract those
+six and pull **by file name**.
+
+Local smoke test first (8 participants, 60 + 40 iterations, one chain, the
+task file restricted to the 217 follow-up participants with Phase-2 data),
+then `get_estimates()` and the notebook helpers on those fits. Submitted with
+the defaults (4 x 2 chains, warmup 1,000, 4,000 draws), one `./hpc fit` per
+model with a pause between them (sshd rate limit, §3.7b).
+
+Local smoke test (2026-09-25, 22:09-22:22): every fit 1-2.5 min (CHOCO
+models ~2.5 min, categorical ~1 min, compilation included), 0 divergent;
+`get_estimates()` and the notebook helpers (`mediation_effects()`,
+`grid_slopes()`, `covariate_slopes()`, `memory_grid_effects()`) ran on all
+five. Submitted 22:28-22:31 with the defaults: `Beauty2Recognition`
+11411692, `Beauty2Reality` 11411696, `MemoryBeliefAppraisal` 11411697,
+`MemoryConditionAppraisal` 11411707, `MemorySR` 11411708. The six
+re-extractions (Emotion means and contrasts) were submitted right after
+(`./hpc extract Beauty|Valence|Meaning|Worth|Reality|Authenticity`).
+
+Outcome (2026-09-26): shards 9 min (Beauty2Recognition), 9.5 min
+(Beauty2Reality), 4.5 min (the two memory-appraisal models), 6 min
+(MemorySR), 0 divergent; per-shard max Rhat 1.03-1.16 (the usual RE
+correlations). All five combined with 8 chains x 4,000 draws: the three
+categorical ones in ~10 min, the two CHOCO ones in **55 min** each (both on
+`artemis-a40-01` at the same time; earlier CHOCO combines took 10-22 min).
+Combined fits: fixed-effect max Rhat 1.009 / 1.008 / 1.023 (MemoryBelief-
+/ MemoryCondition-Appraisal / MemorySR; headline 1.09 for MemorySR is a
+`cor_` term), 1.039 / 1.061 headline for the two CHOCO models. Extracted
+and pulled by file name. Two things the cluster taught:
+
+- The six Emotion re-extractions: the CHOCO ones (Beauty, Reality,
+  Authenticity) failed with `No variable named Emotion in the reference
+  grid` because `get_contrasts()` only skipped pex / bex / pmid (modelled on
+  Condition alone) when `by` was set, not when the *contrast* itself is
+  another factor; fixed (skip when `contrast != "Condition"` too) and
+  resubmitted. The label contrasts of the re-extracted files are identical
+  to `data/results_contrasts.csv` to 1e-16, as intended.
+- `Beauty2Recognition` first sat in `outcome_info`, which made
+  `3_models.qmd` (`read_estimates(names(outcome_info))`) demand its file;
+  it now has its own `durability_info` registry (same shape), looked up by
+  `get_estimates()` after `outcome_info`.
+
+Results (numbers in `4_memory.qmd` "Memory or Re-inference?" and
+"Durability", `6_selfrelevance.qmd` section C, and the manuscript): the
+Belief effects on the recalled belief and label are unchanged with the
+three ratings in the model (memory, not re-inference; the current
+impression adds its own contribution to the recalled belief, the Phase-1
+impression to the recalled label); a residual AI penalty at follow-up only
+on P(beautiful) among recognised works (-4.6 pp), and the Phase-2
+syntheticness belief predicts follow-up beauty beyond Phase-1 beauty (+0.9%
+per 10%; indirect AI effect -0.3%); `Beauty2Reality`'s "Total" / "Direct"
+condition on the label-depressed Phase-1 beauty and are not label effects;
+SR (and follow-up beauty) raise "seen before" equally for old and new items
+on the log-odds scale (familiarity bias, no self-reference effect on
+memory), and self-relevant recognised works get the "Original" label.
+
+Participant-level additions (2026-09-26, `./hpc individual`, all ~1-3 min):
+`individual = "mu"` on BeautySR, `c("mu", "pzero")` on MeaningSR, `"mu"` on
+Beauty2Reality (`get_mediation_individual()` now passes the model's
+covariates at 0, which Beauty2Reality's `Beauty_w` needed); a new
+`get_memory_slope_individual()` for `memory_grid_info` entries with an
+`individual` field (MemorySR: the participant's slope of logit P("seen
+before") on each rating); and signal-detection indices (Sensitivity =
+logit hits - logit false alarms, Bias = their mean, per draw) added to
+`get_memory_individual()`, so MemoryCondition was re-extracted from the
+cluster's `combined/MemoryCondition.rds` (still the 2026-09-21 fit; checked
+by date). D-vour: BeautySR slope .39, MeaningSR mu .49 / pzero .20,
+Beauty2Reality .22 (left out by the 1/3 rule), MemorySR slopes .35 / .36
+(borderline, r = .76 with each other, no correlates), Sensitivity .70, Bias
+.91. `7_correlates.qmd` reads them through `slope_models` (all
+`mediation_info` entries with `individual`) and `memory_models`, keeps the
+slopes out of the EGA and adds the reliable ones to the correlates; mean
+self-relevance and mean follow-up beauty enter as traits from the data.
+
+---
+
 ### 3.6a Measured: `normal` caps the whole account at 550 CPUs (2026-09-22)
 
 Found here, now a hub fact: [hub `artemis.md#quotas`](https://github.com/RealityBending/Lab/blob/main/hpc/artemis.md#quotas).

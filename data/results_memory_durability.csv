@@ -1,0 +1,68 @@
+"Model","Table","Recognition","Contrast","Parameter","Median","CI_low","CI_high","pd","Effect","Effect_type"
+"Beauty2Recognition","Label contrast within recognition","No","AI-Generated - Human Original","Confidence, beautiful side",-0.667453421855543,-2.21480094242633,0.902477756601442,0.79425,"n.s.",NA
+"Beauty2Recognition","Label contrast within recognition","No","AI-Generated - Human Original","Confidence, ugly side",0.954674865535013,-1.12307580651493,3.20749954513995,0.80125,"n.s.",NA
+"Beauty2Recognition","Label contrast within recognition","No","AI-Generated - Human Original","Mean response",-0.80287655708719,-2.40398367421082,0.820315126226842,0.833,"n.s.",NA
+"Beauty2Recognition","Label contrast within recognition","No","AI-Generated - Human Original","P(beautiful side)",-1.19076812911674,-5.36776727856989,2.90033867700567,0.71325,"n.s.",NA
+"Beauty2Recognition","Label contrast within recognition","No","Human Forgery - Human Original","Confidence, beautiful side",-0.686174950625057,-2.21623094075956,0.900656787150114,0.7965,"n.s.",NA
+"Beauty2Recognition","Label contrast within recognition","No","Human Forgery - Human Original","Confidence, ugly side",0.844932709995361,-1.33386684537983,2.96638505852024,0.7815,"n.s.",NA
+"Beauty2Recognition","Label contrast within recognition","No","Human Forgery - Human Original","Mean response",-0.0205479936621317,-1.67255135089527,1.6575298740489,0.50925,"n.s.",NA
+"Beauty2Recognition","Label contrast within recognition","No","Human Forgery - Human Original","P(beautiful side)",0.962552458352395,-3.47571182871494,5.19096419465269,0.65975,"n.s.",NA
+"Beauty2Recognition","Label contrast within recognition","No","AI-Generated - Human Forgery","Confidence, beautiful side",0.000278351986690573,-1.61942899357498,1.65720029591771,0.5,"n.s.",NA
+"Beauty2Recognition","Label contrast within recognition","No","AI-Generated - Human Forgery","Confidence, ugly side",0.096775926883394,-2.05576009764827,2.30741335934507,0.533,"n.s.",NA
+"Beauty2Recognition","Label contrast within recognition","No","AI-Generated - Human Forgery","Mean response",-0.815363958368578,-2.50195624599682,0.936026466298764,0.8165,"n.s.",NA
+"Beauty2Recognition","Label contrast within recognition","No","AI-Generated - Human Forgery","P(beautiful side)",-2.14572418785739,-6.49852319406117,2.34917149342046,0.824,"n.s.",NA
+"Beauty2Recognition","Label contrast within recognition","Yes","AI-Generated - Human Original","Confidence, beautiful side",-0.119633451096368,-1.92982647194082,1.66506273769795,0.5525,"n.s.",NA
+"Beauty2Recognition","Label contrast within recognition","Yes","AI-Generated - Human Original","Confidence, ugly side",-1.16261654449971,-3.81601078547703,1.43281708156389,0.80975,"n.s.",NA
+"Beauty2Recognition","Label contrast within recognition","Yes","AI-Generated - Human Original","Mean response",-1.51052720584152,-3.33904036990455,0.230611758678498,0.95675,"n.s.",NA
+"Beauty2Recognition","Label contrast within recognition","Yes","AI-Generated - Human Original","P(beautiful side)",-4.55617515872289,-9.14290660739367,-0.338405199881473,0.98325,"Negative",NA
+"Beauty2Recognition","Label contrast within recognition","Yes","Human Forgery - Human Original","Confidence, beautiful side",-0.127977016663677,-1.89604068381703,1.65515778954505,0.55975,"n.s.",NA
+"Beauty2Recognition","Label contrast within recognition","Yes","Human Forgery - Human Original","Confidence, ugly side",-1.9918446620682,-4.62885398852529,0.604908945487562,0.939,"n.s.",NA
+"Beauty2Recognition","Label contrast within recognition","Yes","Human Forgery - Human Original","Mean response",-0.30987791954758,-2.14577153832794,1.53717162859088,0.63275,"n.s.",NA
+"Beauty2Recognition","Label contrast within recognition","Yes","Human Forgery - Human Original","P(beautiful side)",-1.58124220650708,-6.21237694873829,2.98082142957881,0.7495,"n.s.",NA
+"Beauty2Recognition","Label contrast within recognition","Yes","AI-Generated - Human Forgery","Confidence, beautiful side",-0.0021161395764413,-1.91391530173415,1.90398664975603,0.50125,"n.s.",NA
+"Beauty2Recognition","Label contrast within recognition","Yes","AI-Generated - Human Forgery","Confidence, ugly side",0.791856701059104,-1.90442361935794,3.4902008442711,0.72325,"n.s.",NA
+"Beauty2Recognition","Label contrast within recognition","Yes","AI-Generated - Human Forgery","Mean response",-1.19193603719622,-3.16618874586096,0.686031975929285,0.90125,"n.s.",NA
+"Beauty2Recognition","Label contrast within recognition","Yes","AI-Generated - Human Forgery","P(beautiful side)",-2.9858915809759,-7.90994436033539,1.58835748378492,0.89625,"n.s.",NA
+"Beauty2Recognition","Recognition contrast",NA,"Yes - No","Mean response",5.54783669205647,3.8930709523288,7.24701854898583,1,"Positive",NA
+"Beauty2Recognition","Recognition contrast",NA,"Yes - No","P(beautiful side)",12.8562844911207,8.63958469598282,17.101137496134,1,"Positive",NA
+"Beauty2Recognition","Recognition contrast",NA,"Yes - No","Confidence, beautiful side",2.08444967163597,0.906137417143834,3.20732854341069,1,"Positive",NA
+"Beauty2Recognition","Recognition contrast",NA,"Yes - No","Confidence, ugly side",-1.49385148780893,-3.42276064596041,0.398956228736955,0.94725,"n.s.",NA
+"Beauty2Reality","Mediation (response)",NA,"AI-Generated - Human Original","response",-4.447508640553,-6.07848502304147,-2.87874423963134,1,NA,"Mediator (a)"
+"Beauty2Reality","Mediation (response)",NA,"AI-Generated - Human Original","response",1.68025062663421,0.353639956021318,2.93804289173888,0.9965,NA,"Total"
+"Beauty2Reality","Mediation (response)",NA,"AI-Generated - Human Original","response",1.94779845946769,0.644762052476372,3.21361081064311,0.99875,NA,"Direct"
+"Beauty2Reality","Mediation (response)",NA,"AI-Generated - Human Original","response",-0.259589789903575,-0.43530382415391,-0.10406961694327,1,NA,"Indirect"
+"Beauty2Reality","Mediation (response)",NA,"AI-Generated - Human Original","response",-15.3861387075954,-47.0100677052816,-2.94553768759266,0.9965,NA,"Proportion mediated"
+"Beauty2Reality","Mediation (response)",NA,"Human Forgery - Human Original","response",-1.2201180875576,-2.70103686635945,0.407258064516129,0.93125,NA,"Mediator (a)"
+"Beauty2Reality","Mediation (response)",NA,"Human Forgery - Human Original","response",1.1530253536503,-0.189770585745708,2.49877008692297,0.95575,NA,"Total"
+"Beauty2Reality","Mediation (response)",NA,"Human Forgery - Human Original","response",1.24354052382102,-0.0593830488625602,2.5865477656059,0.97025,NA,"Direct"
+"Beauty2Reality","Mediation (response)",NA,"Human Forgery - Human Original","response",-0.0806756910366302,-0.209172450349437,0.0316292373971239,0.93125,NA,"Indirect"
+"Beauty2Reality","Mediation (response)",NA,"Human Forgery - Human Original","response",-6.44579573344883,-70.4621400983529,27.8632257304913,0.889,NA,"Proportion mediated"
+"Beauty2Reality","Mediation (response)",NA,"AI-Generated - Human Forgery","response",-3.2514400921659,-4.87975230414747,-1.62514400921659,1,NA,"Mediator (a)"
+"Beauty2Reality","Mediation (response)",NA,"AI-Generated - Human Forgery","response",0.518302483532024,-0.86741216906715,1.83726756448979,0.77875,NA,"Total"
+"Beauty2Reality","Mediation (response)",NA,"AI-Generated - Human Forgery","response",0.711417262891426,-0.676089290185,2.02386683285882,0.8505,NA,"Direct"
+"Beauty2Reality","Mediation (response)",NA,"AI-Generated - Human Forgery","response",-0.185511861230681,-0.341112462655924,-0.0666061815515206,1,NA,"Indirect"
+"Beauty2Reality","Mediation (response)",NA,"AI-Generated - Human Forgery","response",-19.4715837396885,-301.832990040463,279.677003802227,0.77875,NA,"Proportion mediated"
+"Beauty2Reality","Mediation (mu)",NA,"AI-Generated - Human Original","mu",-4.447508640553,-6.07848502304147,-2.87874423963134,1,NA,"Mediator (a)"
+"Beauty2Reality","Mediation (mu)",NA,"AI-Generated - Human Original","mu",3.17716980249896,-0.155458539496667,6.84741105699765,0.9635,NA,"Total"
+"Beauty2Reality","Mediation (mu)",NA,"AI-Generated - Human Original","mu",3.7373284443903,0.476723300204573,7.45566851539806,0.982,NA,"Direct"
+"Beauty2Reality","Mediation (mu)",NA,"AI-Generated - Human Original","mu",-0.53422492853803,-0.979277675876256,-0.134415572424562,0.99775,NA,"Indirect"
+"Beauty2Reality","Mediation (mu)",NA,"AI-Generated - Human Original","mu",-16.0310661679185,-153.887701246273,49.1715162227991,0.96125,NA,"Proportion mediated"
+"Beauty2Reality","Mediation (mu)",NA,"Human Forgery - Human Original","mu",-1.2201180875576,-2.70103686635945,0.407258064516129,0.93125,NA,"Mediator (a)"
+"Beauty2Reality","Mediation (mu)",NA,"Human Forgery - Human Original","mu",2.36857640640661,-1.41051580875988,6.00112734366186,0.9,NA,"Total"
+"Beauty2Reality","Mediation (mu)",NA,"Human Forgery - Human Original","mu",2.60174503120312,-0.913490789430915,6.44381588933637,0.91775,NA,"Direct"
+"Beauty2Reality","Mediation (mu)",NA,"Human Forgery - Human Original","mu",-0.204562194190849,-0.542412812009041,0.0722671593871183,0.93125,NA,"Indirect"
+"Beauty2Reality","Mediation (mu)",NA,"Human Forgery - Human Original","mu",-6.78454293074111,-82.2809150077927,75.5468191560268,0.83975,NA,"Proportion mediated"
+"Beauty2Reality","Mediation (mu)",NA,"AI-Generated - Human Forgery","mu",-3.2514400921659,-4.87975230414747,-1.62514400921659,1,NA,"Mediator (a)"
+"Beauty2Reality","Mediation (mu)",NA,"AI-Generated - Human Forgery","mu",0.786500725426842,-2.7897416807448,4.66031142423953,0.66525,NA,"Total"
+"Beauty2Reality","Mediation (mu)",NA,"AI-Generated - Human Forgery","mu",1.17997066866755,-2.44918728131468,4.98394454815013,0.742,NA,"Direct"
+"Beauty2Reality","Mediation (mu)",NA,"AI-Generated - Human Forgery","mu",-0.381336081309708,-0.74744487979318,-0.0681087481981979,0.99775,NA,"Indirect"
+"Beauty2Reality","Mediation (mu)",NA,"AI-Generated - Human Forgery","mu",-12.7529951045106,-291.557518181376,365.919336834391,0.6635,NA,"Proportion mediated"
+"Beauty2Reality","Phase-2 syntheticness (per +10%)",NA,"Human Original","response",0.914090245341004,0.606275319311234,1.23198948165115,1,"Positive",NA
+"Beauty2Reality","Phase-2 syntheticness (per +10%)",NA,"Human Forgery","response",0.699500588017571,0.389641989686829,1.02841300663775,1,"Positive",NA
+"Beauty2Reality","Phase-2 syntheticness (per +10%)",NA,"AI-Generated","response",0.596363736665162,0.30090827804985,0.910021134153172,1,"Positive",NA
+"Beauty2Reality","Phase-2 syntheticness (per +10%)",NA,"Human Forgery - Human Original","response",-0.217269401002612,-0.618397114425018,0.166188643470955,0.8575,"n.s.",NA
+"Beauty2Reality","Phase-2 syntheticness (per +10%)",NA,"AI-Generated - Human Original","response",-0.319807006198602,-0.708404581606203,0.0435720510465476,0.9495,"n.s.",NA
+"Beauty2Reality","Phase-2 syntheticness (per +10%)",NA,"AI-Generated - Human Forgery","response",-0.105025928589741,-0.534753297531165,0.275405026502196,0.70125,"n.s.",NA
+"Beauty2Reality","Phase-1 beauty (per +10%)",NA,"Human Original","response",6.11875305286709,5.52060559022952,6.72925497736994,1,"Positive",NA
+"Beauty2Reality","Phase-1 beauty (per +10%)",NA,"Human Forgery","response",6.06933462065808,5.46646041588904,6.74213808342962,1,"Positive",NA
+"Beauty2Reality","Phase-1 beauty (per +10%)",NA,"AI-Generated","response",6.05629597045903,5.43889571676198,6.70887007767107,1,"Positive",NA

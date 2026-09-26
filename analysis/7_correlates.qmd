@@ -73,7 +73,8 @@ traits <- c("Age" = "Demographics", "Gender (male)" = "Demographics", "Education
             "AI knowledge" = "AI attitudes", "AI use" = "AI attitudes", "AI attitudes (positive)" = "AI attitudes",
             "AI attitudes (negative)" = "AI attitudes", "AI art realism" = "AI attitudes", "Manipulation distrust" = "AI attitudes",
             "Visual imagery (VVIQ)" = "Imagery & mood", "Depression" = "Imagery & mood",
-            "Anxiety" = "Imagery & mood", "Life satisfaction" = "Imagery & mood")
+            "Anxiety" = "Imagery & mood", "Life satisfaction" = "Imagery & mood",
+            "Self-relevance (mean)" = "Follow-up ratings", "Follow-up beauty (mean)" = "Follow-up ratings")
 
 df_traits <- dfsub |>
   transmute(Participant,
@@ -94,6 +95,14 @@ df_traits <- dfsub |>
             `Life satisfaction` = LifeSatisfaction,
             across(c(starts_with("MINT_"), -MINT_AttentionCheck))) |>
   rename_with(\(x) str_replace(x, "^MINT_", "MINT "), starts_with("MINT_"))
+# Follow-up ratings as traits (2026-09-26): the participant's mean
+# self-relevance (0-6) and mean follow-up beauty (0-1) over the 96 artworks
+# of the memory session (220 participants). BeautySRBetween showed that
+# people with a higher mean self-relevance rate art as more beautiful.
+df_followup <- read.csv("../data/data_memory_task.csv") |>
+  summarise(`Self-relevance (mean)` = mean(SelfRelevance * 6, na.rm = TRUE),
+            `Follow-up beauty (mean)` = mean(Beauty2, na.rm = TRUE), .by = "Participant")
+df_traits <- left_join(df_traits, df_followup, by = "Participant")
 # Interoception: each Mint metacluster followed by its facets (italics, Markdown),
 # in this fixed order rather than clustered
 mint <- list(Awareness = c("ExAc", "RelA", "SexS"),
@@ -195,13 +204,27 @@ Parameters without a participant-level label effect in the model (Worth's
 to the shared thresholds and `disc` the participant's discrimination (response
 precision), analogous to `phi` / `prec` in the other models.
 
-One index comes from the determinants models of `5_realitydeterminants.qmd`:
+Slope indices come from the models with a within-participant covariate
+(`mediation_info` entries with an `individual` field), per full range of the
+covariate, averaged over the labels, on the link scale:
 
-- **RealityBeauty `mu` Slope**: the participant's slope of the syntheticness
-  choice (`mu`, the probability of answering on the "Human" side) on their own
-  Phase-1 beauty (centred within participant), per full range of the beauty
-  slider, averaged over the labels: how strongly the participant takes beauty
-  as a sign of human authorship (the "beautiful = human" inference).
+- **RealityBeauty `mu` Slope** (`5_realitydeterminants.qmd`): the slope of the
+  syntheticness choice (`mu`, the probability of answering on the "Human"
+  side) on the participant's own Phase-1 beauty: how strongly they take
+  beauty as a sign of human authorship (the "beautiful = human" inference).
+- **BeautySR `mu` Slope** and **MeaningSR `mu` / `pzero` Slope**
+  (`6_selfrelevance.qmd`, added 2026-09-26): the slope of the Phase-1 beauty
+  choice, and of meaningfulness and of its "not at all" answer, on the
+  participant's own self-relevance (rated at follow-up): how much their
+  aesthetic judgment tracks personal resonance (220 participants).
+- **Beauty2Reality `mu` Slope** (`4_memory.qmd`, added 2026-09-26): the
+  slope of the follow-up beauty choice on the participant's own Phase-2
+  syntheticness belief, Phase-1 beauty held at their mean: how much a
+  person's later appreciation follows the belief they had formed (217
+  participants). Extracted as a check on its reliability: D-vour .22, so it
+  does not reach the 1/3 threshold and stays out of the correlates, like
+  MeaningSR's `pzero` slope (.20). BeautySR's (.39) and MeaningSR's `mu`
+  slopes (.49) do enter.
 
 Models not included (yet):
 
@@ -224,7 +247,10 @@ Models not included (yet):
 - **Beauty2** (follow-up): 220 participants; waiting for a rule on how the
   analyses handle participants missing from some models.
 - **SelfRelevance** (follow-up): a moderator of the label effect (RQ3) rather
-  than an outcome of it; also 220 participants.
+  than an outcome of it; also 220 participants. Its participant *level* enters
+  the correlates as a trait instead (mean self-relevance, with mean follow-up
+  beauty), and its coupling with the Phase-1 ratings as the BeautySR / MeaningSR
+  slopes above.
 - **Artificiality** (follow-up): only old items judged new, i.e. about 9
   trials per label per participant (some none), selected by forgetting.
 - **Gaze** (Entropy, Laterality, Centeredness, Max. Shift): no population
@@ -591,16 +617,38 @@ tree_lower <- summarise(tree_items, Label = str_replace_all(community_label(Inde
 pal_lower <- setNames(coalesce(unname(colors_lower[tree_lower$Label]), "grey50"), tree_lower$Lower)
 pal_higher <- setNames(coalesce(unname(colors_higher[tree_higher$Label]), "grey30"), paste0("H", tree_higher$Higher))
 
-# Direction of each connection: sign of the index's network loading on its
-# lower-order community, and of the community's loading on its higher-order one
+# Network loadings and scores (one row per participant, in the order of df_wide).
+# The higher-order scores are computed from the lower-order scores as estimated,
+# since the higher-order network was estimated on them
 loads_lower <- ega$parameters$lower_loadings
 loads_higher <- suppressMessages(EGAnet::net.loads(ega$higher_order))$std
+scores_lower <- ega$parameters$lower_scores
+scores_higher <- EGAnet::net.scores(scores_lower, A = ega$higher_order)$scores$std.scores
+
+# Orientation (2026-09-26): the scores follow the sign of the loadings, which
+# made a high "Anti-fake bias" score a smaller penalty and a high "Ugliness
+# extremity" score milder ugliness judgments. These two communities are reversed
+# so that a high score means more of what the label says; each higher-order
+# score is then oriented so that its dominant lower-order community loads
+# positively. Scores and loadings (the edge signs) are reversed together.
+flip_lower <- as.character(tree_lower$Lower[tree_lower$Label %in% c("Anti-fake bias", "Ugliness extremity")])
+stopifnot(length(flip_lower) == 2)
+loads_lower[, flip_lower] <- -loads_lower[, flip_lower]
+loads_higher[flip_lower, ] <- -loads_higher[flip_lower, ]
+scores_lower[, flip_lower] <- -scores_lower[, flip_lower]
+dominant <- sapply(colnames(loads_higher), \(h) {
+  l <- loads_higher[names(ega$higher_order$wc)[ega$higher_order$wc == as.numeric(h)], h]
+  l[which.max(abs(l))]
+})
+flip_higher <- colnames(loads_higher)[dominant < 0]
+loads_higher[, flip_higher] <- -loads_higher[, flip_higher]
+scores_higher[, flip_higher] <- -scores_higher[, flip_higher]
+
+# Direction of each connection: sign of the index's network loading on its
+# lower-order community, and of the community's loading on its higher-order one
 edge_sign <- function(x) factor(ifelse(x < 0, "Negative", "Positive"), levels = c("Positive", "Negative"))
 tree_items <- mutate(tree_items, Sign = edge_sign(loads_lower[cbind(Index, as.character(Lower))]))
 
-# Network scores (one row per participant, in the order of df_wide)
-scores_lower <- ega$parameters$lower_scores
-scores_higher <- EGAnet::net.scores(scores_lower, A = ega$higher_order)$scores$std.scores
 r_higher <- cor(scores_higher, use = "pairwise.complete.obs")
 tree_arcs <- as.data.frame(t(combn(colnames(r_higher), 2))) |>
   setNames(c("From", "To")) |>
@@ -619,6 +667,17 @@ participant goes, and how consistently, when they choose that side). Phase 2:
 *Realness* / *Fakeness conviction* (how extreme the judgments are on the human
 / original and on the AI / copy side) and *Realness* / *Fakeness consistency*
 (their precision).
+
+Orientation (2026-09-26): the network scores follow the sign of the loadings,
+which made a high *Anti-fake bias* score a *smaller* penalty and a high
+*Ugliness extremity* score *milder* ugliness judgments (Beauty `confleft`
+loads negatively). Both are reversed, scores and loadings together, so that a
+high score means more of what the label says: the label contrasts now load
+negatively on *Anti-fake bias* (a larger bias is a more negative AI / Forgery
+− Original contrast), and `precleft` negatively on *Ugliness extremity*. Each
+higher-order score is then oriented so that its dominant lower-order community
+loads positively, which reverses *Aesthetic appraisal* (dominated by
+*Ugliness extremity*).
 
 ```{r}
 #| label: fig-ega-matrix
@@ -732,7 +791,7 @@ p_ega_matrix
 
 ## Memory
 
-Participant-level indices from the two follow-up memory models (220
+Participant-level indices from the follow-up memory models (220
 participants), from the predicted answer probabilities with item effects
 excluded, on the logit scale. Accuracy and tendencies are conditional on the
 item being recognised:
@@ -745,6 +804,20 @@ item being recognised:
   the actual labels / beliefs.
 - **Tendency**: the probability of recalling an item as each category,
   whatever it actually was.
+- **SDT** (2026-09-26, label model only): the signal-detection reading of the
+  two recognition indices, per draw: *Sensitivity* = logit(hits) - logit(false
+  alarms), the log-odds analogue of *d'*; *Bias* = their mean, higher = more
+  "seen before" answers whatever the item (a liberal criterion).
+- **Seen before** (2026-09-26, `MemorySR`, `6_selfrelevance.qmd` section C):
+  the slope of the log odds of answering "seen before" on the participant's
+  own self-relevance and follow-up beauty of the artwork (per full range of
+  the rating, the other rating at their mean): the familiarity bias for
+  resonant or liked works. The model's random part has no Type term for the
+  ratings, so one slope per participant covers hits and false alarms. Both
+  slopes are borderline reliable (D-vour .35 / .36) and correlate .76 with
+  each other (the two ratings are collinear within participant), and neither
+  correlates with any dimension score, slope or trait (all |r| ≤ .19): kept
+  in the tables for completeness, not interpreted.
 
 Only their reliability is assessed here; they are not part of the structure
 analyses above. MemoryCondition's participant-level correlations are its
@@ -755,13 +828,13 @@ worst-converged parameters (max Rhat 1.13).
 
 # MemoryConditionBelief (label recall by own belief) tests reconstruction; it
 # has no participant-level indices
-memory_models <- c("MemoryCondition", "MemoryBelief")
+memory_models <- c("MemoryCondition", "MemoryBelief", "MemorySR")
 df_mem <- read_estimates(memory_models, dir = "individual") |>
   lapply(\(e) mutate(e$individual, Model = e$outcome)) |>
   bind_rows() |>
   mutate(Model = factor(Model, levels = memory_models),
-         Parameter = factor(Parameter, levels = c("Recognition", "Accuracy", "Tendency")),
-         Index = fct_inorder(Index)) |>
+         Parameter = factor(Parameter, levels = c("Recognition", "SDT", "Accuracy", "Tendency", "Seen before")),
+         Index = fct_inorder(recode(Index, SR_w = "Self-relevance", Beauty2_w = "Follow-up beauty"))) |>
   arrange(Model, Parameter) |>
   mutate(Feature = fct_inorder(paste(Model, Parameter, Index, sep = "_")))
 
@@ -786,19 +859,28 @@ df_mem_rel |>
   geom_vline(xintercept = c(0.5, 0.75), linetype = "dashed", color = "grey70") +
   geom_pointrange(aes(xmin = CI_low, xmax = CI_high)) +
   facet_grid(Model ~ ., scales = "free_y", space = "free_y") +
-  scale_color_manual(values = c("Recognition" = "#607D8B", "Accuracy" = "#4CAF50", "Tendency" = "#9C27B0")) +
+  scale_color_manual(values = c("Recognition" = "#607D8B", "SDT" = "#455A64", "Accuracy" = "#4CAF50", "Tendency" = "#9C27B0", "Seen before" = "#26A69A")) +
   scale_x_continuous(limits = c(0, 1), expand = c(0, 0.01)) +
   labs(x = "D-vour", y = NULL, color = NULL) +
   theme_minimal() +
   theme(legend.position = "top", strip.text.y = element_text(angle = 0, face = "bold"))
 ```
 
-The memory indices with D-vour > 1/3 (all but the two accuracy indices, which
-are dominated by uncertainty) are used as correlates, on the logit scale:
-*Recognition* (hits and false alarms), and the tendency to recall a recognised
-item's label (*Recalled label*) or one's own Phase-2 belief (*Recalled
-belief*) as each category. Within a model the tendencies sum to 1, so they are
-not independent of each other.
+The memory indices with D-vour > 1/3 are used as correlates, on the logit
+scale: *Recognition* (hits and false alarms) and its signal-detection reading
+(*Sensitivity*, *Bias*), the tendency to recall a recognised item's label
+(*Recalled label*) or one's own Phase-2 belief (*Recalled belief*) as each
+category, and the *familiarity bias* slopes. Within a model the tendencies sum
+to 1, so they are not independent of each other. The accuracy indices are
+dominated by uncertainty and left out.
+
+Reading (2026-09-26): the signal-detection indices are reliable (Sensitivity
+.70, Bias .91) and the two follow-up traits relate to them in one way only:
+participants who find the artworks more self-relevant on average make more
+false alarms (*r* = .36), are less sensitive (-.26) and more liberal (.31),
+with no relation to hits; mean follow-up beauty shows the same pattern more
+weakly. Neither trait, nor any memory index, relates to the anti-fake bias or
+to interoception.
 
 ```{r}
 #| label: memory-correlates
@@ -807,6 +889,8 @@ mem_vars <- df_mem_rel |>
   filter(D_vour > 1/3) |>
   transmute(Score = as.character(Feature), Column = as.character(Index),
             ColGroup = case_when(Parameter == "Recognition" ~ "Recognition",
+                                 Parameter == "SDT" ~ "Signal detection",
+                                 Model == "MemorySR" ~ "Familiarity bias",
                                  Model == "MemoryCondition" ~ "Recalled label",
                                  .default = "Recalled belief"))
 df_mem_wide <- df_mem |>
@@ -839,14 +923,32 @@ syntheticness (*Beauty = human*, entered directly: it is not part of the EGA).
 Phase-2 scores and the slope are missing for the 7 participants without
 Phase-2 data.
 
-The scores follow the direction of the loadings: a high *Anti-fake bias* score
-is a *higher* AI (and Forgery) − Original contrast, i.e. a smaller penalty for
-the non-original labels. *Belief consistency* (the precision of the Phase-2
+The scores are oriented so that a high score means more of what the label
+says (see the EGA section): a high *Anti-fake bias* score is a larger penalty
+for the non-original labels, a high *Ugliness extremity* score more extreme
+ugliness judgments. *Belief consistency* (the precision of the Phase-2
 judgments) is left out: none of its scores correlates with any of these
 variables (all |r| ≤ .11).
 
 ```{r}
 #| label: correlates
+
+# The slope indices (posterior means, link scale) that reach D-vour > 1/3
+slope_labels <- c(RealityBeauty_mu_Slope = "Beauty slope",
+                  BeautySR_mu_Slope = "Self-relevance -> beauty",
+                  MeaningSR_mu_Slope = "Self-relevance -> meaning",
+                  MeaningSR_pzero_Slope = "Self-relevance -> P(meaning = 0)",
+                  Beauty2Reality_mu_Slope = "Belief -> follow-up beauty")
+slope_groups <- c(RealityBeauty_mu_Slope = "Beauty = human",
+                  BeautySR_mu_Slope = "Self-relevance coupling",
+                  MeaningSR_mu_Slope = "Self-relevance coupling",
+                  MeaningSR_pzero_Slope = "Self-relevance coupling",
+                  Beauty2Reality_mu_Slope = "Belief carry-over")
+slope_vars <- df_rel |>
+  filter(Model %in% slope_models, D_vour > 1/3) |>
+  transmute(Score = as.character(Feature),
+            Column = coalesce(slope_labels[Score], Score),
+            ColGroup = coalesce(slope_groups[Score], "Slopes"))
 
 # Dimension scores: higher-order ("Overall") and lower-order, grouped by higher-order community
 dim_vars <- bind_rows(
@@ -858,25 +960,27 @@ dim_vars <- bind_rows(
   mutate(ColGroup = tree_higher$Label[match(Higher, tree_higher$Higher)]) |>
   arrange(Higher, Column != "Overall") |>
   filter(ColGroup != labels_higher[["Syn pR B"]]) |> # Belief consistency: no correlates
-  # The determinants slope, not part of the EGA (posterior means, link scale)
-  bind_rows(tibble(Score = "RealityBeauty_mu_Slope", Column = "Beauty slope", ColGroup = "Beauty = human"))
+  # The slope indices, not part of the EGA (posterior means, link scale),
+  # where reliable (D-vour > 1/3)
+  bind_rows(slope_vars)
 
 # Strip colours: those of the higher-order communities in the EGA figure
 fill_higher <- c(setNames(pal_higher[paste0("H", tree_higher$Higher)], tree_higher$Label),
-                 "Beauty = human" = cols_index[["Slope"]])
+                 "Beauty = human" = cols_index[["Slope"]],
+                 "Self-relevance coupling" = "#26A69A", "Belief carry-over" = "#5C6BC0")
 
 df_scores <- bind_cols(Participant = df_wide$Participant,
                        setNames(as.data.frame(scores_higher), paste0("H", colnames(scores_higher))),
                        setNames(as.data.frame(scores_lower), paste0("L", colnames(scores_lower))),
-                       df_wide["RealityBeauty_mu_Slope"])
+                       df_wide[slope_vars$Score])
 
 # Rows: participant characteristics, then the memory indices
 row_vars <- bind_rows(trait_vars, transmute(mem_vars, Score, Row = Column, RowGroup = ColGroup))
 
-df_correlates <- df_scores |>
+df_scores_all <- df_scores |>
   left_join(df_traits, by = "Participant") |>
-  left_join(df_mem_wide, by = "Participant") |>
-  cor_grid(row_vars, dim_vars)
+  left_join(df_mem_wide, by = "Participant")
+df_correlates <- cor_grid(df_scores_all, row_vars, dim_vars)
 cor_markdown(df_correlates, "Correlations between dimension scores and participant characteristics and memory indices (*: FDR-corrected p < .05)")
 ```
 
@@ -891,22 +995,52 @@ cor_heatmap(df_correlates, col_fill = fill_higher)
 
 ### Manuscript figure: interindividual differences
 
+The manuscript figure's lower panel (2026-09-26) is organised differently from
+the table above: rows are the dispositional characteristics only, columns
+everything participants did in the study, i.e. the Phase-1 and Phase-2
+community scores and the follow-up label recall tendencies (the tendency to
+recall a recognised work's label as each category, whatever its actual label).
+Left out, for focus: the *Beauty = human* slope (no correlate), the
+self-relevance coupling slopes (borderline reliable; their AI-attitude
+correlates are in the table above), the mean follow-up ratings (related to
+aesthetic sensitivity, not to the label effects) and the general memory
+indices (recognition, signal detection, familiarity bias) and the recalled
+beliefs (their only trait correlates, with age, are |*r*| ≤ .16 and none
+survives the FDR correction), and the higher-order (*Overall*) scores, each
+nearly identical to one or two of its lower-order communities (*Aesthetic
+appraisal* to *Ugliness extremity*, *r* = .99; *Realness beliefs* to the two
+conviction scores, .97). The correlations of the recalled labels with the
+community scores (in the table above) are null (all |*r*| ≤ .11). The FDR
+correction is recomputed over the correlations shown.
+
+```{r}
+#| label: correlates-manuscript
+
+ms_rows <- filter(trait_vars, RowGroup != "Follow-up ratings")
+ms_cols <- bind_rows(filter(dim_vars, ColGroup %in% tree_higher$Label, Column != "Overall"),
+                     filter(mem_vars, ColGroup == "Recalled label"))
+df_correlates_ms <- cor_grid(df_scores_all, ms_rows, ms_cols)
+cor_markdown(df_correlates_ms, "Manuscript figure: correlations between participant characteristics and community scores and label recall tendencies (*: FDR-corrected p < .05)")
+
+fill_ms <- c(fill_higher, "Recalled label" = "#BF360C")
+```
+
 ```{r}
 #| label: fig-interindividual
-#| fig-cap: "Structure and correlates of the participant-level indices. Top: correlations between the indices entering the EGA (lower half), their reliability (diagonal) and their hierarchical community structure (upper half). Bottom: correlations between the community scores and participant characteristics and follow-up memory indices."
-#| fig-alt: "Top: triangular correlation matrix of the participant-level indices with a tree of their lower- and higher-order communities drawn above the diagonal. Bottom: heatmap of correlations between the community scores and participant characteristics and memory indices."
+#| fig-cap: "Structure and correlates of the participant-level indices. Top: correlations between the indices entering the EGA (lower half), their reliability (diagonal) and their hierarchical community structure (upper half). Bottom: correlations between participant characteristics (rows) and the lower-order community scores and the follow-up label recall tendencies (columns: the tendency to recall a recognised work as having had each label, whatever its actual label)."
+#| fig-alt: "Top: triangular correlation matrix of the participant-level indices with a tree of their lower- and higher-order communities drawn above the diagonal. Bottom: heatmap of correlations between participant characteristics and the community scores and label recall tendencies."
 #| fig-width: 20
-#| fig-height: 35
+#| fig-height: 30
 
 # Manuscript figure of the "Interindividual Differences" section (figures/figure_interindividual.png).
 # The legend of the matrix (top) also covers the correlates (bottom).
 # free(): the matrix is not aligned with the heatmap's panels, so that it can use the full width
 figure_interindividual <- free(p_ega_matrix) /
-  (cor_heatmap(df_correlates, base_size = 20, text_size = 5.2, col_fill = fill_higher) +
+  (cor_heatmap(df_correlates_ms, base_size = 20, text_size = 5.2, col_fill = fill_ms) +
      theme(legend.position = "none", plot.margin = margin(t = 0.1, unit = "in"))) +
-  plot_layout(heights = c(19.4, 15.6))
+  plot_layout(heights = c(19.4, 10.6))
 
 figure_interindividual
 
-ggsave("figures/figure_interindividual.png", figure_interindividual, width = 20, height = 35, dpi = 300, bg = "white")
+ggsave("figures/figure_interindividual.png", figure_interindividual, width = 20, height = 30, dpi = 300, bg = "white")
 ```

@@ -1,0 +1,201 @@
+"Type","Predictor","Level","Outcome","Effect","Median","CI_low","CI_high","pd","Table","At","Old (hits)","New (false alarms)","New - Old","pd_fmt"
+"joint","Beauty2_w","Old","P(recognised)","-2 SD",-10.7224081098552,-14.8727371564214,-6.46856527672997,1,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","Old","P(recognised)","-1 SD",-5.8964941720508,-7.71875240524448,-4.05949279885192,1,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","Old","P(recognised)","+1 SD",7.03638307820971,4.94210619283447,9.21973548909763,1,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","Old","P(recognised)","+2 SD",15.2778891108819,9.91832598178925,21.1283003075694,1,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","Old","P(recognised)","Extremity",2.27200316348089,-1.40830595608115,5.70317022279284,0.89825,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","Old","P(recognised)","Asymmetry",26.0702557103953,19.5421808933205,33.2572010830089,1,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","Old","P(recognised)","-2 SD",-16.4844913793576,-20.8800975387517,-11.9390169982152,1,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","Old","P(recognised)","-1 SD",-8.22910143542242,-10.586664341067,-6.35260868513074,1,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","Old","P(recognised)","+1 SD",7.18119374806846,5.37492367511252,8.88699787432341,1,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","Old","P(recognised)","+2 SD",12.9037565119584,8.71100834044656,16.8391438141269,1,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","Old","P(recognised)","Extremity",-1.80548308567525,-4.66859007921994,1.04727771068727,0.89275,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","Old","P(recognised)","Asymmetry",29.4563906794497,23.3261647675038,35.7729277093084,1,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","Old","P(recognised)","-2 SD",-3.14651767275012,-7.90908148869929,1.25564109061585,0.905,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","Old","P(recognised)","-1 SD",-2.21490292189086,-4.09258011614695,-0.426942332088601,0.99225,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","Old","P(recognised)","+1 SD",3.67426383294521,1.53268243040251,5.79050354776115,0.99925,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","Old","P(recognised)","+2 SD",9.08447266779109,3.09635693356486,14.5757305320842,0.999,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","Old","P(recognised)","Extremity",2.94754664060453,-0.853972348575965,6.85141497939679,0.94175,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","Old","P(recognised)","Asymmetry",12.1079180871662,4.84908960621992,19.1310734231982,0.99975,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","Old","P(recognised)","-2 SD",-14.837070947286,-19.5479025572783,-10.4147917902136,1,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","Old","P(recognised)","-1 SD",-6.99474683942943,-9.12028645559088,-4.95736967257801,1,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","Old","P(recognised)","+1 SD",5.14818180130056,3.56777015495188,6.92828853367824,1,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","Old","P(recognised)","+2 SD",8.09914749493119,4.24569384073398,12.1390799939295,1,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","Old","P(recognised)","Extremity",-3.32962353989922,-6.23336509377853,-0.432635099616185,0.98875,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","Old","P(recognised)","Asymmetry",22.9183492357154,16.8408511580612,29.2850478884029,1,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","Old","P(Human Original | recognised)","-2 SD",-2.81536522422402,-8.62615372953093,2.49438449476635,0.8395,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","Old","P(Human Original | recognised)","-1 SD",-2.26410136022292,-4.47775635604253,-0.191730572977541,0.97775,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","Old","P(Human Original | recognised)","+1 SD",3.84168431285096,1.71128229975893,6.11773586107309,0.9995,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","Old","P(Human Original | recognised)","+2 SD",9.01478731994798,3.49114927235383,14.5401495130846,0.9995,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","Old","P(Human Original | recognised)","Extremity",3.10899821693815,-1.22676095090863,7.11557334188232,0.92075,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","Old","P(Human Original | recognised)","Asymmetry",11.8572283509751,4.4159919151465,18.9251600139397,0.99925,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","Old","P(Human Original | recognised)","-2 SD",-2.78430407338668,-9.1045233788638,3.47973194366021,0.809,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","Old","P(Human Original | recognised)","-1 SD",-2.40604213976524,-4.94298129866987,-0.114617697454769,0.97575,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","Old","P(Human Original | recognised)","+1 SD",4.35677470582232,2.55664169092843,6.22159902896404,1,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","Old","P(Human Original | recognised)","+2 SD",10.3555389528662,6.1389670910166,14.4137720064949,1,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","Old","P(Human Original | recognised)","Extremity",3.78860171717229,-0.335494794235089,7.47772691837982,0.96975,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","Old","P(Human Original | recognised)","Asymmetry",13.2168776240201,5.9395846277769,20.951321132984,1,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","Old","P(Human Original | recognised)","-2 SD",-1.11484995185669,-6.94182640703156,4.31027494538246,0.6495,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","Old","P(Human Original | recognised)","-1 SD",-1.09275620271265,-3.31021624186761,1.04762037810469,0.8355,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","Old","P(Human Original | recognised)","+1 SD",2.24166882795224,-0.233036937023812,4.62961357517677,0.9595,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","Old","P(Human Original | recognised)","+2 SD",5.42015670002144,-1.07338789389617,11.2485013944271,0.95025,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","Old","P(Human Original | recognised)","Extremity",2.12041011541221,-2.1555488903037,6.44587000502545,0.83425,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","Old","P(Human Original | recognised)","Asymmetry",6.47936723728876,-1.98741029271544,13.9496336461598,0.941,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","Old","P(Human Original | recognised)","-2 SD",-1.66400551837634,-8.74060154442853,4.64124627009349,0.68525,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","Old","P(Human Original | recognised)","-1 SD",-1.64533970402208,-4.4115579783054,0.808867447350288,0.899,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","Old","P(Human Original | recognised)","+1 SD",3.25171299760148,1.25705927207327,5.10841939251876,0.99975,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","Old","P(Human Original | recognised)","+2 SD",7.97397301698565,3.656618019944,12.4366527945608,0.99925,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","Old","P(Human Original | recognised)","Extremity",3.15229146065749,-0.773943180496644,7.04680477173896,0.9385,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","Old","P(Human Original | recognised)","Asymmetry",9.62926154759723,1.54142955610617,17.7849986267985,0.9905,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","Old","P(Human Forgery | recognised)","-2 SD",0.505583710217556,-2.42939279160448,3.4335800064612,0.62725,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","Old","P(Human Forgery | recognised)","-1 SD",0.205471972271233,-0.854834227653765,1.34229466161046,0.63625,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","Old","P(Human Forgery | recognised)","+1 SD",-0.153904173815974,-1.26958587455669,1.07159526557599,0.60075,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","Old","P(Human Forgery | recognised)","+2 SD",-0.379145169239083,-3.19109439135105,2.83863661120693,0.592,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","Old","P(Human Forgery | recognised)","Extremity",0.0910888574066604,-2.06525595263492,2.37516107161591,0.53575,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","Old","P(Human Forgery | recognised)","Asymmetry",-0.866576961745346,-4.62748611717837,3.46692260238819,0.66725,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","Old","P(Human Forgery | recognised)","-2 SD",-0.31302538772333,-3.61934947924253,3.1973205526144,0.571,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","Old","P(Human Forgery | recognised)","-1 SD",-0.00511625741923005,-1.29440716474322,1.37176573026018,0.50225,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","Old","P(Human Forgery | recognised)","+1 SD",-0.324197690692126,-1.28101402819347,0.644206795534819,0.76075,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","Old","P(Human Forgery | recognised)","+2 SD",-1.05766696036866,-3.2573224184174,1.04037304553848,0.8405,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","Old","P(Human Forgery | recognised)","Extremity",-0.662329567868646,-2.51435365249297,1.47631101639141,0.73875,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","Old","P(Human Forgery | recognised)","Asymmetry",-0.7844216464025,-5.03035346772078,2.99140711042085,0.66475,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","Old","P(Human Forgery | recognised)","-2 SD",0.63244285805299,-2.2587729266191,3.69297907775637,0.661,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","Old","P(Human Forgery | recognised)","-1 SD",0.214394469781881,-0.916463985051172,1.39979976762935,0.64475,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","Old","P(Human Forgery | recognised)","+1 SD",-0.0168363298546641,-1.2990013725476,1.30877384436808,0.50925,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","Old","P(Human Forgery | recognised)","+2 SD",0.104596344040471,-2.95806864731905,3.81240623290549,0.5235,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","Old","P(Human Forgery | recognised)","Extremity",0.416591282156616,-1.8062466427404,2.83019127268938,0.63025,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","Old","P(Human Forgery | recognised)","Asymmetry",-0.539376409457901,-5.06346780987421,4.09776719350857,0.59375,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","Old","P(Human Forgery | recognised)","-2 SD",-0.536771375626367,-3.97198307555026,3.02505161121541,0.61975,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","Old","P(Human Forgery | recognised)","-1 SD",-0.0942544424649165,-1.49130901266156,1.32749572654259,0.5535,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","Old","P(Human Forgery | recognised)","+1 SD",-0.283203347939657,-1.37158669135987,0.718463342797003,0.7055,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","Old","P(Human Forgery | recognised)","+2 SD",-0.986961457638509,-3.32993938406551,1.2601190840633,0.79225,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","Old","P(Human Forgery | recognised)","Extremity",-0.710781584170852,-2.7307920580288,1.34553316043661,0.7635,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","Old","P(Human Forgery | recognised)","Asymmetry",-0.462301055315338,-4.91537713794102,3.79694562150162,0.5835,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","Old","P(AI-Generated | recognised)","-2 SD",2.178639034217,-3.18306963790423,8.32647897020944,0.77975,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","Old","P(AI-Generated | recognised)","-1 SD",2.02895629310188,-0.0277534187602484,4.33281352230318,0.96725,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","Old","P(AI-Generated | recognised)","+1 SD",-3.70537977288588,-5.92617739844777,-1.45455717305426,0.9995,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","Old","P(AI-Generated | recognised)","+2 SD",-8.7274227785198,-13.8344264171439,-3.05351680184755,0.99875,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","Old","P(AI-Generated | recognised)","Extremity",-3.24396134444668,-7.35826056725035,1.23814306408729,0.929,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","Old","P(AI-Generated | recognised)","Asymmetry",-10.912714245774,-18.325704304778,-4.04165975521158,0.99925,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","Old","P(AI-Generated | recognised)","-2 SD",2.9845370994832,-3.64069533638797,9.87021949904325,0.813,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","Old","P(AI-Generated | recognised)","-1 SD",2.39854387464452,-0.215307118730145,4.86573548328845,0.967,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","Old","P(AI-Generated | recognised)","+1 SD",-3.99921810405336,-5.90558156666967,-2.17619038342641,1,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","Old","P(AI-Generated | recognised)","+2 SD",-9.25097898825342,-13.4333427897899,-5.00996805648313,1,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","Old","P(AI-Generated | recognised)","Extremity",-3.13311620499839,-6.99638008883554,1.05139368095335,0.93225,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","Old","P(AI-Generated | recognised)","Asymmetry",-12.2557682647221,-20.2185200893078,-4.79216331637388,0.99975,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","Old","P(AI-Generated | recognised)","-2 SD",0.340301914709492,-5.54083467054233,5.99933522390781,0.5465,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","Old","P(AI-Generated | recognised)","-1 SD",0.860393596894907,-1.3415076957529,3.10943056412846,0.7815,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","Old","P(AI-Generated | recognised)","+1 SD",-2.20665345659845,-4.64460423530366,0.169563726755143,0.96375,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","Old","P(AI-Generated | recognised)","+2 SD",-5.63685687488013,-11.3273472423719,0.743358705314922,0.9575,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","Old","P(AI-Generated | recognised)","Extremity",-2.62496453257293,-6.96864701154118,1.80423254405576,0.8705,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","Old","P(AI-Generated | recognised)","Asymmetry",-5.91585413612916,-13.3495289493487,2.0302894875145,0.93,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","Old","P(AI-Generated | recognised)","-2 SD",2.01014944932427,-4.66417270962976,9.22244198254022,0.71175,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","Old","P(AI-Generated | recognised)","-1 SD",1.70202514729022,-0.881008266243743,4.56607624308502,0.899,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","Old","P(AI-Generated | recognised)","+1 SD",-2.96231291291656,-4.89732398147317,-0.988854165999225,0.99875,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","Old","P(AI-Generated | recognised)","+2 SD",-7.01566179958931,-11.3427817918717,-2.55633251015816,0.99875,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","Old","P(AI-Generated | recognised)","Extremity",-2.44741831227285,-6.3512931510624,1.76650749183032,0.8745,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","Old","P(AI-Generated | recognised)","Asymmetry",-9.02329632897608,-17.4486486917935,-1.08839159929351,0.99,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","New","P(recognised)","-2 SD",-2.19210848368046,-3.37944556787336,-1.16712173572659,1,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","New","P(recognised)","-1 SD",-1.17740872500092,-1.79903300753194,-0.654105578695119,1,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","New","P(recognised)","+1 SD",1.25921741100078,0.61796289328524,2.04693029439935,1,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","New","P(recognised)","+2 SD",2.5751572297778,0.632729986846159,4.73444525690933,0.999,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","New","P(recognised)","Extremity",0.202541117549424,-0.942200430026168,1.26031914924728,0.6455,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","New","P(recognised)","Asymmetry",4.75869200091438,2.50764068236127,7.33902768946908,1,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","New","P(recognised)","-2 SD",-2.50176984817816,-3.73761317289765,-1.50514737052122,1,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","New","P(recognised)","-1 SD",-1.33509690477051,-2.02620166136367,-0.80983315604668,1,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","New","P(recognised)","+1 SD",1.25064051147345,0.656825809472073,1.97525750964435,1,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","New","P(recognised)","+2 SD",2.13560981206272,0.775530603955054,3.8365721012962,0.9995,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","New","P(recognised)","Extremity",-0.174789644309165,-0.984976450880536,0.672436524634628,0.66375,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","New","P(recognised)","Asymmetry",4.67020025355369,2.67597002478935,7.03302872309938,1,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","New","P(recognised)","-2 SD",-1.30632401957488,-2.42588474623516,-0.130580991261764,0.9865,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","New","P(recognised)","-1 SD",-0.683763884126026,-1.23031934765384,-0.179462730144598,0.99725,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","New","P(recognised)","+1 SD",0.686852823160899,0.0714114831811159,1.3606368030592,0.9915,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","New","P(recognised)","+2 SD",1.40288813199324,-0.228372721935455,3.41983741759555,0.9585,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","New","P(recognised)","Extremity",0.0848026411828902,-0.906083314064509,1.21456377746395,0.55825,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","New","P(recognised)","Asymmetry",2.72193939323346,0.683619388933143,4.99407914027242,0.9985,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","New","P(recognised)","-2 SD",-2.03935302353,-3.28416752150202,-0.981561698276679,0.9995,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","New","P(recognised)","-1 SD",-1.02037539191651,-1.67877897872254,-0.486229640086233,0.9995,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","New","P(recognised)","+1 SD",0.79121050561558,0.206303331878188,1.3875866678266,0.99875,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","New","P(recognised)","+2 SD",1.14772521049003,-0.0837146607406529,2.61470147462297,0.9635,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","New","P(recognised)","Extremity",-0.431289690793291,-1.23467217909745,0.358635105494992,0.86075,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","New","P(recognised)","Asymmetry",3.19039471741786,1.37661447401598,5.261672197531,0.99975,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","New","P(Human Original | recognised)","-2 SD",-1.67469171858386,-9.96055944290324,6.67534075913809,0.653,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","New","P(Human Original | recognised)","-1 SD",-1.70206457338078,-5.17867854674291,1.60316319722844,0.84575,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","New","P(Human Original | recognised)","+1 SD",3.52338805116102,0.372985447145652,6.99148501262657,0.98425,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","New","P(Human Original | recognised)","+2 SD",8.44349822008711,1.10595249433327,16.1360742079252,0.9825,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","New","P(Human Original | recognised)","Extremity",3.30988042403283,-2.74329606405823,8.43713926517827,0.87775,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","New","P(Human Original | recognised)","Asymmetry",10.0246856104142,-1.29324641332529,21.6476556846015,0.95775,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","New","P(Human Original | recognised)","-2 SD",-8.37210080778331,-17.5635130334357,0.94533669933935,0.95875,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","New","P(Human Original | recognised)","-1 SD",-4.10554632276558,-7.94681331266094,-0.630122469798849,0.986,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","New","P(Human Original | recognised)","+1 SD",4.08831645117393,1.07790469013744,6.96002767312047,0.998,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","New","P(Human Original | recognised)","+2 SD",8.00443426047592,1.38592608466202,14.5493451723005,0.989,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","New","P(Human Original | recognised)","Extremity",-0.214138903906818,-5.59212845079612,5.49505567585963,0.5315,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","New","P(Human Original | recognised)","Asymmetry",16.2427227575245,4.11680520813553,27.5367402260089,0.997,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","New","P(Human Original | recognised)","-2 SD",2.75097297102429,-5.3492052601223,10.6985143126172,0.736,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","New","P(Human Original | recognised)","-1 SD",0.534953382601969,-3.08151378470423,3.79563278366381,0.6135,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","New","P(Human Original | recognised)","+1 SD",1.48624689409818,-1.92381490960501,5.2591367874236,0.79075,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","New","P(Human Original | recognised)","+2 SD",4.78589245307618,-3.29747515974449,13.4103002480381,0.85925,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","New","P(Human Original | recognised)","Extremity",3.73851466370989,-2.24694887955543,8.80158243310679,0.9035,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","New","P(Human Original | recognised)","Asymmetry",2.03693662542921,-9.04974182328591,15.6594600551103,0.633,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","New","P(Human Original | recognised)","-2 SD",-9.37731737730372,-18.8755912340155,0.453410450804391,0.96825,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","New","P(Human Original | recognised)","-1 SD",-4.24444446262478,-8.06152661969708,-0.448041189428508,0.98475,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","New","P(Human Original | recognised)","+1 SD",3.47805795482537,0.226550250107024,6.47755908282428,0.98225,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","New","P(Human Original | recognised)","+2 SD",6.24324480640996,-0.648103195153347,13.29476319184,0.953,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","New","P(Human Original | recognised)","Extremity",-1.63710783149685,-6.81671142326105,4.09392181825445,0.71825,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","New","P(Human Original | recognised)","Asymmetry",15.5396037136697,2.66568433951737,28.2650181651351,0.98925,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","New","P(Human Forgery | recognised)","-2 SD",1.91459704777495,-2.83008868830017,7.5982210531084,0.76775,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","New","P(Human Forgery | recognised)","-1 SD",0.700286948968277,-1.27290635149805,2.68456545097359,0.77325,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","New","P(Human Forgery | recognised)","+1 SD",-0.325950632598974,-2.00866292996565,1.62392627880202,0.63225,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","New","P(Human Forgery | recognised)","+2 SD",-0.41521898362254,-4.46436519131369,4.37417810923314,0.56425,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","New","P(Human Forgery | recognised)","Extremity",0.86202317969888,-2.47190864936638,4.2757789078738,0.6935,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","New","P(Human Forgery | recognised)","Asymmetry",-2.27452980390484,-9.36376753956933,5.1366110709355,0.73825,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","New","P(Human Forgery | recognised)","-2 SD",0.589773461692563,-4.40537791333802,6.37353567977432,0.57375,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","New","P(Human Forgery | recognised)","-1 SD",0.300970315048111,-1.67317594125676,2.48628030760209,0.6055,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","New","P(Human Forgery | recognised)","+1 SD",-0.325989813400131,-1.9908381963927,1.34302294391744,0.651,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","New","P(Human Forgery | recognised)","+2 SD",-0.704861306689916,-4.32679247166323,3.34687175397769,0.63425,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","New","P(Human Forgery | recognised)","Extremity",0.0384427392443039,-3.24757554362991,3.17628686272404,0.50725,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","New","P(Human Forgery | recognised)","Asymmetry",-1.26250573793276,-7.84087204104867,6.01403922384227,0.6405,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","New","P(Human Forgery | recognised)","-2 SD",1.82369039942133,-3.56920400938108,7.47616552319206,0.75575,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","New","P(Human Forgery | recognised)","-1 SD",0.678847537820547,-1.48918597847514,2.87825482548516,0.74125,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","New","P(Human Forgery | recognised)","+1 SD",-0.252472528684314,-2.22322696384262,1.89065727284699,0.60175,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","New","P(Human Forgery | recognised)","+2 SD",-0.134290463756456,-4.59941158485458,5.35238524393558,0.52175,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","New","P(Human Forgery | recognised)","Extremity",1.00461800543798,-2.12510389106989,4.63005334091051,0.72175,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","New","P(Human Forgery | recognised)","Asymmetry",-1.94967513761319,-10.4963034910059,6.11679619954165,0.69025,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","New","P(Human Forgery | recognised)","-2 SD",-0.339836848429189,-5.40532319133603,5.39784343456248,0.54875,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","New","P(Human Forgery | recognised)","-1 SD",-0.0561776649463042,-2.13235359266882,2.37699988733411,0.5205,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","New","P(Human Forgery | recognised)","+1 SD",-0.153585529806278,-1.96452652570472,1.86604536209957,0.563,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","New","P(Human Forgery | recognised)","+2 SD",-0.458448197803442,-4.50910687405766,3.93473857177172,0.57575,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","New","P(Human Forgery | recognised)","Extremity",-0.242229119089366,-3.41560193037666,2.86632399674667,0.56225,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","New","P(Human Forgery | recognised)","Asymmetry",-0.113280687738881,-7.90086217305499,7.52601087672853,0.5095,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","New","P(AI-Generated | recognised)","-2 SD",-0.445774088851593,-8.71650931827427,8.44303139790314,0.5425,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","New","P(AI-Generated | recognised)","-1 SD",0.978004003819905,-2.42430171770104,4.45064561925645,0.71075,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","New","P(AI-Generated | recognised)","+1 SD",-3.22112666147257,-6.48329829849266,-0.0397548936519101,0.978,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","New","P(AI-Generated | recognised)","+2 SD",-8.10732770807887,-14.9354948994712,-0.612496617219946,0.9835,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","New","P(AI-Generated | recognised)","Extremity",-4.27683741393649,-9.72856405980549,2.02724919523361,0.92375,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","Beauty2_w","New","P(AI-Generated | recognised)","Asymmetry",-7.72464022483133,-19.0088166276373,3.12758679494502,0.924,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","New","P(AI-Generated | recognised)","-2 SD",7.46836873454902,-2.63244389722102,17.195337257978,0.93075,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","New","P(AI-Generated | recognised)","-1 SD",3.79221164666726,0.159853054101699,7.65176731899793,0.97925,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","New","P(AI-Generated | recognised)","+1 SD",-3.73347178641475,-6.55715904574981,-0.849704131157765,0.9955,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","New","P(AI-Generated | recognised)","+2 SD",-7.37285563286268,-13.165699963875,-0.674702699345008,0.98725,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","New","P(AI-Generated | recognised)","Extremity",0.0598585740594579,-5.70610686162665,5.86862328859962,0.50925,"Probability (pp)",NA,NA,NA,NA,NA
+"joint","SR_w","New","P(AI-Generated | recognised)","Asymmetry",-14.7547569712919,-26.9610270578328,-3.10443510691412,0.9945,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","New","P(AI-Generated | recognised)","-2 SD",-4.84939339622823,-12.3672783996162,3.3713345896744,0.87175,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","New","P(AI-Generated | recognised)","-1 SD",-1.25327095483617,-4.5572644171839,2.31595710344196,0.762,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","New","P(AI-Generated | recognised)","+1 SD",-1.29190659513029,-4.81829965970805,2.23503852718255,0.77075,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","New","P(AI-Generated | recognised)","+2 SD",-4.91045523622787,-13.2794758354667,2.83805693821064,0.8835,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","New","P(AI-Generated | recognised)","Extremity",-4.75268582677066,-10.0651281099133,1.21439462531391,0.9495,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Beauty2_w","New","P(AI-Generated | recognised)","Asymmetry",-0.0523602493656696,-11.7672307198617,11.4264675262672,0.503,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","New","P(AI-Generated | recognised)","-2 SD",9.34607658903046,-1.48796217576083,19.4204050460105,0.96425,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","New","P(AI-Generated | recognised)","-1 SD",4.20850938088702,0.362723893179393,8.28008929357261,0.9845,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","New","P(AI-Generated | recognised)","+1 SD",-3.3352660096932,-6.33550915141482,-0.405882244740511,0.9845,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","New","P(AI-Generated | recognised)","+2 SD",-5.89875028419888,-12.0910568389654,0.85907537404789,0.953,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","New","P(AI-Generated | recognised)","Extremity",1.78501289018897,-4.06733935977298,7.58722206020441,0.71625,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","SR_w","New","P(AI-Generated | recognised)","Asymmetry",-15.1040227914021,-28.2126335977066,-1.67520330129947,0.99,"Probability (pp)",NA,NA,NA,NA,NA
+"unique","Self-relevance",NA,NA,"n.s.",NA,NA,NA,NA,"Log odds ratio","-2 SD","-0.75 [-1.00, -0.52]","-0.61 [-0.97, -0.27]","0.14 [-0.23, 0.53]","76.58%"
+"unique","Self-relevance",NA,NA,"n.s.",NA,NA,NA,NA,"Log odds ratio","+2 SD","0.34 [0.19, 0.51]","0.23 [-0.02, 0.46]","-0.11 [-0.38, 0.16]","79.35%"
+"unique","Follow-up beauty",NA,NA,"n.s.",NA,NA,NA,NA,"Log odds ratio","-2 SD","-0.14 [-0.36, 0.06]","-0.35 [-0.65, -0.04]","-0.21 [-0.55, 0.13]","88.40%"
+"unique","Follow-up beauty",NA,NA,"n.s.",NA,NA,NA,NA,"Log odds ratio","+2 SD","0.38 [0.14, 0.61]","0.28 [-0.02, 0.62]","-0.10 [-0.48, 0.29]","70.23%"
+"joint","Self-relevance",NA,NA,"n.s.",NA,NA,NA,NA,"Log odds ratio","-2 SD","-0.86 [-1.11, -0.65]","-0.82 [-1.15, -0.50]","0.05 [-0.33, 0.40]","60.62%"
+"joint","Self-relevance",NA,NA,"n.s.",NA,NA,NA,NA,"Log odds ratio","+2 SD","0.54 [0.38, 0.71]","0.40 [0.16, 0.62]","-0.14 [-0.39, 0.11]","85.62%"
+"joint","Follow-up beauty",NA,NA,"n.s.",NA,NA,NA,NA,"Log odds ratio","-2 SD","-0.52 [-0.74, -0.33]","-0.67 [-0.95, -0.36]","-0.15 [-0.51, 0.16]","81.15%"
+"joint","Follow-up beauty",NA,NA,"n.s.",NA,NA,NA,NA,"Log odds ratio","+2 SD","0.63 [0.41, 0.87]","0.47 [0.15, 0.75]","-0.16 [-0.49, 0.20]","82.45%"

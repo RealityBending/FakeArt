@@ -16,9 +16,17 @@ if (!exists("%||%", envir = baseenv())) {
 # 3_models.qmd outcomes. label/family/scale are printed; the rest drive get_estimates():
 #   backend         emmeans (default) or marginaleffects (ordinal models)
 #   range           scale width for the % conversion (NULL = already 0-1, NA = unbounded)
-#   extra_contrast  a second contrast table over another factor
+#   by              the factor the Condition contrasts are repeated within
+#                   (default Emotion; durability_info's Beauty2Recognition:
+#                   Recognition)
+#   extra_contrast  a second contrast table over another factor, with the
+#                   marginal means per level of it (`means_extra`); for the
+#                   rating and belief models it is Emotion, so that the
+#                   stimulus' affective category has a main effect to report
+#                   (RQ2), computed last so the sampled components keep the
+#                   RNG stream of the 2026-09-22 extraction
 #   marginal        marginal CHOCO parameters for the density figures
-#   marginal_emo    the same by Condition x Emotion
+#   marginal_emo    the same by Condition x `by`
 #   discrete        list(iterations=): predicted response-category proportions
 #   density         list(iterations=, by=): per-draw predictive densities
 #   individual      dpars for get_individual() (participant-level indices)
@@ -26,7 +34,7 @@ outcome_info <- list(
   Beauty = list(
     label = "Beauty", family = "CHOCO",
     scale = "analog slider rescaled to 0 (Ugly) - 1 (Beautiful)",
-    marginal = TRUE, marginal_emo = TRUE,
+    marginal = TRUE, marginal_emo = TRUE, extra_contrast = "Emotion",
     individual = c("mu", "confright", "confleft", "precright", "precleft")
   ),
   Beauty2 = list(
@@ -37,13 +45,13 @@ outcome_info <- list(
   Reality = list(
     label = "Syntheticness", family = "CHOCO",
     scale = "slider rescaled to 0 (AI-Generated) - 1 (Human Creation); higher = judged more human",
-    marginal = TRUE,
+    marginal = TRUE, extra_contrast = "Emotion",
     individual = c("mu", "confright", "confleft", "precright", "precleft")
   ),
   Authenticity = list(
     label = "Authenticity", family = "CHOCO",
     scale = "slider rescaled to 0 (Copy / Forgery) - 1 (Original Creation)",
-    marginal = TRUE,
+    marginal = TRUE, extra_contrast = "Emotion",
     individual = c("mu", "confright", "confleft", "precright", "precleft")
   ),
   Artificiality = list(
@@ -54,19 +62,19 @@ outcome_info <- list(
   Valence = list(
     label = "Valence", family = "Discrete Beta (k = 7)",
     scale = "7-point pictorial scale coded 1 (Negative) - 7 (Positive); `response` differences are reported in % of the 6-point range",
-    range = 6, discrete = list(iterations = 100),
+    range = 6, discrete = list(iterations = 100), extra_contrast = "Emotion",
     individual = c("mu", "phi")
   ),
   Meaning = list(
     label = "Meaning", family = "Discrete Beta (k = 6) with zero hurdle",
     scale = "0 (Not at all) - 6 (Very much); `response` differences are reported in % of the 6-point range; `pzero` is the probability of answering exactly 0",
-    range = 6, discrete = list(iterations = 100),
+    range = 6, discrete = list(iterations = 100), extra_contrast = "Emotion",
     individual = c("mu", "phi", "pzero")
   ),
   Worth = list(
     label = "Worth", family = "Cumulative (ordinal)",
     scale = "6 ordered categories $0, $10, $100, $1,000, $10,000, $100,000; `response - <k>` rows are differences in the probability of choosing category k",
-    backend = "marginaleffects", discrete = list(iterations = 100),
+    backend = "marginaleffects", discrete = list(iterations = 100), extra_contrast = "Emotion",
     individual = c("mu", "disc")
   ),
   SelfRelevance = list(
@@ -100,6 +108,21 @@ outcome_info <- list(
   )
 )
 
+# Durability (4_memory.qmd, not 3_models.qmd, which reads every outcome_info
+# entry): the same shape as an outcome_info entry, with `by` in place of
+# Emotion. Beauty2 ~ Condition * Recognition (models.R), old items of the
+# follow-up file: the Condition contrasts within each Recognition level are
+# the label effect among recognised vs. unrecognised artworks, the
+# Recognition contrast the (label-free) memory advantage of liked works.
+durability_info <- list(
+  Beauty2Recognition = list(
+    label = "Beauty (follow-up) by recognition", family = "CHOCO",
+    scale = "analog slider rescaled to 0 (Ugly) - 1 (Beautiful), rated at follow-up; contrasts within artworks judged 'seen before' (Yes) or not (No)",
+    by = "Recognition", extra_contrast = "Recognition",
+    marginal = TRUE, marginal_emo = TRUE
+  )
+)
+
 # 4_memory.qmd categorical models. `by` = the factor contrasted and plotted.
 memory_info <- list(
   MemoryCondition = list(
@@ -117,6 +140,23 @@ memory_info <- list(
   MemoryConditionBelief = list(
     label = "Memory of the Condition by Belief",
     family = "Categorical", by = "Belief", estimate = "observed"
+  ),
+  # Memory vs. re-inference (models.R): the two models above with the
+  # Phase-1 beauty, follow-up beauty and self-relevance of the artwork as
+  # covariates. `predictors` adds the answer probabilities over a grid of each
+  # rating (memory_grid_draws(), averaged over the observed combinations of
+  # `factors`), read with memory_grid_effects() like MemoryAppraisal; the
+  # Belief contrasts (observed counterfactuals) keep the ratings at their
+  # observed values.
+  MemoryBeliefAppraisal = list(
+    label = "Memory of Beliefs, controlling the appraisal",
+    family = "Categorical", by = "Belief", estimate = "observed",
+    predictors = c("Beauty_w", "Beauty2_w", "SR_w"), factors = "Belief"
+  ),
+  MemoryConditionAppraisal = list(
+    label = "Memory of the Condition by Belief, controlling the appraisal",
+    family = "Categorical", by = "Belief", estimate = "observed",
+    predictors = c("Beauty_w", "Beauty2_w", "SR_w"), factors = c("Condition", "Belief")
   )
 )
 
@@ -170,6 +210,21 @@ mediation_info <- list(
     outcome = "PerceivedArtificiality", mediator = "Beauty2_w", by = "Type",
     grid = mediation_grid, dpars = c("mu", "confright", "confleft")
   ),
+  # Durability (models.R, Beauty2Reality): follow-up beauty on the label x
+  # Phase-2 syntheticness, Phase-1 beauty held at 0 (covariate_slopes() for
+  # its own slope). A mediation in the sense of RealityBeauty: the label
+  # moved Reality in Phase 2, so mediation_effects() gives the part of the
+  # (null) label effect on follow-up beauty that the induced belief carries,
+  # and the direct part; grid_slopes() the "believed human = beautiful later"
+  # slope per label.
+  # individual = "mu": the participant's slope of the follow-up beauty choice
+  # on their own Phase-2 syntheticness belief ("believed human = beautiful
+  # later"; 7_correlates.qmd checks its reliability, 2026-09-26)
+  Beauty2Reality = list(
+    label = "Follow-up Beauty by Phase-2 Syntheticness, controlling Phase-1 Beauty", family = "CHOCO",
+    outcome = "Beauty2", mediator = "Reality_w", grid = mediation_grid,
+    dpars = c("mu", "confright", "confleft"), covariates = c(Beauty_w = 0), individual = "mu"
+  ),
   # Self-relevance as a moderator (6_selfrelevance.qmd; models.R, BeautySR,
   # ...). Not mediations -- the label does not move SR, so mediation_effects()
   # does not apply -- but the same grid over SR_w per label, which
@@ -177,10 +232,12 @@ mediation_info <- list(
   # SR and the SR slope per label. Beauty2_w, where present, is held at 0 and
   # its own slopes come from covariate_slopes(). `outcome` is the rating, for
   # the % scaling (Meaning: range 6).
+  # individual = "mu": the participant's slope of the beauty choice on their
+  # own self-relevance (7_correlates.qmd, "self-relevance -> beauty coupling")
   BeautySR = list(
     label = "Phase-1 Beauty by Self-Relevance", family = "CHOCO",
     outcome = "Beauty", mediator = "SR_w", grid = mediation_grid,
-    dpars = c("mu", "confright", "confleft")
+    dpars = c("mu", "confright", "confleft"), individual = "mu"
   ),
   BeautySRControl = list(
     label = "Phase-1 Beauty by Self-Relevance, controlling follow-up Beauty", family = "CHOCO",
@@ -199,7 +256,7 @@ mediation_info <- list(
   MeaningSR = list(
     label = "Phase-1 Meaning by Self-Relevance", family = "Discrete Beta (k = 6) with zero hurdle",
     outcome = "Meaning", mediator = "SR_w", grid = mediation_grid,
-    dpars = c("mu", "pzero")
+    dpars = c("mu", "pzero"), individual = c("mu", "pzero")
   ),
   # Items judged new, by Type (as ArtificialityBeauty), with SR on the grid
   # and follow-up beauty as the covariate: grid_slopes() / covariate_slopes().
@@ -248,10 +305,26 @@ shape_models <- c("AuthenticityBeautyQuad")
 # (get_memory_grid_estimates()), read by 4_memory.qmd, "Memory by Phase-1
 # Appraisal". Kept out of memory_info, whose models 4_memory.qmd tabulates
 # together. `predictors`: the centred ratings, each with a quadratic term.
+# `factors` (default Condition): the factor columns the model needs in its
+# newdata; predictions are made at every observed combination of them and
+# averaged, unless `average = FALSE`, in which case the grid keeps one row per
+# combination, labelled by the first factor (`Level`).
 memory_grid_info <- list(
   MemoryAppraisal = list(
     label = "Memory by Phase-1 Beauty and Valence", family = "Categorical",
     predictors = c("Beauty_w", "Valence_w")
+  ),
+  # Self-relevance and memory (models.R, MemorySR): hits (old items, per
+  # label) and false alarms (New Items) along follow-up self-relevance and
+  # beauty. Type is in the model formula, so it rides along with Condition.
+  # individual: the participant's slope of the log odds of "seen before" on
+  # each rating (the familiarity bias; get_memory_slope_individual(),
+  # 7_correlates.qmd). The random part has the rating slopes without a Type
+  # interaction, so one slope per participant covers hits and false alarms.
+  MemorySR = list(
+    label = "Memory by follow-up Self-Relevance and Beauty", family = "Categorical",
+    predictors = c("SR_w", "Beauty2_w"), factors = c("Condition", "Type"), average = FALSE,
+    individual = c("SR_w", "Beauty2_w")
   )
 )
 
@@ -372,7 +445,11 @@ get_contrasts <- function(m, outcome = "Beauty", contrast = "Condition", by = NU
   if (outcome %in% c("Worth", "SelfRelevance")) params <- params[!params %in% c("disc")]
   if (outcome %in% c("pLeft", "pCenter")) params <- params[!params %in% c("zoi", "coi")]
   for (par in params) {
-    if (!is.null(by) && par %in% c("pmid", "pex", "bex", "disc")) next
+    # The extreme / midpoint probabilities (and disc) are modelled on
+    # Condition only, so they have no Emotion (or other factor) to contrast
+    # by or over: `No variable named Emotion in the reference grid`
+    # (extract jobs 11411709/24/31, 2026-09-25).
+    if ((!is.null(by) || contrast != "Condition") && par %in% c("pmid", "pex", "bex", "disc")) next
 
     c <- estimate_contrasts(m, contrast = contrast, by = by, predict = par,
                             backend = backend, test = "pd", iterations = 500) |>
@@ -524,25 +601,28 @@ get_estimates <- function(m, outcome, verbose = TRUE) {
     return(get_items_estimates(m, outcome, verbose = verbose))
   }
   info <- outcome_info[[outcome]]
+  if (is.null(info)) info <- durability_info[[outcome]]
   if (is.null(info)) {
     stop("no registry entry for '", outcome, "' -- add one to outcome_info ",
-         "(a 3_models.qmd outcome), memory_info / memory_grid_info (a 4_memory.qmd model), mediation_info, appraisal_info or items_info ",
+         "(a 3_models.qmd outcome), durability_info, memory_info / memory_grid_info (a 4_memory.qmd model), mediation_info, appraisal_info or items_info ",
          "in estimates.R before extracting it", call. = FALSE)
   }
   backend <- if (is.null(info$backend)) "emmeans" else info$backend
+  by <- if (is.null(info$by)) "Emotion" else info$by
   step <- function(what) if (verbose) cat("**", outcome, "-", what, ":", format(Sys.time()), "\n")
 
   est <- list(
     outcome = outcome,
     label = info$label,
     family = info$family,
+    by = by,
     created = Sys.time(),
     ndraws = brms::ndraws(m),
     nchains = brms::nchains(m)
   )
 
   step("diagnostics")
-  est$diag <- get_diagnostics(m, outcome)
+  est$diag <- get_diagnostics(m, outcome, family = info$family)
   est$convergence <- get_convergence(m)
 
   step("marginal means")
@@ -554,23 +634,16 @@ get_estimates <- function(m, outcome, verbose = TRUE) {
   est$contrasts <- rez$dat_con
   est$contrasts_credible <- rez$rez_con
 
-  step("contrasts (Condition | Emotion)")
-  est$contrasts_emo <- get_contrasts(m, outcome, contrast = "Condition", by = "Emotion", backend = backend)$dat_con
-
-  if (!is.null(info$extra_contrast)) {
-    step(paste0("contrasts (", info$extra_contrast, ")"))
-    rez2 <- get_contrasts(m, outcome, contrast = info$extra_contrast, backend = backend)
-    est$contrasts_extra <- rez2$dat_con
-    est$contrasts_extra_credible <- rez2$rez_con
-  }
+  step(paste0("contrasts (Condition | ", by, ")"))
+  est$contrasts_emo <- get_contrasts(m, outcome, contrast = "Condition", by = by, backend = backend)$dat_con
 
   if (isTRUE(info$marginal)) {
     step("marginal parameters")
     est$marginal <- get_marginal_parameters(m)
   }
   if (isTRUE(info$marginal_emo)) {
-    step("marginal parameters (Condition x Emotion)")
-    est$marginal_emo <- get_marginal_parameters(m, by = c("Condition", "Emotion"))
+    step(paste0("marginal parameters (Condition x ", by, ")"))
+    est$marginal_emo <- get_marginal_parameters(m, by = c("Condition", by))
   }
 
   if (!is.null(info$discrete)) {
@@ -580,7 +653,7 @@ get_estimates <- function(m, outcome, verbose = TRUE) {
                                 keep_iterations = TRUE, centrality = "median") |>
       strip_model()
     est$discrete <- get_discrete_summary(pred, by = "Condition")
-    est$discrete_emo <- get_discrete_summary(pred, by = c("Condition", "Emotion"))
+    est$discrete_emo <- get_discrete_summary(pred, by = c("Condition", by))
     rm(pred)
   }
 
@@ -592,6 +665,23 @@ get_estimates <- function(m, outcome, verbose = TRUE) {
       strip_model()
     est$density <- get_density_curves(pred, by = info$density$by)
     rm(pred)
+  }
+
+  # Last, so that adding it to a model leaves the sampled components above
+  # (500-iteration contrasts, posterior predictions) on the same RNG stream
+  # as before: means per level and contrasts between levels of the extra
+  # factor (Emotion for the ratings and beliefs: RQ2's main effect; Emotion
+  # for the gaze models; Recognition for Beauty2Recognition).
+  if (!is.null(info$extra_contrast)) {
+    step(paste0("means and contrasts (", info$extra_contrast, ")"))
+    est$means_extra <- get_means(m, by = info$extra_contrast)
+    rez2 <- get_contrasts(m, outcome, contrast = info$extra_contrast, backend = backend)
+    est$contrasts_extra <- rez2$dat_con
+    est$contrasts_extra_credible <- rez2$rez_con
+  }
+  if (!identical(by, "Emotion")) {
+    step(paste0("marginal means (Condition x ", by, ")"))
+    est$means_by <- get_means(m, by = c("Condition", by))
   }
 
   step("report")
@@ -624,16 +714,27 @@ get_memory_estimates <- function(m, outcome, verbose = TRUE) {
   if (identical(info$estimate, "observed")) {
     step(paste0("marginal means and contrasts over the observed trials (", info$by, ")"))
     est <- c(est, memory_observed(m, info$by))
-    return(est)
+  } else {
+    step(paste0("marginal means (", info$by, ")"))
+    est$means <- as.data.frame(strip_model(estimate_means(m, by = info$by)))
+
+    step(paste0("contrasts (", info$by, ")"))
+    est$contrasts <- as.data.frame(strip_model(
+      estimate_contrasts(m, contrast = info$by, test = "pd")
+    ))
   }
 
-  step(paste0("marginal means (", info$by, ")"))
-  est$means <- as.data.frame(strip_model(estimate_means(m, by = info$by)))
-
-  step(paste0("contrasts (", info$by, ")"))
-  est$contrasts <- as.data.frame(strip_model(
-    estimate_contrasts(m, contrast = info$by, test = "pd")
-  ))
+  # Continuous covariates (MemoryBeliefAppraisal, MemoryConditionAppraisal):
+  # their fixed effects and the answer probabilities along a grid of each, as
+  # for the memory_grid_info models, kept apart in `by_rating` (its `draws`
+  # are draws x grid rows x answers; the `draws` above are the observed
+  # counterfactuals, draws x levels x answers): memory_grid_effects(est$by_rating)
+  if (!is.null(info$predictors)) {
+    step("fixed effects and predictions over the predictor grid")
+    est$by_rating <- c(list(predictors = info$predictors),
+                       memory_grid_draws(m, info$predictors, factors = info$factors,
+                                         average = !isFALSE(info$average)))
+  }
 
   est
 }
@@ -709,16 +810,29 @@ get_memory_grid_estimates <- function(m, outcome, verbose = TRUE) {
   est$diag <- get_diagnostics(m, outcome, family = info$family)
   est$convergence <- get_convergence(m)
 
-  step("fixed effects")
+  step("fixed effects and predictions over the predictor grid")
+  c(est, memory_grid_draws(m, preds, factors = info$factors, average = !isFALSE(info$average)))
+}
+
+# The fixed effects (`fixed`) and the grid predictions (`grid`, `draws`, `sd`,
+# `joint`) of a categorical model with continuous predictors; shared by
+# get_memory_grid_estimates() and, through memory_info `predictors`, by
+# get_memory_estimates(). `factors`: the factor columns the newdata needs
+# (default Condition); predictions are made at every observed combination of
+# them and averaged (`average = TRUE`) or kept, one grid row per combination,
+# labelled by the first factor in `Level`.
+memory_grid_draws <- function(m, preds, factors = NULL, average = TRUE) {
+  if (is.null(factors)) factors <- "Condition"
+  out <- list()
+
   b <- as.data.frame(brms::as_draws_df(m, variable = "^b_", regex = TRUE))
   b <- b[grepl("^b_", names(b))]
-  est$fixed <- do.call(rbind, lapply(names(b), function(v) {
+  out$fixed <- do.call(rbind, lapply(names(b), function(v) {
     ci <- bayestestR::hdi(b[[v]], ci = 0.95)
     data.frame(Parameter = v, Median = stats::median(b[[v]]), CI_low = ci$CI_low,
                CI_high = ci$CI_high, pd = as.numeric(bayestestR::p_direction(b[[v]])))
   }))
 
-  step("predictions over the predictor grid")
   d <- model_data(m)
   sds <- vapply(setNames(nm = preds), function(p) stats::sd(d[[p]]), numeric(1))
   # joint[a, b]: within-person slope of rating b on rating a (both centred)
@@ -737,20 +851,34 @@ get_memory_grid_estimates <- function(m, outcome, verbose = TRUE) {
     rows[[length(rows) + 1]] <- r
   }
   base <- do.call(rbind, rows)
-  lv <- levels(d$Condition)
-  nd <- base[rep(seq_len(nrow(base)), each = length(lv)), preds, drop = FALSE]
-  nd$Condition <- factor(rep(lv, times = nrow(base)), levels = lv)
+  # The observed combinations of the factors (e.g. every label x belief, or
+  # each label with its Type), in the order of the first factor's levels
+  combos <- unique(d[factors])
+  combos <- combos[order(combos[[factors[1]]]), , drop = FALSE]
+  rownames(combos) <- NULL
+  nc <- nrow(combos)
+  nd <- base[rep(seq_len(nrow(base)), each = nc), preds, drop = FALSE]
+  for (f in factors) nd[[f]] <- rep(combos[[f]], times = nrow(base))
   p <- brms::posterior_epred(m, newdata = nd, re_formula = NA) # draws x rows x answers
-  idx <- rep(seq_len(nrow(base)), each = length(lv))
-  D <- array(NA_real_, dim = c(dim(p)[1], nrow(base), dim(p)[3]),
-             dimnames = list(NULL, NULL, dimnames(p)[[3]]))
-  for (i in seq_len(nrow(base))) D[, i, ] <- apply(p[, idx == i, , drop = FALSE], c(1, 3), mean)
+  idx <- rep(seq_len(nrow(base)), each = nc)
+  if (average) {
+    D <- array(NA_real_, dim = c(dim(p)[1], nrow(base), dim(p)[3]),
+               dimnames = list(NULL, NULL, dimnames(p)[[3]]))
+    for (i in seq_len(nrow(base))) D[, i, ] <- apply(p[, idx == i, , drop = FALSE], c(1, 3), mean)
+  } else {
+    D <- p
+    dimnames(D) <- list(NULL, NULL, dimnames(p)[[3]])
+    base <- base[idx, , drop = FALSE]
+    base$Level <- rep(as.character(combos[[factors[1]]]), times = nrow(base) / nc)
+    rownames(base) <- NULL
+  }
 
-  est$grid <- base
-  est$draws <- D
-  est$sd <- sds
-  est$joint <- joint
-  est
+  out$grid <- base
+  out$draws <- D
+  out$sd <- sds
+  out$joint <- joint
+  out$factors <- combos
+  out
 }
 
 # From get_memory_grid_estimates(): per predictor and path (unique / joint),
@@ -763,6 +891,9 @@ get_memory_grid_estimates <- function(m, outcome, verbose = TRUE) {
 memory_grid_effects <- function(est) {
   g <- est$grid
   D <- est$draws
+  # Grids kept per factor level (average = FALSE) carry a Level column; the
+  # curves and effects are then per level as well
+  keys <- intersect(c("Type", "Predictor", "Level"), names(g))
   answers <- setdiff(dimnames(D)[[3]], "Not recognized")
   rec <- 1 - D[, , "Not recognized"]
   outs <- c(list(Recognised = rec), lapply(setNames(nm = answers), function(a) D[, , a] / rec))
@@ -775,19 +906,19 @@ memory_grid_effects <- function(est) {
   curves <- do.call(rbind, lapply(names(outs), function(k) {
     X <- 100 * outs[[k]]
     ci <- apply(X, 2, function(x) unlist(bayestestR::hdi(x, ci = 0.95)[c("CI_low", "CI_high")]))
-    cbind(g[c("Type", "Predictor", "x", "At")], Outcome = what(k),
+    cbind(g[c(keys, "x", "At")], Outcome = what(k),
           Median = apply(X, 2, stats::median), CI_low = ci[1, ], CI_high = ci[2, ])
   }))
   effects <- do.call(rbind, lapply(names(outs), function(k) {
     X <- 100 * outs[[k]]
-    do.call(rbind, lapply(split(seq_len(nrow(g)), paste(g$Type, g$Predictor)), function(i) {
+    do.call(rbind, lapply(split(seq_len(nrow(g)), do.call(paste, g[keys])), function(i) {
       col <- function(a) X[, i[which(g$At[i] == a)]]
       diffs <- list(`-2 SD` = col("-2 SD") - col("Mean"), `-1 SD` = col("-1 SD") - col("Mean"),
                     `+1 SD` = col("+1 SD") - col("Mean"), `+2 SD` = col("+2 SD") - col("Mean"),
                     Extremity = (col("-2 SD") + col("+2 SD")) / 2 - col("Mean"),
                     Asymmetry = col("+2 SD") - col("-2 SD"))
       do.call(rbind, lapply(names(diffs), function(e) {
-        cbind(Type = g$Type[i[1]], Predictor = g$Predictor[i[1]], Outcome = what(k), Effect = e, describe(diffs[[e]]))
+        cbind(g[i[1], keys, drop = FALSE], Outcome = what(k), Effect = e, describe(diffs[[e]]))
       }))
     }))
   }))
@@ -1001,6 +1132,56 @@ moderation_effects <- function(est, par = "response", at = NULL, range = 1, h = 
     do.call(rbind, lapply(pairs, function(p) cbind(Condition = paste(p[1], "-", p[2]), describe(slope[[p[1]]] - slope[[p[2]]]))))
   )
   list(gaps = gaps, slopes = slopes, at = at)
+}
+
+# The same moderation on the odds scale, for a probability parameter (a CHOCO
+# `mu`, a `pzero`): a label effect that is constant on the log-odds scale
+# shrinks in percentage points as the baseline probability approaches 0 or
+# 1, so a smaller gap at high self-relevance can be scale compression rather
+# than a weaker label effect (the 2026-09-25 review found exactly that for
+# MeaningSR's pzero). Per contrast and value of `at` (default -1 / +1 SD):
+# the two probabilities (%), their odds ratio, and "High - Low": the
+# difference in log odds ratios between the highest and lowest `at` (0 = no
+# moderation on the odds scale). Median and 95% HDI.
+moderation_odds <- function(est, par = "mu", at = NULL, h = 0.005) {
+  med <- est$mediator
+  g <- est$grid
+  P <- est$grid_dpars[[par]]
+  if (is.null(P)) stop("no grid predictions for '", par, "' -- re-run ./hpc extract ", est$outcome, call. = FALSE)
+  if (is.null(at)) {
+    s <- if (!is.null(est$mediator_summary)) est$mediator_summary[["SD"]] else 0.2
+    at <- c(Low = -s, High = s)
+  }
+  if (is.null(names(at))) names(at) <- format(at, digits = 2)
+  ey <- function(cond, x) {
+    cols <- which(g$Condition == cond)
+    cols <- cols[order(g[[med]][cols])]
+    xs <- g[[med]][cols]
+    j <- min(max(findInterval(x, xs), 1), length(xs) - 1)
+    w <- (x - xs[j]) / (xs[j + 1] - xs[j])
+    (1 - w) * P[, cols[j]] + w * P[, cols[j + 1]]
+  }
+  describe <- function(x, prefix) {
+    ci <- bayestestR::hdi(x, ci = 0.95)
+    out <- data.frame(stats::median(x), ci$CI_low, ci$CI_high)
+    names(out) <- paste0(prefix, c("", "_low", "_high"))
+    out
+  }
+  odds <- function(p) p / (1 - p)
+  pairs <- strsplit(contrast_order, " - ", fixed = TRUE)
+  do.call(rbind, lapply(pairs, function(p) {
+    lor <- lapply(at, function(x) log(odds(ey(p[1], x))) - log(odds(ey(p[2], x))))
+    rows <- do.call(rbind, lapply(names(at), function(a) {
+      cbind(Contrast = paste(p[1], "-", p[2]), At = a, Moderator = unname(at[a]),
+            describe(100 * ey(p[2], at[a]), "P_ref"), describe(100 * ey(p[1], at[a]), "P"),
+            describe(exp(lor[[a]]), "OR"))
+    }))
+    d <- lor[[length(at)]] - lor[[1]]
+    ci <- bayestestR::hdi(d, ci = 0.95)
+    rbind(rows, data.frame(Contrast = paste(p[1], "-", p[2]), At = "High - Low", Moderator = NA_real_,
+                           P_ref = NA, P_ref_low = NA, P_ref_high = NA, P = NA, P_low = NA, P_high = NA,
+                           OR = stats::median(d), OR_low = ci$CI_low, OR_high = ci$CI_high))
+  }))
 }
 
 # Mediation of the label effect by the mediator, from get_mediation_estimates().
@@ -1343,6 +1524,7 @@ participant_term <- function(m, dpar) {
 
 get_individual <- function(m, outcome, verbose = TRUE) {
   if (!is.null(memory_info[[outcome]])) return(get_memory_individual(m, outcome, verbose))
+  if (!is.null(memory_grid_info[[outcome]]$individual)) return(get_memory_slope_individual(m, outcome, verbose))
   if (!is.null(mediation_info[[outcome]]$individual)) return(get_mediation_individual(m, outcome, verbose))
   params <- outcome_info[[outcome]]$individual
   if (is.null(params)) {
@@ -1403,6 +1585,7 @@ get_mediation_individual <- function(m, outcome, verbose = TRUE) {
   grid <- expand.grid(Participant = participants, Condition = levels(factor(d$Condition)),
                       .x = c(0, 1), stringsAsFactors = FALSE)
   names(grid)[names(grid) == ".x"] <- info$mediator
+  for (cv in names(info$covariates)) grid[[cv]] <- info$covariates[[cv]] # e.g. Beauty2Reality's Beauty_w at 0
   at <- function(cond, x) which(grid$Condition == cond & grid[[info$mediator]] == x) # participant order
 
   rez <- lapply(info$individual, function(p) {
@@ -1455,12 +1638,59 @@ get_memory_individual <- function(m, outcome, verbose = TRUE) {
   for (a in answers) idx[[paste0("Tendency_", a)]] <- average(lapply(old, function(l) given_recognised(l, a)))
 
   logit <- function(x) stats::qlogis(pmin(pmax(x, 1e-6), 1 - 1e-6))
-  rez <- bind_rows(lapply(names(idx), function(k) {
-    x <- logit(idx[[k]])
+  lg <- lapply(idx, logit)
+  # Signal-detection indices (2026-09-26), per draw from the logit hit and
+  # false-alarm rates (the log-odds analogue of d' and c): Sensitivity =
+  # logit(hits) - logit(false alarms); Bias = their mean, higher = more
+  # "seen before" answers whatever the item (a liberal criterion)
+  if (all(c("Recognition_Hits", "Recognition_False alarms") %in% names(lg))) {
+    lg[["SDT_Sensitivity"]] <- lg[["Recognition_Hits"]] - lg[["Recognition_False alarms"]]
+    lg[["SDT_Bias"]] <- (lg[["Recognition_Hits"]] + lg[["Recognition_False alarms"]]) / 2
+  }
+  rez <- bind_rows(lapply(names(lg), function(k) {
+    x <- lg[[k]]
     data.frame(Participant = participants, Parameter = sub("_.*", "", k), Index = sub("^[^_]*_", "", k),
                Mean = colMeans(x), SD = apply(x, 2, stats::sd),
                SD_rel = apply(x - rowMeans(x), 2, stats::sd))
   }))
 
   list(outcome = outcome, created = Sys.time(), ndraws = brms::ndraws(m), individual = rez)
+}
+
+# Participant-level slopes of a categorical memory model with continuous
+# predictors (memory_grid_info `individual`, MemorySR): the slope of the log
+# odds of "seen before" (1 - P(Not recognized), participant effects included,
+# item effects excluded) on each listed predictor at the participant's mean
+# (0) of every rating, per full range of the rating, averaged over the old
+# items' labels. The random part carries the rating slopes without a Type
+# term, so the hit and false-alarm slopes differ by a constant across
+# participants and one index covers both.
+get_memory_slope_individual <- function(m, outcome, verbose = TRUE) {
+  info <- memory_grid_info[[outcome]]
+  step <- function(what) if (verbose) cat("**", outcome, "-", what, ":", format(Sys.time()), "
+")
+  d <- m$data
+  participants <- sort(unique(as.character(d$Participant)))
+  factors <- if (is.null(info$factors)) "Condition" else info$factors
+  combos <- unique(d[factors])
+  combos <- combos[combos$Condition != "New Items", , drop = FALSE]
+  h <- 0.05
+  rez <- lapply(info$individual, function(pred) {
+    step(pred)
+    grid <- expand.grid(Participant = participants, i = seq_len(nrow(combos)), delta = c(-h, h), stringsAsFactors = FALSE)
+    for (f in factors) grid[[f]] <- combos[[f]][grid$i]
+    for (o in info$predictors) grid[[o]] <- 0
+    grid[[pred]] <- grid$delta
+    p <- brms::posterior_epred(m, newdata = grid, re_formula = participant_term(m, "mu"))
+    seen <- stats::qlogis(pmin(pmax(1 - p[, , "Not recognized"], 1e-6), 1 - 1e-6)) # draws x rows
+    slope <- Reduce(`+`, lapply(seq_len(nrow(combos)), function(i) {
+      hi <- which(grid$i == i & grid$delta > 0)
+      lo <- which(grid$i == i & grid$delta < 0)
+      (seen[, hi, drop = FALSE] - seen[, lo, drop = FALSE]) / (2 * h)
+    })) / nrow(combos)
+    data.frame(Participant = participants, Parameter = "Seen before", Index = pred,
+               Mean = colMeans(slope), SD = apply(slope, 2, stats::sd),
+               SD_rel = apply(slope - rowMeans(slope), 2, stats::sd))
+  })
+  list(outcome = outcome, created = Sys.time(), ndraws = brms::ndraws(m), individual = bind_rows(rez))
 }

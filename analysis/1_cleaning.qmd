@@ -302,8 +302,9 @@ Cronbach's alpha: `r insight::format_value(performance::item_alpha(df[c("VVIQ_Fr
 
 
 ```{r}
-df$VVIQ_Total = rowMeans(df[c("VVIQ_Friend", "VVIQ_Sun", "VVIQ_Shop", "VVIQ_Country")], na.rm = TRUE) |> 
-  datawizard::reverse_scale()  # Reverse the scale (e.g., 0–4 -> 4–0) so that higher = more vivid
+# Items are coded 0 (no image) to 4 (as vivid as real seeing) in 0_preprocessing.R,
+# so higher = more vivid without reversing (it was reversed until 2026-09-26)
+df$VVIQ_Total = rowMeans(df[c("VVIQ_Friend", "VVIQ_Sun", "VVIQ_Shop", "VVIQ_Country")], na.rm = TRUE)
 df <- select(df, -VVIQ_Friend, -VVIQ_Sun, -VVIQ_Shop, -VVIQ_Country)
 ```
 
