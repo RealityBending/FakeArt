@@ -325,6 +325,20 @@ fa_prepare_beauty2_reality <- function(d) {
 # effect that survives them is what memory has to explain.
 fa_prepare_memory_appraisal <- function(d) fa_prepare_sr(d, with = c("Beauty", "Beauty2"))
 
+# Valence extremity (2026-10-15). The preregistration (H1.1, osf.io/xbrhe)
+# predicted an *attenuated* valence for AI-Generated images, operationalised
+# as the absolute distance of the rating from the centre of the scale; the
+# Valence model above is on the signed rating and does not test it. The
+# distance |Valence - 4| of the 1..7 rating takes the values 0 (the neutral
+# midpoint) .. 3 (either end of the scale), modelled as ordered like Worth.
+# Folding mixes two things: a uniform downward shift of the signed rating
+# makes positive ratings less extreme and negative ones more extreme, so the
+# contrasts within each emotion category are part of the answer.
+fa_prepare_extremity <- function(d) {
+  d$Extremity <- factor(abs(d$Valence - 4), levels = 0:3, ordered = TRUE)
+  d
+}
+
 
 fa_models <- list(
 
@@ -380,6 +394,24 @@ fa_models <- list(
     formula = function() {
       brms::bf(
         fa_f("Worth"),
+        disc ~ 1 + (1 | Participant) + (1 | Item),
+        family = brms::cumulative()
+      )
+    }
+  ),
+
+  # ValenceExtremity --------------------------------------------------------
+  # Distance of the Valence rating from the scale centre, 0..3 (see
+  # fa_prepare_extremity()): the preregistered test of attenuated valence
+  # (H1.1). `outcome` is Valence so that the NA rows are dropped on the
+  # column that exists before `prepare` derives Extremity. Same structure as
+  # Worth.
+  ValenceExtremity = list(
+    outcome = "Valence",
+    prepare = fa_prepare_extremity,
+    formula = function() {
+      brms::bf(
+        fa_f("Extremity"),
         disc ~ 1 + (1 | Participant) + (1 | Item),
         family = brms::cumulative()
       )

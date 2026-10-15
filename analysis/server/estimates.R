@@ -30,6 +30,14 @@ if (!exists("%||%", envir = baseenv())) {
 #   discrete        list(iterations=): predicted response-category proportions
 #   density         list(iterations=, by=): per-draw predictive densities
 #   individual      dpars for get_individual() (participant-level indices)
+#   raw             parameters reported on their own scale rather than in %
+#                   (ValenceExtremity's latent `mu`)
+#   expected        TRUE for an ordinal outcome whose categories are numbers:
+#                   adds the mean response (`expected`, get_ordinal_expected())
+#                   to the means and contrasts
+#   optional        TRUE: 3_models.qmd reads the estimates only if they exist
+#                   (a model added after the main extraction), so the notebook
+#                   renders before it is fitted
 outcome_info <- list(
   Beauty = list(
     label = "Beauty", family = "CHOCO",
@@ -76,6 +84,12 @@ outcome_info <- list(
     scale = "6 ordered categories $0, $10, $100, $1,000, $10,000, $100,000; `response - <k>` rows are differences in the probability of choosing category k",
     backend = "marginaleffects", discrete = list(iterations = 100), extra_contrast = "Emotion",
     individual = c("mu", "disc")
+  ),
+  ValenceExtremity = list(
+    label = "Valence extremity", family = "Cumulative (ordinal)",
+    scale = "distance of the 1-7 Valence rating from the scale centre, 0 (neutral midpoint) - 3 (either end); preregistered test of attenuated valence (H1.1); `response - <k>` rows are differences in the probability of a distance of k, `expected` is the mean distance in scale points and `mu` the latent location (both raw)",
+    backend = "marginaleffects", discrete = list(iterations = 100),
+    raw = "mu", expected = TRUE, optional = TRUE
   ),
   SelfRelevance = list(
     label = "Self-Relevance", family = "Cumulative (ordinal)",
@@ -345,6 +359,10 @@ items_info <- list(
 
 contrast_order <- c("AI-Generated - Human Original", "Human Forgery - Human Original", "AI-Generated - Human Forgery")
 
+# Cumulative (ordinal) outcomes: `response` contrasts come per category, and
+# their `disc` is not contrasted (see get_contrasts()).
+ordinal_outcomes <- c("Worth", "SelfRelevance", "ValenceExtremity")
+
 # Parameters reported in % (x100); `response` is x100/range unless range = NA.
 pct_params <- c("mu", "confright", "confleft", "pex", "bex", "pmid", "pzero", "zoi", "coi")
 
@@ -352,8 +370,10 @@ get_scale_factor <- function(parameter, outcome) {
   info <- outcome_info[[outcome]]
   rng <- if (is.null(info$range)) 1 else info$range
   is_resp <- parameter == "response" | grepl("^response", parameter)
-  ifelse(parameter %in% pct_params, 100,
+  k <- ifelse(parameter %in% pct_params, 100,
     ifelse(is_resp & !is.na(rng), 100 / rng, NA_real_))
+  k[parameter %in% info$raw] <- NA_real_
+  k
 }
 
 
@@ -442,7 +462,7 @@ get_contrasts <- function(m, outcome = "Beauty", contrast = "Condition", by = NU
   dat_con <- data.frame()
 
   params <- c("response", "mu", insight::find_auxiliary(m))
-  if (outcome %in% c("Worth", "SelfRelevance")) params <- params[!params %in% c("disc")]
+  if (outcome %in% ordinal_outcomes) params <- params[!params %in% c("disc")]
   if (outcome %in% c("pLeft", "pCenter")) params <- params[!params %in% c("zoi", "coi")]
   for (par in params) {
     # The extreme / midpoint probabilities (and disc) are modelled on
@@ -455,7 +475,7 @@ get_contrasts <- function(m, outcome = "Beauty", contrast = "Condition", by = NU
                             backend = backend, test = "pd", iterations = 500) |>
       strip_model()
 
-    if (outcome %in% c("Worth", "SelfRelevance") && par == "response") {
+    if (outcome %in% ordinal_outcomes && par == "response") {
       c <- filter(c, Response1 == Response2)
       c <- mutate(c, Parameter = paste0("response - ", Response1))
       c <- datawizard::data_remove(c, c("Response1", "Response2"))
@@ -506,6 +526,62 @@ prep_contrasts <- function(dat_con, outcome) {
   dat_con$CI <- sprintf("[%s, %s]", insight::format_value(lo, zap_small = TRUE), insight::format_value(hi, zap_small = TRUE))
   dat_con$pd_fmt <- if ("pd" %in% names(dat_con)) insight::format_pd(dat_con$pd, name = NULL) else ""
   dat_con[order(dat_con$Contrast), ]
+}
+
+
+# Mean of a numeric ordinal outcome ----------------------------------------
+# ValenceExtremity's categories are numbers (distance 0..3 from the scale
+# centre), so its mean E[k] = sum_k k P(k) is a single summary of the shift
+# that the per-category rows spread over four probabilities. Computed per
+# posterior draw from population-level predictions (random effects excluded,
+# as in the modelbased means) on the Condition x `by` grid; the overall values
+# average the `by` levels with equal weight, as estimate_means() does.
+# Posterior median and 95% equal-tailed interval, the marginaleffects default
+# used by the other rows of these ordinal models. Returned in the shape of
+# get_contrasts()$dat_con with Parameter "expected", so that the report and
+# results_contrasts.csv carry the rows with the others.
+get_ordinal_expected <- function(m, outcome, by = "Emotion") {
+  d <- m$data
+  lev <- function(v) factor(levels(d[[v]]), levels = levels(d[[v]]))
+  grid <- expand.grid(Condition = lev("Condition"), By = lev(by))
+  names(grid)[2] <- by
+  ep <- brms::posterior_epred(m, newdata = grid, re_formula = NA) # draws x rows x categories
+  k <- suppressWarnings(as.numeric(dimnames(ep)[[3]]))
+  if (length(k) != dim(ep)[3] || anyNA(k)) k <- seq_len(dim(ep)[3]) - 1
+  ev <- apply(ep, c(1, 2), function(p) sum(p * k)) # draws x grid rows
+
+  summarise_draws <- function(x) data.frame(
+    Difference = stats::median(x),
+    CI_low = unname(stats::quantile(x, 0.025)),
+    CI_high = unname(stats::quantile(x, 0.975)),
+    pd = max(mean(x > 0), mean(x < 0))
+  )
+  cond <- levels(grid$Condition)
+  pairs <- strsplit(contrast_order, " - ", fixed = TRUE)
+  contrast_rows <- function(draws) { # draws x condition
+    do.call(rbind, lapply(pairs, function(p) {
+      cbind(Level1 = p[1], Level2 = p[2], summarise_draws(draws[, p[1]] - draws[, p[2]]))
+    }))
+  }
+  finish <- function(x) {
+    x$Parameter <- "expected"
+    x$Outcome <- outcome
+    x$Contrast <- paste(x$Level1, "-", x$Level2)
+    x
+  }
+
+  overall <- sapply(cond, function(cc) rowMeans(ev[, grid$Condition == cc, drop = FALSE]))
+  means <- do.call(rbind, lapply(cond, function(cc) {
+    s <- summarise_draws(overall[, cc])
+    data.frame(Condition = cc, Estimate = s$Difference, CI_low = s$CI_low, CI_high = s$CI_high)
+  }))
+  contrasts_by <- do.call(rbind, lapply(levels(grid[[by]]), function(b) {
+    draws <- sapply(cond, function(cc) ev[, grid$Condition == cc & grid[[by]] == b])
+    out <- contrast_rows(draws)
+    out[[by]] <- b
+    out
+  }))
+  list(means = means, contrasts = finish(contrast_rows(overall)), contrasts_by = finish(contrasts_by))
 }
 
 
@@ -682,6 +758,17 @@ get_estimates <- function(m, outcome, verbose = TRUE) {
   if (!identical(by, "Emotion")) {
     step(paste0("marginal means (Condition x ", by, ")"))
     est$means_by <- get_means(m, by = c("Condition", by))
+  }
+
+  # Mean of a numeric ordinal outcome (ValenceExtremity), appended to the
+  # contrast tables before the report is built; computed from the epred
+  # array, so it draws no random numbers.
+  if (isTRUE(info$expected)) {
+    step("expected value (ordinal)")
+    ex <- get_ordinal_expected(m, outcome, by = by)
+    est$means_expected <- ex$means
+    est$contrasts <- dplyr::bind_rows(est$contrasts, ex$contrasts)
+    est$contrasts_emo <- dplyr::bind_rows(est$contrasts_emo, ex$contrasts_by)
   }
 
   step("report")

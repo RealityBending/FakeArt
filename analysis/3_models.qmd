@@ -30,6 +30,7 @@ dftask <- read.csv("../data/data_task.csv") |>
          Emotion = fct_relevel(Emotion, "Positive - Low intensity", "Negative - Low intensity", "Positive - High intensity", "Negative - High intensity"),
          Meaning = Meaning * 6,
          Valence = Valence * 6 + 1,
+         Extremity = abs(round(Valence) - 4), # distance from the scale centre, 0..3 (ValenceExtremity)
          Worth = factor(Worth * 6, ordered = TRUE),
          SelfRelevance = SelfRelevance * 6)
 levels(dftask$Worth) <- c("0", "10", "100", "1000", "10000", "100000")
@@ -46,7 +47,11 @@ cols <- c(
 source("server/estimates.R") # outcome_info, prep_contrasts()
 source("report.R")           # make_asis(), make_tables(), make_markdown(), read_estimates()
 
-estimates <- read_estimates(names(outcome_info))
+# Models added after the main extraction (`optional` in outcome_info) are
+# read only once their estimates exist; their sections print a note until then
+optional <- names(Filter(\(x) isTRUE(x$optional), outcome_info))
+has_optional <- setNames(file.exists(file.path("models", "estimates", paste0(optional, ".rds"))), optional)
+estimates <- read_estimates(c(setdiff(names(outcome_info), optional), optional[has_optional]))
 provenance_table(estimates)
 ```
 
@@ -431,6 +436,63 @@ get_discrete_plot(estimates$Valence$discrete_emo, title = "Valence", facet = ~Em
 ```
 
 
+#### Valence Extremity (preregistered attenuation, H1.1)
+
+The preregistration predicted an *attenuated* valence for AI-Generated
+images, i.e. ratings closer to the centre of the scale. The Valence model
+above is on the signed rating, so this is tested separately on the distance
+of each rating from the centre, $|Valence - 4|$: 0 (the neutral midpoint) to
+3 (either end of the scale), in a cumulative ordinal model with the same
+structure as Worth (`ValenceExtremity` in `server/models.R`). Attenuation is a
+lower `expected` distance (and a higher probability of a distance of 0) for
+the AI-Generated label. Folding the scale mixes two effects: a uniform
+downward shift of the signed rating makes positive ratings less extreme and
+negative ones more extreme, so the contrasts within each emotion category
+matter as much as the overall one.
+
+```{r}
+#| label: pending-valence-extremity
+#| eval: !expr "!has_optional[['ValenceExtremity']]"
+
+make_asis(
+  "",
+  '::: {.callout-warning title="Estimates not available yet"}',
+  "`ValenceExtremity` is not fitted yet. In `analysis/server`: `./hpc push`, `./hpc fit ValenceExtremity`, then `./hpc combine ValenceExtremity` (check 4,000 draws), `./hpc extract ValenceExtremity` and `./hpc pull 'estimates/*.rds'`. This section fills in on the next render.",
+  "",
+  ":::",
+  ""
+)
+```
+
+```{r}
+#| label: tables-valence-extremity
+#| eval: !expr "has_optional[['ValenceExtremity']]"
+
+make_report(estimates$ValenceExtremity)
+```
+
+```{r}
+#| label: means-valence-extremity
+#| eval: !expr "has_optional[['ValenceExtremity']]"
+
+make_tables(
+  mutate(estimates$ValenceExtremity$means_expected, across(where(is.numeric), \(x) insight::format_value(x, zap_small = TRUE))),
+  c("Condition", "Estimate", "CI_low", "CI_high"),
+  "Valence extremity: mean distance from the scale centre (0-3) per label condition"
+)
+```
+
+```{r}
+#| label: fig-valence-extremity
+#| eval: !expr "has_optional[['ValenceExtremity']]"
+#| fig-cap: "Valence extremity (distance of the Valence rating from the scale centre; 0 = neutral midpoint, 3 = either end of the scale) by stimulus emotion quadrant: observed proportion of each distance (grey bars) and the model-implied probability per label condition (points with 95% CI)."
+
+get_discrete_plot(estimates$ValenceExtremity$discrete_emo, title = "Valence extremity", observed = "Extremity",
+                  facet = ~Emotion, shift = 1) +
+    scale_x_continuous(breaks = 0:3, labels = c("0\nNeutral", "1", "2", "3\nExtreme"))
+```
+
+
 ### Meaning
 
 
@@ -731,10 +793,11 @@ p_artificiality
 #| label: summary-collect
 
 # Document order (outcome_info is grouped by family)
-section_order <- c("Beauty", "Valence", "Meaning", "Worth",
+section_order <- c("Beauty", "Valence", "ValenceExtremity", "Meaning", "Worth",
                    "Entropy", "pLeft", "pCenter", "Shift",
                    "Reality", "Authenticity",
                    "Beauty2", "SelfRelevance", "Artificiality")
+section_order <- intersect(section_order, names(estimates)) # optional models once extracted
 # unname(): bind_rows() reads the names of two named lists as columns
 reps <- unname(lapply(estimates[section_order], `[[`, "report"))
 
