@@ -842,6 +842,25 @@ Beauty2Reality .22 (left out by the 1/3 rule), MemorySR slopes .35 / .36
 slopes out of the EGA and adds the reliable ones to the correlates; mean
 self-relevance and mean follow-up beauty enter as traits from the data.
 
+### 3.7e Measured: ValenceExtremity fitted on a laptop (2026-10-16)
+
+The cluster was in maintenance, so `ValenceExtremity` (preregistered H1.1,
+valence attenuation) was fitted, combined and extracted **locally**, with the
+same scripts and settings except the sharding: one shard of 8 chains × 2
+threads (`FA_CHAINS=8 SLURM_CPUS_PER_TASK=16 SLURM_ARRAY_TASK_ID=1`, warmup
+1,000 + 500 → 4,000 draws, seed 1235), data from the local `data/` (= `main`),
+`FA_MODELS_DIR` in a temp folder outside Dropbox. Laptop: i9-11950H, 8 cores /
+16 threads, 32 GB. Wall: **2.3 h** (warmup 1.6 h, sampling 0.55 h per chain;
+compilation ~5 min), against ~10 min per shard for Worth on `general`. The
+first 300 warmup iterations took ~50 min. 0 divergent, treedepth 7.0;
+fixed-effect max Rhat 1.016 (min bulk ESS 392), SDs 1.035, headline 1.149 from
+one participant correlation (`cor_..ConditionHumanForgery__EmotionNegativeMHighintensity`,
+ESS 37). `combine_model.R` (`loo` 1.5 min) and `extract_model.R` (12 min) ran
+locally too, with R outside the Bash sandbox (as for reading any fit). The fit is in `analysis/models/ValenceExtremity.rds`, its
+estimates in `analysis/models/estimates/`. **Neither is on the cluster**: an
+`./hpc extract ValenceExtremity` there will fail until it is fitted there, and
+`./hpc pull 'estimates/*.rds'` will not touch the local file.
+
 ---
 
 ### 3.6a Measured: `normal` caps the whole account at 550 CPUs (2026-09-22)

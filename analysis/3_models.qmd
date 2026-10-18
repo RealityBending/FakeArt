@@ -492,6 +492,18 @@ get_discrete_plot(estimates$ValenceExtremity$discrete_emo, title = "Valence extr
     scale_x_continuous(breaks = 0:3, labels = c("0\nNeutral", "1", "2", "3\nExtreme"))
 ```
 
+**Reading** (fit of 2026-10-16). Overall, both fake labels brought the
+ratings closer to the centre, but by the same amount, so the reduction is
+not specific to the AI-Generated label. It is also confined to the two
+positive categories, where the general downward shift of valence (Valence
+model above) moves ratings towards the centre. In the two negative
+categories no label made the ratings less extreme, and the AI-Generated label
+made negative, high-intensity works slightly *more* extreme than the Forgery
+label did. The labels therefore shift valence downwards rather than pulling
+it towards neutral, and the preregistered attenuation (H1.1) is not supported
+beyond what that shift implies. Not reported in the manuscript (the authors'
+decision); see the PREREG comment at the start of its Phase-1 Results.
+
 
 ### Meaning
 
