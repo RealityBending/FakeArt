@@ -572,6 +572,10 @@ function M.latex(meta, notes, tail, lists)
   if #foot > 0 then
     out:insert(pandoc.Div(foot, pandoc.Attr("", { "JournalNote" })))
   end
+  -- The first page is a title page: the article starts on the next one.
+  -- formatlatex.lua raises the note before this, so that it is set at the
+  -- foot of the first column of the first page rather than carried over.
+  out:insert(raw([[\clearpage]]))
   out:extend(tail)
   out:extend(lists)
   out:insert(raw([[\quasifirstpar]]))

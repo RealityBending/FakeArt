@@ -311,23 +311,23 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
 ::: {.cell-output-display}
 
 ```{=html}
-<div id="ghmshegxrh" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#ghmshegxrh table {
+<div id="ataznekpwx" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#ataznekpwx table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-#ghmshegxrh thead, #ghmshegxrh tbody, #ghmshegxrh tfoot, #ghmshegxrh tr, #ghmshegxrh td, #ghmshegxrh th {
+#ataznekpwx thead, #ataznekpwx tbody, #ataznekpwx tfoot, #ataznekpwx tr, #ataznekpwx td, #ataznekpwx th {
   border-style: none;
 }
 
-#ghmshegxrh p {
+#ataznekpwx p {
   margin: 0;
   padding: 0;
 }
 
-#ghmshegxrh .gt_table {
+#ataznekpwx .gt_table {
   display: table;
   border-collapse: collapse;
   line-height: normal;
@@ -353,12 +353,12 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   border-left-color: #D5D5D5;
 }
 
-#ghmshegxrh .gt_caption {
+#ataznekpwx .gt_caption {
   padding-top: 4px;
   padding-bottom: 4px;
 }
 
-#ghmshegxrh .gt_title {
+#ataznekpwx .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -370,7 +370,7 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   border-bottom-width: 0;
 }
 
-#ghmshegxrh .gt_subtitle {
+#ataznekpwx .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -382,7 +382,7 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   border-top-width: 0;
 }
 
-#ghmshegxrh .gt_heading {
+#ataznekpwx .gt_heading {
   background-color: #FFFFFF;
   text-align: left;
   border-bottom-color: #FFFFFF;
@@ -394,13 +394,13 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   border-right-color: #D3D3D3;
 }
 
-#ghmshegxrh .gt_bottom_border {
+#ataznekpwx .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D5D5D5;
 }
 
-#ghmshegxrh .gt_col_headings {
+#ataznekpwx .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D5D5D5;
@@ -415,7 +415,7 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   border-right-color: #D3D3D3;
 }
 
-#ghmshegxrh .gt_col_heading {
+#ataznekpwx .gt_col_heading {
   color: #FFFFFF;
   background-color: #000000;
   font-size: 100%;
@@ -435,7 +435,7 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   overflow-x: hidden;
 }
 
-#ghmshegxrh .gt_column_spanner_outer {
+#ataznekpwx .gt_column_spanner_outer {
   color: #FFFFFF;
   background-color: #000000;
   font-size: 100%;
@@ -447,15 +447,15 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   padding-right: 4px;
 }
 
-#ghmshegxrh .gt_column_spanner_outer:first-child {
+#ataznekpwx .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#ghmshegxrh .gt_column_spanner_outer:last-child {
+#ataznekpwx .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#ghmshegxrh .gt_column_spanner {
+#ataznekpwx .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D5D5D5;
@@ -467,11 +467,11 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   width: 100%;
 }
 
-#ghmshegxrh .gt_spanner_row {
+#ataznekpwx .gt_spanner_row {
   border-bottom-style: hidden;
 }
 
-#ghmshegxrh .gt_group_heading {
+#ataznekpwx .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -497,7 +497,7 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   text-align: left;
 }
 
-#ghmshegxrh .gt_empty_group_heading {
+#ataznekpwx .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -512,15 +512,15 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   vertical-align: middle;
 }
 
-#ghmshegxrh .gt_from_md > :first-child {
+#ataznekpwx .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#ghmshegxrh .gt_from_md > :last-child {
+#ataznekpwx .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#ghmshegxrh .gt_row {
+#ataznekpwx .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -539,7 +539,7 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   overflow-x: hidden;
 }
 
-#ghmshegxrh .gt_stub {
+#ataznekpwx .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -552,7 +552,7 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   padding-right: 5px;
 }
 
-#ghmshegxrh .gt_stub_row_group {
+#ataznekpwx .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -566,15 +566,15 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   vertical-align: top;
 }
 
-#ghmshegxrh .gt_row_group_first td {
+#ataznekpwx .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#ghmshegxrh .gt_row_group_first th {
+#ataznekpwx .gt_row_group_first th {
   border-top-width: 2px;
 }
 
-#ghmshegxrh .gt_summary_row {
+#ataznekpwx .gt_summary_row {
   color: #333333;
   background-color: #D5D5D5;
   text-transform: inherit;
@@ -584,16 +584,16 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   padding-right: 5px;
 }
 
-#ghmshegxrh .gt_first_summary_row {
+#ataznekpwx .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D5D5D5;
 }
 
-#ghmshegxrh .gt_first_summary_row.thick {
+#ataznekpwx .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#ghmshegxrh .gt_last_summary_row {
+#ataznekpwx .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -603,7 +603,7 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   border-bottom-color: #D5D5D5;
 }
 
-#ghmshegxrh .gt_grand_summary_row {
+#ataznekpwx .gt_grand_summary_row {
   color: #FFFFFF;
   background-color: #929292;
   text-transform: inherit;
@@ -613,7 +613,7 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   padding-right: 5px;
 }
 
-#ghmshegxrh .gt_first_grand_summary_row {
+#ataznekpwx .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -623,7 +623,7 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   border-top-color: #D5D5D5;
 }
 
-#ghmshegxrh .gt_last_grand_summary_row_top {
+#ataznekpwx .gt_last_grand_summary_row_top {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -633,11 +633,11 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   border-bottom-color: #D5D5D5;
 }
 
-#ghmshegxrh .gt_striped {
+#ataznekpwx .gt_striped {
   background-color: #F4F4F4;
 }
 
-#ghmshegxrh .gt_table_body {
+#ataznekpwx .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D5D5D5;
@@ -646,7 +646,7 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   border-bottom-color: #D5D5D5;
 }
 
-#ghmshegxrh .gt_footnotes {
+#ataznekpwx .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -660,7 +660,7 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   border-right-color: #D3D3D3;
 }
 
-#ghmshegxrh .gt_footnote {
+#ataznekpwx .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-top: 4px;
@@ -669,7 +669,7 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   padding-right: 5px;
 }
 
-#ghmshegxrh .gt_sourcenotes {
+#ataznekpwx .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -683,7 +683,7 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   border-right-color: #D3D3D3;
 }
 
-#ghmshegxrh .gt_sourcenote {
+#ataznekpwx .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -691,72 +691,72 @@ make_tables(summary_ind, names(summary_ind), "Participant-level indices (link sc
   padding-right: 5px;
 }
 
-#ghmshegxrh .gt_left {
+#ataznekpwx .gt_left {
   text-align: left;
 }
 
-#ghmshegxrh .gt_center {
+#ataznekpwx .gt_center {
   text-align: center;
 }
 
-#ghmshegxrh .gt_right {
+#ataznekpwx .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#ghmshegxrh .gt_font_normal {
+#ataznekpwx .gt_font_normal {
   font-weight: normal;
 }
 
-#ghmshegxrh .gt_font_bold {
+#ataznekpwx .gt_font_bold {
   font-weight: bold;
 }
 
-#ghmshegxrh .gt_font_italic {
+#ataznekpwx .gt_font_italic {
   font-style: italic;
 }
 
-#ghmshegxrh .gt_super {
+#ataznekpwx .gt_super {
   font-size: 65%;
 }
 
-#ghmshegxrh .gt_footnote_marks {
+#ataznekpwx .gt_footnote_marks {
   font-size: 75%;
   vertical-align: 0.4em;
   position: initial;
 }
 
-#ghmshegxrh .gt_asterisk {
+#ataznekpwx .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#ghmshegxrh .gt_indent_1 {
+#ataznekpwx .gt_indent_1 {
   text-indent: 5px;
 }
 
-#ghmshegxrh .gt_indent_2 {
+#ataznekpwx .gt_indent_2 {
   text-indent: 10px;
 }
 
-#ghmshegxrh .gt_indent_3 {
+#ataznekpwx .gt_indent_3 {
   text-indent: 15px;
 }
 
-#ghmshegxrh .gt_indent_4 {
+#ataznekpwx .gt_indent_4 {
   text-indent: 20px;
 }
 
-#ghmshegxrh .gt_indent_5 {
+#ataznekpwx .gt_indent_5 {
   text-indent: 25px;
 }
 
-#ghmshegxrh .katex-display {
+#ataznekpwx .katex-display {
   display: inline-flex !important;
   margin-bottom: 0.75em !important;
 }
 
-#ghmshegxrh div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+#ataznekpwx div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
   height: 0px !important;
 }
 </style>
@@ -4125,7 +4125,8 @@ tri_arc_labels <- tri_arcs |>
   mutate(s = (s1 + s2) / 2, d = d_higher + h) |>
   to_xy()
 
-p_ega_matrix <- ggplot() +
+# column_labels = FALSE drops the index labels under the matrix (the manuscript figure, to fit one page)
+ega_matrix_plot <- function(column_labels = TRUE) ggplot() +
   # Correlations (lower-left half)
   geom_tile(data = tri_cor, aes(x = i, y = n + 1 - j, fill = r), color = "white") +
   geom_text(data = tri_cor, aes(x = i, y = n + 1 - j, label = fmt_r(r), fontface = ifelse(p < .05, "bold", "plain")), size = 3.7) +
@@ -4140,7 +4141,7 @@ p_ega_matrix <- ggplot() +
   new_scale_fill() +
   # Index labels (rows on the left, columns at the bottom)
   geom_text(data = tri_diag, aes(x = 0.3, y = n + 1 - x, label = lab(Feature), color = Color), hjust = 1, size = 4.8) +
-  geom_text(data = tri_diag, aes(x = x, y = 0.3, label = lab(Feature), color = Color), angle = 45, hjust = 1, vjust = 1, size = 4.8) +
+  (if (column_labels) geom_text(data = tri_diag, aes(x = x, y = 0.3, label = lab(Feature), color = Color), angle = 45, hjust = 1, vjust = 1, size = 4.8)) +
   # Tree (upper-right half)
   geom_path(data = tri_edges, aes(x = x, y = y, group = Edge, color = Color, linewidth = Stability, linetype = Sign), alpha = 0.7) +
   scale_linewidth_continuous(range = c(0.2, 2.5), limits = c(0, 1), breaks = c(0.2, 0.8), name = "Stability",
@@ -4160,13 +4161,14 @@ p_ega_matrix <- ggplot() +
   scale_fill_identity() +
   coord_fixed(clip = "off") +
   scale_x_continuous(limits = c(-5.4, max(tri_arc_paths$x, tri_higher$x) + 2.6), expand = c(0, 0)) +
-  scale_y_continuous(limits = c(-5.3, max(tri_arc_paths$y, tri_edges$y) + 0.8), expand = c(0, 0)) +
+  scale_y_continuous(limits = c(if (column_labels) -5.3 else 0.3, max(tri_arc_paths$y, tri_edges$y) + 0.8), expand = c(0, 0)) +
   theme_void(base_size = 20) +
   theme(legend.position = "inside", legend.position.inside = c(0.99, 0.99), legend.justification = c(1, 1),
         legend.direction = "horizontal", legend.box = "horizontal", legend.box.just = "top",
         legend.title.position = "top", legend.title = element_text(size = 17), legend.text = element_text(size = 14),
         legend.key.width = unit(1.6, "lines"), legend.key.height = unit(0.9, "lines"),
         legend.spacing.x = unit(1.5, "lines"))
+p_ega_matrix <- ega_matrix_plot()
 p_ega_matrix
 ```
 
@@ -5100,8 +5102,9 @@ cor_heatmap(df_correlates, col_fill = fill_higher)
 
 ### Manuscript figure: interindividual differences
 
-The manuscript figure's lower panel (2026-09-26) is organised differently from
-the table above: rows are the dispositional characteristics only, columns
+The manuscript figure's lower panel (2026-09-26; transposed since 2026-10-18,
+traits as columns, so that the figure fits on one page) is organised
+differently from the table above: rows are the dispositional characteristics only, columns
 everything participants did in the study, i.e. the Phase-1 and Phase-2
 community scores and the follow-up label recall tendencies (the tendency to
 recall a recognised work's label as each category, whatever its actual label).
@@ -5176,21 +5179,155 @@ fill_ms <- c(fill_higher, "Recalled label" = "#BF360C")
 ::: {.cell}
 
 ```{.r .cell-code}
-# Manuscript figure of the "Interindividual Differences" section (figures/figure_interindividual.png).
-# The legend of the matrix (top) also covers the correlates (bottom).
-# free(): the matrix is not aligned with the heatmap's panels, so that it can use the full width
-figure_interindividual <- free(p_ega_matrix) /
-  (cor_heatmap(df_correlates_ms, base_size = 20, text_size = 5.2, col_fill = fill_ms) +
-     theme(legend.position = "none", plot.margin = margin(t = 0.1, unit = "in"))) +
-  plot_layout(heights = c(19.4, 10.6))
-
+# Manuscript figure of the "Interindividual Differences" and "Dispositional
+# Correlates" sections (figures/figure_interindividual.png): one figure, by the
+# user's preference (2026-10-18; a split into two was tried the same day). To
+# fit on one PDF page the correlates panel is transposed (traits as columns:
+# 10 rows instead of 29), the matrix drops its column labels (same order as
+# the rows), and each panel keeps its own legend (the colour scales differ,
+# +/- 1 for the matrix and +/- .5 for the correlates).
+cor_heatmap_t <- function(d, base_size = 20, text_size = 5.2, col_fill) {
+  # Angled labels lose the italics that set the Mint facets apart from their
+  # metaclusters: here the metaclusters are bold and the facets plain (2026-10-18)
+  x_labels <- ifelse(d$RowGroup == "Interoception",
+                     ifelse(substr(d$Row, 1, 1) == "*", gsub("*", "", d$Row, fixed = TRUE), paste0("**", d$Row, "**")),
+                     d$Row)
+  ggplot(d, aes(x = RowKey, y = fct_rev(Column))) +
+    geom_tile(aes(fill = r), color = "white") +
+    geom_text(aes(label = Label, fontface = ifelse(p < .05, "bold", "plain")), size = text_size) +
+    ggh4x::facet_grid2(ColGroup ~ RowGroup, scales = "free", space = "free",
+                       labeller = labeller(ColGroup = label_wrap_gen(12)),
+                       strip = ggh4x::strip_themed(
+                         background_y = ggh4x::elem_list_rect(fill = unname(col_fill[levels(droplevels(d$ColGroup))]), colour = NA),
+                         text_y = ggh4x::elem_list_text(colour = "white", face = "bold", angle = 0))) +
+    scale_fill_gradient2(low = "#1D9AF5", mid = "white", high = "#F51D56", midpoint = 0, limits = c(-0.5, 0.5),
+                         breaks = c(-0.5, -0.25, 0, 0.25, 0.5), labels = fmt_r, oob = scales::squish, name = "Correlation") +
+    scale_x_discrete(labels = setNames(x_labels, d$Parameter1)) +
+    labs(x = NULL, y = NULL) +
+    theme_minimal(base_size = base_size) +
+    theme(axis.text.x.bottom = ggtext::element_markdown(angle = 45, hjust = 1, vjust = 1), # .bottom: theme_minimal's own element_text would win over axis.text.x
+          panel.grid = element_blank(),
+          strip.text = element_text(face = "bold"),
+          legend.position = "right", legend.key.height = unit(2.2, "lines"), legend.key.width = unit(1, "lines"))
+}
+figure_interindividual <- free(ega_matrix_plot(column_labels = FALSE)) /
+  cor_heatmap_t(df_correlates_ms, col_fill = fill_ms) +
+  plot_layout(heights = c(17.2, 5.8))
 figure_interindividual
-
-ggsave("figures/figure_interindividual.png", figure_interindividual, width = 20, height = 30, dpi = 300, bg = "white")
+ggsave("figures/figure_interindividual.png", figure_interindividual, width = 20, height = 23, dpi = 300, bg = "white")
 ```
 
 ::: {.cell-output-display}
-![Structure and correlates of the participant-level indices. Top: correlations between the indices entering the EGA (lower half), their reliability (diagonal) and their hierarchical community structure (upper half). Bottom: correlations between participant characteristics (rows) and the lower-order community scores and the follow-up label recall tendencies (columns: the tendency to recall a recognised work as having had each label, whatever its actual label).](7_correlates_files/figure-html/fig-interindividual-1.png){#fig-interindividual fig-alt='Top: triangular correlation matrix of the participant-level indices with a tree of their lower- and higher-order communities drawn above the diagonal. Bottom: heatmap of correlations between participant characteristics and the community scores and label recall tendencies.' width=1920}
+![Structure and correlates of the participant-level indices (the manuscript's Figure 5). Top: correlations between the indices entering the EGA (lower half), their reliability (diagonal) and their hierarchical community structure (upper half); the columns are in the same order as the rows. Bottom: correlations between the lower-order community scores and the follow-up label recall tendencies (rows) and the participants' characteristics (columns). Bold: p < .05 (uncorrected); *: p < .05 after FDR correction across the 280 correlations.](7_correlates_files/figure-html/fig-interindividual-1.png){#fig-interindividual fig-alt='Top: triangular correlation matrix of the participant-level indices with a tree of their lower- and higher-order communities drawn above the diagonal. Bottom: heatmap of correlations between the community scores and label recall tendencies (rows) and participant characteristics (columns).' width=1920}
 :::
 :::
 
+
+### Generic and AI-specific penalties and attitudes toward AI
+
+The *Anti-fake bias* community gathers the AI-label effects on the four
+Phase-1 ratings with the Forgery-label effect on worth, so its correlation
+with attitudes toward AI cannot say which part of the penalty those attitudes
+follow: the part shared by the two fake labels (a generic penalty for
+non-original works) or the part specific to the AI label. Here (2026-10-19,
+for the terminology paragraph of the Discussion) the participant-level
+Forgery and AI effects on `mu` (link scale, differences from Originals) and
+their difference, AI - Forgery (the AI-specific increment), are correlated
+with the three attitude scales, for the four Phase-1 ratings and the two
+Phase-2 beliefs. For a rating, a negative correlation with negative attitudes
+means a larger penalty in participants with more negative attitudes toward
+AI. The Forgery indices are unreliable except on worth (D-vour .10 to .29, see
+Reliability), so their correlations are attenuated. The FDR correction is
+computed over the cells of the table.
+
+
+::: {.cell}
+
+```{.r .cell-code}
+pen_models <- c("Beauty", "Valence", "Meaning", "Worth", "Reality", "Authenticity")
+df_penalty <- df_long |>
+  filter(Model %in% pen_models, Parameter == "mu", Index %in% c("Forgery", "AI")) |>
+  select(Participant, Model, Index, Mean) |>
+  pivot_wider(names_from = Index, values_from = Mean) |>
+  mutate(Increment = AI - Forgery)
+
+# Within-person coupling of the two penalties
+df_penalty |>
+  summarise(n = sum(!is.na(Forgery) & !is.na(AI)),
+            `r(Forgery, AI)` = fmt_r(cor(Forgery, AI, use = "complete.obs")), .by = Model) |>
+  make_markdown("Correlation between the participant-level Forgery and AI effects (mu, link scale)") |>
+  make_asis()
+```
+
+::: {.cell-output-display}
+::: {.callout-note collapse="true" title="Correlation between the participant-level Forgery and AI effects (mu, link scale) (Markdown table, for text readers)"}
+
+|Model        |   n|r(Forgery, AI) |
+|:------------|---:|:--------------|
+|Beauty       | 324|.04            |
+|Valence      | 324|.44            |
+|Meaning      | 324|.60            |
+|Worth        | 324|.72            |
+|Reality      | 317|-.26           |
+|Authenticity | 317|-.24           |
+
+:::
+:::
+
+```{.r .cell-code}
+pen_cols <- expand_grid(Model = pen_models, Index = c("Forgery", "AI", "Increment")) |>
+  transmute(Score = paste(Model, "mu", Index, sep = "_"),
+            Column = c(Forgery = "Forgery", AI = "AI", Increment = "AI - Forgery")[Index],
+            ColGroup = Model)
+pen_rows <- data.frame(Score = c("AI attitudes (negative)", "AI attitudes (positive)", "AI art realism"),
+                       RowGroup = "AI attitudes", Fixed = TRUE) |>
+  mutate(Row = Score)
+df_penalty_wide <- df_penalty |>
+  pivot_longer(c(Forgery, AI, Increment), names_to = "Index", values_to = "Mean") |>
+  mutate(Score = paste(Model, "mu", Index, sep = "_")) |>
+  select(Participant, Score, Mean) |>
+  pivot_wider(names_from = Score, values_from = Mean) |>
+  left_join(df_traits, by = "Participant")
+df_penalty_cor <- cor_grid(df_penalty_wide, pen_rows, pen_cols)
+cor_markdown(df_penalty_cor, "Correlations between the Forgery, AI and AI - Forgery participant-level effects (mu) and attitudes toward AI (*: FDR-corrected p < .05)")
+```
+
+::: {.cell-output-display}
+::: {.callout-note collapse="true" title="Correlations between the Forgery, AI and AI - Forgery participant-level effects (mu) and attitudes toward AI (*: FDR-corrected p < .05) (Markdown table, for text readers)"}
+
+|Row                                   |Beauty: Forgery |Beauty: AI |Beauty: AI - Forgery |Valence: Forgery |Valence: AI |Valence: AI - Forgery |Meaning: Forgery |Meaning: AI |Meaning: AI - Forgery |Worth: Forgery |Worth: AI |Worth: AI - Forgery |Reality: Forgery |Reality: AI |Reality: AI - Forgery |Authenticity: Forgery |Authenticity: AI |Authenticity: AI - Forgery |
+|:-------------------------------------|:---------------|:----------|:--------------------|:----------------|:-----------|:---------------------|:----------------|:-----------|:---------------------|:--------------|:---------|:-------------------|:----------------|:-----------|:---------------------|:---------------------|:----------------|:--------------------------|
+|AI attitudes: AI attitudes (negative) |-.05            |-.16*      |-.14*                |-.17*            |-.35*       |-.32*                 |-.15*            |-.26*       |-.23*                 |-.20*          |-.28*     |-.24*               |-.01             |-.08        |-.04                  |.07                   |.01              |-.02                       |
+|AI attitudes: AI attitudes (positive) |-.07            |.18*       |.20*                 |-.07             |.18*        |.23*                  |-.01             |.20*        |.26*                  |.04            |.21*      |.27*                |-.01             |.05         |.03                   |-.09                  |.01              |.06                        |
+|AI attitudes: AI art realism          |.07             |.22*       |.20*                 |.10              |.31*        |.30*                  |.10              |.25*        |.25*                  |.15*           |.32*      |.33*                |-.05             |.08         |.08                   |-.07                  |.01              |.04                        |
+
+:::
+:::
+:::
+
+
+
+::: {.cell}
+
+```{.r .cell-code}
+cor_heatmap(df_penalty_cor)
+```
+
+::: {.cell-output-display}
+![Correlations between the participant-level effect of the Forgery label, of the AI label, and their difference (the AI-specific increment) on each rating and belief (mu, link scale; columns) and attitudes toward AI (rows). For a rating, a negative value means a larger penalty in participants with more negative attitudes. Bold: p < .05 (uncorrected); *: p < .05 after FDR correction across the table.](7_correlates_files/figure-html/fig-penalty-attitudes-1.png){#fig-penalty-attitudes width=1056}
+:::
+:::
+
+
+The two penalties go together within a person on valence, meaning and worth
+(the reliable Forgery index), not on beauty. Attitudes follow the AI-specific
+part: the AI - Forgery increment is related to all three attitude scales on
+the four Phase-1 ratings (a larger increment with more negative attitudes, a
+smaller one with more positive attitudes and with the belief that AI art can
+rival human art), whereas the Forgery effect is only weakly related to negative
+attitudes, on valence, meaning and worth, and to the AI-art-realism scale on
+worth alone, and is unrelated to positive attitudes. Neither effect on the
+Phase-2 beliefs is related to attitudes. The
+Discussion's terminology paragraph states this in words (the shared penalty
+"largely unrelated" to attitudes toward AI, the AI-specific one growing with
+negative attitudes), as does the Results' Dispositional Correlates section.

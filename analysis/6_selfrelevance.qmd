@@ -1086,7 +1086,10 @@ correlation::correlation(select(dfind, SR_mean, Coupling),
 ## Manuscript figure
 
 `figures/figure_selfrelevance.png`, the figure of the manuscript's "The Role
-of Self-Relevance": Phase-1 beauty and meaning by self-relevance, per label,
+of Self-Relevance" section from 2026-09-24 to 2026-10-18 (then dropped from the
+manuscript, as it only showed the parallel lines of a null moderation; the
+section has no figure now, and the manuscript's Figure 4 is the memory figure
+of `4_memory.qmd`): Phase-1 beauty and meaning by self-relevance, per label,
 from BeautySR and MeaningSR. Self-relevance is continuous in the models
 (`SR_w`, linear on the link scale), and the x-axis is `SR_w` in points of the
 0-6 scale (0 = the participant's own mean). Lines and ribbons: population-level
