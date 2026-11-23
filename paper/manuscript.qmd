@@ -82,12 +82,12 @@ author:
         country: "France"
 author-note:
   disclosures:
-    gratitude: null
+    gratitude: "We thank Öykü Su Öncül (dissertation student) and Karla Wall (research assistant) for their involvement in the project."
     study-registration: null
     data-sharing: null
     related-report: null
-    conflict-of-interest: null
-    financial-support: null
+    conflict-of-interest: "The authors have no competing interests to declare."
+    financial-support: "This research did not receive any specific grant from funding agencies in the public, commercial, or not-for-profit sectors."
     authorship-agreements: null
 abstract: |
   Art is devalued once it is attributed to artificial intelligence (AI). Whether this anti-AI bias is a generic penalty for non-original works or specific to the absence of a human author is unknown, as is how long it lasts. In a preregistered study, 324 participants rated 48 genuine human paintings, each presented as an Original, a human Forgery or AI-Generated, on beauty, valence, meaningfulness and monetary worth, then judged how synthetic (AI vs. human) and authentic (copy vs. original) each was. Forgeries were rated below Originals on every dimension, and AI-Generated works about twice as low, the AI-specific penalty falling most heavily on meaningfulness. The labels did not alter gaze, and their effects did not depend on the emotional content or personal relevance of the artworks. Artworks labelled AI-Generated were judged more synthetic and, less clearly, Forgeries less original, and the more beautiful an artwork, the more likely it was judged human-made, even when unlabelled. About six weeks later (n = 220), after learning that all artworks were human originals, participants no longer rated previously AI-labelled works as less beautiful. They had forgotten the labels but remembered what they had believed, and reconstructed the labels from these beliefs and their initial appraisal. The bias tracked attitudes toward AI, not interoceptive sensibility or visual imagery. The anti-AI bias thus combines a generic non-originality penalty with a penalty specific to the missing human author: it acts at the moment of judgment, yet leaves beliefs that outlast the memory of the label.
@@ -97,7 +97,7 @@ keywords:
   - authenticity
   - forgery
   - reality beliefs
-  - source memory
+  - memory
 supplemental-materials:
   - "https://github.com/RealityBending/FakeArt"
   - "https://osf.io/xbrhe"
@@ -496,6 +496,10 @@ All stimuli were genuine human paintings, which isolates the effect of belief bu
 ## Conclusion
 
 The devaluation of art attributed to AI combines a generic penalty for works that are not authentic originals, shared with human forgeries, with a larger penalty specific to the absence of a human author, which falls most heavily on the meaning a work is granted. This penalty is translated into beliefs about origin and reinforced by them, as viewers take beautiful and personally resonant works to be human-made, labelled or not. It is indifferent to the affective content and personal relevance of the work, and follows people's attitudes toward AI rather than their sensitivity to art or to their own body. Once the label is withdrawn and corrected, its effect on judgment fades, but the beliefs it induced outlast the memory of the label, and are later remembered as what the label said.
+
+# Declaration of Generative AI and AI-Assisted Technologies in the Manuscript Preparation Process
+
+AI was used during the manuscript editing process, under specific Human instructions. The authors take full responsibility for the content of the published article.
 
 # References
 
